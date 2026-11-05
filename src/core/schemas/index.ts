@@ -1,1 +1,7 @@
 export * from './text';
+export * from './span';
+export * from './analysis';
+export * from './issue';
+export * from './audit';
+export * from './exportPackage';
+export * from './validateAnalysis';

@@ -1,0 +1,23 @@
+import { z } from 'zod';
+export const AuditEventSchema = z.object({
+  schemaVersion: z.literal(1),
+  id: z.uuid(),
+  analysisId: z.uuid(),
+  issueId: z.string().nullable(),
+  at: z.iso.datetime(),
+  actor: z.enum(['human', 'model', 'system']),
+  action: z.enum([
+    'create_analysis',
+    'confirm',
+    'dismiss',
+    'edit_span',
+    'edit_label',
+    'edit_severity',
+    'import',
+    'delete_analysis',
+  ]),
+  before: z.unknown().nullable(),
+  after: z.unknown().nullable(),
+  note: z.string().nullable(),
+});
+export type AuditEvent = z.infer<typeof AuditEventSchema>;

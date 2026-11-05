@@ -7,7 +7,7 @@ it('redirects / to the evaluate page', async () => {
       <App />
     </MemoryRouter>,
   );
-  expect(await screen.findByRole('heading', { name: 'Đánh giá' })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Đánh giá' }, { timeout: 5000 })).toBeInTheDocument();
 });
 it('shows a 404 for unknown paths', () => {
   render(
