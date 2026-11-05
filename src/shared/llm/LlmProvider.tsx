@@ -21,12 +21,19 @@ type ContextValue = {
   revoke: () => void;
 };
 const Context = createContext<ContextValue | null>(null);
-export function LlmProvider({ children }: { children: ReactNode }) {
+export function LlmProvider({
+  children,
+  innerClient,
+}: {
+  children: ReactNode;
+  /** Test seam: replaces the network client. It is still wrapped by the consent gate. */
+  innerClient?: LlmClient;
+}) {
   const [config, setConfig] = useState(getConfig);
   const [consent, setConsent] = useState(getConsent);
   const [open, setOpen] = useState(false);
   const pending = useRef<Array<(value: boolean) => void>>([]);
-  const client = useMemo(() => createGatedClient(config), [config]);
+  const client = useMemo(() => createGatedClient(config, innerClient), [config, innerClient]);
   const ensureConsent = () => {
     if (hasValidConsent(config)) return Promise.resolve(true);
     setOpen(true);
