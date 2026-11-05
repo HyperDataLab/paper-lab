@@ -26,7 +26,6 @@ paper-understanding (import paragraphs from its export package).
 
 ## Open decisions
 
-- Browser NLP: no in-browser dependency parser is light enough. Proposal (ADR-0004, to write in S5): a
-  deterministic tokenizer for offsets/counts, and the LLM returns subject/verb heads as token indexes from the
-  supplied token list; code validates them and computes distances. Unvalidated → `null`.
-- Firebase project ID: proposed `hyperdatalab-paragraph-lab` (owner to create on Spark and confirm).
+- Hosting: Firebase Hosting (ADR-0001) or an Oracle Cloud Always Free VM (ADR-0005, proposed). Keep the app
+  host-agnostic: relative `/llm` and `/api/nlp` URLs, no Firebase SDK.
+- spaCy service: optional `SyntaxProvider` (ADR-0004), built once the Oracle VM exists.
