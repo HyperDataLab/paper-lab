@@ -1,0 +1,33 @@
+.page {
+  display: grid;
+  gap: 16px;
+  max-width: 760px;
+}
+.page h2 {
+  margin-top: 0;
+  font-size: 19px;
+}
+.page label {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  font-weight: 600;
+}
+.page input {
+  width: 100%;
+  padding: 8px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.page p {
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
