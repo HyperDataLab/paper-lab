@@ -28,6 +28,41 @@ it('EV-11 creates and deletes while retaining audit events', async () => {
     'delete_analysis',
   ]);
 });
+it('EV-11 AC-05 AC-06 AC-12 audits review changes without altering source or spans', async () => {
+  const { repo, analysis } = await setup();
+  const issue: Issue = {
+    id: 'review',
+    type: 'FUZZY_VERB',
+    category: 'word',
+    findingKind: 'review_candidate',
+    status: 'candidate',
+    severity: 'minor',
+    spans: [{ start: 0, end: 3, role: 'word' }],
+    sentenceIds: ['s1'],
+    metric: { name: 'x', value: 1, unit: 'candidate' },
+    why: '',
+    suggestedFix: null,
+    sourcePrinciple: '',
+    confidence: 1,
+  };
+  await repo.analyses.update(analysis.id, { issues: [issue] });
+  await repo.analyses.reviewIssue(analysis.id, issue.id, { status: 'confirmed_by_human' });
+  await repo.analyses.reviewIssue(analysis.id, issue.id, { severity: 'major' });
+  await repo.analyses.reviewIssue(analysis.id, issue.id, { status: 'dismissed_by_human' });
+  const result = await repo.analyses.reviewIssue(analysis.id, issue.id, { status: 'candidate' });
+  expect(result.text).toEqual(analysis.text);
+  expect(result.issues[0]?.spans).toEqual(issue.spans);
+  expect((await repo.audit.listByAnalysis(analysis.id)).items.map((e) => e.action)).toEqual([
+    'create_analysis',
+    'confirm',
+    'edit_severity',
+    'dismiss',
+    'reopen',
+  ]);
+  await expect(repo.analyses.reviewIssue(analysis.id, 'missing', { severity: 'minor' })).rejects.toThrow(
+    'Issue not found',
+  );
+});
 it('AC-12 rejects source changes and leaves the record intact', async () => {
   const { repo, analysis } = await setup();
   await expect(

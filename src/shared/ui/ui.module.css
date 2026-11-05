@@ -82,6 +82,20 @@
   gap: 8px;
   border-bottom: 1px solid var(--border);
 }
+.tabs [role='tab'] {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 8px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+.tabs [role='tab'][aria-selected='true'] {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+  font-weight: 600;
+}
 .overlay {
   position: fixed;
   inset: 0;
@@ -111,4 +125,9 @@
   padding: 24px;
   width: min(100%, 480px);
   box-shadow: 0 8px 32px #0003;
+}
+.drawerRight {
+  margin-left: auto;
+  width: min(90vw, 380px);
+  overflow-y: auto;
 }

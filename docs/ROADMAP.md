@@ -11,8 +11,8 @@ Status: ⬜ not started · 🟨 in progress · ✅ accepted.
 | S3  | Storage: Dexie DB, repositories, Zod schemas v1 (Analysis, SentenceAnnotation, Issue, AuditEvent), JSON export/import                  | EV-11, EV-12                   | ✅     |
 | S4  | 9router client + consent gate + Settings page (endpoint, key, model, test connection)                                                  | §9 Privacy, ADR-0003           | ✅     |
 | S5  | Evaluate v1: paste paragraph → sentence view with Topic/Action/Stress badges (LLM candidates anchored by code), S–V distance           | EV-02, EV-03, AC-02            | ✅     |
-| S6  | Candidate detectors: S–V gap, clause depth, fuzzy verbs, nominalisations, weak modifiers, wordiness + contextual LLM judgement         | EV-04..06, AC-03, AC-09        | 🟨     |
-| S7  | Highlights + inspector + filters + confirm/dismiss + audit log                                                                         | EV-10, EV-11, AC-04..06, AC-12 | ⬜     |
+| S6  | Candidate detectors: S–V gap, clause depth, fuzzy verbs, nominalisations, weak modifiers, wordiness + contextual LLM judgement         | EV-04..06, AC-03, AC-09        | ✅     |
+| S7  | Highlights + inspector + filters + confirm/dismiss + audit log                                                                         | EV-10, EV-11, AC-04..06, AC-12 | 🟨     |
 | S8  | Paragraph structure & flow: TS-D/LD/LDR/OCAR, sentence roles, stress→topic links                                                       | EV-07, EV-08                   | ⬜     |
 | S9  | Scoring: rubric, weights, coverage, `not_assessable` rule                                                                              | EV-09, §5, AC-10               | ⬜     |
 | S10 | Revise: select issues → revised text, aligned diff, meaning checks, re-evaluate                                                        | WR-02..08, AC-07, AC-08        | ⬜     |

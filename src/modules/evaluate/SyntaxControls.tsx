@@ -1,6 +1,7 @@
 import { Button } from '@/shared/ui/Button';
 import type { SyntaxAnalysis } from './useSyntaxAnalysis';
 import styles from './syntax.module.css';
+import { Link } from 'react-router-dom';
 
 /** AI sentence-analysis toolbar: run / cancel, error, context and marker legend. */
 export function SyntaxControls({
@@ -28,16 +29,11 @@ export function SyntaxControls({
           )}
         </div>
       )}
-      {syntax.error && <p role="alert">Không phân tích được câu: {syntax.error}</p>}
-      {syntax.annotations && (
-        <>
-          <p className={styles.banner}>Thiếu ngữ cảnh: chỉ phân tích đoạn văn này (context_limited)</p>
-          <p className={styles.legend}>
-            Gạch liền: chủ ngữ · Gạch đôi: động từ chính · Gạch chấm: phần xen giữa chủ–vị · T/A/S:
-            Topic/Action/Stress (ứng viên do AI đề xuất; offset do hệ thống tính)
-            {syntax.versions?.model && ` · ${syntax.versions.model} · ${syntax.versions.prompt}`}
-          </p>
-        </>
+      {syntax.error && (
+        <p role="alert">
+          Không phân tích được câu: {syntax.error}{' '}
+          {syntax.error.includes('Chưa nhập khoá API') && <Link to="/settings">Cài đặt</Link>}
+        </p>
       )}
     </>
   );

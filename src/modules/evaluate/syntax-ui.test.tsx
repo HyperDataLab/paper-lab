@@ -5,7 +5,9 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { SentenceSyntaxOutput } from '@/core/prompts';
 import { analyzeText } from '@/core/text';
+import { detectCandidates, DETECTOR_VERSION } from '@/core/detectors';
 import type { LlmClient } from '@/shared/llm';
+import { LlmConfigError } from '@/shared/llm/errors';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories, type Repositories } from '@/shared/storage/repositories';
@@ -94,9 +96,8 @@ it('EV-02 EV-03 asks consent, then shows markers, T/A/S and the review label for
   expect(screen.getByText('T: The model')).toBeInTheDocument();
   expect(screen.getByText('Bị động')).toBeInTheDocument();
   expect(screen.getAllByText(/context_limited/).length).toBeGreaterThanOrEqual(1);
-  expect(
-    screen.getByRole('button', { name: 'Đánh giá theo ngữ cảnh (AI)' }).closest('section'),
-  ).toHaveTextContent('context_limited');
+  expect(screen.getByRole('button', { name: 'Đánh giá theo ngữ cảnh (AI)' })).toBeInTheDocument();
+  expect(screen.getByText(/Thiếu ngữ cảnh: chỉ phân tích đoạn văn này/)).toHaveTextContent('context_limited');
   expect(completeJson).toHaveBeenCalledTimes(1);
 });
 
@@ -154,14 +155,14 @@ it('AC-03 EV-11 judges local candidates with consent and reopens saved decisions
     target: { value: 'Very clear results.' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
-  expect(await screen.findByText(/“Very”/)).toBeInTheDocument();
-  expect(screen.getByText(/“Very”/).closest('li')).toHaveTextContent('1 ứng viên');
+  fireEvent.click(await screen.findByRole('button', { name: /Từ ngữ.*Very/ }));
+  expect(screen.getByTitle('weak_modifier_candidates').closest('li')).toHaveTextContent('1 ứng viên');
   fireEvent.click(screen.getByRole('button', { name: 'Đánh giá theo ngữ cảnh (AI)' }));
   expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
   expect(completeJson).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Đồng ý và tiếp tục' }));
-  expect(await screen.findByText(/AI cho là chấp nhận được/)).toBeInTheDocument();
-  expect(screen.getByText(/AI cho là chấp nhận được/).closest('li')).toHaveTextContent('Thông tin');
+  expect(await screen.findAllByText(/AI: chấp nhận được/)).not.toHaveLength(0);
+  expect(screen.getByText('Phù hợp.').closest('li')).toHaveTextContent('Thông tin');
   expect(screen.getByText('Phù hợp.')).toBeInTheDocument();
   expect(screen.queryByText(/^Gợi ý:/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Lưu vào lịch sử' }));
@@ -175,7 +176,7 @@ it('AC-03 EV-11 judges local candidates with consent and reopens saved decisions
   view.unmount();
   completeJson.mockClear();
   renderEvaluate(repo, client, `/evaluate?id=${item!.id}`);
-  expect(await screen.findByText(/AI cho là chấp nhận được/)).toBeInTheDocument();
+  expect(await screen.findByText(/AI: chấp nhận được/)).toBeInTheDocument();
   expect(completeJson).not.toHaveBeenCalled();
 });
 
@@ -184,8 +185,108 @@ it('EV-11 reopening a pre-S6 analysis computes candidates locally', async () => 
   const saved = await repo.analyses.create({ text: await analyzeText('Very clear results.') });
   const { client, completeJson } = fakeClient();
   renderEvaluate(repo, client, `/evaluate?id=${saved.id}`);
-  expect(await screen.findByText('Ứng viên vấn đề (1)')).toBeInTheDocument();
-  expect(screen.getByText(/“Very”/)).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Gợi ý (1)' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Từ ngữ.*Very/ }));
   expect(screen.getByText(/^Gợi ý:/)).toBeInTheDocument();
   expect(completeJson).not.toHaveBeenCalled();
+});
+
+it('EV-11 AC-05 AC-06 AC-12 audits unsaved and later saved decisions and restores the previous status', async () => {
+  const repo = createRepositories(createDb(`review-${crypto.randomUUID()}`));
+  const spy = vi.spyOn(repo.analyses, 'reviewIssue');
+  const { client } = fakeClient();
+  const view = renderEvaluate(repo, client);
+  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), {
+    target: { value: 'Very clear results.' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
+  fireEvent.click(await screen.findByRole('button', { name: /Từ ngữ.*Very/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu vào lịch sử' }));
+  await screen.findByRole('button', { name: 'Đã lưu' });
+  const [item] = (await repo.analyses.list()).items;
+  if (!item) throw new Error('missing analysis');
+  const original = await repo.analyses.get(item.id);
+  expect(original?.issues[0]?.status).toBe('confirmed_by_human');
+  expect((await repo.audit.listByAnalysis(item.id)).items.map((event) => event.action)).toEqual([
+    'create_analysis',
+    'confirm',
+  ]);
+  fireEvent.click(screen.getByRole('tab', { name: /Đã xử lý/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Từ ngữ.*Very/ }));
+  fireEvent.change(screen.getByLabelText('Mức độ'), { target: { value: 'major' } });
+  await waitFor(async () => expect((await repo.analyses.get(item.id))?.issues[0]?.severity).toBe('major'));
+  expect(spy).toHaveBeenCalledWith(item.id, expect.any(String), { severity: 'major' });
+  view.unmount();
+  renderEvaluate(repo, client, `/evaluate?id=${item.id}`);
+  await screen.findByRole('heading', { name: 'Gợi ý (0)' });
+  fireEvent.click(screen.getByRole('tab', { name: /Đã xử lý/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Từ ngữ.*Very/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }));
+  await waitFor(async () => expect((await repo.analyses.get(item.id))?.issues[0]?.status).toBe('candidate'));
+  const after = await repo.analyses.get(item.id);
+  expect(after?.text).toEqual(original?.text);
+  expect(after?.issues[0]?.spans).toEqual(original?.issues[0]?.spans);
+  expect((await repo.audit.listByAnalysis(item.id)).items.map((event) => event.action)).toEqual([
+    'create_analysis',
+    'confirm',
+    'edit_severity',
+    'reopen',
+  ]);
+});
+
+it('EV-11 AC-05 AC-06 calls reviewIssue for saved confirm, undo, dismiss and severity changes', async () => {
+  const repo = createRepositories(createDb(`saved-review-${crypto.randomUUID()}`));
+  const text = await analyzeText('Very clear results.');
+  const candidates = detectCandidates(text, null);
+  const saved = await repo.analyses.create({
+    text,
+    issues: candidates,
+    versions: { detectors: DETECTOR_VERSION },
+  });
+  const spy = vi.spyOn(repo.analyses, 'reviewIssue');
+  const { client } = fakeClient();
+  renderEvaluate(repo, client, `/evaluate?id=${saved.id}`);
+  fireEvent.click(await screen.findByRole('button', { name: /Từ ngữ.*Very/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+  await waitFor(async () =>
+    expect((await repo.analyses.get(saved.id))?.issues[0]?.status).toBe('confirmed_by_human'),
+  );
+  fireEvent.click(screen.getByRole('tab', { name: /Đã xử lý/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Từ ngữ.*Very/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }));
+  await waitFor(async () => expect((await repo.analyses.get(saved.id))?.issues[0]?.status).toBe('candidate'));
+  fireEvent.click(screen.getByRole('tab', { name: /Cần xem/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Từ ngữ.*Very/ }));
+  fireEvent.change(screen.getByLabelText('Mức độ'), { target: { value: 'moderate' } });
+  await waitFor(async () =>
+    expect((await repo.analyses.get(saved.id))?.issues[0]?.severity).toBe('moderate'),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Bỏ qua' }));
+  await waitFor(async () =>
+    expect((await repo.analyses.get(saved.id))?.issues[0]?.status).toBe('dismissed_by_human'),
+  );
+  expect(spy).toHaveBeenCalledTimes(4);
+  expect((await repo.audit.listByAnalysis(saved.id)).items.map((event) => event.action)).toEqual([
+    'create_analysis',
+    'confirm',
+    'reopen',
+    'edit_severity',
+    'dismiss',
+  ]);
+  expect((await repo.analyses.get(saved.id))?.text).toEqual(text);
+});
+
+it('shows the missing API key message and a Settings link', async () => {
+  const repo = createRepositories(createDb(`key-${crypto.randomUUID()}`));
+  const client = {
+    completeJson: vi.fn().mockRejectedValue(new LlmConfigError('API key is required')),
+  } as unknown as LlmClient;
+  renderEvaluate(repo, client);
+  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), { target: { value: 'A sentence.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Phân tích câu (AI)' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
+  expect(await screen.findByText(/Chưa nhập khoá API. Mở Cài đặt để nhập khoá./)).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Cài đặt' })).toHaveAttribute('href', '/settings');
 });

@@ -69,6 +69,47 @@ export function createRepositories(
     return { values, corrupt };
   }
   const analyses = {
+    async reviewIssue(
+      id: string,
+      issueId: string,
+      change: { status?: Issue['status']; severity?: Issue['severity'] },
+    ) {
+      return db.transaction('rw', db.analyses, db.auditEvents, async () => {
+        const current = await analyses.get(id);
+        if (!current) throw new Error('Analysis not found');
+        const issue = current.issues.find((item) => item.id === issueId);
+        if (!issue) throw new Error('Issue not found');
+        let updated = issue;
+        for (const field of ['status', 'severity'] as const) {
+          const next = change[field];
+          if (next === undefined || next === updated[field]) continue;
+          const action =
+            field === 'severity'
+              ? 'edit_severity'
+              : next === 'confirmed_by_human'
+                ? 'confirm'
+                : next === 'dismissed_by_human'
+                  ? 'dismiss'
+                  : 'reopen';
+          await db.auditEvents.add(
+            AuditEventSchema.parse({
+              ...makeAudit(id, action, 'human'),
+              issueId,
+              before: { [field]: updated[field] },
+              after: { [field]: next },
+            }),
+          );
+          updated = { ...updated, [field]: next };
+        }
+        const value = checkedAnalysis({
+          ...current,
+          updatedAt: now(),
+          issues: current.issues.map((item) => (item.id === issueId ? updated : item)),
+        });
+        await db.analyses.put(value);
+        return value;
+      });
+    },
     async create(input: {
       text: TextAnalysis;
       title?: string;

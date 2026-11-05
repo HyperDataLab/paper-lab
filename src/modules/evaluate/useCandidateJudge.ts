@@ -3,6 +3,15 @@ import type { Analysis, Issue, SentenceAnnotation, TextAnalysis } from '@/core/s
 import { createLlmCandidateJudge, describeLlmError } from '@/shared/llm';
 import { useLlm } from '@/shared/llm/LlmProvider';
 
+export function mergeHumanDecisions(incoming: Issue[], current: Issue[]): Issue[] {
+  return incoming.map((item) => {
+    const previous = current.find((value) => value.id === item.id);
+    return previous && (previous.status === 'confirmed_by_human' || previous.status === 'dismissed_by_human')
+      ? { ...item, status: previous.status, severity: previous.severity }
+      : item;
+  });
+}
+
 export function useCandidateJudge() {
   const { client, ensureConsent } = useLlm();
   const judge = useMemo(() => createLlmCandidateJudge(client), [client]);
@@ -17,6 +26,7 @@ export function useCandidateJudge() {
     annotations: SentenceAnnotation[] | null,
     candidates: Issue[],
     context: Analysis['context'],
+    currentIssues: Issue[] = [],
   ) {
     setError(null);
     if (!(await ensureConsent())) return;
@@ -26,7 +36,7 @@ export function useCandidateJudge() {
     try {
       const result = await judge.judge(text, annotations, candidates, context, current.signal);
       if (!current.signal.aborted) {
-        setIssues(result.issues);
+        setIssues(mergeHumanDecisions(result.issues, currentIssues));
         setVersions({ model: result.model, judgePrompt: result.promptVersion });
       }
     } catch (cause) {
