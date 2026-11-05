@@ -24,7 +24,11 @@ export default defineConfig(({ mode }) => {
       environment: 'jsdom',
       setupFiles: ['./src/test/setup.ts'],
       include: ['src/**/*.test.{ts,tsx}'],
-      coverage: { provider: 'v8', include: ['src/core/**/*.{ts,tsx}'], thresholds: { lines: 90 } },
+      coverage: {
+        provider: 'v8',
+        include: ['src/core/**/*.{ts,tsx}', 'src/shared/llm/**/*.{ts,tsx}'],
+        thresholds: { 'src/core/**': { lines: 90 }, 'src/shared/llm/**': { lines: 90 } },
+      },
     },
   };
 });
