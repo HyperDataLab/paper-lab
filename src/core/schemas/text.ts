@@ -19,8 +19,8 @@ export const TextAnalysisSchema = z.object({
   sourceText: z.string(),
   sourceHash: z.string().regex(/^sha256:[0-9a-f]{64}$/),
   offsetUnit: z.literal('unicode_codepoint'),
-  tokenizerVersion: z.literal('pl-tok-2'),
-  segmenterVersion: z.literal('pl-seg-2'),
+  tokenizerVersion: z.string().min(1),
+  segmenterVersion: z.string().min(1),
   sentences: z.array(SentenceSchema),
   tokens: z.array(TokenSchema),
 });

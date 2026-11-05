@@ -5,6 +5,7 @@ import { Drawer } from '@/shared/ui/Drawer';
 import { IconButton } from '@/shared/ui/IconButton';
 import { Kbd } from '@/shared/ui/Kbd';
 import { Skeleton } from '@/shared/ui/Skeleton';
+import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { CommandPalette } from './CommandPalette';
 import { modules } from './modules';
 import { Sidebar } from './Sidebar';
@@ -80,23 +81,25 @@ export function App() {
           </div>
         </header>
         <main className={styles.content}>
-          <Suspense fallback={<Skeleton />}>
-            <Routes>
-              <Route path="/" element={<Navigate to="/evaluate" replace />} />
-              {modules.map((item) => (
-                <Route key={item.id} path={item.path} element={<item.page />} />
-              ))}
-              <Route
-                path="*"
-                element={
-                  <div>
-                    <h1>Không tìm thấy trang</h1>
-                    <p>Đường dẫn này không tồn tại.</p>
-                  </div>
-                }
-              />
-            </Routes>
-          </Suspense>
+          <StorageProvider>
+            <Suspense fallback={<Skeleton />}>
+              <Routes>
+                <Route path="/" element={<Navigate to="/evaluate" replace />} />
+                {modules.map((item) => (
+                  <Route key={item.id} path={item.path} element={<item.page />} />
+                ))}
+                <Route
+                  path="*"
+                  element={
+                    <div>
+                      <h1>Không tìm thấy trang</h1>
+                      <p>Đường dẫn này không tồn tại.</p>
+                    </div>
+                  }
+                />
+              </Routes>
+            </Suspense>
+          </StorageProvider>
         </main>
       </div>
       <CommandPalette />

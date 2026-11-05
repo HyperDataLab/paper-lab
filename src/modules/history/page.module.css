@@ -1,0 +1,29 @@
+.page {
+  display: grid;
+  gap: 16px;
+}
+.page a {
+  color: var(--accent);
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.row p {
+  color: var(--text-muted);
+  margin-bottom: 0;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
