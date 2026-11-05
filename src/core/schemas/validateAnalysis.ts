@@ -1,9 +1,9 @@
-import { AnalysisSchema, type Analysis } from './analysis';
+import { AnalysisSchema, type AnalysisInput } from './analysis';
 import { createOffsetIndex } from '../text/offsets';
 export class InvalidAnalysisError extends Error {
   override name = 'InvalidAnalysisError';
 }
-export function validateAnalysisSpans(input: Analysis) {
+export function validateAnalysisSpans(input: AnalysisInput) {
   const analysis = AnalysisSchema.parse(input);
   const length = Array.from(analysis.text.sourceText).length;
   const inBounds = (span: { start: number; end: number }) =>
@@ -48,7 +48,14 @@ export function validateAnalysisSpans(input: Analysis) {
       suppressed.push({ path: `sentenceAnnotations.${i}`, reason: 'unknown sentence' });
       return false;
     }
-    for (const key of ['topicSpan', 'actionSpan', 'stressSpan'] as const) {
+    for (const key of [
+      'topicSpan',
+      'actionSpan',
+      'stressSpan',
+      'subjectSpan',
+      'verbSpan',
+      'interveningSpan',
+    ] as const) {
       const span = annotation[key];
       if (span && !inBounds(span)) {
         suppressed.push({ path: `sentenceAnnotations.${i}.${key}`, reason: 'invalid span or sentence' });

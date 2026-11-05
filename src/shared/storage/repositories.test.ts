@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { analyzeText } from '@/core/text';
-import { validateAnalysisSpans, InvalidAnalysisError, type Analysis, type Issue } from '@/core/schemas';
+import { validateAnalysisSpans, InvalidAnalysisError, type AnalysisInput, type Issue } from '@/core/schemas';
 import { planImport } from '@/core/transfer/planImport';
 import { createDb } from './db';
 import { createRepositories, SourceImmutableError, type AnalysisPatch } from './repositories';
@@ -141,7 +141,8 @@ it('AC-04 suppresses ungrounded issues and annotations and rejects invalid token
     sourcePrinciple: '',
     confidence: 1,
   };
-  const value: Analysis = {
+  // S3-era annotation shape (without the S5 fields) must still be accepted.
+  const value: AnalysisInput = {
     ...analysis,
     issues: [
       issue,

@@ -9,9 +9,12 @@ import { EmptyState } from '@/shared/ui/EmptyState';
 import { Skeleton } from '@/shared/ui/Skeleton';
 import styles from './page.module.css';
 import { AnalysisResult } from './AnalysisResult';
+import { useSyntaxAnalysis } from './useSyntaxAnalysis';
 
 export default function Page() {
   const repositories = useRepositories();
+  const syntax = useSyntaxAnalysis();
+  const { load: loadSyntax, reset: resetSyntax } = syntax;
   const [params, setParams] = useSearchParams();
   const id = params.get('id');
   const [saved, setSaved] = useState(false);
@@ -32,6 +35,7 @@ export default function Page() {
         if (!value) throw new Error('Analysis not found');
         setText(value.text.sourceText);
         setResult(value.text);
+        loadSyntax(value.sentenceAnnotations, value.versions);
         setError(null);
       })
       .catch((cause: unknown) => {
@@ -40,7 +44,7 @@ export default function Page() {
     return () => {
       active = false;
     };
-  }, [id, repositories, retry]);
+  }, [id, repositories, retry, loadSyntax]);
   async function save() {
     if (!result || saved || saveInFlight.current) return;
     saveInFlight.current = true;
@@ -49,6 +53,8 @@ export default function Page() {
       await repositories.analyses.create({
         text: result,
         title: Array.from(result.sourceText).slice(0, 60).join(''),
+        sentenceAnnotations: syntax.annotations ?? [],
+        versions: syntax.versions ?? {},
       });
       setSaved(true);
     } catch (cause) {
@@ -62,6 +68,7 @@ export default function Page() {
     setLoading(true);
     setError(null);
     setSaved(false);
+    resetSyntax();
     try {
       setResult(await analyzeText(text));
     } catch (cause) {
@@ -84,6 +91,7 @@ export default function Page() {
             setText(event.target.value);
             setResult(null);
             setSaved(false);
+            resetSyntax();
           }}
           rows={7}
         />
@@ -95,6 +103,7 @@ export default function Page() {
               setResult(null);
               setError(null);
               setSaved(false);
+              resetSyntax();
             }}
           >
             Tạo bản phân tích mới
@@ -126,6 +135,11 @@ export default function Page() {
           saved={saved}
           saving={saving}
           onSave={() => void save()}
+          syntax={syntax}
+          onAnalyze={() => {
+            setSaved(false);
+            void syntax.run(result);
+          }}
         />
       ) : (
         <EmptyState

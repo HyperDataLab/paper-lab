@@ -5,12 +5,15 @@ import { vi } from 'vitest';
 import Page from './Page';
 import { MemoryRouter } from 'react-router-dom';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
+import { LlmProvider } from '@/shared/llm/LlmProvider';
 it('EV-01 AC-01 displays two sentences from entered text', async () => {
   vi.stubGlobal('crypto', webcrypto);
   render(
     <MemoryRouter>
       <StorageProvider>
-        <Page />
+        <LlmProvider>
+          <Page />
+        </LlmProvider>
       </StorageProvider>
     </MemoryRouter>,
   );

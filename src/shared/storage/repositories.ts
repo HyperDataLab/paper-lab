@@ -5,6 +5,7 @@ import {
   validateAnalysisSpans,
   type Analysis,
   type AuditEvent,
+  type SentenceAnnotation,
   type TextAnalysis,
 } from '@/core/schemas';
 import { buildExportPackage } from '@/core/transfer/buildExportPackage';
@@ -67,7 +68,13 @@ export function createRepositories(
     return { values, corrupt };
   }
   const analyses = {
-    async create(input: { text: TextAnalysis; title?: string; context?: Analysis['context'] }) {
+    async create(input: {
+      text: TextAnalysis;
+      title?: string;
+      context?: Analysis['context'];
+      versions?: Partial<Analysis['versions']>;
+      sentenceAnnotations?: SentenceAnnotation[];
+    }) {
       const at = now();
       const value = validateAnalysisSpans(
         AnalysisSchema.parse({
@@ -75,11 +82,12 @@ export function createRepositories(
           id: ids(),
           createdAt: at,
           updatedAt: at,
-          ...input,
+          text: input.text,
+          title: input.title,
           context: input.context ?? { before: null, after: null, audience: null },
           contextLimited: true,
-          versions: { rubric: null, prompt: null, model: null, syntaxProvider: null },
-          sentenceAnnotations: [],
+          versions: { rubric: null, prompt: null, model: null, syntaxProvider: null, ...input.versions },
+          sentenceAnnotations: input.sentenceAnnotations ?? [],
           issues: [],
           parentAnalysisId: null,
         }),

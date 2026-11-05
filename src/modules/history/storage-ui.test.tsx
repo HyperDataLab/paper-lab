@@ -6,6 +6,7 @@ import { vi } from 'vitest';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
+import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { analyzeText } from '@/core/text';
 import Evaluate from '../evaluate/Page';
 import History from './Page';
@@ -16,10 +17,12 @@ it('EV-11 saves an evaluation and deletes it from history', async () => {
   render(
     <MemoryRouter initialEntries={['/evaluate']}>
       <StorageProvider repositories={repo}>
-        <Routes>
-          <Route path="/evaluate" element={<Evaluate />} />
-          <Route path="/history" element={<History />} />
-        </Routes>
+        <LlmProvider>
+          <Routes>
+            <Route path="/evaluate" element={<Evaluate />} />
+            <Route path="/history" element={<History />} />
+          </Routes>
+        </LlmProvider>
       </StorageProvider>
     </MemoryRouter>,
   );
@@ -49,7 +52,9 @@ it('EV-11 shows a not-found state for an unknown analysis', async () => {
   render(
     <MemoryRouter initialEntries={[`/evaluate?id=${crypto.randomUUID()}`]}>
       <StorageProvider repositories={repo}>
-        <Evaluate />
+        <LlmProvider>
+          <Evaluate />
+        </LlmProvider>
       </StorageProvider>
     </MemoryRouter>,
   );
@@ -65,7 +70,9 @@ it('EV-12 previews and imports a JSON package', async () => {
   render(
     <MemoryRouter>
       <StorageProvider repositories={repo}>
-        <Transfer />
+        <LlmProvider>
+          <Transfer />
+        </LlmProvider>
       </StorageProvider>
     </MemoryRouter>,
   );
