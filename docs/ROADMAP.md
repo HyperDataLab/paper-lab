@@ -7,7 +7,7 @@ Status: ⬜ not started · 🟨 in progress · ✅ accepted.
 | --- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | ------ |
 | S0  | Tooling scaffold: Vite + React 19 + TS strict, ESLint/Prettier, Vitest, CI, Firebase Hosting config, `.env.example`, Vite `/llm` proxy | §9                             | ✅     |
 | S1  | App shell: module registry, collapsible sidebar + drawer, routes, breadcrumbs, theme tokens, `shared/ui` primitives, placeholder pages | DESIGN §1, §4                  | ✅     |
-| S2  | `core/text`: source hash, sentence segmentation, tokenisation with exact offsets (code point + UTF-16), abbreviation/citation handling | EV-01, AC-01, AC-11            | ⬜     |
+| S2  | `core/text`: source hash, sentence segmentation, tokenisation with exact offsets (code point + UTF-16), abbreviation/citation handling | EV-01, AC-01, AC-11            | ✅     |
 | S3  | Storage: Dexie DB, repositories, Zod schemas v1 (Analysis, SentenceAnnotation, Issue, AuditEvent), JSON export/import                  | EV-11, EV-12                   | ⬜     |
 | S4  | 9router client + consent gate + Settings page (endpoint, key, model, test connection)                                                  | §9 Privacy, ADR-0003           | ⬜     |
 | S5  | Evaluate v1: paste paragraph → sentence view with Topic/Action/Stress badges (LLM candidates anchored by code), S–V distance           | EV-02, EV-03, AC-02            | ⬜     |
@@ -26,7 +26,6 @@ paper-understanding (import paragraphs from its export package).
 
 ## Open decisions
 
-- Browser NLP: no in-browser dependency parser is light enough. Proposal (ADR-0004, to write in S5): a
-  deterministic tokenizer for offsets/counts, and the LLM returns subject/verb heads as token indexes from the
-  supplied token list; code validates them and computes distances. Unvalidated → `null`.
-- Firebase project ID: proposed `hyperdatalab-paragraph-lab` (owner to create on Spark and confirm).
+- Hosting: Firebase Hosting (ADR-0001) or an Oracle Cloud Always Free VM (ADR-0005, proposed). Keep the app
+  host-agnostic: relative `/llm` and `/api/nlp` URLs, no Firebase SDK.
+- spaCy service: optional `SyntaxProvider` (ADR-0004), built once the Oracle VM exists.
