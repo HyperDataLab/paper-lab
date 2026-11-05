@@ -6,17 +6,17 @@ Claude-specific workflow is in `CLAUDE.md`; UI rules are in `DESIGN.md`; the spe
 ## What this is
 
 **Paragraph Lab**: a single-page React + TypeScript + Vite app that evaluates and revises **one English scientific
-paragraph** at the paragraph and sentence level, following Joshua Schimel, *Writing Science* (2012), Ch. 11–16.
+paragraph** at the paragraph and sentence level, following Joshua Schimel, _Writing Science_ (2012), Ch. 11–16.
 
 Modules (see `docs/ROADMAP.md`):
 
-| Module | Purpose | PRD |
-|---|---|---|
+| Module   | Purpose                                                                       | PRD            |
+| -------- | ----------------------------------------------------------------------------- | -------------- |
 | Evaluate | Segment, annotate (Topic / Action / Stress), measure, score, highlight issues | §3, §4, §5, §6 |
-| Revise | Rewrite selected issues, diff, meaning-preservation checks, re-evaluate | §2 (WR-02..08) |
-| Generate | Draft a paragraph from claim + supplied evidence | §2 (WR-01) |
-| History | Local analyses, versions, comparisons, export / import | EV-11, EV-12 |
-| Settings | 9router endpoint / key / model, privacy consent | §9 |
+| Revise   | Rewrite selected issues, diff, meaning-preservation checks, re-evaluate       | §2 (WR-02..08) |
+| Generate | Draft a paragraph from claim + supplied evidence                              | §2 (WR-01)     |
+| History  | Local analyses, versions, comparisons, export / import                        | EV-11, EV-12   |
+| Settings | 9router endpoint / key / model, privacy consent                               | §9             |
 
 The UI is in Vietnamese; analysed text is English. Code, identifiers and commit messages are in English.
 
@@ -71,7 +71,7 @@ src/
 2. **The source text is immutable.** No trimming, normalising or whitespace collapsing of the stored original.
    Revisions are separate records; replacing the original requires an explicit user action.
 3. **Signals are not violations.** Passive voice, adjectives, adverbs, long sentences and threshold hits are
-   *review candidates*. Counts never deduct score directly (PRD §5, MVP #9).
+   _review candidates_. Counts never deduct score directly (PRD §5, MVP #9).
 4. **Uncertain measurements return `null` + confidence**, never a fabricated number (subject–verb distance etc.).
 5. **Issue status chain:** `candidate -> confirmed_by_model -> confirmed_by_human | dismissed_by_human`.
    `confirmed_by_model` never means scientifically true. Human decisions are written to an audit log.
@@ -80,8 +80,8 @@ src/
    confidence, `context_limited` and rubric version.
 7. **Revision safety:** never add facts, numbers or references; preserve hedging, negation, modality and claim
    strength; missing evidence becomes `needs_evidence`.
-8. Thresholds (e.g. subject–verb gap ≥ 8 / ≥ 15 tokens) live in one config object labelled *heuristic, needs
-   calibration*. They are never presented as Schimel's rules.
+8. Thresholds (e.g. subject–verb gap ≥ 8 / ≥ 15 tokens) live in one config object labelled _heuristic, needs
+   calibration_. They are never presented as Schimel's rules.
 
 ## Coding standards
 
@@ -91,8 +91,11 @@ src/
 - Names: `camelCase` functions/vars, `PascalCase` components/types, `kebab-case` folders, `SCREAMING_SNAKE` consts.
 - Files ≤ ~300 lines; split when larger. One React component per file.
 - Errors: typed error classes in `shared/*`; UI shows a Vietnamese message plus a technical detail toggle.
-- Comments explain *why*, not *what*. No commented-out code.
+- Comments explain _why_, not _what_. No commented-out code.
 - Formatting: Prettier (repo config). Lint: ESLint flat config. Both must pass with zero warnings in CI.
+- **Encoding: UTF-8 without BOM, LF line endings.** The UI is Vietnamese, so diacritics must survive. On Windows,
+  never write source files with PowerShell `Set-Content` / `Out-File` / `>` (they use the ANSI code page and turn
+  `Đánh giá` into `??nh gi?`). Use the editor/patch tool. A test guards module labels against `?` corruption.
 
 ## Testing
 

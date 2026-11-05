@@ -20,5 +20,7 @@ const ok =
   (allowHeaders === '*' || allowHeaders.includes('authorization'));
 
 console.log(`preflight ${res.status} | allow-origin=${allowOrigin} | allow-headers=${allowHeaders || '-'}`);
-console.log(ok ? 'OK: browsers can call this router directly.' : 'FAIL: router still rejects browser preflight.');
+console.log(
+  ok ? 'OK: browsers can call this router directly.' : 'FAIL: router still rejects browser preflight.',
+);
 process.exit(ok ? 0 : 1);

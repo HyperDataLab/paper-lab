@@ -1,0 +1,245 @@
+.shell {
+  display: flex;
+  min-height: 100vh;
+}
+.desktopSidebar {
+  flex: none;
+}
+.sidebar {
+  width: 240px;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 0 12px 12px;
+  transition: width 0.15s;
+}
+.collapsed {
+  width: 64px;
+}
+.brand {
+  height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.logo {
+  color: var(--accent);
+  font-size: 26px;
+}
+.navigation {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: visible;
+}
+.group {
+  margin-bottom: 18px;
+}
+.groupTitle {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 10px 8px;
+  white-space: nowrap;
+}
+.system {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.navItem {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  margin: 2px 0;
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 14px;
+  position: relative;
+  white-space: nowrap;
+}
+.navItem:hover {
+  background: var(--soft);
+}
+.active {
+  background: var(--soft);
+  color: var(--accent);
+  font-weight: 700;
+}
+.active::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 5px;
+  bottom: 5px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--accent);
+}
+.disabled {
+  color: var(--text-muted);
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.itemLabel {
+  flex: 1;
+}
+.collapse {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--text-muted);
+  background: none;
+  border: 0;
+  padding: 12px 8px;
+  cursor: pointer;
+}
+.main {
+  flex: 1;
+  min-width: 0;
+}
+.topbar {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 32px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+.breadcrumb strong {
+  color: var(--text);
+}
+.topActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 9px;
+  cursor: pointer;
+}
+.themeLabel {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.themeLabel select {
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px;
+}
+.content {
+  padding: 40px;
+  max-width: 1200px;
+}
+.mobileMenu {
+  display: none;
+}
+.paletteOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #0008;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 12vh 16px 16px;
+}
+.palette {
+  width: min(520px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px #0004;
+  overflow: hidden;
+}
+.palette input {
+  width: 100%;
+  padding: 18px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+.palette div {
+  padding: 8px;
+}
+.palette button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  color: var(--text);
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  padding: 12px;
+  cursor: pointer;
+}
+.palette button:hover,
+.palette button:focus {
+  background: var(--soft);
+}
+.palette button:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+.palette p {
+  color: var(--text-muted);
+  padding: 8px;
+}
+@media (max-width: 767px) {
+  .desktopSidebar {
+    display: none;
+  }
+  .mobileMenu {
+    display: block;
+  }
+  .topbar {
+    padding: 12px 16px;
+  }
+  .breadcrumb span:first-child,
+  .breadcrumb span:nth-child(2),
+  .search span,
+  .search kbd {
+    display: none;
+  }
+  .themeLabel {
+    font-size: 0;
+  }
+  .themeLabel select {
+    font-size: 12px;
+    max-width: 90px;
+  }
+  .content {
+    padding: 24px 16px;
+  }
+}

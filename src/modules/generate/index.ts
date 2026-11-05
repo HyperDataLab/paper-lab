@@ -1,0 +1,14 @@
+import { lazy } from 'react';
+import { PenLine } from 'lucide-react';
+import type { ModuleDefinition } from '@/app/moduleTypes';
+const module: ModuleDefinition = {
+  id: 'generate',
+  label: 'Soạn đoạn',
+  icon: PenLine,
+  path: '/generate',
+  group: 'analysis',
+  order: 2,
+  status: 'soon',
+  page: lazy(() => import('./Page')),
+};
+export default module;

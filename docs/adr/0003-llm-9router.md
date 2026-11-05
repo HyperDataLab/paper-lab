@@ -3,11 +3,13 @@
 - Status: Accepted (2026-11-05)
 
 ## Context
+
 The owner provides a 9router endpoint (OpenAI-compatible chat completions). The sibling project
 paper-understanding already uses it and found that 9router ignores `response_format` and rejects the
 browser's unauthenticated CORS preflight.
 
 ## Decision
+
 - Client in `shared/llm`: send the JSON schema both in `response_format` and in the prompt; validate with Zod;
   one repair round on failure; typed errors.
 - Dev: Vite proxy `/llm` -> `LLM_PROXY_TARGET`, adding `Authorization: Bearer $LLM_PROXY_API_KEY` server-side.
@@ -18,4 +20,5 @@ browser's unauthenticated CORS preflight.
 - Every call is gated on recorded privacy consent (version + provider).
 
 ## Consequences
+
 The key never ships in the bundle. Tests mock the client; `npm run check:router-cors` verifies preflight.
