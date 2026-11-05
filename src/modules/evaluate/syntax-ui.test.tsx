@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { SentenceSyntaxOutput } from '@/core/prompts';
+import { analyzeText } from '@/core/text';
 import type { LlmClient } from '@/shared/llm';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { createDb } from '@/shared/storage/db';
@@ -92,7 +93,10 @@ it('EV-02 EV-03 asks consent, then shows markers, T/A/S and the review label for
   );
   expect(screen.getByText('T: The model')).toBeInTheDocument();
   expect(screen.getByText('Bị động')).toBeInTheDocument();
-  expect(screen.getByText(/context_limited/)).toBeInTheDocument();
+  expect(screen.getAllByText(/context_limited/).length).toBeGreaterThanOrEqual(1);
+  expect(
+    screen.getByRole('button', { name: 'Đánh giá theo ngữ cảnh (AI)' }).closest('section'),
+  ).toHaveTextContent('context_limited');
   expect(completeJson).toHaveBeenCalledTimes(1);
 });
 
@@ -128,4 +132,60 @@ it('cancelling a running analysis shows no error', async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Huỷ' }));
   await waitFor(() => expect(screen.getByRole('button', { name: 'Phân tích câu (AI)' })).toBeEnabled());
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+it('AC-03 EV-11 judges local candidates with consent and reopens saved decisions without a call', async () => {
+  const repo = createRepositories(createDb(`judge-${crypto.randomUUID()}`));
+  const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => {
+    const id = /WEAK_MODIFIER:s1:\d+-\d+/.exec(options.user)?.[0];
+    return {
+      data: options.schema.parse({
+        judgements: [
+          { id, verdict: 'acceptable', severity: null, confidence: 0.9, why: 'Phù hợp.', suggestedFix: null },
+        ],
+        passive: [],
+      }),
+      meta: { model: 'judge-model', promptVersion: options.promptVersion, latencyMs: 1, repaired: false },
+    };
+  });
+  const client = { completeJson } as unknown as LlmClient;
+  const view = renderEvaluate(repo, client);
+  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), {
+    target: { value: 'Very clear results.' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
+  expect(await screen.findByText(/“Very”/)).toBeInTheDocument();
+  expect(screen.getByText(/“Very”/).closest('li')).toHaveTextContent('1 ứng viên');
+  fireEvent.click(screen.getByRole('button', { name: 'Đánh giá theo ngữ cảnh (AI)' }));
+  expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+  expect(completeJson).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Đồng ý và tiếp tục' }));
+  expect(await screen.findByText(/AI cho là chấp nhận được/)).toBeInTheDocument();
+  expect(screen.getByText(/AI cho là chấp nhận được/).closest('li')).toHaveTextContent('Thông tin');
+  expect(screen.getByText('Phù hợp.')).toBeInTheDocument();
+  expect(screen.queryByText(/^Gợi ý:/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu vào lịch sử' }));
+  await screen.findByRole('button', { name: 'Đã lưu' });
+  const [item] = (await repo.analyses.list()).items;
+  expect((await repo.analyses.get(item!.id))?.versions).toMatchObject({
+    detectors: 'det-1',
+    judgePrompt: 'cand-judge-1',
+    model: 'judge-model',
+  });
+  view.unmount();
+  completeJson.mockClear();
+  renderEvaluate(repo, client, `/evaluate?id=${item!.id}`);
+  expect(await screen.findByText(/AI cho là chấp nhận được/)).toBeInTheDocument();
+  expect(completeJson).not.toHaveBeenCalled();
+});
+
+it('EV-11 reopening a pre-S6 analysis computes candidates locally', async () => {
+  const repo = createRepositories(createDb(`legacy-${crypto.randomUUID()}`));
+  const saved = await repo.analyses.create({ text: await analyzeText('Very clear results.') });
+  const { client, completeJson } = fakeClient();
+  renderEvaluate(repo, client, `/evaluate?id=${saved.id}`);
+  expect(await screen.findByText('Ứng viên vấn đề (1)')).toBeInTheDocument();
+  expect(screen.getByText(/“Very”/)).toBeInTheDocument();
+  expect(screen.getByText(/^Gợi ý:/)).toBeInTheDocument();
+  expect(completeJson).not.toHaveBeenCalled();
 });

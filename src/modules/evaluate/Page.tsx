@@ -10,10 +10,15 @@ import { Skeleton } from '@/shared/ui/Skeleton';
 import styles from './page.module.css';
 import { AnalysisResult } from './AnalysisResult';
 import { useSyntaxAnalysis } from './useSyntaxAnalysis';
+import { useCandidateJudge } from './useCandidateJudge';
+import { detectCandidates, DETECTOR_VERSION } from '@/core/detectors';
+import { CandidateList } from './CandidateList';
 
 export default function Page() {
   const repositories = useRepositories();
   const syntax = useSyntaxAnalysis();
+  const judge = useCandidateJudge();
+  const { load: loadJudge, reset: resetJudge } = judge;
   const { load: loadSyntax, reset: resetSyntax } = syntax;
   const [params, setParams] = useSearchParams();
   const id = params.get('id');
@@ -36,6 +41,7 @@ export default function Page() {
         setText(value.text.sourceText);
         setResult(value.text);
         loadSyntax(value.sentenceAnnotations, value.versions);
+        loadJudge(value.issues, value.versions);
         setError(null);
       })
       .catch((cause: unknown) => {
@@ -44,7 +50,9 @@ export default function Page() {
     return () => {
       active = false;
     };
-  }, [id, repositories, retry, loadSyntax]);
+  }, [id, repositories, retry, loadSyntax, loadJudge]);
+  const candidates = result ? detectCandidates(result, syntax.annotations) : [];
+  const issues = judge.issues ?? candidates;
   async function save() {
     if (!result || saved || saveInFlight.current) return;
     saveInFlight.current = true;
@@ -54,7 +62,8 @@ export default function Page() {
         text: result,
         title: Array.from(result.sourceText).slice(0, 60).join(''),
         sentenceAnnotations: syntax.annotations ?? [],
-        versions: syntax.versions ?? {},
+        versions: { ...syntax.versions, detectors: DETECTOR_VERSION, ...(judge.versions ?? {}) },
+        issues,
       });
       setSaved(true);
     } catch (cause) {
@@ -69,6 +78,7 @@ export default function Page() {
     setError(null);
     setSaved(false);
     resetSyntax();
+    resetJudge();
     try {
       setResult(await analyzeText(text));
     } catch (cause) {
@@ -92,6 +102,7 @@ export default function Page() {
             setResult(null);
             setSaved(false);
             resetSyntax();
+            resetJudge();
           }}
           rows={7}
         />
@@ -104,6 +115,7 @@ export default function Page() {
               setError(null);
               setSaved(false);
               resetSyntax();
+              resetJudge();
             }}
           >
             Tạo bản phân tích mới
@@ -129,18 +141,47 @@ export default function Page() {
           </details>
         </Card>
       ) : result && result.sentences.length > 0 ? (
-        <AnalysisResult
-          result={result}
-          readOnly={!!id}
-          saved={saved}
-          saving={saving}
-          onSave={() => void save()}
-          syntax={syntax}
-          onAnalyze={() => {
-            setSaved(false);
-            void syntax.run(result);
-          }}
-        />
+        <>
+          <AnalysisResult
+            result={result}
+            readOnly={!!id}
+            saved={saved}
+            saving={saving || judge.running}
+            onSave={() => void save()}
+            syntax={syntax}
+            onAnalyze={() => {
+              setSaved(false);
+              resetJudge();
+              void syntax.run(result);
+            }}
+          />
+          <CandidateList issues={issues} text={result} />
+          {!id && (candidates.length > 0 || syntax.annotations?.some((a) => a.voice === 'passive')) && (
+            <Card>
+              <p>Thiếu ngữ cảnh: chỉ phân tích đoạn văn này (context_limited)</p>
+              {judge.running ? (
+                <>
+                  <span role="status">Đang đánh giá…</span> <Button onClick={judge.cancel}>Huỷ</Button>
+                </>
+              ) : (
+                <Button
+                  disabled={syntax.running}
+                  onClick={() => {
+                    setSaved(false);
+                    void judge.run(result, syntax.annotations, candidates, {
+                      before: null,
+                      after: null,
+                      audience: null,
+                    });
+                  }}
+                >
+                  Đánh giá theo ngữ cảnh (AI)
+                </Button>
+              )}
+              {judge.error && <p role="alert">Không đánh giá được: {judge.error}</p>}
+            </Card>
+          )}
+        </>
       ) : (
         <EmptyState
           title="Chưa có câu"
