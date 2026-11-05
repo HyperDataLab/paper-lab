@@ -1,0 +1,47 @@
+.page {
+  display: grid;
+  gap: 16px;
+}
+.page textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 8px 0 16px;
+  padding: 12px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+}
+.meta {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+.list {
+  list-style: none;
+  padding: 0;
+}
+.list li {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.sentence {
+  font-family: 'Source Serif 4', serif;
+  font-size: 17px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
