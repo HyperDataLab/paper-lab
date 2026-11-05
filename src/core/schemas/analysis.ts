@@ -44,6 +44,8 @@ export const AnalysisSchema = z.object({
     prompt: z.string().nullable(),
     model: z.string().nullable(),
     syntaxProvider: z.string().nullable(),
+    detectors: z.string().nullable().default(null),
+    judgePrompt: z.string().nullable().default(null),
   }),
   sentenceAnnotations: z.array(SentenceAnnotationSchema),
   issues: z.array(IssueSchema),

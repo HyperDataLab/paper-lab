@@ -7,6 +7,7 @@ import {
   type AuditEvent,
   type SentenceAnnotation,
   type TextAnalysis,
+  type Issue,
 } from '@/core/schemas';
 import { buildExportPackage } from '@/core/transfer/buildExportPackage';
 import { planImport, type ImportPlan } from '@/core/transfer/planImport';
@@ -74,6 +75,7 @@ export function createRepositories(
       context?: Analysis['context'];
       versions?: Partial<Analysis['versions']>;
       sentenceAnnotations?: SentenceAnnotation[];
+      issues?: Issue[];
     }) {
       const at = now();
       const value = validateAnalysisSpans(
@@ -88,7 +90,7 @@ export function createRepositories(
           contextLimited: true,
           versions: { rubric: null, prompt: null, model: null, syntaxProvider: null, ...input.versions },
           sentenceAnnotations: input.sentenceAnnotations ?? [],
-          issues: [],
+          issues: input.issues ?? [],
           parentAnalysisId: null,
         }),
       ).valid;
