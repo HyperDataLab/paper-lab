@@ -59,13 +59,13 @@ D. Diff (Revise module): side-by-side before/after with aligned change spans.
 
 Color is never the only signal (WCAG 1.4.1). Each category has a color **and** a line style **and** a label.
 
-| Category | Token | Light / dark | Marker |
-|---|---|---|---|
-| Structure (sentence, S–V gap, clause depth) | `--hl-structure` | orange `#C2410C` / `#FB923C` | solid underline 2px |
-| Flow & coherence | `--hl-flow` | purple `#7E22CE` / `#C084FC` | dashed underline + connector line |
-| Word choice (verbs, modifiers, jargon, wordiness) | `--hl-word` | blue `#1D4ED8` / `#60A5FA` | dotted underline |
-| Paragraph organization | `--hl-org` | teal `#0F766E` / `#2DD4BF` | left border on the sentence |
-| Meaning risk (critical only) | `--hl-critical` | red `#B91C1C` / `#F87171` | double underline + ⚠ icon |
+| Category                                          | Token            | Light / dark                 | Marker                            |
+| ------------------------------------------------- | ---------------- | ---------------------------- | --------------------------------- |
+| Structure (sentence, S–V gap, clause depth)       | `--hl-structure` | orange `#C2410C` / `#FB923C` | solid underline 2px               |
+| Flow & coherence                                  | `--hl-flow`      | purple `#7E22CE` / `#C084FC` | dashed underline + connector line |
+| Word choice (verbs, modifiers, jargon, wordiness) | `--hl-word`      | blue `#1D4ED8` / `#60A5FA`   | dotted underline                  |
+| Paragraph organization                            | `--hl-org`       | teal `#0F766E` / `#2DD4BF`   | left border on the sentence       |
+| Meaning risk (critical only)                      | `--hl-critical`  | red `#B91C1C` / `#F87171`    | double underline + ⚠ icon         |
 
 - Severity changes weight, not hue: `info` outline only, `minor` 1px, `moderate` 2px, `major` 3px, `critical` double.
 - Status: `candidate` = 60 % opacity; `confirmed_*` = full; `dismissed_by_human` = strikethrough in the list,
