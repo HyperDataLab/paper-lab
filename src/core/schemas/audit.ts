@@ -10,6 +10,7 @@ export const AuditEventSchema = z.object({
     'create_analysis',
     'confirm',
     'dismiss',
+    'reopen',
     'edit_span',
     'edit_label',
     'edit_severity',

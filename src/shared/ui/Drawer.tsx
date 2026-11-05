@@ -5,10 +5,14 @@ export function Drawer({
   open,
   onClose,
   children,
+  label = 'Điều hướng',
+  side = 'left',
 }: {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
+  label?: string;
+  side?: 'left' | 'right';
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -67,10 +71,10 @@ export function Drawer({
     >
       <div
         ref={ref}
-        className={styles.drawer}
+        className={`${styles.drawer} ${side === 'right' ? styles.drawerRight : ''}`}
         role="dialog"
         aria-modal="true"
-        aria-label="Điều hướng"
+        aria-label={label}
         tabIndex={-1}
       >
         {children}

@@ -38,7 +38,10 @@ product will keep adding modules (Section/IMRaD, Citation, Figure captions, Batc
 
 ## 2. Evaluate workspace layout (PRD §6 A–D)
 
-Desktop ≥ 1280 px: three columns. 768–1279 px: editor full width, inspector as a right drawer. < 768 px: stacked.
+The existing sidebar remains the first column. Evaluate uses the full remaining width. At ≥ 1280 px,
+the document and sticky inspector use `minmax(0, 1fr) 380px` with a 24 px gap; at 1024–1279 px,
+the inspector is 320 px. The reading area is centred and capped at 72ch. At 768–1023 px, the
+inspector opens in a right drawer; below 768 px, it appears below the document.
 
 ```
 ┌──────────────── A. Paragraph (immutable source, highlights) ─────────┬── C. Inspector ──────┐

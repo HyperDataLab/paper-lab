@@ -161,6 +161,9 @@
   padding: 40px;
   max-width: 1200px;
 }
+.wideContent {
+  max-width: none;
+}
 .mobileMenu {
   display: none;
 }

@@ -81,7 +81,7 @@ export function App() {
             </label>
           </div>
         </header>
-        <main className={styles.content}>
+        <main className={`${styles.content} ${location.pathname === '/evaluate' ? styles.wideContent : ''}`}>
           <StorageProvider>
             <LlmProvider>
               <Suspense fallback={<Skeleton />}>

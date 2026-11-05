@@ -16,6 +16,9 @@ export function describeLlmError(error: unknown): string | null {
   if (error instanceof LlmTimeoutError) return 'Hết thời gian chờ phản hồi';
   if (error instanceof InvalidModelOutputError) return 'Kết quả của mô hình không hợp lệ';
   if (error instanceof LlmNetworkError) return 'Không kết nối được (kiểm tra CORS hoặc mạng)';
-  if (error instanceof LlmConfigError) return 'Cấu hình kết nối chưa hợp lệ (xem Cài đặt)';
+  if (error instanceof LlmConfigError)
+    return error.message === 'API key is required'
+      ? 'Chưa nhập khoá API. Mở Cài đặt để nhập khoá.'
+      : 'Cấu hình kết nối chưa hợp lệ (xem Cài đặt)';
   return 'Đã có lỗi không xác định';
 }

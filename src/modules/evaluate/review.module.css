@@ -1,0 +1,259 @@
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 24px;
+  align-items: start;
+}
+.reading {
+  max-width: 72ch;
+  width: 100%;
+  margin: 0 auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font:
+    17px/1.7 'Source Serif 4',
+    serif;
+}
+.panel {
+  position: sticky;
+  top: 72px;
+  max-height: calc(100vh - 72px);
+  overflow: auto;
+  min-width: 0;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 8px 0;
+}
+.chips {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+.filterButton {
+  flex: none;
+  padding: 3px 7px;
+  font-size: 12px;
+  border-radius: 999px;
+}
+.filterButton[aria-pressed='true'],
+.segmented [aria-pressed='true'] {
+  background: var(--soft);
+  border-color: var(--accent);
+}
+.segmented {
+  display: flex;
+  gap: 0;
+  margin: 8px 0;
+}
+.segmented button {
+  padding: 4px 6px;
+  font-size: 12px;
+}
+.lowConfidence {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.cards {
+  padding: 0;
+  list-style: none;
+}
+.cards .cardItem {
+  border-top: 1px solid var(--border);
+  padding: 10px 0;
+  overflow-wrap: anywhere;
+}
+.cardButton {
+  width: 100%;
+  text-align: left;
+  background: var(--surface);
+  color: var(--text);
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+}
+.cardCategory {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.cardSummary {
+  display: block;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.cardSummary strong {
+  color: var(--text);
+}
+.cards .expanded {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--issue-color);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--text) 12%, transparent);
+  padding: 16px;
+  margin: 8px 0;
+}
+.expanded select {
+  font: inherit;
+  font-size: 12px;
+  padding: 3px;
+}
+.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--surface);
+}
+.textButton {
+  border-color: transparent;
+  background: transparent;
+}
+.color_structure {
+  --issue-color: var(--hl-structure);
+}
+.color_word {
+  --issue-color: var(--hl-word);
+}
+.color_flow {
+  --issue-color: var(--hl-flow);
+}
+.color_organization {
+  --issue-color: var(--hl-org);
+}
+.color_critical {
+  --issue-color: var(--hl-critical);
+}
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--issue-color);
+}
+.dot_structure {
+  background: var(--hl-structure);
+}
+.dot_word {
+  background: var(--hl-word);
+}
+.dot_flow {
+  background: var(--hl-flow);
+}
+.dot_organization {
+  background: var(--hl-org);
+}
+.dot_critical {
+  background: var(--hl-critical);
+}
+.suggestion {
+  padding: 8px;
+  background: var(--soft);
+  border-radius: 6px;
+}
+.suggestion del {
+  color: var(--text-muted);
+}
+.suggestion strong {
+  color: var(--accent);
+}
+.mark {
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-decoration-line: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  text-decoration-skip-ink: none;
+  text-decoration-color: var(--underline-color);
+}
+.structure {
+  --issue-color: var(--hl-structure);
+  text-decoration-style: solid;
+}
+.word {
+  --issue-color: var(--hl-word);
+  text-decoration-style: dotted;
+}
+.flow {
+  --issue-color: var(--hl-flow);
+  text-decoration-style: dashed;
+}
+.organization {
+  --issue-color: var(--hl-org);
+  border-left: 2px solid var(--hl-org);
+}
+.critical {
+  --issue-color: var(--hl-critical);
+  text-decoration-style: double;
+}
+.candidate {
+  --underline-color: color-mix(in srgb, var(--issue-color) 60%, transparent);
+}
+.mark:not(.candidate) {
+  --underline-color: var(--issue-color);
+}
+.selected {
+  outline: 1px solid var(--issue-color);
+  background: color-mix(in srgb, var(--issue-color) 12%, transparent);
+}
+.info {
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+}
+.minor {
+  text-decoration-thickness: 2px;
+}
+.moderate {
+  text-decoration-thickness: 3px;
+}
+.major {
+  text-decoration-thickness: 3px;
+  background: color-mix(in srgb, var(--issue-color) 8%, transparent);
+}
+.critical {
+  text-decoration-style: double;
+}
+.overlap {
+  box-shadow: inset 0 -2px var(--second-color);
+}
+.hovered {
+  background: var(--soft);
+}
+.hoveredMark,
+.mark:hover,
+.mark:focus-visible {
+  background: color-mix(in srgb, var(--issue-color) 12%, transparent);
+}
+.overlapBadge {
+  display: inline;
+  font-size: 10px;
+  padding: 0 3px;
+  color: var(--text);
+  background: var(--soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.acceptable {
+  color: var(--text-muted);
+}
+.dismissed .cardButton {
+  text-decoration: line-through;
+}
+@media (max-width: 1279px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}
+@media (max-width: 1023px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .panel {
+    position: static;
+    max-height: none;
+  }
+}
