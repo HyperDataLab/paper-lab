@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { AnalysisSchema, ExportPackageSchema, type Analysis, type AuditEvent } from '../schemas';
+import {
+  AnalysisSchema,
+  ExportPackageSchema,
+  type Analysis,
+  type AuditEvent,
+  type Revision,
+} from '../schemas';
 import { validateAnalysisSpans } from '../schemas/validateAnalysis';
 export type ImportPlan = ReturnType<typeof planImport>;
 export function planImport(
@@ -7,6 +13,8 @@ export function planImport(
   existing: Map<string, { updatedAt: string; sourceHash: string }>,
   auditIds: Set<string>,
   computedHashes: Map<string, string>,
+  revisionHashes = new Map<string, string>(),
+  existingRevisionIds = new Set<string>(),
 ) {
   existing = new Map(existing);
   const parsed = ExportPackageSchema.extend({ analyses: z.array(z.unknown()) }).safeParse(rawJson);
@@ -82,6 +90,21 @@ export function planImport(
       });
     }
   });
+  const revisionsToInsert: Revision[] = [];
+  const seenRevisions = new Set(existingRevisionIds);
+  for (const revision of parsed.data.revisions) {
+    if (seenRevisions.has(revision.id)) continue;
+    if (
+      !auditEligible.has(revision.sourceAnalysisId) ||
+      existing.get(revision.sourceAnalysisId)?.sourceHash !== revision.sourceHash ||
+      revisionHashes.get(revision.id) !== revision.revisedHash
+    ) {
+      skipped.push({ id: revision.id, reason: 'invalid revision source or hash' });
+      continue;
+    }
+    seenRevisions.add(revision.id);
+    revisionsToInsert.push(revision);
+  }
   const seen = new Set(auditIds);
   let auditSkipped = 0;
   const auditEvents: AuditEvent[] = parsed.data.auditEvents.filter((event) => {
@@ -92,5 +115,14 @@ export function planImport(
     seen.add(event.id);
     return true;
   });
-  return { ok: true as const, toInsert, toUpdate, skipped, suppressed, auditEvents, auditSkipped };
+  return {
+    ok: true as const,
+    toInsert,
+    toUpdate,
+    revisionsToInsert,
+    skipped,
+    suppressed,
+    auditEvents,
+    auditSkipped,
+  };
 }

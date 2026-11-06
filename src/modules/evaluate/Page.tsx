@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { analyzeText } from '@/core/text';
 import type { Issue, TextAnalysis } from '@/core/schemas';
@@ -25,6 +25,9 @@ import { RUBRIC_VERSION } from '@/core/scoring/rubric';
 
 export default function Page() {
   const repositories = useRepositories();
+  const navigate = useNavigate();
+  const [revisionOverrides, setRevisionOverrides] = useState<Record<string, boolean>>({});
+  const [parent, setParent] = useState<{ id: string; title: string } | null>(null);
   const syntax = useSyntaxAnalysis();
   const judge = useCandidateJudge();
   const paragraph = useParagraphAnalysis();
@@ -65,6 +68,12 @@ export default function Page() {
       .then(([value, audit]) => {
         if (!active) return;
         if (!value) throw new Error('Analysis not found');
+        setRevisionOverrides({});
+        setParent(null);
+        if (value.parentAnalysisId)
+          void repositories.analyses.get(value.parentAnalysisId).then((source) => {
+            if (active && source) setParent({ id: source.id, title: source.title || 'đoạn văn' });
+          });
         setText(value.text.sourceText);
         setResult(value.text);
         loadSyntax(value.sentenceAnnotations, value.versions);
@@ -113,6 +122,14 @@ export default function Page() {
       items.map((item) => (item.id === decision.issueId ? { ...item, ...decision.change } : item)),
     baseIssues,
   );
+  const revisionSelection = issues
+    .filter(
+      (issue) =>
+        issue.status !== 'dismissed_by_human' &&
+        (revisionOverrides[issue.id] ??
+          (issue.status === 'confirmed_by_model' || issue.status === 'confirmed_by_human')),
+    )
+    .map((issue) => issue.id);
   async function review(issue: Issue, change: { status?: Issue['status']; severity?: Issue['severity'] }) {
     if (
       change.status === 'candidate' &&
@@ -229,6 +246,11 @@ export default function Page() {
   return (
     <div className={styles.page}>
       <h1>Đánh giá</h1>
+      {parent && (
+        <p>
+          <Link to={`/evaluate?id=${parent.id}`}>Bản sửa của {parent.title}</Link>
+        </p>
+      )}
       {(!result || editing) && (
         <Card>
           <TextField
@@ -290,6 +312,18 @@ export default function Page() {
       ) : result && result.sentences.length > 0 ? (
         <>
           <div className={styles.toolbar} id="evaluate-toolbar" ref={setToolbar}>
+            {(id || createdId) && (
+              <Button
+                disabled={!revisionSelection.length}
+                onClick={() =>
+                  navigate(
+                    `/revise?${new URLSearchParams({ analysis: id ?? createdId ?? '', issues: revisionSelection.join(',') })}`,
+                  )
+                }
+              >
+                Chỉnh sửa các gợi ý đã chọn
+              </Button>
+            )}
             {id && (
               <Button
                 onClick={() => {
@@ -499,6 +533,10 @@ export default function Page() {
           </Tabs>
           <div id="text-panel" role="tabpanel" aria-labelledby="text-tab" hidden={view !== 'text'}>
             <ReviewWorkspace
+              revisionSelection={id || createdId ? revisionSelection : undefined}
+              onRevisionSelection={(issueId, selected) =>
+                setRevisionOverrides((old) => ({ ...old, [issueId]: selected }))
+              }
               text={result}
               roles={paragraph.result?.roles}
               selectedIssue={selectedIssue}

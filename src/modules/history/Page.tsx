@@ -17,10 +17,19 @@ export default function Page() {
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteTrigger, setDeleteTrigger] = useState<HTMLElement | null>(null);
+  const [revisions, setRevisions] = useState<
+    Record<string, Awaited<ReturnType<typeof repo.revisions.listBySource>>>
+  >({});
   const load = useCallback(() => {
     repo.analyses
       .list()
-      .then(setList)
+      .then(async (value) => {
+        setList(value);
+        const entries = await Promise.all(
+          value.items.map(async (item) => [item.id, await repo.revisions.listBySource(item.id)] as const),
+        );
+        setRevisions(Object.fromEntries(entries));
+      })
       .catch((e: unknown) => setError(String(e)));
   }, [repo]);
   useEffect(() => {
@@ -78,6 +87,19 @@ export default function Page() {
                           {relative(item.updatedAt)} · {item.sentenceCount} câu ·{' '}
                           {item.sourceHash.slice(7, 15)}
                         </p>
+                        {(revisions[item.id]?.length ?? 0) > 0 && (
+                          <ul>
+                            {revisions[item.id]?.map((revision) => (
+                              <li key={revision.id}>
+                                <Link
+                                  to={`/revise?${new URLSearchParams({ analysis: item.id, revision: revision.id })}`}
+                                >
+                                  Bản sửa · {new Date(revision.createdAt).toLocaleString('vi')}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
                       <Button
                         onClick={(event) => {

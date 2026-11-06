@@ -14,8 +14,8 @@ Status: ⬜ not started · 🟨 in progress · ✅ accepted.
 | S6  | Candidate detectors: S–V gap, clause depth, fuzzy verbs, nominalisations, weak modifiers, wordiness + contextual LLM judgement         | EV-04..06, AC-03, AC-09        | ✅     |
 | S7  | Highlights + inspector + filters + confirm/dismiss + audit log                                                                         | EV-10, EV-11, AC-04..06, AC-12 | ✅     |
 | S8  | Paragraph structure & flow: TS-D/LD/LDR/OCAR, sentence roles, stress→topic links                                                       | EV-07, EV-08                   | ✅     |
-| S9  | Scoring: rubric, weights, coverage, `not_assessable` rule                                                                              | EV-09, §5, AC-10               | 🟨     |
-| S10 | Revise: select issues → revised text, aligned diff, meaning checks, re-evaluate                                                        | WR-02..08, AC-07, AC-08        | ⬜     |
+| S9  | Scoring: rubric, weights, coverage, `not_assessable` rule                                                                              | EV-09, §5, AC-10               | ✅     |
+| S10 | Revise: select issues → revised text, aligned diff, meaning checks, re-evaluate                                                        | WR-02..08, AC-07, AC-08        | 🟨     |
 | S11 | Generate                                                                                                                               | WR-01                          | ⬜     |
 | S12 | Report export (JSON + printable HTML/PDF), version comparison                                                                          | EV-12                          | ⬜     |
 

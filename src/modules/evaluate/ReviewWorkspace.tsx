@@ -50,6 +50,8 @@ export function ReviewWorkspace({
   toolbarTarget,
   roles,
   selectedIssue,
+  revisionSelection,
+  onRevisionSelection,
 }: {
   text: TextAnalysis;
   issues: Issue[];
@@ -57,6 +59,8 @@ export function ReviewWorkspace({
   toolbarTarget?: HTMLElement | null;
   roles?: NonNullable<ReturnType<typeof useParagraphAnalysis>['result']>['roles'];
   selectedIssue?: { id: string; nonce: number } | null;
+  revisionSelection?: string[];
+  onRevisionSelection?: (id: string, selected: boolean) => void;
 }) {
   const toast = useToast();
   const [selected, setSelected] = useState<string | null>(null);
@@ -247,6 +251,15 @@ export function ReviewWorkspace({
                 id={`card-${i.id}`}
                 className={`${styles.cardItem} ${styles[`color_${i.category}`]} ${selected === i.id ? styles.expanded : ''} ${hovered === i.id ? styles.hovered : ''} ${i.severity === 'info' ? styles.acceptable : ''} ${i.status === 'dismissed_by_human' ? styles.dismissed : ''}`}
               >
+                {revisionSelection && onRevisionSelection && (
+                  <Checkbox
+                    disabled={i.status === 'dismissed_by_human'}
+                    checked={i.status !== 'dismissed_by_human' && revisionSelection.includes(i.id)}
+                    onChange={(event) => onRevisionSelection(i.id, event.target.checked)}
+                  >
+                    Chọn để chỉnh sửa
+                  </Checkbox>
+                )}
                 <Button
                   data-card
                   className={styles.cardButton}
