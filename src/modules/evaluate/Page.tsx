@@ -18,12 +18,18 @@ import { Tabs } from '@/shared/ui/Tabs';
 import { SyntaxControls } from './SyntaxControls';
 import { useParagraphAnalysis } from './useParagraphAnalysis';
 import { ParagraphView } from './ParagraphView';
+import { useScoring } from './useScoring';
+import { ScoresView } from './ScoresView';
+import { AnalysisSchema } from '@/core/schemas';
+import { RUBRIC_VERSION } from '@/core/scoring/rubric';
 
 export default function Page() {
   const repositories = useRepositories();
   const syntax = useSyntaxAnalysis();
   const judge = useCandidateJudge();
   const paragraph = useParagraphAnalysis();
+  const scoring = useScoring();
+  const { load: loadScoring, reset: resetScoring } = scoring;
   const { load: loadParagraph, reset: resetParagraph } = paragraph;
   const { load: loadJudge, reset: resetJudge } = judge;
   const { load: loadSyntax, reset: resetSyntax } = syntax;
@@ -46,7 +52,9 @@ export default function Page() {
       previous: Issue;
     }[]
   >([]);
-  const [view, setView] = useState<'text' | 'sentences' | 'paragraph'>('text');
+  const [view, setView] = useState<'text' | 'sentences' | 'paragraph' | 'scores'>('text');
+  const [selectedIssue, setSelectedIssue] = useState<{ id: string; nonce: number } | null>(null);
+  const [selectedSentence, setSelectedSentence] = useState<string | null>(null);
   const [previousIssueIds, setPreviousIssueIds] = useState('[]');
   const [editing, setEditing] = useState(false);
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
@@ -62,6 +70,7 @@ export default function Page() {
         loadSyntax(value.sentenceAnnotations, value.versions);
         loadJudge(value.issues, value.versions);
         loadParagraph(value);
+        loadScoring(value);
         const previous: Record<string, Issue['status']> = {};
         for (const event of audit.items) {
           if (
@@ -85,7 +94,7 @@ export default function Page() {
     return () => {
       active = false;
     };
-  }, [id, repositories, retry, loadSyntax, loadJudge, loadParagraph]);
+  }, [id, repositories, retry, loadSyntax, loadJudge, loadParagraph, loadScoring]);
   const candidates = result ? detectCandidates(result, syntax.annotations) : [];
   const baseIssues = [
     ...(judge.issues ?? candidates).filter(
@@ -160,12 +169,16 @@ export default function Page() {
         paragraph: paragraph.result?.paragraph ?? null,
         flowLinks: paragraph.result?.flowLinks ?? [],
         paragraphMetrics: paragraph.result?.metrics ?? null,
+        scores: scoring.result?.scores ?? null,
         versions: {
           ...syntax.versions,
           detectors: DETECTOR_VERSION,
           ...(judge.versions ?? {}),
           structurePrompt: paragraph.result?.promptVersion ?? null,
           structureModel: paragraph.result?.model ?? null,
+          rubric: scoring.result ? RUBRIC_VERSION : null,
+          scoringPrompt: scoring.result?.promptVersion ?? null,
+          scoringModel: scoring.result?.model ?? null,
         },
         issues: [...decisions]
           .reverse()
@@ -199,6 +212,7 @@ export default function Page() {
     resetSyntax();
     resetJudge();
     resetParagraph();
+    resetScoring();
     setDecisions([]);
     setCreatedId(null);
     setPreviousStatuses({});
@@ -230,6 +244,7 @@ export default function Page() {
               resetSyntax();
               resetJudge();
               resetParagraph();
+              resetScoring();
             }}
             rows={7}
           />
@@ -246,6 +261,7 @@ export default function Page() {
                 resetSyntax();
                 resetJudge();
                 resetParagraph();
+                resetScoring();
               }}
             >
               Tạo bản phân tích mới
@@ -288,6 +304,7 @@ export default function Page() {
                   resetSyntax();
                   resetJudge();
                   resetParagraph();
+                  resetScoring();
                 }}
               >
                 Tạo bản phân tích mới
@@ -314,7 +331,9 @@ export default function Page() {
             )}
             {!id && (
               <Button
-                disabled={saved || saving || syntax.running || judge.running || paragraph.running}
+                disabled={
+                  saved || saving || syntax.running || judge.running || paragraph.running || scoring.running
+                }
                 onClick={() => void save()}
               >
                 {saved ? 'Đã lưu' : 'Lưu vào lịch sử'}
@@ -324,9 +343,11 @@ export default function Page() {
               syntax={syntax}
               readOnly={!!id}
               saved={saved}
+              busy={judge.running || paragraph.running || scoring.running}
               onRun={() => {
                 resetJudge();
                 resetParagraph();
+                resetScoring();
                 void syntax.run(result);
               }}
             />
@@ -339,8 +360,13 @@ export default function Page() {
                   </>
                 ) : (
                   <Button
-                    disabled={saved || !syntax.annotations || syntax.running}
-                    onClick={() => void paragraph.run(result, syntax.annotations, issues)}
+                    disabled={
+                      saved || !syntax.annotations || syntax.running || judge.running || scoring.running
+                    }
+                    onClick={() => {
+                      resetScoring();
+                      void paragraph.run(result, syntax.annotations, issues);
+                    }}
                   >
                     Phân tích cấu trúc đoạn (AI)
                   </Button>
@@ -361,7 +387,7 @@ export default function Page() {
                   </>
                 ) : (
                   <Button
-                    disabled={saved || syntax.running}
+                    disabled={saved || syntax.running || paragraph.running || scoring.running}
                     onClick={() =>
                       void judge.run(
                         result,
@@ -382,6 +408,53 @@ export default function Page() {
                     {judge.error.includes('Chưa nhập khoá API') && <Link to="/settings">Cài đặt</Link>}
                   </p>
                 )}
+              </section>
+            )}
+            {!id && (
+              <section>
+                {scoring.running ? (
+                  <>
+                    <span role="status">Đang chấm điểm…</span> <Button onClick={scoring.cancel}>Huỷ</Button>
+                  </>
+                ) : (
+                  <Button
+                    disabled={saved || saving || syntax.running || judge.running || paragraph.running}
+                    onClick={() => {
+                      const analysis = AnalysisSchema.parse({
+                        schemaVersion: 1,
+                        id: crypto.randomUUID(),
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        text: result,
+                        context: { before: null, after: null, audience: null },
+                        contextLimited: true,
+                        versions: { rubric: null, prompt: null, model: null, syntaxProvider: null },
+                        sentenceAnnotations: (syntax.annotations ?? []).map((annotation) => {
+                          const role = paragraph.result?.roles.find(
+                            (item) => item.sentenceId === annotation.sentenceId,
+                          );
+                          return role
+                            ? {
+                                ...annotation,
+                                role: role.role,
+                                roleConfidence: role.confidence,
+                                roleRationale: role.rationale,
+                              }
+                            : annotation;
+                        }),
+                        paragraph: paragraph.result?.paragraph ?? null,
+                        flowLinks: paragraph.result?.flowLinks ?? [],
+                        paragraphMetrics: paragraph.result?.metrics ?? null,
+                        issues,
+                        parentAnalysisId: null,
+                      });
+                      void scoring.run(analysis);
+                    }}
+                  >
+                    Chấm điểm (AI)
+                  </Button>
+                )}
+                {scoring.error && <p role="alert">Không chấm điểm được: {scoring.error}</p>}
               </section>
             )}
           </div>
@@ -414,14 +487,43 @@ export default function Page() {
             >
               Cấu trúc đoạn
             </Button>
+            <Button
+              id="scores-tab"
+              aria-controls="scores-panel"
+              role="tab"
+              aria-selected={view === 'scores'}
+              onClick={() => setView('scores')}
+            >
+              Điểm
+            </Button>
           </Tabs>
           <div id="text-panel" role="tabpanel" aria-labelledby="text-tab" hidden={view !== 'text'}>
             <ReviewWorkspace
               text={result}
               roles={paragraph.result?.roles}
+              selectedIssue={selectedIssue}
               issues={issues}
               toolbarTarget={toolbar}
               onChange={(issue, change) => void review(issue, change)}
+            />
+          </div>
+          <div id="scores-panel" role="tabpanel" aria-labelledby="scores-tab" hidden={view !== 'scores'}>
+            <ScoresView
+              scores={scoring.result?.scores ?? null}
+              issues={issues}
+              onIssue={(issueId) => {
+                setSelectedIssue((previous) => ({ id: issueId, nonce: (previous?.nonce ?? 0) + 1 }));
+                setView('text');
+              }}
+              onSentence={(sentenceId) => {
+                setView('sentences');
+                setSelectedSentence(sentenceId);
+                window.setTimeout(
+                  () =>
+                    document.getElementById(`sentence-${sentenceId}`)?.scrollIntoView?.({ block: 'nearest' }),
+                  0,
+                );
+              }}
             />
           </div>
           <div
@@ -430,7 +532,12 @@ export default function Page() {
             aria-labelledby="sentences-tab"
             hidden={view !== 'sentences'}
           >
-            <AnalysisResult result={result} syntax={syntax} roles={paragraph.result?.roles} />
+            <AnalysisResult
+              result={result}
+              syntax={syntax}
+              roles={paragraph.result?.roles}
+              selectedSentence={selectedSentence}
+            />
           </div>
           <div
             id="paragraph-panel"

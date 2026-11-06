@@ -36,6 +36,7 @@ product will keep adding modules (Section/IMRaD, Citation, Figure captions, Batc
 - Inside a module, sub-views use **tabs** (e.g. Evaluate: `Văn bản | Số liệu | Cấu trúc đoạn | JSON`), never a
   second sidebar.
 - Evaluate's `Cấu trúc đoạn` tab shows the structure confidence, sentence roles, flow chain and metrics with denominators.
+- Evaluate's `Điểm` tab shows the rubric, coverage, confidence, score evidence and provisional-scoring caveat.
 
 ## 2. Evaluate workspace layout (PRD §6 A–D)
 

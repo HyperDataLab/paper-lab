@@ -29,6 +29,7 @@ export type AnalysisPatch = Partial<
     | 'paragraph'
     | 'flowLinks'
     | 'paragraphMetrics'
+    | 'scores'
   >
 >;
 export function createRepositories(
@@ -131,6 +132,7 @@ export function createRepositories(
       paragraph?: Analysis['paragraph'];
       flowLinks?: Analysis['flowLinks'];
       paragraphMetrics?: Analysis['paragraphMetrics'];
+      scores?: Analysis['scores'];
     }) {
       const at = now();
       const value = checkedAnalysis({
@@ -147,6 +149,7 @@ export function createRepositories(
         paragraph: input.paragraph ?? null,
         flowLinks: input.flowLinks ?? [],
         paragraphMetrics: input.paragraphMetrics ?? null,
+        scores: input.scores ?? null,
         issues: input.issues ?? [],
         parentAnalysisId: null,
       });
@@ -190,13 +193,25 @@ export function createRepositories(
           'paragraph',
           'flowLinks',
           'paragraphMetrics',
+          'scores',
           'issues',
         ]);
         if ('text' in patch) throw new SourceImmutableError('Source text is immutable');
         if (Object.keys(patch).some((key) => !allowed.has(key))) throw new Error('Invalid analysis patch');
         const current = await analyses.get(id);
         if (!current) throw new Error('Analysis not found');
-        const value = checkedAnalysis({ ...current, ...patch, id, updatedAt: now() });
+        const clearsScores =
+          'sentenceAnnotations' in patch ||
+          'paragraph' in patch ||
+          'flowLinks' in patch ||
+          'paragraphMetrics' in patch;
+        const value = checkedAnalysis({
+          ...current,
+          ...patch,
+          ...(clearsScores && !('scores' in patch) ? { scores: null } : {}),
+          id,
+          updatedAt: now(),
+        });
         await db.analyses.put(value);
         return value;
       });
