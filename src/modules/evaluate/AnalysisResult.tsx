@@ -13,10 +13,12 @@ export function AnalysisResult({
   result,
   syntax,
   roles,
+  selectedSentence,
 }: {
   result: TextAnalysis;
   syntax: SyntaxAnalysis;
   roles?: NonNullable<ReturnType<typeof useParagraphAnalysis>['result']>['roles'];
+  selectedSentence?: string | null;
 }) {
   const [showTokens, setShowTokens] = useState(false);
   const index = useMemo(() => createOffsetIndex(result.sourceText), [result.sourceText]);
@@ -38,7 +40,12 @@ export function AnalysisResult({
         {result.sentences.map((sentence) => {
           const tokens = result.tokens.slice(sentence.tokenStart, sentence.tokenEnd);
           return (
-            <li key={sentence.id}>
+            <li
+              key={sentence.id}
+              id={`sentence-${sentence.id}`}
+              className={selectedSentence === sentence.id ? styles.selectedSentence : undefined}
+              aria-current={selectedSentence === sentence.id ? 'true' : undefined}
+            >
               <div>
                 <Badge>{sentence.id}</Badge>{' '}
                 {roles?.find((role) => role.sentenceId === sentence.id) && (

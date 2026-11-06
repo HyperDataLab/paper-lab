@@ -8,11 +8,13 @@ export function SyntaxControls({
   syntax,
   readOnly,
   saved,
+  busy = false,
   onRun,
 }: {
   syntax: SyntaxAnalysis;
   readOnly: boolean;
   saved: boolean;
+  busy?: boolean;
   onRun: () => void;
 }) {
   return (
@@ -25,7 +27,11 @@ export function SyntaxControls({
               <Button onClick={syntax.cancel}>Huỷ</Button>
             </>
           ) : (
-            <Button variant={syntax.annotations ? 'secondary' : 'primary'} onClick={onRun} disabled={saved}>
+            <Button
+              variant={syntax.annotations ? 'secondary' : 'primary'}
+              onClick={onRun}
+              disabled={saved || busy}
+            >
               {syntax.annotations ? 'Phân tích lại (AI)' : 'Phân tích câu (AI)'}
             </Button>
           )}

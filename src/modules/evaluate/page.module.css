@@ -51,3 +51,7 @@
   font-size: var(--text-xs);
   overflow-wrap: anywhere;
 }
+.selectedSentence {
+  background: var(--soft);
+  outline: 2px solid var(--accent);
+}

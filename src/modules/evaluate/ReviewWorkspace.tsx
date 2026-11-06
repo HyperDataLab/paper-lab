@@ -49,12 +49,14 @@ export function ReviewWorkspace({
   onChange,
   toolbarTarget,
   roles,
+  selectedIssue,
 }: {
   text: TextAnalysis;
   issues: Issue[];
   onChange: (issue: Issue, change: { status?: Issue['status']; severity?: Issue['severity'] }) => void;
   toolbarTarget?: HTMLElement | null;
   roles?: NonNullable<ReturnType<typeof useParagraphAnalysis>['result']>['roles'];
+  selectedIssue?: { id: string; nonce: number } | null;
 }) {
   const toast = useToast();
   const [selected, setSelected] = useState<string | null>(null);
@@ -62,6 +64,15 @@ export function ReviewWorkspace({
   const [filter, setFilter] = useState('all');
   const [low, setLow] = useState(false);
   const [done, setDone] = useState(false);
+  const [previousSelection, setPreviousSelection] = useState<typeof selectedIssue>(null);
+  if (selectedIssue !== previousSelection) {
+    setPreviousSelection(selectedIssue);
+    const issue = issues.find((item) => item.id === selectedIssue?.id);
+    if (issue) {
+      setSelected(issue.id);
+      setDone(handled(issue));
+    }
+  }
   const [hovered, setHovered] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const reading = useRef<HTMLDivElement>(null);

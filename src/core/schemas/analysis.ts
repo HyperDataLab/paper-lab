@@ -3,6 +3,7 @@ import { TextAnalysisSchema } from './text';
 import { SpanSchema } from './span';
 import { IssueSchema } from './issue';
 import { FlowLinkSchema, ParagraphMetricsSchema, ParagraphSchema, SENTENCE_ROLES } from './paragraph';
+import { ScoresSchema } from './scores';
 const nullableNumber = z.number().nullable().default(null);
 // Fields after parseConfidence were added in S5; defaults keep S3-era records parseable (schemaVersion 1).
 export const SentenceAnnotationSchema = z.object({
@@ -54,11 +55,14 @@ export const AnalysisSchema = z.object({
     judgePrompt: z.string().nullable().default(null),
     structurePrompt: z.string().nullable().default(null),
     structureModel: z.string().nullable().default(null),
+    scoringPrompt: z.string().nullable().default(null),
+    scoringModel: z.string().nullable().default(null),
   }),
   sentenceAnnotations: z.array(SentenceAnnotationSchema),
   paragraph: ParagraphSchema.nullable().default(null),
   flowLinks: z.array(FlowLinkSchema).default([]),
   paragraphMetrics: ParagraphMetricsSchema.nullable().default(null),
+  scores: ScoresSchema.nullable().default(null),
   issues: z.array(IssueSchema),
   parentAnalysisId: z.uuid().nullable(),
 });
