@@ -109,7 +109,7 @@ it('EV-10 stacks a second category and cycles a +n badge while hiding dismissed 
       onChange={() => {}}
     />,
   );
-  const mark = screen.getByRole('button', { name: /FLOW_BREAK_CANDIDATE, Lớn/ });
+  const mark = screen.getByRole('button', { name: /Đứt mạch giữa hai câu, Lớn/ });
   expect(mark).toHaveTextContent('Very');
   expect(mark).toHaveStyle('--second-color: color-mix(in srgb, var(--hl-structure) 60%, transparent)');
   expect(mark.dataset.issues).not.toContain('dismissed');

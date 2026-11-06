@@ -18,7 +18,18 @@ export class SourceImmutableError extends Error {
   override name = 'SourceImmutableError';
 }
 export type AnalysisPatch = Partial<
-  Pick<Analysis, 'title' | 'context' | 'contextLimited' | 'versions' | 'sentenceAnnotations' | 'issues'>
+  Pick<
+    Analysis,
+    | 'title'
+    | 'context'
+    | 'contextLimited'
+    | 'versions'
+    | 'sentenceAnnotations'
+    | 'issues'
+    | 'paragraph'
+    | 'flowLinks'
+    | 'paragraphMetrics'
+  >
 >;
 export function createRepositories(
   db: ParagraphDb,
@@ -117,24 +128,28 @@ export function createRepositories(
       versions?: Partial<Analysis['versions']>;
       sentenceAnnotations?: SentenceAnnotation[];
       issues?: Issue[];
+      paragraph?: Analysis['paragraph'];
+      flowLinks?: Analysis['flowLinks'];
+      paragraphMetrics?: Analysis['paragraphMetrics'];
     }) {
       const at = now();
-      const value = validateAnalysisSpans(
-        AnalysisSchema.parse({
-          schemaVersion: 1,
-          id: ids(),
-          createdAt: at,
-          updatedAt: at,
-          text: input.text,
-          title: input.title,
-          context: input.context ?? { before: null, after: null, audience: null },
-          contextLimited: true,
-          versions: { rubric: null, prompt: null, model: null, syntaxProvider: null, ...input.versions },
-          sentenceAnnotations: input.sentenceAnnotations ?? [],
-          issues: input.issues ?? [],
-          parentAnalysisId: null,
-        }),
-      ).valid;
+      const value = checkedAnalysis({
+        schemaVersion: 1,
+        id: ids(),
+        createdAt: at,
+        updatedAt: at,
+        text: input.text,
+        title: input.title,
+        context: input.context ?? { before: null, after: null, audience: null },
+        contextLimited: true,
+        versions: { rubric: null, prompt: null, model: null, syntaxProvider: null, ...input.versions },
+        sentenceAnnotations: input.sentenceAnnotations ?? [],
+        paragraph: input.paragraph ?? null,
+        flowLinks: input.flowLinks ?? [],
+        paragraphMetrics: input.paragraphMetrics ?? null,
+        issues: input.issues ?? [],
+        parentAnalysisId: null,
+      });
       await db.transaction('rw', db.analyses, db.auditEvents, async () => {
         await db.analyses.add(value);
         await db.auditEvents.add(makeAudit(value.id, 'create_analysis', 'human'));
@@ -172,15 +187,16 @@ export function createRepositories(
           'contextLimited',
           'versions',
           'sentenceAnnotations',
+          'paragraph',
+          'flowLinks',
+          'paragraphMetrics',
           'issues',
         ]);
         if ('text' in patch) throw new SourceImmutableError('Source text is immutable');
         if (Object.keys(patch).some((key) => !allowed.has(key))) throw new Error('Invalid analysis patch');
         const current = await analyses.get(id);
         if (!current) throw new Error('Analysis not found');
-        const value = validateAnalysisSpans(
-          AnalysisSchema.parse({ ...current, ...patch, id, updatedAt: now() }),
-        ).valid;
+        const value = checkedAnalysis({ ...current, ...patch, id, updatedAt: now() });
         await db.analyses.put(value);
         return value;
       });

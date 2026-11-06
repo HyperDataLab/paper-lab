@@ -64,6 +64,19 @@ export function validateAnalysisSpans(input: AnalysisInput) {
     }
     return true;
   });
+  if (analysis.paragraph?.centralPoint.span && !inBounds(analysis.paragraph.centralPoint.span)) {
+    suppressed.push({ path: 'paragraph.centralPoint.span', reason: 'invalid span' });
+    analysis.paragraph.centralPoint.span = null;
+  }
+  analysis.flowLinks.forEach((link, i) => {
+    for (const key of ['fromSpan', 'toSpan'] as const) {
+      const span = link[key];
+      if (span && !inBounds(span)) {
+        suppressed.push({ path: `flowLinks.${i}.${key}`, reason: 'invalid span' });
+        link[key] = null;
+      }
+    }
+  });
   analysis.issues = analysis.issues.filter((issue, i) => {
     if (
       issue.spans.some(

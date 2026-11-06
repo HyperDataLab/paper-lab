@@ -35,6 +35,7 @@ product will keep adding modules (Section/IMRaD, Citation, Figure captions, Batc
   `Ctrl/⌘+K` opens a command palette listing the same registry entries.
 - Inside a module, sub-views use **tabs** (e.g. Evaluate: `Văn bản | Số liệu | Cấu trúc đoạn | JSON`), never a
   second sidebar.
+- Evaluate's `Cấu trúc đoạn` tab shows the structure confidence, sentence roles, flow chain and metrics with denominators.
 
 ## 2. Evaluate workspace layout (PRD §6 A–D)
 
@@ -74,6 +75,7 @@ Color is never the only signal (WCAG 1.4.1). Each category has a color **and** a
 - Status: `candidate` = 60 % opacity; `confirmed_*` = full; `dismissed_by_human` = strikethrough in the list,
   hidden in the text by default.
 - Highlight the smallest causal span. Relationship issues mark both endpoints and draw a connector (SVG overlay).
+- When a flow finding is selected, a curved arrow connects its endpoint marks; its position is recalculated on resize.
 - Overlaps: stacked underlines (max 3 visible) and click-to-cycle; a `+n` chip opens the full list.
 - Every highlight is a `<mark>` with `role="button"`, `tabindex="0"`, `aria-label="<type>, <severity>, <status>"`.
 - Rendering maps stored code-point offsets to UTF-16 in one helper; never slice the DOM text to compute offsets.

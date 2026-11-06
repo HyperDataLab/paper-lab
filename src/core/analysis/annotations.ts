@@ -17,6 +17,8 @@ export function buildSentenceAnnotations(text: TextAnalysis, syntax: SentenceSyn
         actionSpan: m.actionSpan,
         stressSpan: m.stressSpan,
         role: null,
+        roleConfidence: null,
+        roleRationale: null,
         subjectVerbDistanceTokens: m.subjectVerbDistanceTokens,
         parseConfidence: entry.confidence,
         subjectSpan: m.subjectSpan,
