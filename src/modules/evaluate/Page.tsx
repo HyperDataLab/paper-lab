@@ -16,11 +16,15 @@ import { detectCandidates, DETECTOR_VERSION } from '@/core/detectors';
 import { ReviewWorkspace } from './ReviewWorkspace';
 import { Tabs } from '@/shared/ui/Tabs';
 import { SyntaxControls } from './SyntaxControls';
+import { useParagraphAnalysis } from './useParagraphAnalysis';
+import { ParagraphView } from './ParagraphView';
 
 export default function Page() {
   const repositories = useRepositories();
   const syntax = useSyntaxAnalysis();
   const judge = useCandidateJudge();
+  const paragraph = useParagraphAnalysis();
+  const { load: loadParagraph, reset: resetParagraph } = paragraph;
   const { load: loadJudge, reset: resetJudge } = judge;
   const { load: loadSyntax, reset: resetSyntax } = syntax;
   const [params, setParams] = useSearchParams();
@@ -42,7 +46,8 @@ export default function Page() {
       previous: Issue;
     }[]
   >([]);
-  const [view, setView] = useState<'text' | 'sentences'>('text');
+  const [view, setView] = useState<'text' | 'sentences' | 'paragraph'>('text');
+  const [previousIssueIds, setPreviousIssueIds] = useState('[]');
   const [editing, setEditing] = useState(false);
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -56,6 +61,7 @@ export default function Page() {
         setResult(value.text);
         loadSyntax(value.sentenceAnnotations, value.versions);
         loadJudge(value.issues, value.versions);
+        loadParagraph(value);
         const previous: Record<string, Issue['status']> = {};
         for (const event of audit.items) {
           if (
@@ -79,9 +85,20 @@ export default function Page() {
     return () => {
       active = false;
     };
-  }, [id, repositories, retry, loadSyntax, loadJudge]);
+  }, [id, repositories, retry, loadSyntax, loadJudge, loadParagraph]);
   const candidates = result ? detectCandidates(result, syntax.annotations) : [];
-  const baseIssues = judge.issues ?? candidates;
+  const baseIssues = [
+    ...(judge.issues ?? candidates).filter(
+      (item) => item.category !== 'flow' && item.category !== 'organization',
+    ),
+    ...(paragraph.result?.issues ?? []),
+  ];
+  const issueIds = JSON.stringify(baseIssues.map((issue) => issue.id).sort());
+  if (issueIds !== previousIssueIds) {
+    const currentIds = new Set<string>(JSON.parse(issueIds) as string[]);
+    setPreviousIssueIds(issueIds);
+    setDecisions((old) => old.filter((decision) => currentIds.has(decision.issueId)));
+  }
   const issues = decisions.reduce(
     (items, decision) =>
       items.map((item) => (item.id === decision.issueId ? { ...item, ...decision.change } : item)),
@@ -129,8 +146,27 @@ export default function Page() {
       const created = await repositories.analyses.create({
         text: result,
         title: Array.from(result.sourceText).slice(0, 60).join(''),
-        sentenceAnnotations: syntax.annotations ?? [],
-        versions: { ...syntax.versions, detectors: DETECTOR_VERSION, ...(judge.versions ?? {}) },
+        sentenceAnnotations: (syntax.annotations ?? []).map((annotation) => {
+          const role = paragraph.result?.roles.find((item) => item.sentenceId === annotation.sentenceId);
+          return role
+            ? {
+                ...annotation,
+                role: role.role,
+                roleConfidence: role.confidence,
+                roleRationale: role.rationale,
+              }
+            : annotation;
+        }),
+        paragraph: paragraph.result?.paragraph ?? null,
+        flowLinks: paragraph.result?.flowLinks ?? [],
+        paragraphMetrics: paragraph.result?.metrics ?? null,
+        versions: {
+          ...syntax.versions,
+          detectors: DETECTOR_VERSION,
+          ...(judge.versions ?? {}),
+          structurePrompt: paragraph.result?.promptVersion ?? null,
+          structureModel: paragraph.result?.model ?? null,
+        },
         issues: [...decisions]
           .reverse()
           .reduce(
@@ -143,7 +179,9 @@ export default function Page() {
             baseIssues,
           ),
       });
-      for (const decision of decisions)
+      for (const decision of decisions.filter((item) =>
+        baseIssues.some((issue) => issue.id === item.issueId),
+      ))
         await repositories.analyses.reviewIssue(created.id, decision.issueId, decision.change);
       setCreatedId(created.id);
       setSaved(true);
@@ -160,6 +198,7 @@ export default function Page() {
     setSaved(false);
     resetSyntax();
     resetJudge();
+    resetParagraph();
     setDecisions([]);
     setCreatedId(null);
     setPreviousStatuses({});
@@ -190,6 +229,7 @@ export default function Page() {
               setSaved(false);
               resetSyntax();
               resetJudge();
+              resetParagraph();
             }}
             rows={7}
           />
@@ -205,6 +245,7 @@ export default function Page() {
                 setDecisions([]);
                 resetSyntax();
                 resetJudge();
+                resetParagraph();
               }}
             >
               Tạo bản phân tích mới
@@ -246,6 +287,7 @@ export default function Page() {
                   setPreviousStatuses({});
                   resetSyntax();
                   resetJudge();
+                  resetParagraph();
                 }}
               >
                 Tạo bản phân tích mới
@@ -259,6 +301,7 @@ export default function Page() {
                   setDecisions([]);
                   resetSyntax();
                   resetJudge();
+                  resetParagraph();
                 }}
               >
                 Chỉnh sửa văn bản
@@ -271,7 +314,7 @@ export default function Page() {
             )}
             {!id && (
               <Button
-                disabled={saved || saving || syntax.running || judge.running}
+                disabled={saved || saving || syntax.running || judge.running || paragraph.running}
                 onClick={() => void save()}
               >
                 {saved ? 'Đã lưu' : 'Lưu vào lịch sử'}
@@ -280,11 +323,36 @@ export default function Page() {
             <SyntaxControls
               syntax={syntax}
               readOnly={!!id}
+              saved={saved}
               onRun={() => {
                 resetJudge();
+                resetParagraph();
                 void syntax.run(result);
               }}
             />
+            {!id && (
+              <section>
+                {paragraph.running ? (
+                  <>
+                    <span role="status">Đang phân tích cấu trúc…</span>{' '}
+                    <Button onClick={paragraph.cancel}>Huỷ</Button>
+                  </>
+                ) : (
+                  <Button
+                    disabled={saved || !syntax.annotations || syntax.running}
+                    onClick={() => void paragraph.run(result, syntax.annotations, issues)}
+                  >
+                    Phân tích cấu trúc đoạn (AI)
+                  </Button>
+                )}
+                {saved ? (
+                  <small>Đã lưu — chọn Chỉnh sửa văn bản để phân tích lại</small>
+                ) : (
+                  !syntax.annotations && <small>Cần phân tích câu trước</small>
+                )}
+                {paragraph.error && <p role="alert">Không phân tích được: {paragraph.error}</p>}
+              </section>
+            )}
             {!id && (candidates.length > 0 || syntax.annotations?.some((a) => a.voice === 'passive')) && (
               <section>
                 {judge.running ? (
@@ -293,7 +361,7 @@ export default function Page() {
                   </>
                 ) : (
                   <Button
-                    disabled={syntax.running}
+                    disabled={saved || syntax.running}
                     onClick={() =>
                       void judge.run(
                         result,
@@ -307,6 +375,7 @@ export default function Page() {
                     Đánh giá theo ngữ cảnh (AI)
                   </Button>
                 )}
+                {saved && <small>Đã lưu — chọn Chỉnh sửa văn bản để phân tích lại</small>}
                 {judge.error && (
                   <p role="alert">
                     Không đánh giá được: {judge.error}{' '}
@@ -336,10 +405,20 @@ export default function Page() {
             >
               Câu &amp; số liệu
             </Button>
+            <Button
+              id="paragraph-tab"
+              aria-controls="paragraph-panel"
+              role="tab"
+              aria-selected={view === 'paragraph'}
+              onClick={() => setView('paragraph')}
+            >
+              Cấu trúc đoạn
+            </Button>
           </Tabs>
           <div id="text-panel" role="tabpanel" aria-labelledby="text-tab" hidden={view !== 'text'}>
             <ReviewWorkspace
               text={result}
+              roles={paragraph.result?.roles}
               issues={issues}
               toolbarTarget={toolbar}
               onChange={(issue, change) => void review(issue, change)}
@@ -351,7 +430,15 @@ export default function Page() {
             aria-labelledby="sentences-tab"
             hidden={view !== 'sentences'}
           >
-            <AnalysisResult result={result} syntax={syntax} />
+            <AnalysisResult result={result} syntax={syntax} roles={paragraph.result?.roles} />
+          </div>
+          <div
+            id="paragraph-panel"
+            role="tabpanel"
+            aria-labelledby="paragraph-tab"
+            hidden={view !== 'paragraph'}
+          >
+            <ParagraphView text={result} result={paragraph.result} />
           </div>
         </>
       ) : (

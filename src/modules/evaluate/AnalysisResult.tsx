@@ -7,7 +7,17 @@ import { Checkbox } from '@/shared/ui/Checkbox';
 import { SentenceView } from './SentenceView';
 import type { SyntaxAnalysis } from './useSyntaxAnalysis';
 import styles from './page.module.css';
-export function AnalysisResult({ result, syntax }: { result: TextAnalysis; syntax: SyntaxAnalysis }) {
+import { roleLabels } from './roleLabels';
+import type { useParagraphAnalysis } from './useParagraphAnalysis';
+export function AnalysisResult({
+  result,
+  syntax,
+  roles,
+}: {
+  result: TextAnalysis;
+  syntax: SyntaxAnalysis;
+  roles?: NonNullable<ReturnType<typeof useParagraphAnalysis>['result']>['roles'];
+}) {
   const [showTokens, setShowTokens] = useState(false);
   const index = useMemo(() => createOffsetIndex(result.sourceText), [result.sourceText]);
   const byId = useMemo(
@@ -31,6 +41,11 @@ export function AnalysisResult({ result, syntax }: { result: TextAnalysis; synta
             <li key={sentence.id}>
               <div>
                 <Badge>{sentence.id}</Badge>{' '}
+                {roles?.find((role) => role.sentenceId === sentence.id) && (
+                  <Badge>
+                    {roleLabels[roles.find((role) => role.sentenceId === sentence.id)?.role ?? 'unknown']}
+                  </Badge>
+                )}{' '}
                 <span className={styles.meta}>
                   {sentence.start}–{sentence.end} · {tokens.length} token
                 </span>

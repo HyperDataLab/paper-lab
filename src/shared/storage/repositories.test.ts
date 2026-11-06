@@ -16,6 +16,29 @@ async function setup() {
   const analysis = await repo.analyses.create({ text });
   return { db, repo, analysis };
 }
+it('AC-04 suppresses an invalid flow endpoint on save', async () => {
+  const { repo, analysis } = await setup();
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  const updated = await repo.analyses.update(analysis.id, {
+    flowLinks: [
+      {
+        fromSentenceId: 's1',
+        toSentenceId: 's2',
+        continuity: 'shift',
+        discourseRelation: 'none',
+        linked: false,
+        measured: true,
+        confidence: 0.8,
+        fromSpan: { start: 0, end: 999 },
+        toSpan: null,
+        rationale: '',
+      },
+    ],
+  });
+  expect(updated.flowLinks[0]?.fromSpan).toBeNull();
+  expect(warn).toHaveBeenCalled();
+  warn.mockRestore();
+});
 it('EV-11 creates and deletes while retaining audit events', async () => {
   const { repo, analysis } = await setup();
   expect((await repo.audit.listByAnalysis(analysis.id)).items.map((e) => e.action)).toEqual([

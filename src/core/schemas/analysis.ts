@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { TextAnalysisSchema } from './text';
 import { SpanSchema } from './span';
 import { IssueSchema } from './issue';
+import { FlowLinkSchema, ParagraphMetricsSchema, ParagraphSchema, SENTENCE_ROLES } from './paragraph';
 const nullableNumber = z.number().nullable().default(null);
 // Fields after parseConfidence were added in S5; defaults keep S3-era records parseable (schemaVersion 1).
 export const SentenceAnnotationSchema = z.object({
@@ -9,7 +10,12 @@ export const SentenceAnnotationSchema = z.object({
   topicSpan: SpanSchema.nullable(),
   actionSpan: SpanSchema.nullable(),
   stressSpan: SpanSchema.nullable(),
-  role: z.string().nullable(),
+  role: z.preprocess(
+    (value) => (SENTENCE_ROLES.some((role) => role === value) ? value : null),
+    z.enum(SENTENCE_ROLES).nullable(),
+  ),
+  roleConfidence: z.number().min(0).max(1).nullable().default(null),
+  roleRationale: z.string().nullable().default(null),
   subjectVerbDistanceTokens: z.number().nullable(),
   parseConfidence: z.number().min(0).max(1).nullable(),
   subjectSpan: SpanSchema.nullable().default(null),
@@ -46,8 +52,13 @@ export const AnalysisSchema = z.object({
     syntaxProvider: z.string().nullable(),
     detectors: z.string().nullable().default(null),
     judgePrompt: z.string().nullable().default(null),
+    structurePrompt: z.string().nullable().default(null),
+    structureModel: z.string().nullable().default(null),
   }),
   sentenceAnnotations: z.array(SentenceAnnotationSchema),
+  paragraph: ParagraphSchema.nullable().default(null),
+  flowLinks: z.array(FlowLinkSchema).default([]),
+  paragraphMetrics: ParagraphMetricsSchema.nullable().default(null),
   issues: z.array(IssueSchema),
   parentAnalysisId: z.uuid().nullable(),
 });

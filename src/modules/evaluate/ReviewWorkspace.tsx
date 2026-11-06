@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import type { Issue, TextAnalysis } from '@/core/schemas';
 import { createOffsetIndex } from '@/core/text';
@@ -18,6 +18,8 @@ import { SV_GAP_REVIEW, CLAUSE_DEPTH_REVIEW } from '@/core/analysis/heuristics';
 import { CheckCircle2, CircleDot, XCircle, MinusCircle, Sparkles, Copy } from 'lucide-react';
 import { Badge } from '@/shared/ui/Badge';
 import styles from './review.module.css';
+import { roleLabels } from './roleLabels';
+import type { useParagraphAnalysis } from './useParagraphAnalysis';
 
 const categories: Record<Issue['category'], string> = {
   structure: 'Cấu trúc câu',
@@ -46,11 +48,13 @@ export function ReviewWorkspace({
   issues,
   onChange,
   toolbarTarget,
+  roles,
 }: {
   text: TextAnalysis;
   issues: Issue[];
   onChange: (issue: Issue, change: { status?: Issue['status']; severity?: Issue['severity'] }) => void;
   toolbarTarget?: HTMLElement | null;
+  roles?: NonNullable<ReturnType<typeof useParagraphAnalysis>['result']>['roles'];
 }) {
   const toast = useToast();
   const [selected, setSelected] = useState<string | null>(null);
@@ -60,6 +64,38 @@ export function ReviewWorkspace({
   const [done, setDone] = useState(false);
   const [hovered, setHovered] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const reading = useRef<HTMLDivElement>(null);
+  const [connector, setConnector] = useState<string | null>(null);
+  useEffect(() => {
+    const update = () => {
+      const root = reading.current;
+      const issue = issues.find(
+        (item) => item.id === selected && item.category === 'flow' && item.spans.length === 2,
+      );
+      if (!root || !issue) {
+        setConnector(null);
+        return;
+      }
+      const marks = Array.from(root.querySelectorAll<HTMLElement>('[data-issues]')).filter((mark) =>
+        mark.dataset.issues?.split('|').includes(issue.id),
+      );
+      const first = marks[0]?.getClientRects()[0];
+      const last = marks.at(-1)?.getClientRects()[0];
+      if (!first || !last || marks.length < 2) {
+        setConnector(null);
+        return;
+      }
+      const rect = root.getBoundingClientRect();
+      const x1 = first.right - rect.left,
+        y1 = first.bottom - rect.top;
+      const x2 = last.left - rect.left,
+        y2 = last.bottom - rect.top;
+      setConnector(`M ${x1} ${y1} C ${x1 + 25} ${y1 + 25}, ${x2 - 25} ${y2 + 25}, ${x2} ${y2}`);
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [selected, issues]);
   const [tablet, setTablet] = useState(
     () =>
       typeof window.matchMedia === 'function' &&
@@ -93,6 +129,7 @@ export function ReviewWorkspace({
       ...visible
         .filter((i) => i.status !== 'dismissed_by_human')
         .flatMap((i) => i.spans.flatMap((s) => [s.start, s.end])),
+      ...(roles ? text.sentences.map((sentence) => sentence.start) : []),
     ]),
   ]
     .filter((v) => v >= 0 && v <= index.length)
@@ -178,7 +215,9 @@ export function ReviewWorkspace({
         {visible
           .filter((i) => handled(i) === done)
           .map((i) => {
-            const original = i.spans.map((s) => index.sliceCp(s.start, s.end)).join(' / ');
+            const original = i.spans
+              .map((s) => index.sliceCp(s.start, s.end))
+              .join(i.category === 'flow' ? ' → ' : ' / ');
             const lexical = DEFAULT_LEXICON.wordyPhrases.find(
               (p) => p.type === i.type && p.phrase === original.toLowerCase(),
             );
@@ -210,13 +249,16 @@ export function ReviewWorkspace({
                     <span className={styles.dot} aria-hidden="true" /> {categories[i.category]}
                   </span>
                   <span className={styles.cardSummary}>
+                    {i.category === 'flow' && i.sentenceIds.length === 2 && (
+                      <span>{i.sentenceIds.map((id) => id.toUpperCase()).join(' → ')} · </span>
+                    )}
                     <strong>{original}</strong>
                     {selected !== i.id && (
                       <>
                         {' '}
                         ·{' '}
                         <span>
-                          {labels[i.type] ?? i.type} {i.severity === 'info' && 'AI: chấp nhận được'}
+                          {labels[i.type]} {i.severity === 'info' && 'AI: chấp nhận được'}
                         </span>
                       </>
                     )}
@@ -224,7 +266,7 @@ export function ReviewWorkspace({
                 </Button>
                 {selected === i.id && (
                   <div>
-                    <strong>{labels[i.type] ?? i.type}</strong>
+                    <strong>{labels[i.type]}</strong>
                     <p>
                       <Badge
                         icon={
@@ -261,7 +303,13 @@ export function ReviewWorkspace({
                         ? `Khoảng cách chủ–vị: ${i.metric.value} token (ngưỡng thử nghiệm ≥ ${SV_GAP_REVIEW})`
                         : i.type === 'CLAUSE_DEPTH'
                           ? `Độ sâu mệnh đề: ${i.metric.value} (ngưỡng ≥ ${CLAUSE_DEPTH_REVIEW})`
-                          : `${i.metric.value ?? '—'} ${i.metric.unit === 'candidate' ? 'ứng viên' : i.metric.unit === 'tokens' ? 'token' : (i.metric.unit ?? '')}`}{' '}
+                          : i.metric.name === 'stress_to_next_topic_alignment'
+                            ? 'Không nối Stress → Topic'
+                            : i.metric.name === 'central_point_identifiability'
+                              ? `Mức rõ của ý chính: ${i.metric.value ?? '—'}/4`
+                              : i.metric.name === 'off_topic_sentence_count'
+                                ? 'Câu lạc đề'
+                                : `${i.metric.value ?? '—'} ${i.metric.unit === 'candidate' ? 'ứng viên' : i.metric.unit === 'tokens' ? 'token' : (i.metric.unit ?? '')}`}{' '}
                       · {severities[i.severity]} · {Math.round(i.confidence * 100)}% · {i.sourcePrinciple}
                     </p>
                     <Select
@@ -325,14 +373,35 @@ export function ReviewWorkspace({
   );
   return (
     <div className={styles.workspace}>
-      <div className={styles.reading}>
+      <div className={styles.reading} ref={reading}>
+        {connector && (
+          <svg className={styles.connector} aria-hidden="true">
+            <defs>
+              <marker id="flow-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                <path d="M 0 0 L 6 3 L 0 6 z" />
+              </marker>
+            </defs>
+            <path d={connector} markerEnd="url(#flow-arrow)" />
+          </svg>
+        )}
         {boundaries.slice(0, -1).map((start, n) => {
           const end = boundaries[n + 1] ?? start;
           const covering = visible.filter(
             (i) => i.status !== 'dismissed_by_human' && i.spans.some((s) => s.start <= start && s.end >= end),
           );
           const value = index.sliceCp(start, end);
-          if (!covering.length) return <span key={start}>{value}</span>;
+          const sentence = text.sentences.find((item) => item.start === start);
+          const role = roles?.find((item) => item.sentenceId === sentence?.id);
+          const badge = role ? (
+            <sup aria-label={`Vai trò: ${roleLabels[role.role]}`}>[{roleLabels[role.role]}] </sup>
+          ) : null;
+          if (!covering.length)
+            return (
+              <span key={start}>
+                {badge}
+                {value}
+              </span>
+            );
           const priority: Record<Issue['severity'], number> = {
             info: 0,
             minor: 1,
@@ -351,6 +420,7 @@ export function ReviewWorkspace({
           };
           return (
             <Fragment key={start}>
+              {badge}
               <mark
                 style={
                   {
@@ -363,7 +433,7 @@ export function ReviewWorkspace({
                 data-issues={covering.map((item) => item.id).join('|')}
                 role="button"
                 tabIndex={0}
-                aria-label={`${labels[issue.type] ?? issue.type}, ${severities[issue.severity]}, ${statuses[issue.status]}`}
+                aria-label={`${labels[issue.type]}, ${severities[issue.severity]}, ${statuses[issue.status]}`}
                 className={`${styles.mark} ${styles[issue.category]} ${styles[issue.severity]} ${covering.length > 1 ? styles.overlap : ''} ${issue.status === 'candidate' ? styles.candidate : ''} ${covering.some((i) => i.id === selected) ? styles.selected : ''} ${covering.some((i) => i.id === hovered) ? styles.hoveredMark : ''}`}
                 onMouseEnter={() => setHovered(issue.id)}
                 onMouseLeave={() => setHovered(null)}
