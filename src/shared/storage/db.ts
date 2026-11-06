@@ -1,9 +1,10 @@
 import Dexie, { type Table } from 'dexie';
-import type { Analysis, AuditEvent, Revision } from '@/core/schemas';
+import type { Analysis, AuditEvent, Revision, Generation } from '@/core/schemas';
 export class ParagraphDb extends Dexie {
   analyses!: Table<Analysis, string>;
   auditEvents!: Table<AuditEvent, string>;
   revisions!: Table<Revision, string>;
+  generations!: Table<Generation, string>;
   constructor(name = 'paragraph-lab') {
     super(name);
     this.version(1).stores({
@@ -14,6 +15,9 @@ export class ParagraphDb extends Dexie {
       analyses: 'id, createdAt, updatedAt, text.sourceHash',
       auditEvents: 'id, analysisId, at',
       revisions: 'id, sourceAnalysisId, createdAt',
+    });
+    this.version(3).stores({
+      generations: 'id, createdAt',
     });
   }
 }

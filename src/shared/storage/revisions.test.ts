@@ -61,6 +61,7 @@ it('AC-08 AC-12 applies a revision to a new analysis and audits without changing
   const applied = await repo.revisions.applyRevision(source.id, revision.id);
   expect(applied).toMatchObject({
     parentAnalysisId: source.id,
+    origin: { kind: 'revision', revisionId: revision.id },
     title: 'Bản sửa của Gốc',
     text: { sourceText: revision.revisedText },
   });

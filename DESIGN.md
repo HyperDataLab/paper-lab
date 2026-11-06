@@ -113,3 +113,12 @@ Color is never the only signal (WCAG 1.4.1). Each category has a color **and** a
   (stylistic suggestion), "Vi phạm đã xác nhận" (confirmed). Default to the weakest label when unsure.
 - Every async view has loading (skeleton), empty (explain + primary action), error (message + retry + details).
 - AI actions show the privacy notice once per consent version before the first call.
+
+## 6. Generate workspace
+
+At 1280 px and above, Generate presents the claim and evidence form, generated paragraph, and provenance
+checks in three columns. Below that width the panels stack. Evidence rows retain their identifiers when
+reordered; hovering or focusing a sentence's evidence chip highlights its corresponding row. The reading
+view shows sentence roles and marks failed provenance with the critical double underline, icon and text.
+The checks panel lists unused evidence and requests for missing support. A failed check requires an explicit
+confirmation naming the failures before the user can create an analysis.

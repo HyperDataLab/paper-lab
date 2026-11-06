@@ -2,6 +2,8 @@ import {
   AnalysisSchema,
   AuditEventSchema,
   RevisionSchema,
+  GenerationSchema,
+  type Generation,
   ExportPackageSchema,
   validateAnalysisSpans,
   type Analysis,
@@ -307,6 +309,7 @@ export function createRepositories(
           sentenceAnnotations: [],
           issues: [],
           parentAnalysisId: source.id,
+          origin: { kind: 'revision', revisionId },
         });
         await db.analyses.add(value);
         await db.auditEvents.add(
@@ -319,12 +322,79 @@ export function createRepositories(
       });
     },
   };
+  const generations = {
+    async create(input: Generation) {
+      const value = GenerationSchema.parse(input);
+      return db.transaction('rw', db.generations, db.auditEvents, async () => {
+        await db.generations.add(value);
+        await db.auditEvents.add(
+          AuditEventSchema.parse({
+            ...makeAudit(value.id, 'create_generation', 'human'),
+            after: { generationId: value.id },
+          }),
+        );
+        return value;
+      });
+    },
+    async get(id: string) {
+      const row = await db.generations.get(id);
+      return row ? GenerationSchema.parse(row) : undefined;
+    },
+    async list() {
+      return (await db.generations.toArray())
+        .map((row) => GenerationSchema.parse(row))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+    async acceptGeneration(id: string, override = false) {
+      const generation = await generations.get(id);
+      if (!generation) throw new Error('Generation not found');
+      if (!override && generation.checks.overall.some((check) => check.status === 'fail'))
+        throw new Error('Generation has failed provenance checks');
+      const text = await analyzeText(generation.paragraph);
+      return db.transaction('rw', db.generations, db.analyses, db.auditEvents, async () => {
+        const current = await generations.get(id);
+        if (!current || JSON.stringify(current) !== JSON.stringify(generation))
+          throw new Error('Generation changed');
+        const at = now();
+        const value = checkedAnalysis({
+          schemaVersion: 1,
+          id: ids(),
+          createdAt: at,
+          updatedAt: at,
+          title: `Đoạn soạn: ${generation.input.mainClaim}`,
+          text,
+          context: { before: null, after: null, audience: generation.input.audience },
+          contextLimited: true,
+          versions: { rubric: null, prompt: null, model: null, syntaxProvider: null },
+          sentenceAnnotations: [],
+          issues: [],
+          parentAnalysisId: null,
+          origin: { kind: 'generated', generationId: id },
+        });
+        await db.analyses.add(value);
+        await db.auditEvents.add(
+          AuditEventSchema.parse({
+            ...makeAudit(value.id, 'accept_generation', 'human'),
+            after: { generationId: id, override },
+          }),
+        );
+        return value;
+      });
+    },
+  };
   const transfer = {
     async exportAll(appVersion: string) {
       const a = await readAnalyses();
       const events = await audit.listAll();
       const storedRevisions = (await db.revisions.toArray()).map((item) => RevisionSchema.parse(item));
-      return buildExportPackage(a.values, events.items, appVersion, clock(), storedRevisions);
+      return buildExportPackage(
+        a.values,
+        events.items,
+        appVersion,
+        clock(),
+        storedRevisions,
+        await generations.list(),
+      );
     },
     async previewImport(raw: unknown) {
       const a = await readAnalyses();
@@ -347,13 +417,14 @@ export function createRepositories(
         hashes,
         revisionHashes,
         new Set(await db.revisions.toCollection().primaryKeys()),
+        new Set(await db.generations.toCollection().primaryKeys()),
       );
     },
     async applyImport(plan: Extract<ImportPlan, { ok: true }>) {
       for (const revision of plan.revisionsToInsert)
         if ((await sourceHash(revision.revisedText)) !== revision.revisedHash)
           throw new Error('Revision hash mismatch');
-      await db.transaction('rw', db.analyses, db.auditEvents, db.revisions, async () => {
+      await db.transaction('rw', db.analyses, db.auditEvents, db.revisions, db.generations, async () => {
         if (plan.suppressed.length) console.warn('Suppressed invalid imported spans', plan.suppressed);
         for (const value of [...plan.toInsert, ...plan.toUpdate]) {
           const incoming = validateAnalysisSpans(AnalysisSchema.parse(value)).valid;
@@ -393,11 +464,15 @@ export function createRepositories(
             throw new Error('Invalid revision spans');
           await db.revisions.add(revision);
         }
+        for (const generation of plan.generationsToInsert) {
+          if (await db.generations.get(generation.id)) throw new Error('Import preview is out of date');
+          await db.generations.add(GenerationSchema.parse(generation));
+        }
         for (const event of plan.auditEvents)
           if (!(await db.auditEvents.get(event.id))) await db.auditEvents.add(AuditEventSchema.parse(event));
       });
     },
   };
-  return { analyses, audit, revisions, transfer };
+  return { analyses, audit, revisions, generations, transfer };
 }
 export type Repositories = ReturnType<typeof createRepositories>;

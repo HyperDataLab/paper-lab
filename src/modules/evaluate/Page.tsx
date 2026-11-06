@@ -27,6 +27,7 @@ export default function Page() {
   const repositories = useRepositories();
   const navigate = useNavigate();
   const [revisionOverrides, setRevisionOverrides] = useState<Record<string, boolean>>({});
+  const [generationId, setGenerationId] = useState<string | null>(null);
   const [parent, setParent] = useState<{ id: string; title: string } | null>(null);
   const syntax = useSyntaxAnalysis();
   const judge = useCandidateJudge();
@@ -70,6 +71,7 @@ export default function Page() {
         if (!value) throw new Error('Analysis not found');
         setRevisionOverrides({});
         setParent(null);
+        setGenerationId(value.origin?.kind === 'generated' ? value.origin.generationId : null);
         if (value.parentAnalysisId)
           void repositories.analyses.get(value.parentAnalysisId).then((source) => {
             if (active && source) setParent({ id: source.id, title: source.title || 'đoạn văn' });
@@ -246,6 +248,11 @@ export default function Page() {
   return (
     <div className={styles.page}>
       <h1>Đánh giá</h1>
+      {generationId && (
+        <p>
+          <Link to={`/generate?id=${generationId}`}>Đoạn soạn từ luận điểm</Link>
+        </p>
+      )}
       {parent && (
         <p>
           <Link to={`/evaluate?id=${parent.id}`}>Bản sửa của {parent.title}</Link>
