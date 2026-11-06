@@ -4,6 +4,7 @@ import { useRepositories } from '@/shared/storage/StorageProvider';
 import { analyzeText } from '@/core/text';
 import type { Issue, TextAnalysis } from '@/core/schemas';
 import { Button } from '@/shared/ui/Button';
+import { TextField } from '@/shared/ui/TextField';
 import { Card } from '@/shared/ui/Card';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { Skeleton } from '@/shared/ui/Skeleton';
@@ -177,8 +178,9 @@ export default function Page() {
       <h1>Đánh giá</h1>
       {(!result || editing) && (
         <Card>
-          <label htmlFor="paragraph">Dán một đoạn văn tiếng Anh</label>
-          <textarea
+          <TextField
+            label="Dán một đoạn văn tiếng Anh"
+            multiline
             id="paragraph"
             value={text}
             disabled={!!id}
@@ -316,7 +318,7 @@ export default function Page() {
           </div>
           <p className={styles.meta}>Thiếu ngữ cảnh: chỉ phân tích đoạn văn này (context_limited)</p>
           <Tabs label="Chế độ xem">
-            <button
+            <Button
               id="text-tab"
               aria-controls="text-panel"
               role="tab"
@@ -324,8 +326,8 @@ export default function Page() {
               onClick={() => setView('text')}
             >
               Văn bản
-            </button>
-            <button
+            </Button>
+            <Button
               id="sentences-tab"
               aria-controls="sentences-panel"
               role="tab"
@@ -333,7 +335,7 @@ export default function Page() {
               onClick={() => setView('sentences')}
             >
               Câu &amp; số liệu
-            </button>
+            </Button>
           </Tabs>
           <div id="text-panel" role="tabpanel" aria-labelledby="text-tab" hidden={view !== 'text'}>
             <ReviewWorkspace

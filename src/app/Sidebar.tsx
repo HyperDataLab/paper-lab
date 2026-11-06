@@ -1,5 +1,6 @@
 import { PanelLeftClose, PanelLeftOpen, Pilcrow } from 'lucide-react';
 import { useState } from 'react';
+import { Button } from '@/shared/ui/Button';
 import { SidebarGroup } from './SidebarGroup';
 import styles from './shell.module.css';
 
@@ -42,7 +43,8 @@ export function Sidebar({ onNavigate, mobile = false }: { onNavigate?: () => voi
         ))}
       </nav>
       {!mobile && (
-        <button
+        <Button
+          variant="ghost"
           className={styles.collapse}
           onClick={toggle}
           aria-label={rail ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
@@ -55,7 +57,7 @@ export function Sidebar({ onNavigate, mobile = false }: { onNavigate?: () => voi
               <span>Thu gọn</span>
             </>
           )}
-        </button>
+        </Button>
       )}
     </aside>
   );

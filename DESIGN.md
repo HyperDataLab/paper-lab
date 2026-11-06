@@ -80,12 +80,26 @@ Color is never the only signal (WCAG 1.4.1). Each category has a color **and** a
 
 ## 4. Visual tokens
 
-- Fonts: UI `Inter` (vi diacritics OK); analysed text `Source Serif 4` 17px / 1.7 for reading; code `JetBrains Mono`.
-- Spacing scale 4 px; radius 6 px (controls) / 10 px (cards); shadows only on overlays.
+- Fonts: `--font-ui` (Inter), `--font-reading` (Source Serif 4), `--font-mono` (JetBrains Mono).
+  Reading text uses `--text-reading` (17 px) / 1.7.
+
+| Tokens                                                    | Values                          |
+| --------------------------------------------------------- | ------------------------------- |
+| `--space-1`, `-2`, `-3`, `-4`, `-5`, `-6`, `-8`, `-10`    | 4, 8, 12, 16, 20, 24, 32, 40 px |
+| `--radius-sm`, `--radius`, `--radius-lg`, `--radius-pill` | 4, 6, 10, 999 px                |
+| `--text-xs`, `-sm`, `-base`, `-md`, `-lg`, `-xl`, `-2xl`  | 12, 13, 15, 16, 18, 20, 24 px   |
+| `--control-h`, `--control-h-sm`                           | 36, 28 px                       |
+
+- Semantic colours include `--danger`, `--success`, `--warning`, `--scrim` and the existing highlights;
+  `--soft` is a subdued surface for selected and highlighted content. `--shadow-overlay` is for overlays only.
 - Neutral palette on `:root` (`--bg`, `--surface`, `--border`, `--text`, `--text-muted`, `--accent`), redefined
   for dark mode under `prefers-color-scheme: dark` and `[data-theme="dark"]`. Contrast ≥ 4.5:1 for text.
-- Components live in `src/shared/ui/` (Button, IconButton, Tabs, Badge, Card, Drawer, Tooltip, Toast, Kbd, Empty).
-  Modules compose these; no one-off styled buttons in modules. Styling: CSS Modules + CSS variables.
+- Components live in `src/shared/ui/`: Button (primary, secondary, ghost, danger; md/sm), IconButton (md/sm),
+  TextField, Select, Checkbox, SegmentedControl, Chip, Tabs, Badge (neutral, accent, success, warning, danger),
+  Card (md/lg), Drawer, Tooltip (top/right), Toast, Kbd and EmptyState. Modules compose these; no one-off
+  styled buttons in modules. Styling: CSS Modules + CSS variables.
+- ESLint restricts native controls in app and module JSX, except the hidden file input. The
+  `design system: CSS modules use tokens` test guards colours and spacing, radius and type values.
 - Icons: `lucide-react`.
 
 ## 5. Copy and states

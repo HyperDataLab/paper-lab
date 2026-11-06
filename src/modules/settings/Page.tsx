@@ -13,8 +13,11 @@ import {
 import { useLlm } from '@/shared/llm/LlmProvider';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
+import { TextField } from '@/shared/ui/TextField';
+import { useToast } from '@/shared/ui/toastContext';
 import styles from './page.module.css';
 export default function Page() {
+  const toast = useToast();
   const { config, client, consent, ensureConsent, refreshConfig, revoke } = useLlm();
   const [baseUrl, setBaseUrl] = useState(config.baseUrl);
   const [model, setModel] = useState(config.model);
@@ -30,6 +33,7 @@ export default function Page() {
       saveConfig(next);
       refreshConfig();
       setMessage('Đã lưu cài đặt.');
+      toast('Đã lưu');
       setDetail('');
     } catch {
       setMessage('URL hoặc model không hợp lệ, hoặc không thể lưu trên trình duyệt này.');
@@ -73,10 +77,12 @@ export default function Page() {
       <h1>Cài đặt</h1>
       <Card>
         <h2>Kết nối 9router</h2>
-        <label>
-          Base URL
-          <input value={baseUrl} placeholder="/llm" onChange={(e) => setBaseUrl(e.target.value)} />
-        </label>
+        <TextField
+          label="Base URL"
+          value={baseUrl}
+          placeholder="/llm"
+          onChange={(e) => setBaseUrl(e.target.value)}
+        />
         <p>
           /llm = proxy của máy chủ (khoá nằm ở máy chủ). URL đầy đủ = gọi trực tiếp, cần khoá và endpoint cho
           phép CORS.
@@ -85,20 +91,15 @@ export default function Page() {
           Content-Security-Policy khi triển khai chỉ cho phép các host 9router/Worker được liệt kê trong
           firebase.json.
         </p>
-        <label>
-          Model
-          <input value={model} onChange={(e) => setModel(e.target.value)} />
-        </label>
-        <label>
-          API key
-          <input
-            type={show ? 'text' : 'password'}
-            autoComplete="off"
-            disabled={isProxyBaseUrl(baseUrl)}
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-          />
-        </label>
+        <TextField label="Model" value={model} onChange={(e) => setModel(e.target.value)} />
+        <TextField
+          label="API key"
+          type={show ? 'text' : 'password'}
+          autoComplete="off"
+          disabled={isProxyBaseUrl(baseUrl)}
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+        />
         <div className={styles.actions}>
           <Button type="button" disabled={isProxyBaseUrl(baseUrl)} onClick={() => setShow(!show)}>
             {show ? 'Ẩn khoá' : 'Hiện khoá'}

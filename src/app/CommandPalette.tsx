@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/shared/ui/Button';
+import { TextField } from '@/shared/ui/TextField';
 import { modules } from './modules';
 import styles from './shell.module.css';
 export function CommandPalette() {
@@ -37,7 +39,8 @@ export function CommandPalette() {
       }}
     >
       <div className={styles.palette} role="dialog" aria-modal="true" aria-label="Tìm chức năng">
-        <input
+        <TextField
+          label="Tìm chức năng"
           ref={input}
           aria-label="Tìm chức năng"
           placeholder="Tìm chức năng…"
@@ -52,10 +55,15 @@ export function CommandPalette() {
         />
         <div>
           {items.map((item) => (
-            <button key={item.id} disabled={item.status === 'soon'} onClick={() => go(item.path)}>
+            <Button
+              variant="ghost"
+              key={item.id}
+              disabled={item.status === 'soon'}
+              onClick={() => go(item.path)}
+            >
               {item.label}
               {item.status === 'soon' && ' · Sắp có'}
-            </button>
+            </Button>
           ))}
           {items.length === 0 && <p>Không tìm thấy chức năng.</p>}
         </div>

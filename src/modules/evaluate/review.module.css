@@ -1,7 +1,7 @@
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 380px;
-  gap: 24px;
+  gap: var(--space-6);
   align-items: start;
 }
 .reading {
@@ -10,9 +10,7 @@
   margin: 0 auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font:
-    17px/1.7 'Source Serif 4',
-    serif;
+  font: var(--text-reading)/1.7 var(--font-reading);
 }
 .panel {
   position: sticky;
@@ -24,20 +22,20 @@
 .controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  margin: 8px 0;
+  gap: var(--space-1);
+  margin: var(--space-2) 0;
 }
 .chips {
   display: flex;
-  gap: 4px;
+  gap: var(--space-1);
   overflow-x: auto;
-  margin: 8px 0;
+  margin: var(--space-2) 0;
 }
 .filterButton {
   flex: none;
-  padding: 3px 7px;
-  font-size: 12px;
-  border-radius: 999px;
+  padding: 3px var(--space-2);
+  font-size: var(--text-xs);
+  border-radius: var(--radius-pill);
 }
 .filterButton[aria-pressed='true'],
 .segmented [aria-pressed='true'] {
@@ -47,14 +45,14 @@
 .segmented {
   display: flex;
   gap: 0;
-  margin: 8px 0;
+  margin: var(--space-2) 0;
 }
 .segmented button {
-  padding: 4px 6px;
-  font-size: 12px;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
 }
 .lowConfidence {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 .cards {
@@ -63,10 +61,11 @@
 }
 .cards .cardItem {
   border-top: 1px solid var(--border);
-  padding: 10px 0;
+  padding: var(--space-3) 0;
   overflow-wrap: anywhere;
 }
 .cardButton {
+  display: block;
   width: 100%;
   text-align: left;
   background: var(--surface);
@@ -77,14 +76,14 @@
 }
 .cardCategory {
   display: block;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 .cardSummary {
   display: block;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .cardSummary strong {
   color: var(--text);
@@ -92,15 +91,13 @@
 .cards .expanded {
   border: 1px solid var(--border);
   border-left: 3px solid var(--issue-color);
-  border-radius: 10px;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--text) 12%, transparent);
-  padding: 16px;
-  margin: 8px 0;
+  border-radius: var(--radius-lg);
+  background: var(--soft);
+  padding: var(--space-4);
+  margin: var(--space-2) 0;
 }
-.expanded select {
-  font: inherit;
-  font-size: 12px;
-  padding: 3px;
+.cards .expanded .cardButton {
+  background: transparent;
 }
 .primary {
   background: var(--accent);
@@ -149,9 +146,9 @@
   background: var(--hl-critical);
 }
 .suggestion {
-  padding: 8px;
+  padding: 0;
   background: var(--soft);
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 .suggestion del {
   color: var(--text-muted);
@@ -229,12 +226,12 @@
 }
 .overlapBadge {
   display: inline;
-  font-size: 10px;
+  font-size: var(--text-xs);
   padding: 0 3px;
   color: var(--text);
   background: var(--soft);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
 }
 .acceptable {
