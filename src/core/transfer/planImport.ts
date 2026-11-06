@@ -15,6 +15,7 @@ export function planImport(
   computedHashes: Map<string, string>,
   revisionHashes = new Map<string, string>(),
   existingRevisionIds = new Set<string>(),
+  existingGenerationIds = new Set<string>(),
 ) {
   existing = new Map(existing);
   const parsed = ExportPackageSchema.extend({ analyses: z.array(z.unknown()) }).safeParse(rawJson);
@@ -105,6 +106,12 @@ export function planImport(
     seenRevisions.add(revision.id);
     revisionsToInsert.push(revision);
   }
+  const generationsToInsert = parsed.data.generations.filter((generation) => {
+    if (existingGenerationIds.has(generation.id)) return false;
+    existingGenerationIds.add(generation.id);
+    return true;
+  });
+  for (const generation of parsed.data.generations) auditEligible.add(generation.id);
   const seen = new Set(auditIds);
   let auditSkipped = 0;
   const auditEvents: AuditEvent[] = parsed.data.auditEvents.filter((event) => {
@@ -120,6 +127,7 @@ export function planImport(
     toInsert,
     toUpdate,
     revisionsToInsert,
+    generationsToInsert,
     skipped,
     suppressed,
     auditEvents,

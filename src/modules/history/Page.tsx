@@ -15,12 +15,17 @@ export default function Page() {
   const repo = useRepositories();
   const [list, setList] = useState<List | null>(null);
   const [error, setError] = useState('');
+  const [generations, setGenerations] = useState<Awaited<ReturnType<typeof repo.generations.list>>>([]);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteTrigger, setDeleteTrigger] = useState<HTMLElement | null>(null);
   const [revisions, setRevisions] = useState<
     Record<string, Awaited<ReturnType<typeof repo.revisions.listBySource>>>
   >({});
   const load = useCallback(() => {
+    void repo.generations
+      .list()
+      .then(setGenerations)
+      .catch((e: unknown) => setError(String(e)));
     repo.analyses
       .list()
       .then(async (value) => {
@@ -117,6 +122,21 @@ export default function Page() {
           )}
         </>
       )}
+      <Card>
+        <h2>Đoạn đã soạn</h2>
+        {generations.length ? (
+          <ul>
+            {generations.map((item) => (
+              <li key={item.id}>
+                <Link to={`/generate?id=${item.id}`}>{item.input.mainClaim}</Link> ·{' '}
+                {new Date(item.createdAt).toLocaleString('vi')}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>Chưa có đoạn đã soạn.</p>
+        )}
+      </Card>
       {deleting && (
         <Dialog
           title="Xoá bản phân tích này?"

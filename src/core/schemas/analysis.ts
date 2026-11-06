@@ -65,6 +65,13 @@ export const AnalysisSchema = z.object({
   scores: ScoresSchema.nullable().default(null),
   issues: z.array(IssueSchema),
   parentAnalysisId: z.uuid().nullable(),
+  origin: z
+    .discriminatedUnion('kind', [
+      z.object({ kind: z.literal('generated'), generationId: z.uuid() }),
+      z.object({ kind: z.literal('revision'), revisionId: z.uuid() }),
+    ])
+    .nullable()
+    .default(null),
 });
 export type Analysis = z.infer<typeof AnalysisSchema>;
 /** Shape accepted before defaults are applied (e.g. records written before S5). */

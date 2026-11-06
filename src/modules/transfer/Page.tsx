@@ -114,6 +114,10 @@ export default function Page() {
                   <td>{plan.revisionsToInsert.length}</td>
                 </tr>
                 <tr>
+                  <th>Đoạn soạn mới</th>
+                  <td>{plan.generationsToInsert.length}</td>
+                </tr>
+                <tr>
                   <th>Bỏ qua</th>
                   <td>
                     {plan.skipped.length} {plan.skipped.map((x) => `${x.id}: ${x.reason}`).join('; ')}

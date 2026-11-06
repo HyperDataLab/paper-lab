@@ -35,9 +35,9 @@ function result(id: string, status: 'fail' | 'warn', differences: Located[], det
     spans: differences.map(({ start, end, side }) => ({ start, end, side })),
   };
 }
-const citation =
+export const citation =
   /\[\s*\d+(?:\s*[,;–—-]\s*\d+)*\s*\]|\([^()]*\b(?:\d{4}[a-z]?|et al\.)[^()]*\)|\b[\p{L}\p{M}'’]+\s+et al\.(?:\s*\(?\d{4}[a-z]?\)?)?/giu;
-const quantity =
+export const quantity =
   /(?<![\p{L}\p{N}])[-+−±]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:\s*[-–—]\s*[-+−]?\d+(?:\.\d+)?)?(?:\s*(?:[%‰°]+|[\p{L}\p{M}µμ]+)(?:[/·⋅^−-][\p{L}\p{M}\p{N}µμ⁰¹²³⁴⁵⁶⁷⁸⁹⁻-]+)*)?/gu;
 const negation = /\b(?:not|no|never|neither|nor|without|cannot)\b|n['’]t\b/giu;
 const hedge = /\b(?:may|might|could|suggests?|likely|possibly|appears?|approximately|about|preliminary)\b/giu;
