@@ -16,6 +16,8 @@ export const AuditEventSchema = z.object({
     'edit_severity',
     'import',
     'delete_analysis',
+    'create_revision',
+    'apply_revision',
   ]),
   before: z.unknown().nullable(),
   after: z.unknown().nullable(),

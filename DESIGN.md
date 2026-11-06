@@ -57,7 +57,7 @@ inspector opens in a right drawer; below 768 px, it appears below the document.
 │ Sentence 62 · Verb 70 · Concise 75 · Organization 60 · Flow 72       │                      │
 └──────────────────────────────────────────────────────────────────────┴──────────────────────┘
 Filter bar: Tất cả | Đã xác nhận | Ứng viên | Câu | Mạch | Từ ngữ   [ẩn độ tin cậy thấp]
-D. Diff (Revise module): side-by-side before/after with aligned change spans.
+D. Diff (Revise module): show original and revised text side by side from 1024 px, stacking them below that width. Code-aligned deletions use strikethrough and insertions use underlining as well as colour; labels identify each mark. List each change's rationale and issue IDs, and identify unexplained changes. Selecting a meaning check highlights its source or revised spans.
 ```
 
 ## 3. Issue highlighting
