@@ -42,6 +42,7 @@ it('EV-07 EV-08 retains adjacent pairs, supplies missing roles and reports fract
     continuity: 'shift',
     discourseRelation: 'none',
     confidence: 0,
+    measured: false,
     fromSpan: null,
     toSpan: null,
   });
@@ -52,6 +53,51 @@ it('EV-07 EV-08 retains adjacent pairs, supplies missing roles and reports fract
   // Pairs without model output (confidence 0, "no model output") carry no evidence: no findings.
   expect(result.flowLinks.every((link) => link.rationale === 'no model output')).toBe(true);
   expect(paragraphIssues(result.paragraph, result.flowLinks, text)).toEqual([]);
+  const missingMetrics = computeParagraphMetrics(result.paragraph, result.roles, result.flowLinks);
+  expect(missingMetrics.unexplained_topic_shift_count).toEqual({ numerator: 0, denominator: 0, value: null });
+  expect(missingMetrics.discourse_relation_coverage.value).toBeNull();
+  expect(missingMetrics.topic_continuity_pattern.shift.value).toBeNull();
+  const mixed = result.flowLinks.map((link, index) => ({
+    ...link,
+    measured: index === 0,
+    fromSpan: { start: 0, end: 1 },
+    toSpan: { start: 1, end: 2 },
+  }));
+  const metrics = computeParagraphMetrics(result.paragraph, result.roles, mixed);
+  expect(metrics.stress_to_next_topic_alignment.denominator).toBe(1);
+  expect(metrics.unexplained_topic_shift_count).toEqual({ numerator: 1, denominator: 1, value: 1 });
+  expect(metrics.discourse_relation_coverage.denominator).toBe(1);
+  expect(metrics.topic_continuity_pattern.shift.denominator).toBe(1);
+});
+
+it('EV-07 uses the chosen type score and rejects weak or inconsistent classifications', async () => {
+  const text = await analyzeText('First sentence.');
+  const raw = ParagraphStructureOutputSchema.parse({
+    type: 'TS-D',
+    typeScores: { 'TS-D': 0.1, LD: 0.9, LDR: 0.1, OCAR: 0.1, UNKNOWN: 0.2 },
+    centralPointSentenceId: null,
+    identifiability: 3,
+    evidence: '',
+    roles: [],
+    offTopicSentenceIds: [],
+    unityRationale: '',
+    pairs: [],
+    rationale: '',
+  });
+  expect(validateParagraphStructure(raw, text, []).paragraph).toMatchObject({
+    type: 'UNKNOWN',
+    confidence: 0.2,
+  });
+  raw.typeScores['TS-D'] = 0.5;
+  expect(validateParagraphStructure(raw, text, []).paragraph).toMatchObject({
+    type: 'UNKNOWN',
+    confidence: 0.2,
+  });
+  raw.typeScores['TS-D'] = 0.8;
+  expect(validateParagraphStructure(raw, text, []).paragraph).toMatchObject({
+    type: 'TS-D',
+    confidence: 0.8,
+  });
 });
 
 it('EV-07 old free-string roles become null', () => {

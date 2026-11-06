@@ -27,6 +27,7 @@ it('AC-04 suppresses an invalid flow endpoint on save', async () => {
         continuity: 'shift',
         discourseRelation: 'none',
         linked: false,
+        measured: true,
         confidence: 0.8,
         fromSpan: { start: 0, end: 999 },
         toSpan: null,

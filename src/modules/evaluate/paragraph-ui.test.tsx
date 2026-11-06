@@ -42,7 +42,7 @@ function fakeCompleteJson() {
                 subjectHead: null,
                 mainVerb: null,
                 mainVerbHead: null,
-                voice: 'active',
+                voice: 'passive',
                 clauseCount: 1,
                 maxClauseDepth: 0,
                 confidence: 0.9,
@@ -160,12 +160,52 @@ it('EV-07 EV-08 AC-05 analyzes after syntax, shows the chain, and reopens withou
   await screen.findByRole('button', { name: 'Đã lưu' });
   const [saved] = (await repo.analyses.list()).items;
   expect((await repo.analyses.get(saved!.id))?.versions.structurePrompt).toBe('para-struct-2');
+  expect((await repo.analyses.get(saved!.id))?.versions.structureModel).toBe('fake');
+  expect(screen.getByRole('button', { name: 'Phân tích lại (AI)' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Phân tích cấu trúc đoạn (AI)' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Đánh giá theo ngữ cảnh (AI)' })).toBeDisabled();
   view.unmount();
   completeJson.mockClear();
   mount(repo, client, `/evaluate?id=${saved!.id}`);
   fireEvent.click(await screen.findByRole('tab', { name: 'Cấu trúc đoạn' }));
   expect(await screen.findByText('độ tin cậy 80 %')).toBeInTheDocument();
   expect(completeJson).not.toHaveBeenCalled();
+});
+
+it('EV-08 removes decisions for vanished flow issues before saving', async () => {
+  const repo = createRepositories(createDb(`paragraph-${crypto.randomUUID()}`));
+  const original = fakeCompleteJson();
+  let structureCalls = 0;
+  const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => {
+    const response = await original(options);
+    if (options.schemaName === 'paragraph_structure' && ++structureCalls === 2) {
+      const data = response.data as { pairs: unknown[] };
+      return { ...response, data: { ...data, pairs: [] } };
+    }
+    return response;
+  });
+  mount(repo, { completeJson } as unknown as LlmClient);
+  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), {
+    target: { value: 'Cells grow. Roots spread.' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Phân tích câu (AI)' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Phân tích cấu trúc đoạn (AI)' })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Phân tích cấu trúc đoạn (AI)' }));
+  fireEvent.click((await screen.findByText(/grow → Roots/)).closest('button')!);
+  fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Phân tích cấu trúc đoạn (AI)' }));
+  await waitFor(() => expect(screen.queryByText(/grow → Roots/)).not.toBeInTheDocument());
+  fireEvent.click(screen.getByRole('tab', { name: 'Cấu trúc đoạn' }));
+  expect(screen.getByText('Không có đánh giá của AI')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu vào lịch sử' }));
+  await screen.findByRole('button', { name: 'Đã lưu' });
+  const entries = (await repo.audit.listAll()).items;
+  expect(entries.map((event) => event.action)).toEqual(['create_analysis']);
+  expect((await repo.analyses.list()).items).toHaveLength(1);
 });
 
 it('EV-07 editing the text or re-running sentence syntax clears the structure result', async () => {

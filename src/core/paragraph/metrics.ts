@@ -12,11 +12,12 @@ export function computeParagraphMetrics(
     denominator,
     value: denominator ? Math.round((numerator / denominator) * 1000) / 1000 : null,
   });
-  const analysable = links.filter((link) => link.fromSpan && link.toSpan);
+  const measured = links.filter((link) => link.measured);
+  const analysable = measured.filter((link) => link.fromSpan && link.toSpan);
   const patterns = Object.fromEntries(
     CONTINUITIES.map((continuity) => [
       continuity,
-      fraction(links.filter((link) => link.continuity === continuity).length, links.length),
+      fraction(measured.filter((link) => link.continuity === continuity).length, measured.length),
     ]),
   ) as ParagraphMetrics['topic_continuity_pattern'];
   return {
@@ -29,8 +30,8 @@ export function computeParagraphMetrics(
       analysable.filter((link) => link.linked && link.continuity === 'stress_to_topic').length,
       analysable.length,
     ),
-    unexplained_topic_shift_count: fraction(links.filter(isUnexplainedShift).length, links.length),
-    discourse_relation_coverage: fraction(links.filter(hasNamedRelation).length, links.length),
+    unexplained_topic_shift_count: fraction(measured.filter(isUnexplainedShift).length, measured.length),
+    discourse_relation_coverage: fraction(measured.filter(hasNamedRelation).length, measured.length),
     topic_continuity_pattern: patterns,
     central_point_identifiability: fraction(paragraph.centralPoint.identifiability, 4),
   };

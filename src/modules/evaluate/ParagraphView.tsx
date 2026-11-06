@@ -94,16 +94,22 @@ export function ParagraphView({
                 <strong>
                   {link.fromSentenceId.toUpperCase()} → {link.toSentenceId.toUpperCase()}
                 </strong>
-                <Badge>{continuityLabels[link.continuity]}</Badge>
-                <Badge>{relationLabels[link.discourseRelation]}</Badge>
-                {link.linked ? (
-                  <Badge tone="success" icon={<Link2 size={14} aria-hidden="true" />}>
-                    Có liên kết
-                  </Badge>
+                {!link.measured ? (
+                  <Badge>Không có đánh giá của AI</Badge>
                 ) : (
-                  <Badge tone="warning" icon={<Unlink size={14} aria-hidden="true" />}>
-                    Chưa liên kết
-                  </Badge>
+                  <>
+                    <Badge>{continuityLabels[link.continuity]}</Badge>
+                    <Badge>{relationLabels[link.discourseRelation]}</Badge>
+                    {link.linked ? (
+                      <Badge tone="success" icon={<Link2 size={14} aria-hidden="true" />}>
+                        Có liên kết
+                      </Badge>
+                    ) : (
+                      <Badge tone="warning" icon={<Unlink size={14} aria-hidden="true" />}>
+                        Chưa liên kết
+                      </Badge>
+                    )}
+                  </>
                 )}
               </div>
               <span className={styles.quote}>

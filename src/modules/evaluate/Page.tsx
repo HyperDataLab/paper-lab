@@ -47,6 +47,7 @@ export default function Page() {
     }[]
   >([]);
   const [view, setView] = useState<'text' | 'sentences' | 'paragraph'>('text');
+  const [previousIssueIds, setPreviousIssueIds] = useState('[]');
   const [editing, setEditing] = useState(false);
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -92,6 +93,12 @@ export default function Page() {
     ),
     ...(paragraph.result?.issues ?? []),
   ];
+  const issueIds = JSON.stringify(baseIssues.map((issue) => issue.id).sort());
+  if (issueIds !== previousIssueIds) {
+    const currentIds = new Set<string>(JSON.parse(issueIds) as string[]);
+    setPreviousIssueIds(issueIds);
+    setDecisions((old) => old.filter((decision) => currentIds.has(decision.issueId)));
+  }
   const issues = decisions.reduce(
     (items, decision) =>
       items.map((item) => (item.id === decision.issueId ? { ...item, ...decision.change } : item)),
@@ -158,6 +165,7 @@ export default function Page() {
           detectors: DETECTOR_VERSION,
           ...(judge.versions ?? {}),
           structurePrompt: paragraph.result?.promptVersion ?? null,
+          structureModel: paragraph.result?.model ?? null,
         },
         issues: [...decisions]
           .reverse()
@@ -171,7 +179,9 @@ export default function Page() {
             baseIssues,
           ),
       });
-      for (const decision of decisions)
+      for (const decision of decisions.filter((item) =>
+        baseIssues.some((issue) => issue.id === item.issueId),
+      ))
         await repositories.analyses.reviewIssue(created.id, decision.issueId, decision.change);
       setCreatedId(created.id);
       setSaved(true);
@@ -313,6 +323,7 @@ export default function Page() {
             <SyntaxControls
               syntax={syntax}
               readOnly={!!id}
+              saved={saved}
               onRun={() => {
                 resetJudge();
                 resetParagraph();
@@ -328,13 +339,17 @@ export default function Page() {
                   </>
                 ) : (
                   <Button
-                    disabled={!syntax.annotations || syntax.running}
+                    disabled={saved || !syntax.annotations || syntax.running}
                     onClick={() => void paragraph.run(result, syntax.annotations, issues)}
                   >
                     Phân tích cấu trúc đoạn (AI)
                   </Button>
                 )}
-                {!syntax.annotations && <small>Cần phân tích câu trước</small>}
+                {saved ? (
+                  <small>Đã lưu — chọn Chỉnh sửa văn bản để phân tích lại</small>
+                ) : (
+                  !syntax.annotations && <small>Cần phân tích câu trước</small>
+                )}
                 {paragraph.error && <p role="alert">Không phân tích được: {paragraph.error}</p>}
               </section>
             )}
@@ -346,7 +361,7 @@ export default function Page() {
                   </>
                 ) : (
                   <Button
-                    disabled={syntax.running}
+                    disabled={saved || syntax.running}
                     onClick={() =>
                       void judge.run(
                         result,
@@ -360,6 +375,7 @@ export default function Page() {
                     Đánh giá theo ngữ cảnh (AI)
                   </Button>
                 )}
+                {saved && <small>Đã lưu — chọn Chỉnh sửa văn bản để phân tích lại</small>}
                 {judge.error && (
                   <p role="alert">
                     Không đánh giá được: {judge.error}{' '}

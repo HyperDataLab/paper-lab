@@ -7,10 +7,12 @@ import { Link } from 'react-router-dom';
 export function SyntaxControls({
   syntax,
   readOnly,
+  saved,
   onRun,
 }: {
   syntax: SyntaxAnalysis;
   readOnly: boolean;
+  saved: boolean;
   onRun: () => void;
 }) {
   return (
@@ -23,10 +25,11 @@ export function SyntaxControls({
               <Button onClick={syntax.cancel}>Huỷ</Button>
             </>
           ) : (
-            <Button variant={syntax.annotations ? 'secondary' : 'primary'} onClick={onRun}>
+            <Button variant={syntax.annotations ? 'secondary' : 'primary'} onClick={onRun} disabled={saved}>
               {syntax.annotations ? 'Phân tích lại (AI)' : 'Phân tích câu (AI)'}
             </Button>
           )}
+          {saved && <small>Đã lưu — chọn Chỉnh sửa văn bản để phân tích lại</small>}
         </div>
       )}
       {syntax.error && (

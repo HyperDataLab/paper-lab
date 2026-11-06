@@ -20,8 +20,7 @@ function withRationale(base: string, rationale: string | null | undefined): stri
 }
 
 function flowIssue(link: FlowLink, text: TextAnalysis): Issue | null {
-  // A pair without model output (confidence 0) carries no evidence, so it never becomes a finding.
-  if (link.confidence <= 0 || !isUnexplainedShift(link)) return null;
+  if (!link.measured || !isUnexplainedShift(link)) return null;
   const from = text.sentences.find((sentence) => sentence.id === link.fromSentenceId);
   const to = text.sentences.find((sentence) => sentence.id === link.toSentenceId);
   if (!from || !to) return null;

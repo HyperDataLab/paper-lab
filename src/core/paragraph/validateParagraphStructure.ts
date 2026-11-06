@@ -21,9 +21,11 @@ export function validateParagraphStructure(
   const centralSentence = text.sentences.find((sentence) => sentence.id === raw.centralPointSentenceId);
   const topScore = Math.max(...Object.values(raw.typeScores));
   const type = STRUCTURE_TYPES.find((item) => item === raw.type);
+  const chosenScore = type ? raw.typeScores[type] : 0;
+  const acceptedType = type && chosenScore >= 0.4 && topScore - chosenScore <= 0.2 ? type : 'UNKNOWN';
   const paragraph: Paragraph = {
-    type: type && topScore >= 0.4 ? type : 'UNKNOWN',
-    confidence: topScore,
+    type: acceptedType,
+    confidence: acceptedType === 'UNKNOWN' ? (raw.typeScores.UNKNOWN ?? topScore) : chosenScore,
     typeScores: raw.typeScores,
     centralPoint: {
       sentenceId: centralSentence?.id ?? null,
@@ -48,6 +50,7 @@ export function validateParagraphStructure(
         continuity: pair?.continuity ?? 'shift',
         discourseRelation: pair?.discourseRelation ?? 'none',
         linked: pair?.linked ?? false,
+        measured: !!pair,
         confidence: pair?.confidence ?? 0,
         rationale: pair?.rationale ?? 'no model output',
         fromSpan: annotations.find((item) => item.sentenceId === from.id)?.stressSpan ?? null,

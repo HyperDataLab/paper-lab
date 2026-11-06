@@ -53,6 +53,7 @@ export const AnalysisSchema = z.object({
     detectors: z.string().nullable().default(null),
     judgePrompt: z.string().nullable().default(null),
     structurePrompt: z.string().nullable().default(null),
+    structureModel: z.string().nullable().default(null),
   }),
   sentenceAnnotations: z.array(SentenceAnnotationSchema),
   paragraph: ParagraphSchema.nullable().default(null),

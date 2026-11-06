@@ -45,6 +45,7 @@ export const FlowLinkSchema = z.object({
   continuity: z.enum(CONTINUITIES),
   discourseRelation: z.enum(RELATIONS),
   linked: z.boolean(),
+  measured: z.boolean().default(true),
   confidence,
   fromSpan: SpanSchema.nullable(),
   toSpan: SpanSchema.nullable(),

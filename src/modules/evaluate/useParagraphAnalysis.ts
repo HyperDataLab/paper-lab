@@ -66,7 +66,7 @@ export function useParagraphAnalysis() {
         rationale: item.roleRationale,
       })),
       issues: analysis.issues.filter((item) => item.category === 'flow' || item.category === 'organization'),
-      model: analysis.versions.model,
+      model: analysis.versions.structureModel,
       promptVersion: analysis.versions.structurePrompt,
     });
   }, []);
