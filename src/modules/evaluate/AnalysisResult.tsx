@@ -3,6 +3,7 @@ import { createOffsetIndex } from '@/core/text';
 import type { TextAnalysis } from '@/core/schemas';
 import { Badge } from '@/shared/ui/Badge';
 import { Card } from '@/shared/ui/Card';
+import { Checkbox } from '@/shared/ui/Checkbox';
 import { SentenceView } from './SentenceView';
 import type { SyntaxAnalysis } from './useSyntaxAnalysis';
 import styles from './page.module.css';
@@ -20,14 +21,9 @@ export function AnalysisResult({ result, syntax }: { result: TextAnalysis; synta
         source_hash: {result.sourceHash.slice(0, 19)}… · offset_unit: {result.offsetUnit} ·{' '}
         {result.tokenizerVersion} · {result.segmenterVersion}
       </p>
-      <label>
-        <input
-          type="checkbox"
-          checked={showTokens}
-          onChange={(event) => setShowTokens(event.target.checked)}
-        />{' '}
+      <Checkbox checked={showTokens} onChange={(event) => setShowTokens(event.target.checked)}>
         Hiện token
-      </label>
+      </Checkbox>
       <ol className={styles.list}>
         {result.sentences.map((sentence) => {
           const tokens = result.tokens.slice(sentence.tokenStart, sentence.tokenEnd);

@@ -18,6 +18,19 @@ export default tseslint.config(
     },
   },
   {
+    files: ['src/app/**/*.{ts,tsx}', 'src/modules/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "JSXOpeningElement[name.name=/^(button|select|textarea)$/], JSXOpeningElement[name.name='input']:not(:has(JSXAttribute[name.name='type'][value.value='file']))",
+          message: 'Dùng component trong src/shared/ui',
+        },
+      ],
+    },
+  },
+  {
     files: ['src/core/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [

@@ -1,5 +1,35 @@
 :root {
-  font-family: Inter, sans-serif;
+  --font-ui: Inter, sans-serif;
+  --font-reading: 'Source Serif 4', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --radius-pill: 999px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-reading: 17px;
+  --control-h: 36px;
+  --control-h-sm: 28px;
+  --danger: #b91c1c;
+  --success: #126b5d;
+  --warning: #a14c0b;
+  --scrim: rgb(0 0 0 / 50%);
+  --shadow-overlay: 0 8px 32px rgb(0 0 0 / 20%);
+  font-family: var(--font-ui);
   color-scheme: light;
   --bg: #f6f7f8;
   --surface: #fff;
@@ -24,6 +54,9 @@
     --text-muted: #b1c3c5;
     --accent: #72d8bf;
     --soft: #263f40;
+    --danger: #f87171;
+    --success: #72d8bf;
+    --warning: #fb923c;
     --hl-structure: #fb923c;
     --hl-flow: #c084fc;
     --hl-word: #60a5fa;
@@ -40,6 +73,9 @@
   --text-muted: #b1c3c5;
   --accent: #72d8bf;
   --soft: #263f40;
+  --danger: #f87171;
+  --success: #72d8bf;
+  --warning: #fb923c;
   --hl-structure: #fb923c;
   --hl-flow: #c084fc;
   --hl-word: #60a5fa;
@@ -53,10 +89,13 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
+  font-size: var(--text-base);
+  line-height: 1.5;
 }
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 :focus-visible {
@@ -64,7 +103,16 @@ select {
   outline-offset: 2px;
 }
 h1 {
-  font-size: 25px;
+  font-size: var(--text-2xl);
+  font-weight: 700;
   letter-spacing: -0.03em;
   margin: 0 0 12px;
+}
+h2 {
+  font-size: var(--text-xl);
+  font-weight: 600;
+}
+h3 {
+  font-size: var(--text-md);
+  font-weight: 600;
 }

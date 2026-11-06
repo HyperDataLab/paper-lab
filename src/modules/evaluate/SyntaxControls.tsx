@@ -23,7 +23,7 @@ export function SyntaxControls({
               <Button onClick={syntax.cancel}>Huỷ</Button>
             </>
           ) : (
-            <Button onClick={onRun}>
+            <Button variant={syntax.annotations ? 'secondary' : 'primary'} onClick={onRun}>
               {syntax.annotations ? 'Phân tích lại (AI)' : 'Phân tích câu (AI)'}
             </Button>
           )}

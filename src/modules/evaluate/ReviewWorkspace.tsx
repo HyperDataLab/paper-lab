@@ -7,11 +7,16 @@ import { Card } from '@/shared/ui/Card';
 import { Drawer } from '@/shared/ui/Drawer';
 import { Tabs } from '@/shared/ui/Tabs';
 import { IconButton } from '@/shared/ui/IconButton';
-import { Tooltip } from '@/shared/ui/Tooltip';
+import { Checkbox } from '@/shared/ui/Checkbox';
+import { Chip } from '@/shared/ui/Chip';
+import { Select } from '@/shared/ui/Select';
+import { SegmentedControl } from '@/shared/ui/SegmentedControl';
+import { useToast } from '@/shared/ui/toastContext';
 import { labels } from './issueLabels';
 import { DEFAULT_LEXICON } from '@/core/detectors';
 import { SV_GAP_REVIEW, CLAUSE_DEPTH_REVIEW } from '@/core/analysis/heuristics';
-import { CheckCircle2, Circle, CircleSlash, Copy } from 'lucide-react';
+import { CheckCircle2, CircleDot, XCircle, MinusCircle, Sparkles, Copy } from 'lucide-react';
+import { Badge } from '@/shared/ui/Badge';
 import styles from './review.module.css';
 
 const categories: Record<Issue['category'], string> = {
@@ -47,6 +52,7 @@ export function ReviewWorkspace({
   onChange: (issue: Issue, change: { status?: Issue['status']; severity?: Issue['severity'] }) => void;
   toolbarTarget?: HTMLElement | null;
 }) {
+  const toast = useToast();
   const [selected, setSelected] = useState<string | null>(null);
   const [category, setCategory] = useState<Issue['category'] | null>(null);
   const [filter, setFilter] = useState('all');
@@ -114,42 +120,41 @@ export function ReviewWorkspace({
     <Card>
       <h2>Gợi ý ({issues.filter((i) => !handled(i)).length})</h2>
       <Tabs label="Trạng thái gợi ý">
-        <button role="tab" aria-selected={!done} onClick={() => setDone(false)}>
+        <Button role="tab" aria-selected={!done} onClick={() => setDone(false)}>
           Cần xem ({issues.filter((i) => !handled(i)).length})
-        </button>
-        <button role="tab" aria-selected={done} onClick={() => setDone(true)}>
+        </Button>
+        <Button role="tab" aria-selected={done} onClick={() => setDone(true)}>
           Đã xử lý ({issues.filter(handled).length})
-        </button>
+        </Button>
       </Tabs>
       <div className={styles.chips}>
         {(Object.keys(categories) as Issue['category'][]).map(
           (c) =>
             issues.some((i) => i.category === c) && (
-              <Button
+              <Chip
                 className={styles.filterButton}
                 aria-pressed={category === c}
                 key={c}
                 onClick={() => setCategory(category === c ? null : c)}
               >
                 {categories[c]} ({issues.filter((i) => i.category === c).length})
-              </Button>
+              </Chip>
             ),
         )}
       </div>
-      <div className={styles.segmented}>
-        <Button aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>
-          Tất cả
-        </Button>
-        <Button aria-pressed={filter === 'confirmed'} onClick={() => setFilter('confirmed')}>
-          Đã xác nhận
-        </Button>
-        <Button aria-pressed={filter === 'candidate'} onClick={() => setFilter('candidate')}>
-          Ứng viên
-        </Button>
-      </div>
-      <label className={styles.lowConfidence}>
-        <input type="checkbox" checked={low} onChange={(e) => setLow(e.target.checked)} /> Ẩn độ tin cậy thấp
-      </label>
+      <SegmentedControl
+        label="Lọc trạng thái"
+        value={filter}
+        onChange={setFilter}
+        options={[
+          { value: 'all', label: 'Tất cả' },
+          { value: 'confirmed', label: 'Đã xác nhận' },
+          { value: 'candidate', label: 'Ứng viên' },
+        ]}
+      />
+      <Checkbox checked={low} onChange={(e) => setLow(e.target.checked)}>
+        Ẩn độ tin cậy thấp
+      </Checkbox>
       {visible.filter((i) => handled(i) === done).length === 0 && (
         <p>{issues.length ? 'Đã xem hết gợi ý' : 'Chưa có gợi ý'}</p>
       )}
@@ -192,7 +197,7 @@ export function ReviewWorkspace({
                 id={`card-${i.id}`}
                 className={`${styles.cardItem} ${styles[`color_${i.category}`]} ${selected === i.id ? styles.expanded : ''} ${hovered === i.id ? styles.hovered : ''} ${i.severity === 'info' ? styles.acceptable : ''} ${i.status === 'dismissed_by_human' ? styles.dismissed : ''}`}
               >
-                <button
+                <Button
                   data-card
                   className={styles.cardButton}
                   onMouseEnter={() => setHovered(i.id)}
@@ -205,24 +210,39 @@ export function ReviewWorkspace({
                     <span className={styles.dot} aria-hidden="true" /> {categories[i.category]}
                   </span>
                   <span className={styles.cardSummary}>
-                    <strong>{original}</strong> ·{' '}
-                    <span>
-                      {labels[i.type] ?? i.type} {i.severity === 'info' && 'AI: chấp nhận được'}
-                    </span>
+                    <strong>{original}</strong>
+                    {selected !== i.id && (
+                      <>
+                        {' '}
+                        ·{' '}
+                        <span>
+                          {labels[i.type] ?? i.type} {i.severity === 'info' && 'AI: chấp nhận được'}
+                        </span>
+                      </>
+                    )}
                   </span>
-                </button>
+                </Button>
                 {selected === i.id && (
                   <div>
                     <strong>{labels[i.type] ?? i.type}</strong>
                     <p>
-                      {i.status === 'dismissed_by_human' ? (
-                        <CircleSlash size={14} />
-                      ) : i.status === 'candidate' ? (
-                        <Circle size={14} />
-                      ) : (
-                        <CheckCircle2 size={14} />
-                      )}{' '}
-                      {i.severity === 'info' && !handled(i) ? 'AI: chấp nhận được' : statuses[i.status]}
+                      <Badge
+                        icon={
+                          i.status === 'dismissed_by_human' ? (
+                            <XCircle size={14} />
+                          ) : i.severity === 'info' && !handled(i) ? (
+                            <MinusCircle size={14} />
+                          ) : i.status === 'candidate' ? (
+                            <CircleDot size={14} />
+                          ) : i.status === 'confirmed_by_model' ? (
+                            <Sparkles size={14} />
+                          ) : (
+                            <CheckCircle2 size={14} />
+                          )
+                        }
+                      >
+                        {i.severity === 'info' && !handled(i) ? 'AI: chấp nhận được' : statuses[i.status]}
+                      </Badge>
                     </p>
                     <p>{i.why}</p>
                     {suggestion && (
@@ -244,33 +264,35 @@ export function ReviewWorkspace({
                           : `${i.metric.value ?? '—'} ${i.metric.unit === 'candidate' ? 'ứng viên' : i.metric.unit === 'tokens' ? 'token' : (i.metric.unit ?? '')}`}{' '}
                       · {severities[i.severity]} · {Math.round(i.confidence * 100)}% · {i.sourcePrinciple}
                     </p>
-                    <label>
-                      Mức độ{' '}
-                      <select
-                        value={i.severity}
-                        onChange={(e) => onChange(i, { severity: e.target.value as Issue['severity'] })}
-                      >
-                        <option value="minor">Nhỏ</option>
-                        <option value="moderate">Vừa</option>
-                        <option value="major">Lớn</option>
-                        {(i.severity === 'info' || i.severity === 'critical') && (
-                          <option value={i.severity}>{severities[i.severity]}</option>
-                        )}
-                      </select>
-                    </label>
+                    <Select
+                      label="Mức độ"
+                      size="sm"
+                      inline
+                      value={i.severity}
+                      onChange={(e) => onChange(i, { severity: e.target.value as Issue['severity'] })}
+                    >
+                      <option value="minor">Nhỏ</option>
+                      <option value="moderate">Vừa</option>
+                      <option value="major">Lớn</option>
+                      {(i.severity === 'info' || i.severity === 'critical') && (
+                        <option value={i.severity}>{severities[i.severity]}</option>
+                      )}
+                    </Select>
                     <div className={styles.controls}>
                       {done ? (
                         <Button onClick={() => onChange(i, { status: 'candidate' })}>Hoàn tác</Button>
                       ) : (
                         <>
                           <Button
-                            className={styles.primary}
+                            variant="primary"
+                            size="sm"
                             onClick={() => onChange(i, { status: 'confirmed_by_human' })}
                           >
                             Xác nhận
                           </Button>
                           <Button
-                            className={styles.textButton}
+                            variant="ghost"
+                            size="sm"
                             onClick={() => onChange(i, { status: 'dismissed_by_human' })}
                           >
                             Bỏ qua
@@ -278,16 +300,17 @@ export function ReviewWorkspace({
                         </>
                       )}
                       {suggestion && (
-                        <Tooltip label="Sao chép gợi ý">
-                          <IconButton
-                            aria-label="Sao chép gợi ý"
-                            onClick={() => {
-                              void navigator.clipboard?.writeText(suggestion).catch(() => {});
-                            }}
-                          >
-                            <Copy size={16} />
-                          </IconButton>
-                        </Tooltip>
+                        <IconButton
+                          label="Sao chép gợi ý"
+                          onClick={() => {
+                            void navigator.clipboard
+                              ?.writeText(suggestion)
+                              .then(() => toast('Đã sao chép gợi ý'))
+                              .catch(() => {});
+                          }}
+                        >
+                          <Copy size={16} />
+                        </IconButton>
                       )}
                     </div>
                     <small>Áp dụng sửa đổi sẽ có ở module Chỉnh sửa</small>
@@ -358,14 +381,14 @@ export function ReviewWorkspace({
                 {value}
               </mark>
               {covering.length > 2 && (
-                <button
+                <Button
                   type="button"
                   className={styles.overlapBadge}
                   onClick={activate}
                   aria-label={`Thêm ${covering.length - 2} gợi ý chồng lấp`}
                 >
                   +{covering.length - 2}
-                </button>
+                </Button>
               )}
             </Fragment>
           );

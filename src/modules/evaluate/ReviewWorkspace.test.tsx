@@ -41,6 +41,13 @@ it('EV-10 uses code point offsets, labels, overlap cycling and card synchronizat
   expect(mark).toHaveTextContent('Very');
   fireEvent.click(mark);
   expect(screen.getByText('First explanation')).toBeInTheDocument();
+  const expandedCard = screen.getByText('First explanation').closest('li');
+  expect(expandedCard).not.toBeNull();
+  if (!expandedCard) throw new Error('Expanded card missing');
+  expect(within(expandedCard).getAllByText('Từ bổ nghĩa cần xem xét')).toHaveLength(1);
+  expect(within(expandedCard).getByRole('combobox', { name: 'Mức độ' }).parentElement?.className).toMatch(
+    /fieldInline/,
+  );
   fireEvent.click(mark);
   expect(screen.getByText('Second explanation')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /Từ ngữ.*Very.*Từ bổ nghĩa/ }));
@@ -65,9 +72,9 @@ it('EV-10 filters cards and highlights together and supports keyboard selection'
   fireEvent.click(screen.getByLabelText('Ẩn độ tin cậy thấp'));
   expect(screen.queryByRole('button', { name: /Khoảng cách chủ–vị, / })).not.toBeInTheDocument();
   fireEvent.click(screen.getByLabelText('Ẩn độ tin cậy thấp'));
-  fireEvent.click(screen.getByRole('button', { name: 'Ứng viên' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Ứng viên' }));
   expect(screen.queryByRole('button', { name: /Khoảng cách chủ–vị, / })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Đã xác nhận' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Đã xác nhận' }));
   const card = screen.getByRole('button', { name: /Cấu trúc câu.*Very/ });
   card.focus();
   fireEvent.keyDown(card, { key: 'ArrowDown' });

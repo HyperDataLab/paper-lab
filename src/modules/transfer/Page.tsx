@@ -3,6 +3,7 @@ import { useRepositories } from '@/shared/storage/StorageProvider';
 import { getStorageStatus, requestPersistentStorage } from '@/shared/storage/persistence';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
+import { useToast } from '@/shared/ui/toastContext';
 import type { ImportPlan } from '@/core/transfer/planImport';
 import styles from './page.module.css';
 function formatSize(value: number | null | undefined) {
@@ -17,6 +18,7 @@ function formatSize(value: number | null | undefined) {
   return `${new Intl.NumberFormat('vi', { maximumFractionDigits: 1 }).format(amount)} ${units[unit]}`;
 }
 export default function Page() {
+  const toast = useToast();
   const fileInput = useRef<HTMLInputElement>(null);
   const [filename, setFilename] = useState('');
   const repo = useRepositories();
@@ -38,6 +40,7 @@ export default function Page() {
       a.href = url;
       a.download = `paragraph-lab-export-${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}-${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}.json`;
       a.click();
+      toast('Đã xuất dữ liệu');
       setTimeout(() => URL.revokeObjectURL(url), 0);
     } catch (e) {
       setError(String(e));
@@ -61,6 +64,7 @@ export default function Page() {
     try {
       await repo.transfer.applyImport(plan);
       setDone(true);
+      toast('Đã nhập dữ liệu');
       setPlan(null);
     } catch (e) {
       setError(String(e));

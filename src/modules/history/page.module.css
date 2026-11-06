@@ -1,6 +1,6 @@
 .page {
   display: grid;
-  gap: 16px;
+  gap: var(--space-6);
 }
 .page a {
   color: var(--accent);
@@ -10,13 +10,13 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-4);
 }
 .row p {
   color: var(--text-muted);
@@ -24,6 +24,6 @@
 }
 .actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   justify-content: flex-end;
 }
