@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { DIMENSIONS } from '../scoring/rubric';
 import type { TextAnalysis } from '../schemas/text';
 import { createOffsetIndex } from '../text/offsets';
+import type { PaperContext } from './paperContext';
 const ids = DIMENSIONS.map((dimension) => dimension.id) as [
   (typeof DIMENSIONS)[number]['id'],
   ...(typeof DIMENSIONS)[number]['id'][],
@@ -19,7 +20,13 @@ export const ScoringOutputSchema = z.object({
   ),
 });
 export type ScoringOutput = z.infer<typeof ScoringOutputSchema>;
-export function buildScoringPrompt(text: TextAnalysis, packages: unknown, rubric: unknown, context: unknown) {
+export function buildScoringPrompt(
+  text: TextAnalysis,
+  packages: unknown,
+  rubric: unknown,
+  context: unknown,
+  paperContext?: PaperContext,
+) {
   const index = createOffsetIndex(text.sourceText);
   const sentences = text.sentences
     .map((sentence) => `${sentence.id} | ${JSON.stringify(index.sliceCp(sentence.start, sentence.end))}`)
@@ -27,6 +34,6 @@ export function buildScoringPrompt(text: TextAnalysis, packages: unknown, rubric
   return {
     system:
       'Score only the listed applicable dimensions using their descriptors. Prioritise recurring consequential problems over incidental style. Counts are not deductions. Passive voice, hedges and necessary qualifiers are not faults by themselves. Cite issue ids and sentence ids as evidence. Use null when evidence is insufficient. Write rationale in Vietnamese. Never invent issues, numbers or offsets.',
-    user: JSON.stringify({ text: text.sourceText, sentences, packages, rubric, context }),
+    user: `${paperContext ? `Section role: ${paperContext.role}\n` : ''}${JSON.stringify({ text: text.sourceText, sentences, packages, rubric, context })}`,
   };
 }

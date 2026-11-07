@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Sentence, TextAnalysis } from '../schemas/text';
+import type { PaperContext } from './paperContext';
 
 const index = z.number().int().nonnegative();
 const range = z.object({ start: index, end: index }).nullable();
@@ -57,9 +58,10 @@ export function formatNumberedSentences(text: TextAnalysis, sentences: Sentence[
 export function buildSentenceSyntaxPrompt(
   text: TextAnalysis,
   sentences: Sentence[] = text.sentences,
+  paperContext?: PaperContext,
 ): { system: string; user: string } {
   return {
     system: SENTENCE_SYNTAX_SYSTEM,
-    user: `Annotate these sentences. Return one entry per sentence id.\n\n${formatNumberedSentences(text, sentences)}`,
+    user: `${paperContext ? `Section heading: ${paperContext.heading}\n` : ''}Annotate these sentences. Return one entry per sentence id.\n\n${formatNumberedSentences(text, sentences)}`,
   };
 }

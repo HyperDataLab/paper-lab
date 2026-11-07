@@ -69,6 +69,7 @@ export const AnalysisSchema = z.object({
     .discriminatedUnion('kind', [
       z.object({ kind: z.literal('generated'), generationId: z.uuid() }),
       z.object({ kind: z.literal('revision'), revisionId: z.uuid() }),
+      z.object({ kind: z.literal('paper'), paperId: z.uuid(), paragraphId: z.string() }),
     ])
     .nullable()
     .default(null),

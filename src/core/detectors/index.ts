@@ -3,6 +3,7 @@ import { ISSUE_CATEGORY, type Issue, type SentenceAnnotation, type TextAnalysis 
 import { DEFAULT_LEXICON, type Lexicon } from './lexicons';
 export * from './lexicons';
 export * from './applyJudgement';
+export * from './mergeHumanDecisions';
 
 type FindingType =
   | 'FUZZY_VERB'

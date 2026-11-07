@@ -15,6 +15,8 @@ import {
   PaperSchema,
   type Paper,
   SectionSchema,
+  PaperRunSchema,
+  type PaperRun,
 } from '@/core/schemas';
 import { buildExportPackage } from '@/core/transfer/buildExportPackage';
 import { planImport, type ImportPlan } from '@/core/transfer/planImport';
@@ -141,6 +143,8 @@ export function createRepositories(
       flowLinks?: Analysis['flowLinks'];
       paragraphMetrics?: Analysis['paragraphMetrics'];
       scores?: Analysis['scores'];
+      origin?: Analysis['origin'];
+      contextLimited?: boolean;
     }) {
       const at = now();
       const value = checkedAnalysis({
@@ -151,7 +155,7 @@ export function createRepositories(
         text: input.text,
         title: input.title,
         context: input.context ?? { before: null, after: null, audience: null },
-        contextLimited: true,
+        contextLimited: input.contextLimited ?? true,
         versions: { rubric: null, prompt: null, model: null, syntaxProvider: null, ...input.versions },
         sentenceAnnotations: input.sentenceAnnotations ?? [],
         paragraph: input.paragraph ?? null,
@@ -160,6 +164,7 @@ export function createRepositories(
         scores: input.scores ?? null,
         issues: input.issues ?? [],
         parentAnalysisId: null,
+        origin: input.origin ?? null,
       });
       await db.transaction('rw', db.analyses, db.auditEvents, async () => {
         await db.analyses.add(value);
@@ -171,6 +176,10 @@ export function createRepositories(
       const row = await db.analyses.get(id);
       if (!row) return undefined;
       return checkedAnalysis(row);
+    },
+    async listByPaper(paperId: string) {
+      const { values } = await readAnalyses();
+      return values.filter((value) => value.origin?.kind === 'paper' && value.origin.paperId === paperId);
     },
     async list() {
       const { values, corrupt } = await readAnalyses();
@@ -438,6 +447,36 @@ export function createRepositories(
       });
     },
   };
+  const paperRuns = {
+    async create(input: PaperRun) {
+      const value = PaperRunSchema.parse(input);
+      await db.transaction('rw', db.paperRuns, db.auditEvents, async () => {
+        await db.paperRuns.add(value);
+        await db.auditEvents.add(makeAudit(value.paperId, 'start_run', 'system'));
+      });
+      return value;
+    },
+    async get(id: string) {
+      const value = await db.paperRuns.get(id);
+      return value ? PaperRunSchema.parse(value) : undefined;
+    },
+    async listByPaper(paperId: string) {
+      return (await db.paperRuns.where('paperId').equals(paperId).toArray())
+        .map((value) => PaperRunSchema.parse(value))
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    },
+    async save(input: PaperRun) {
+      const value = PaperRunSchema.parse(input);
+      await db.transaction('rw', db.paperRuns, db.auditEvents, async () => {
+        const previous = await paperRuns.get(value.id);
+        if (!previous || previous.paperId !== value.paperId) throw new Error('Run not found');
+        await db.paperRuns.put(value);
+        if (value.status === 'done' && previous.status !== 'done')
+          await db.auditEvents.add(makeAudit(value.paperId, 'finish_run', 'system'));
+      });
+      return value;
+    },
+  };
   const transfer = {
     async exportAll(appVersion: string) {
       const a = await readAnalyses();
@@ -565,6 +604,6 @@ export function createRepositories(
       );
     },
   };
-  return { analyses, audit, revisions, generations, papers, transfer };
+  return { analyses, audit, revisions, generations, papers, paperRuns, transfer };
 }
 export type Repositories = ReturnType<typeof createRepositories>;

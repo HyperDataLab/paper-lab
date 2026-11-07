@@ -2,15 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Analysis, Issue, SentenceAnnotation, TextAnalysis } from '@/core/schemas';
 import { createLlmCandidateJudge, describeLlmError } from '@/shared/llm';
 import { useLlm } from '@/shared/llm/LlmProvider';
+import { mergeHumanDecisions } from '@/core/detectors';
 
-export function mergeHumanDecisions(incoming: Issue[], current: Issue[]): Issue[] {
-  return incoming.map((item) => {
-    const previous = current.find((value) => value.id === item.id);
-    return previous && (previous.status === 'confirmed_by_human' || previous.status === 'dismissed_by_human')
-      ? { ...item, status: previous.status, severity: previous.severity }
-      : item;
-  });
-}
+export { mergeHumanDecisions } from '@/core/detectors';
 
 export function useCandidateJudge() {
   const { client, ensureConsent } = useLlm();

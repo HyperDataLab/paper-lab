@@ -11,6 +11,8 @@ The owner asked to minimise database use. Paragraph analyses are small, personal
 Store analyses, revisions and the audit log in IndexedDB (Dexie) behind `shared/storage` repositories.
 Portability is through versioned JSON export / import validated by the Zod schemas. No Firebase Auth, no Firestore.
 
+Paper runs are local process checkpoints and are not included in JSON exports. Their paragraph analyses are exported normally.
+
 ## Consequences
 
 - Data stays on one device unless the user exports it; the UI says so in History and Settings.
