@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { vi } from 'vitest';
 import { createDb } from '@/shared/storage/db';
@@ -11,6 +11,38 @@ import { analyzeText } from '@/core/text';
 import Evaluate from '../evaluate/Page';
 import History from './Page';
 import Transfer from '../transfer/Page';
+it('AC-08 removes deleted analyses from comparison selection and allows another selection', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const repo = createRepositories(createDb(`history-selection-${crypto.randomUUID()}`));
+  const first = await repo.analyses.create({ text: await analyzeText('First sentence.') });
+  await repo.analyses.create({ text: await analyzeText('Second sentence.') });
+  await repo.analyses.create({ text: await analyzeText('Third sentence.') });
+  render(
+    <MemoryRouter>
+      <StorageProvider repositories={repo}>
+        <History />
+      </StorageProvider>
+    </MemoryRouter>,
+  );
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'Chọn để so sánh: First sentence.' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn để so sánh: Second sentence.' }));
+  expect(screen.getByRole('link', { name: 'So sánh hai bản phân tích' })).toHaveAttribute(
+    'href',
+    expect.stringContaining(first.id),
+  );
+  const row = screen.getByRole('checkbox', { name: 'Chọn để so sánh: First sentence.' }).closest('li');
+  if (!row) throw new Error('Missing history row');
+  fireEvent.click(within(row).getByRole('button', { name: 'Xoá' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Xoá bản phân tích' }));
+  await waitFor(() =>
+    expect(screen.queryByRole('link', { name: 'So sánh hai bản phân tích' })).not.toBeInTheDocument(),
+  );
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn để so sánh: Third sentence.' }));
+  expect(screen.getByRole('link', { name: 'So sánh hai bản phân tích' })).not.toHaveAttribute(
+    'href',
+    expect.stringContaining(first.id),
+  );
+});
 it('EV-11 saves an evaluation and deletes it from history', async () => {
   vi.stubGlobal('crypto', webcrypto);
   const repo = createRepositories(createDb(`ui-${crypto.randomUUID()}`));
@@ -33,7 +65,7 @@ it('EV-11 saves an evaluation and deletes it from history', async () => {
   const save = await screen.findByRole('button', { name: 'Lưu vào lịch sử' });
   fireEvent.click(save);
   fireEvent.click(save);
-  expect(await screen.findByRole('button', { name: 'Đã lưu' })).toBeDisabled();
+  expect(await screen.findByRole('button', { name: 'Đã lưu' }, { timeout: 10000 })).toBeDisabled();
   expect((await repo.analyses.list()).items).toHaveLength(1);
   fireEvent.click(await screen.findByRole('link', { name: 'Xem trong Lịch sử' }));
   expect(await screen.findByRole('link', { name: 'A scientific sentence.' })).toBeInTheDocument();

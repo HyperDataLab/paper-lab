@@ -13,6 +13,8 @@ import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { CommandPalette } from './CommandPalette';
 import { modules } from './modules';
 import { Sidebar } from './Sidebar';
+import ReportPage from '@/modules/report/ReportPage';
+import ComparePage from '@/modules/report/ComparePage';
 import styles from './shell.module.css';
 type Theme = 'light' | 'dark' | 'system';
 function readTheme(): Theme {
@@ -60,7 +62,14 @@ export function App() {
             <nav aria-label="Đường dẫn" className={styles.breadcrumb}>
               <span>Paragraph Lab</span>
               <span aria-hidden="true">/</span>
-              <strong>{current?.label ?? 'Không tìm thấy'}</strong>
+              <strong>
+                {current?.label ??
+                  (location.pathname.startsWith('/report/')
+                    ? 'Báo cáo'
+                    : location.pathname === '/compare'
+                      ? 'So sánh'
+                      : 'Không tìm thấy')}
+              </strong>
             </nav>
             <div className={styles.topActions}>
               <Button
@@ -96,6 +105,8 @@ export function App() {
                     {modules.map((item) => (
                       <Route key={item.id} path={item.path} element={<item.page />} />
                     ))}
+                    <Route path="/report/:id" element={<ReportPage />} />
+                    <Route path="/compare" element={<ComparePage />} />
                     <Route
                       path="*"
                       element={

@@ -22,6 +22,7 @@ import { useScoring } from './useScoring';
 import { ScoresView } from './ScoresView';
 import { AnalysisSchema } from '@/core/schemas';
 import { RUBRIC_VERSION } from '@/core/scoring/rubric';
+import { ReportMenu } from '@/shared/report/ReportMenu';
 
 export default function Page() {
   const repositories = useRepositories();
@@ -369,6 +370,10 @@ export default function Page() {
               <p role="status">
                 Đã lưu. <Link to="/history">Xem trong Lịch sử</Link>
               </p>
+            )}
+            {(id || (saved && createdId)) && <ReportMenu id={id ?? createdId ?? ''} />}
+            {id && parent && (
+              <Link to={`/compare?${new URLSearchParams({ a: parent.id, b: id })}`}>So sánh với bản gốc</Link>
             )}
             {!id && (
               <Button

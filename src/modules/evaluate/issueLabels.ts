@@ -20,3 +20,9 @@ export const labels: Record<Issue['type'], string> = {
   STRESS_TOPIC_MISALIGNMENT: 'Stress không nối Topic',
   MEANING_RISK: 'Rủi ro sai nghĩa',
 };
+export const statuses: Record<Issue['status'], string> = {
+  candidate: 'Ứng viên cần xem lại',
+  confirmed_by_model: 'AI cho là có vấn đề',
+  confirmed_by_human: 'Đã xác nhận',
+  dismissed_by_human: 'Đã bỏ qua',
+};

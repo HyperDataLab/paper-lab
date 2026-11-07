@@ -5,6 +5,8 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { Dialog } from '@/shared/ui/Dialog';
+import { Checkbox } from '@/shared/ui/Checkbox';
+import { ReportMenu } from '@/shared/report/ReportMenu';
 import styles from './page.module.css';
 type List = Awaited<ReturnType<ReturnType<typeof useRepositories>['analyses']['list']>>;
 function relative(date: string) {
@@ -15,6 +17,7 @@ export default function Page() {
   const repo = useRepositories();
   const [list, setList] = useState<List | null>(null);
   const [error, setError] = useState('');
+  const [selected, setSelected] = useState<string[]>([]);
   const [generations, setGenerations] = useState<Awaited<ReturnType<typeof repo.generations.list>>>([]);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteTrigger, setDeleteTrigger] = useState<HTMLElement | null>(null);
@@ -30,6 +33,8 @@ export default function Page() {
       .list()
       .then(async (value) => {
         setList(value);
+        const existing = new Set(value.items.map((item) => item.id));
+        setSelected((current) => current.filter((id) => existing.has(id)));
         const entries = await Promise.all(
           value.items.map(async (item) => [item.id, await repo.revisions.listBySource(item.id)] as const),
         );
@@ -44,6 +49,7 @@ export default function Page() {
     if (!deleting) return;
     try {
       await repo.analyses.delete(deleting);
+      setSelected((current) => current.filter((id) => id !== deleting));
       setDeleting(null);
       load();
     } catch (e) {
@@ -53,6 +59,11 @@ export default function Page() {
   return (
     <div className={styles.page}>
       <h1>Lịch sử</h1>
+      {selected.length === 2 && (
+        <Link to={`/compare?${new URLSearchParams({ a: selected[0] ?? '', b: selected[1] ?? '' })}`}>
+          So sánh hai bản phân tích
+        </Link>
+      )}
       <Card>
         <p>Dữ liệu chỉ lưu trong trình duyệt này. Hãy xuất JSON để sao lưu hoặc chuyển máy.</p>
         <Link to="/transfer">Xuất JSON</Link>
@@ -87,6 +98,19 @@ export default function Page() {
                   <Card>
                     <div className={styles.row}>
                       <div>
+                        <Checkbox
+                          checked={selected.includes(item.id)}
+                          disabled={selected.length === 2 && !selected.includes(item.id)}
+                          onChange={(event) =>
+                            setSelected(
+                              event.target.checked
+                                ? [...selected, item.id]
+                                : selected.filter((id) => id !== item.id),
+                            )
+                          }
+                        >
+                          Chọn để so sánh: {item.title || item.preview}
+                        </Checkbox>
                         <Link to={`/evaluate?id=${item.id}`}>{item.title || item.preview}</Link>
                         <p>
                           {relative(item.updatedAt)} · {item.sentenceCount} câu ·{' '}
@@ -106,6 +130,7 @@ export default function Page() {
                           </ul>
                         )}
                       </div>
+                      <ReportMenu id={item.id} />
                       <Button
                         onClick={(event) => {
                           setDeleteTrigger(event.currentTarget);

@@ -12,7 +12,7 @@ import { Chip } from '@/shared/ui/Chip';
 import { Select } from '@/shared/ui/Select';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { useToast } from '@/shared/ui/toastContext';
-import { labels } from './issueLabels';
+import { labels, statuses } from './issueLabels';
 import { DEFAULT_LEXICON } from '@/core/detectors';
 import { SV_GAP_REVIEW, CLAUSE_DEPTH_REVIEW } from '@/core/analysis/heuristics';
 import { CheckCircle2, CircleDot, XCircle, MinusCircle, Sparkles, Copy } from 'lucide-react';
@@ -34,12 +34,6 @@ const severities: Record<Issue['severity'], string> = {
   moderate: 'Vừa',
   major: 'Lớn',
   critical: 'Nghiêm trọng',
-};
-const statuses: Record<Issue['status'], string> = {
-  candidate: 'Ứng viên cần xem lại',
-  confirmed_by_model: 'AI cho là có vấn đề',
-  confirmed_by_human: 'Đã xác nhận',
-  dismissed_by_human: 'Đã bỏ qua',
 };
 const handled = (i: Issue) => i.status === 'confirmed_by_human' || i.status === 'dismissed_by_human';
 
