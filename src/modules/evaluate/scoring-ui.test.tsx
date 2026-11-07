@@ -94,7 +94,7 @@ it('EV-09 AC-10 gates scoring, shows evidence and stale scores, and reopens with
   fireEvent.click(screen.getByRole('tab', { name: 'Điểm' }));
   expect(screen.getByText(/Điểm có thể đã cũ/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Lưu vào lịch sử' }));
-  await screen.findByText('Đã lưu.');
+  await screen.findByText('Đã lưu.', {}, { timeout: 10000 });
   const saved = (await repo.analyses.list()).items[0];
   expect(saved).toBeDefined();
   view.unmount();

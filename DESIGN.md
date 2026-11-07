@@ -122,3 +122,11 @@ reordered; hovering or focusing a sentence's evidence chip highlights its corres
 view shows sentence roles and marks failed provenance with the critical double underline, icon and text.
 The checks panel lists unused evidence and requests for missing support. A failed check requires an explicit
 confirmation naming the failures before the user can create an analysis.
+
+## 7. Report and comparison
+
+Saved analyses expose a report menu in Evaluate and History. The printable report includes traceable issue
+markers, a legend, scoring context and limitations. Print layout removes navigation and controls, uses A4
+margins and page breaks, and retains distinct line styles in greyscale. History selects two analyses for
+comparison; revision analyses link to their source. Comparison places aligned text side by side, identifies
+insertions and deletions with line styles, and labels metric and score changes with arrows and numbers.
