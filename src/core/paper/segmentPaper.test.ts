@@ -1,0 +1,120 @@
+import { webcrypto } from 'node:crypto';
+import { beforeEach, expect, it, vi } from 'vitest';
+import { segmentPaper } from './segmentPaper';
+beforeEach(() => vi.stubGlobal('crypto', webcrypto));
+it('segments headings, roles, captions, references and stable ids while preserving text', async () => {
+  const input =
+    '# Abstract\n\nA  😀 experi-\nment.\n\n1. Introduction\n\nText.\n\n## Materials and Methods\n\nFigure 3. Caption\n\nx = 2\n\nRelated Work\n\nPrior work.\n\nReferences\n\nSmith 2020.';
+  const result = await segmentPaper(input);
+  expect(await segmentPaper(input)).toEqual(result);
+  expect(result.sections.map((s) => s.role)).toEqual([
+    'abstract',
+    'introduction',
+    'methods',
+    'related_work',
+    'references',
+  ]);
+  expect(result.paragraphs.map((p) => p.kind)).toEqual([
+    'body',
+    'body',
+    'caption',
+    'equation',
+    'body',
+    'reference',
+  ]);
+  expect(result.paragraphs[0]).toMatchObject({ id: 'sec1_p01', text: 'A  😀 experiment.' });
+});
+it('filters list items, fragments and numeric noise and inherits subsection roles', async () => {
+  const result = await segmentPaper([
+    { text: '1 Introduction', height: 14 },
+    { text: 'Regular text.', height: 10 },
+    { text: '1. We describe a result', height: 10 },
+    { text: '2. Another ordinary item', height: 10 },
+    { text: '0.2 0.4 0.6 0.8 1.0', height: 10 },
+    { text: '20 40 60 80 100', height: 10 },
+    { text: 'X', height: 10 },
+    { text: '≤ i<j ≤ m p', height: 10 },
+    { text: 'Beyond the incom-', height: 10 },
+    { text: '. A sentence fragment.', height: 10 },
+    { text: 'and some remaining text,', height: 10 },
+    { text: '2 Methods', height: 14 },
+    { text: '2.1 Metrics', height: 12 },
+    { text: 'A measurement.', height: 10 },
+    { text: '2.2 Sampling', height: 12 },
+    { text: '3 Results', height: 14 },
+  ]);
+  expect(result.sections.map((section) => [section.heading, section.role])).toEqual([
+    ['Introduction', 'introduction'],
+    ['Methods', 'methods'],
+    ['Metrics', 'methods'],
+    ['Sampling', 'methods'],
+    ['Results', 'results'],
+  ]);
+});
+it('drops stamps and page numbers and separates venue and correspondence footnotes', async () => {
+  const result = await segmentPaper(
+    'Introduction\n\nA body sentence.\n42\narXiv:9999.12345v1 [cs.AI]\nProceedings of the Example Conference\nCopyright 2025 by the author\nCorrespondence to: author@example.org',
+  );
+  expect(result.paragraphs.map((p) => p.kind)).toEqual(['body', 'footnote', 'footnote', 'footnote']);
+  expect(result.paragraphs.map((p) => p.text).join(' ')).not.toContain('arXiv');
+});
+it('joins a wrapped heading without absorbing the following paragraph', async () => {
+  const result = await segmentPaper([
+    { text: '1 Methods for examining', height: 14 },
+    { text: 'complex patterns', height: 14 },
+    { text: 'This is ordinary text.', height: 10 },
+    { text: '2 Results', height: 14 },
+    { text: 'A new paragraph begins.', height: 10 },
+  ]);
+  expect(result.sections.map((s) => s.heading)).toEqual([
+    'Methods for examining complex patterns',
+    'Results',
+  ]);
+  expect(result.paragraphs.map((p) => p.text)).toEqual(['This is ordinary text.', 'A new paragraph begins.']);
+});
+it('joins small consecutive footnote lines without absorbing body text', async () => {
+  const result = await segmentPaper([
+    { text: 'Introduction', height: 14, pageStart: 1 },
+    { text: 'Body text.', height: 10, pageStart: 1 },
+    { text: 'Proceedings of the Example Conference', height: 7, pageStart: 1 },
+    { text: 'Held in a fictional city.', height: 7, pageStart: 1 },
+    { text: 'Normal text resumes.', height: 10, pageStart: 1 },
+  ]);
+  expect(result.paragraphs.map((p) => [p.kind, p.text])).toEqual([
+    ['body', 'Body text.'],
+    ['footnote', 'Proceedings of the Example Conference Held in a fictional city.'],
+    ['body', 'Normal text resumes.'],
+  ]);
+});
+it('keeps continuation candidates in the same column and rejects prose and citations', async () => {
+  const left = {
+    pageStart: 1,
+    height: 14,
+    x: 20,
+    end: 160,
+    column: 'left' as const,
+    columnStart: 20,
+    columnEnd: 200,
+  };
+  const right = { ...left, x: 240, end: 370, column: 'right' as const, columnStart: 200, columnEnd: 450 };
+  const paper = await segmentPaper([
+    { ...left, text: '1 Methods and design' },
+    { ...left, text: 'for paired studies' },
+    { ...right, text: 'Results' },
+    { ...left, text: '2 Discussion of patterns' },
+    { ...right, text: 'those of other authors across' },
+    { ...right, text: 'Conclusion', breakBefore: true },
+    { ...right, text: 'A result (Jones et al., 2023) suggests' },
+    { ...right, text: 'Acknowledgements', breakBefore: true },
+    { ...right, text: 'the unfinished exam-' },
+    { ...right, text: 'A body sentence is complete' },
+  ]);
+  expect(paper.sections.map((s) => s.heading)).toEqual([
+    'Methods and design for paired studies',
+    'Results',
+    'Discussion of patterns',
+    'Conclusion',
+    'Acknowledgements',
+  ]);
+  expect(paper.paragraphs.map((p) => p.text).join(' ')).toContain('(Jones et al., 2023)');
+});

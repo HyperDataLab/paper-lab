@@ -12,6 +12,9 @@ import {
   type TextAnalysis,
   type Issue,
   type Revision,
+  PaperSchema,
+  type Paper,
+  SectionSchema,
 } from '@/core/schemas';
 import { buildExportPackage } from '@/core/transfer/buildExportPackage';
 import { planImport, type ImportPlan } from '@/core/transfer/planImport';
@@ -382,6 +385,59 @@ export function createRepositories(
       });
     },
   };
+  const papers = {
+    async editRole(id: string, sectionId: string, role: Paper['sections'][number]['role']) {
+      const validatedRole = SectionSchema.shape.role.parse(role);
+      return db.transaction('rw', db.papers, db.auditEvents, async () => {
+        const current = await papers.get(id);
+        if (!current) throw new Error('Paper not found');
+        const section = current.sections.find((item) => item.id === sectionId);
+        if (!section) throw new Error('Section not found');
+        if (section.role === validatedRole) return current;
+        const value = PaperSchema.parse({
+          ...current,
+          updatedAt: now(),
+          sections: current.sections.map((item) =>
+            item.id === sectionId ? { ...item, role: validatedRole } : item,
+          ),
+        });
+        await db.papers.put(value);
+        await db.auditEvents.add(
+          AuditEventSchema.parse({
+            ...makeAudit(id, 'edit_label', 'human'),
+            before: { sectionId, role: section.role },
+            after: { sectionId, role: validatedRole },
+          }),
+        );
+        return value;
+      });
+    },
+    async create(input: Paper) {
+      const value = PaperSchema.parse(input);
+      await db.transaction('rw', db.papers, db.auditEvents, async () => {
+        await db.papers.add(value);
+        await db.auditEvents.add(makeAudit(value.id, 'import_paper', 'human'));
+      });
+      return value;
+    },
+    async get(id: string) {
+      const value = await db.papers.get(id);
+      return value ? PaperSchema.parse(value) : undefined;
+    },
+    async list() {
+      return (await db.papers.toArray())
+        .map((value) => PaperSchema.parse(value))
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    },
+    async delete(id: string) {
+      await db.transaction('rw', db.papers, db.auditEvents, async () => {
+        if (await db.papers.get(id)) {
+          await db.papers.delete(id);
+          await db.auditEvents.add(makeAudit(id, 'delete_paper', 'human'));
+        }
+      });
+    },
+  };
   const transfer = {
     async exportAll(appVersion: string) {
       const a = await readAnalyses();
@@ -394,6 +450,7 @@ export function createRepositories(
         clock(),
         storedRevisions,
         await generations.list(),
+        await papers.list(),
       );
     },
     async previewImport(raw: unknown) {
@@ -418,61 +475,96 @@ export function createRepositories(
         revisionHashes,
         new Set(await db.revisions.toCollection().primaryKeys()),
         new Set(await db.generations.toCollection().primaryKeys()),
+        new Map(
+          (await papers.list()).map((paper) => [
+            paper.id,
+            { updatedAt: paper.updatedAt, sha256: paper.source.sha256 },
+          ]),
+        ),
       );
     },
     async applyImport(plan: Extract<ImportPlan, { ok: true }>) {
       for (const revision of plan.revisionsToInsert)
         if ((await sourceHash(revision.revisedText)) !== revision.revisedHash)
           throw new Error('Revision hash mismatch');
-      await db.transaction('rw', db.analyses, db.auditEvents, db.revisions, db.generations, async () => {
-        if (plan.suppressed.length) console.warn('Suppressed invalid imported spans', plan.suppressed);
-        for (const value of [...plan.toInsert, ...plan.toUpdate]) {
-          const incoming = validateAnalysisSpans(AnalysisSchema.parse(value)).valid;
-          const current = await db.analyses.get(incoming.id);
-          if (current) {
-            const existing = AnalysisSchema.parse(current);
-            if (
-              existing.text.sourceText !== incoming.text.sourceText ||
-              existing.text.sourceHash !== incoming.text.sourceHash
-            )
-              throw new SourceImmutableError('Source text is immutable');
-            if (Date.parse(incoming.updatedAt) <= Date.parse(existing.updatedAt))
-              throw new Error('Import preview is out of date');
+      await db.transaction(
+        'rw',
+        db.analyses,
+        db.auditEvents,
+        db.revisions,
+        db.generations,
+        db.papers,
+        async () => {
+          if (plan.suppressed.length) console.warn('Suppressed invalid imported spans', plan.suppressed);
+          for (const value of [...plan.toInsert, ...plan.toUpdate]) {
+            const incoming = validateAnalysisSpans(AnalysisSchema.parse(value)).valid;
+            const current = await db.analyses.get(incoming.id);
+            if (current) {
+              const existing = AnalysisSchema.parse(current);
+              if (
+                existing.text.sourceText !== incoming.text.sourceText ||
+                existing.text.sourceHash !== incoming.text.sourceHash
+              )
+                throw new SourceImmutableError('Source text is immutable');
+              if (Date.parse(incoming.updatedAt) <= Date.parse(existing.updatedAt))
+                throw new Error('Import preview is out of date');
+            }
+            await db.analyses.put(incoming);
+            await db.auditEvents.add(makeAudit(value.id, 'import', 'system'));
           }
-          await db.analyses.put(incoming);
-          await db.auditEvents.add(makeAudit(value.id, 'import', 'system'));
-        }
-        for (const raw of plan.revisionsToInsert) {
-          const revision = RevisionSchema.parse(raw);
-          const source = await analyses.get(revision.sourceAnalysisId);
-          if (!source || source.text.sourceHash !== revision.sourceHash)
-            throw new Error('Revision source mismatch');
-          if (await db.revisions.get(revision.id)) throw new Error('Import preview is out of date');
-          const sourceLength = Array.from(source.text.sourceText).length;
-          const revisedLength = Array.from(revision.revisedText).length;
-          if (
-            revision.hunks.some(
-              (hunk) =>
-                (hunk.before && hunk.before.end > sourceLength) ||
-                (hunk.after && hunk.after.end > revisedLength) ||
-                hunk.changeIndexes.some((index) => index >= revision.changes.length),
-            ) ||
-            revision.checks.some((check) =>
-              check.spans.some((span) => span.end > (span.side === 'source' ? sourceLength : revisedLength)),
+          for (const raw of plan.revisionsToInsert) {
+            const revision = RevisionSchema.parse(raw);
+            const source = await analyses.get(revision.sourceAnalysisId);
+            if (!source || source.text.sourceHash !== revision.sourceHash)
+              throw new Error('Revision source mismatch');
+            if (await db.revisions.get(revision.id)) throw new Error('Import preview is out of date');
+            const sourceLength = Array.from(source.text.sourceText).length;
+            const revisedLength = Array.from(revision.revisedText).length;
+            if (
+              revision.hunks.some(
+                (hunk) =>
+                  (hunk.before && hunk.before.end > sourceLength) ||
+                  (hunk.after && hunk.after.end > revisedLength) ||
+                  hunk.changeIndexes.some((index) => index >= revision.changes.length),
+              ) ||
+              revision.checks.some((check) =>
+                check.spans.some(
+                  (span) => span.end > (span.side === 'source' ? sourceLength : revisedLength),
+                ),
+              )
             )
-          )
-            throw new Error('Invalid revision spans');
-          await db.revisions.add(revision);
-        }
-        for (const generation of plan.generationsToInsert) {
-          if (await db.generations.get(generation.id)) throw new Error('Import preview is out of date');
-          await db.generations.add(GenerationSchema.parse(generation));
-        }
-        for (const event of plan.auditEvents)
-          if (!(await db.auditEvents.get(event.id))) await db.auditEvents.add(AuditEventSchema.parse(event));
-      });
+              throw new Error('Invalid revision spans');
+            await db.revisions.add(revision);
+          }
+          for (const generation of plan.generationsToInsert) {
+            if (await db.generations.get(generation.id)) throw new Error('Import preview is out of date');
+            await db.generations.add(GenerationSchema.parse(generation));
+          }
+          for (const paper of plan.papersToInsert) {
+            if (await db.papers.get(paper.id)) throw new Error('Import preview is out of date');
+            await db.papers.add(PaperSchema.parse(paper));
+          }
+          for (const raw of plan.papersToUpdate) {
+            const paper = PaperSchema.parse(raw);
+            const current = await papers.get(paper.id);
+            if (
+              !current ||
+              current.source.sha256 !== paper.source.sha256 ||
+              Date.parse(paper.updatedAt) <= Date.parse(current.updatedAt)
+            )
+              throw new Error('Import preview is out of date');
+            if (JSON.stringify(current.paragraphs) !== JSON.stringify(paper.paragraphs))
+              throw new SourceImmutableError('Paper paragraphs are immutable');
+            await db.papers.put(paper);
+            await db.auditEvents.add(makeAudit(paper.id, 'import', 'system'));
+          }
+          for (const event of plan.auditEvents)
+            if (!(await db.auditEvents.get(event.id)))
+              await db.auditEvents.add(AuditEventSchema.parse(event));
+        },
+      );
     },
   };
-  return { analyses, audit, revisions, generations, transfer };
+  return { analyses, audit, revisions, generations, papers, transfer };
 }
 export type Repositories = ReturnType<typeof createRepositories>;

@@ -4,6 +4,7 @@ import {
   type AuditEvent,
   type Revision,
   type Generation,
+  type Paper,
 } from '../schemas';
 export function buildExportPackage(
   analyses: Analysis[],
@@ -12,6 +13,7 @@ export function buildExportPackage(
   now: Date,
   revisions: Revision[] = [],
   generations: Generation[] = [],
+  papers: Paper[] = [],
 ) {
   return ExportPackageSchema.parse({
     format: 'paragraph-lab-export',
@@ -22,5 +24,6 @@ export function buildExportPackage(
     auditEvents,
     revisions,
     generations,
+    papers,
   });
 }

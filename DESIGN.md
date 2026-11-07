@@ -28,7 +28,9 @@ product will keep adding modules (Section/IMRaD, Citation, Figure captions, Batc
 ```
 
 - Items come from `src/app/modules.ts`. Each `ModuleDefinition` has `id`, `label` (vi), `icon`, `path`,
-  `group: 'analysis' | 'data' | 'labs' | 'system'`, `order`, `status: 'ready' | 'beta' | 'soon'`, `page` (lazy).
+  `group: 'analysis' | 'paper' | 'data' | 'labs' | 'system'`, `order`, `status: 'ready' | 'beta' | 'soon'`, `page` (lazy).
+- The **PHÂN TÍCH BÀI BÁO** group contains the beta **Tải bài báo** module. Its paper map shows a section outline,
+  the selected section and a summary; these columns stack on smaller screens.
 - `soon` modules render disabled with a badge; `beta` shows a small "Beta" pill.
 - Collapsed state is remembered in `localStorage` (try/catch). Widths: 240 px expanded, 64 px rail.
 - Active item: left accent bar + bold label + `aria-current="page"`. Keyboard: Tab order follows the list,
