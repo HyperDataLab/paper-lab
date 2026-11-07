@@ -1,6 +1,6 @@
 # Plan — AI Review at paper level
 
-Status: **proposed** (owner request, 2026-11-07). Decision record: `docs/adr/0006-paper-level-ai-review.md`.
+Status: **accepted with defaults** (2026-11-07; owner to review and adjust). Decision record: `docs/adr/0006-paper-level-ai-review.md`.
 Adapted prompts: `docs/prompts/ai-review.md`. First slice brief: `docs/briefs/P1.md`.
 
 ## 1. Goal
@@ -76,7 +76,7 @@ PDF / LaTeX / Markdown (stays in the browser)
 6. Store and show model, prompt and rubric versions; include them in exports.
 7. The paper never leaves the browser except the text chunks sent to the configured LLM after consent.
 
-## 7. Open decisions for the owner
+## 7. Decisions (defaults taken 2026-11-07, owner may change)
 
 1. **Where it lives.** PRD §11 puts manuscript-level OCAR–IMRaD assessment out of scope ("handled by PSSU") and
    paper-understanding already parses PDFs. Recommended: a new module group "Phân tích bài báo" in Paragraph Lab
@@ -84,3 +84,8 @@ PDF / LaTeX / Markdown (stays in the browser)
 2. **Cost ceiling** per paper for 9router calls (P2 default: local detectors on everything, LLM steps on chosen
    sections).
 3. **Calibration data**: who labels the first benchmark set (P7).
+
+Defaults in use until the owner decides otherwise: (1) the group lives in Paragraph Lab and reuses the
+parser code; (2) LLM steps run only on sections the user selects, with a visible per-run call estimate and a
+configurable ceiling (default 150 calls per paper); (3) P7 starts with an import format for human labels and no
+check is shown by default until it has labelled data.

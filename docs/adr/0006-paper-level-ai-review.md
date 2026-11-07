@@ -1,6 +1,6 @@
 # ADR-0006: Paper-level AI Review as an advisory module group
 
-Status: **proposed** (2026-11-07). Decider: product owner.
+Status: **accepted with defaults** (2026-11-07). The owner asked to continue the pending work and to review and adjust afterwards; the defaults below are Claude's recommendations and can be changed by the owner.
 
 ## Context
 

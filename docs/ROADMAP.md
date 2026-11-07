@@ -19,6 +19,18 @@ Status: ⬜ not started · 🟨 in progress · ✅ accepted.
 | S11 | Generate                                                                                                                               | WR-01                          | ✅     |
 | S12 | Report export (JSON + printable HTML/PDF), version comparison                                                                          | EV-12                          | ✅     |
 
+## Phân tích bài báo — paper-level AI Review (ADR-0006, `docs/plans/AI-REVIEW.md`)
+
+| #   | Slice                                                            | Status |
+| --- | ---------------------------------------------------------------- | ------ |
+| P1  | Paper import and paper map (PDF / LaTeX / Markdown, IMRaD roles) | ⬜     |
+| P2  | Batch paragraph pipeline with section-aware prompts              | ⬜     |
+| P3  | Paper-level aggregation and inter-paragraph flow                 | ⬜     |
+| P4  | Verifiable checks (citations, numbers, figures/tables, acronyms) | ⬜     |
+| P5  | AI reviewer panel (lenses, anchored points, diversity metrics)   | ⬜     |
+| P6  | Score robustness probe (style-only rewrite → score sensitivity)  | ⬜     |
+| P7  | Calibration and transparency                                     | ⬜     |
+
 ## Later modules (sidebar group "Sắp có")
 
 Calibration set & inter-rater agreement (PRD §12 caveat), batch mode for a whole section, link with
