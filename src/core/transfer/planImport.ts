@@ -16,6 +16,7 @@ export function planImport(
   revisionHashes = new Map<string, string>(),
   existingRevisionIds = new Set<string>(),
   existingGenerationIds = new Set<string>(),
+  existingPapers = new Map<string, { updatedAt: string; sha256: string }>(),
 ) {
   existing = new Map(existing);
   const parsed = ExportPackageSchema.extend({ analyses: z.array(z.unknown()) }).safeParse(rawJson);
@@ -112,6 +113,24 @@ export function planImport(
     return true;
   });
   for (const generation of parsed.data.generations) auditEligible.add(generation.id);
+  const papersToInsert: typeof parsed.data.papers = [];
+  const papersToUpdate: typeof parsed.data.papers = [];
+  const seenPapers = new Set<string>();
+  for (const paper of parsed.data.papers) {
+    if (seenPapers.has(paper.id)) {
+      skipped.push({ id: paper.id, reason: 'duplicate paper id' });
+      continue;
+    }
+    seenPapers.add(paper.id);
+    const previous = existingPapers.get(paper.id);
+    if (!previous) papersToInsert.push(paper);
+    else if (previous.sha256 !== paper.source.sha256) {
+      skipped.push({ id: paper.id, reason: 'source differs' });
+      continue;
+    } else if (Date.parse(paper.updatedAt) > Date.parse(previous.updatedAt)) papersToUpdate.push(paper);
+    else skipped.push({ id: paper.id, reason: 'not newer' });
+    auditEligible.add(paper.id);
+  }
   const seen = new Set(auditIds);
   let auditSkipped = 0;
   const auditEvents: AuditEvent[] = parsed.data.auditEvents.filter((event) => {
@@ -128,6 +147,8 @@ export function planImport(
     toUpdate,
     revisionsToInsert,
     generationsToInsert,
+    papersToInsert,
+    papersToUpdate,
     skipped,
     suppressed,
     auditEvents,

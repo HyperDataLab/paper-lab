@@ -8,3 +8,4 @@ export * from './validateAnalysis';
 export * from './revision';
 export * from './generation';
 export * from './report';
+export * from './paper';

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { analyzeText } from '@/core/text';
 import type { Issue, TextAnalysis } from '@/core/schemas';
@@ -27,6 +27,7 @@ import { ReportMenu } from '@/shared/report/ReportMenu';
 export default function Page() {
   const repositories = useRepositories();
   const navigate = useNavigate();
+  const location = useLocation();
   const [revisionOverrides, setRevisionOverrides] = useState<Record<string, boolean>>({});
   const [generationId, setGenerationId] = useState<string | null>(null);
   const [parent, setParent] = useState<{ id: string; title: string } | null>(null);
@@ -45,7 +46,15 @@ export default function Page() {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const saveInFlight = useRef(false);
-  const [text, setText] = useState('');
+  const [text, setText] = useState(() => {
+    const state: unknown = location.state;
+    return typeof state === 'object' &&
+      state !== null &&
+      'prefill' in state &&
+      typeof state.prefill === 'string'
+      ? state.prefill
+      : '';
+  });
   const [result, setResult] = useState<TextAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

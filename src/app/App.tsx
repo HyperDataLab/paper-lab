@@ -15,6 +15,7 @@ import { modules } from './modules';
 import { Sidebar } from './Sidebar';
 import ReportPage from '@/modules/report/ReportPage';
 import ComparePage from '@/modules/report/ComparePage';
+import PaperMapPage from '@/modules/paper-import/PaperMapPage';
 import styles from './shell.module.css';
 type Theme = 'light' | 'dark' | 'system';
 function readTheme(): Theme {
@@ -107,6 +108,7 @@ export function App() {
                     ))}
                     <Route path="/report/:id" element={<ReportPage />} />
                     <Route path="/compare" element={<ComparePage />} />
+                    <Route path="/papers/:id" element={<PaperMapPage />} />
                     <Route
                       path="*"
                       element={

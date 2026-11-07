@@ -21,15 +21,16 @@ Status: ⬜ not started · 🟨 in progress · ✅ accepted.
 
 ## Phân tích bài báo — paper-level AI Review (ADR-0006, `docs/plans/AI-REVIEW.md`)
 
-| #   | Slice                                                            | Status |
-| --- | ---------------------------------------------------------------- | ------ |
-| P1  | Paper import and paper map (PDF / LaTeX / Markdown, IMRaD roles) | ⬜     |
-| P2  | Batch paragraph pipeline with section-aware prompts              | ⬜     |
-| P3  | Paper-level aggregation and inter-paragraph flow                 | ⬜     |
-| P4  | Verifiable checks (citations, numbers, figures/tables, acronyms) | ⬜     |
-| P5  | AI reviewer panel (lenses, anchored points, diversity metrics)   | ⬜     |
-| P6  | Score robustness probe (style-only rewrite → score sensitivity)  | ⬜     |
-| P7  | Calibration and transparency                                     | ⬜     |
+| #    | Slice                                                                                   | Status |
+| ---- | --------------------------------------------------------------------------------------- | ------ |
+| P1   | Paper import and paper map (PDF / LaTeX / Markdown, IMRaD roles) — beta                 | ✅     |
+| P1.1 | PDF layout quality: wrapped headings, two-column order, superscripts, real-PDF fixtures | ⬜     |
+| P2   | Batch paragraph pipeline with section-aware prompts                                     | ⬜     |
+| P3   | Paper-level aggregation and inter-paragraph flow                                        | ⬜     |
+| P4   | Verifiable checks (citations, numbers, figures/tables, acronyms)                        | ⬜     |
+| P5   | AI reviewer panel (lenses, anchored points, diversity metrics)                          | ⬜     |
+| P6   | Score robustness probe (style-only rewrite → score sensitivity)                         | ⬜     |
+| P7   | Calibration and transparency                                                            | ⬜     |
 
 ## Later modules (sidebar group "Sắp có")
 
