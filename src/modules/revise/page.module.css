@@ -1,0 +1,47 @@
+.page {
+  display: grid;
+  gap: var(--space-4);
+}
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+.diff {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+.reading {
+  white-space: pre-wrap;
+  font-family: var(--font-reading);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.deleted {
+  color: var(--danger);
+  background: var(--soft);
+  text-decoration: line-through;
+}
+.inserted {
+  color: var(--success);
+  background: var(--soft);
+  text-decoration: underline;
+}
+.risk {
+  outline: solid var(--danger);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
+  }
+  .diff {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

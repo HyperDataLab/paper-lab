@@ -12,7 +12,7 @@ import { Chip } from '@/shared/ui/Chip';
 import { Select } from '@/shared/ui/Select';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { useToast } from '@/shared/ui/toastContext';
-import { labels } from './issueLabels';
+import { labels, statuses } from './issueLabels';
 import { DEFAULT_LEXICON } from '@/core/detectors';
 import { SV_GAP_REVIEW, CLAUSE_DEPTH_REVIEW } from '@/core/analysis/heuristics';
 import { CheckCircle2, CircleDot, XCircle, MinusCircle, Sparkles, Copy } from 'lucide-react';
@@ -35,12 +35,6 @@ const severities: Record<Issue['severity'], string> = {
   major: 'Lớn',
   critical: 'Nghiêm trọng',
 };
-const statuses: Record<Issue['status'], string> = {
-  candidate: 'Ứng viên cần xem lại',
-  confirmed_by_model: 'AI cho là có vấn đề',
-  confirmed_by_human: 'Đã xác nhận',
-  dismissed_by_human: 'Đã bỏ qua',
-};
 const handled = (i: Issue) => i.status === 'confirmed_by_human' || i.status === 'dismissed_by_human';
 
 export function ReviewWorkspace({
@@ -49,12 +43,18 @@ export function ReviewWorkspace({
   onChange,
   toolbarTarget,
   roles,
+  selectedIssue,
+  revisionSelection,
+  onRevisionSelection,
 }: {
   text: TextAnalysis;
   issues: Issue[];
   onChange: (issue: Issue, change: { status?: Issue['status']; severity?: Issue['severity'] }) => void;
   toolbarTarget?: HTMLElement | null;
   roles?: NonNullable<ReturnType<typeof useParagraphAnalysis>['result']>['roles'];
+  selectedIssue?: { id: string; nonce: number } | null;
+  revisionSelection?: string[];
+  onRevisionSelection?: (id: string, selected: boolean) => void;
 }) {
   const toast = useToast();
   const [selected, setSelected] = useState<string | null>(null);
@@ -62,6 +62,15 @@ export function ReviewWorkspace({
   const [filter, setFilter] = useState('all');
   const [low, setLow] = useState(false);
   const [done, setDone] = useState(false);
+  const [previousSelection, setPreviousSelection] = useState<typeof selectedIssue>(null);
+  if (selectedIssue !== previousSelection) {
+    setPreviousSelection(selectedIssue);
+    const issue = issues.find((item) => item.id === selectedIssue?.id);
+    if (issue) {
+      setSelected(issue.id);
+      setDone(handled(issue));
+    }
+  }
   const [hovered, setHovered] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const reading = useRef<HTMLDivElement>(null);
@@ -236,6 +245,15 @@ export function ReviewWorkspace({
                 id={`card-${i.id}`}
                 className={`${styles.cardItem} ${styles[`color_${i.category}`]} ${selected === i.id ? styles.expanded : ''} ${hovered === i.id ? styles.hovered : ''} ${i.severity === 'info' ? styles.acceptable : ''} ${i.status === 'dismissed_by_human' ? styles.dismissed : ''}`}
               >
+                {revisionSelection && onRevisionSelection && (
+                  <Checkbox
+                    disabled={i.status === 'dismissed_by_human'}
+                    checked={i.status !== 'dismissed_by_human' && revisionSelection.includes(i.id)}
+                    onChange={(event) => onRevisionSelection(i.id, event.target.checked)}
+                  >
+                    Chọn để chỉnh sửa
+                  </Checkbox>
+                )}
                 <Button
                   data-card
                   className={styles.cardButton}

@@ -8,7 +8,7 @@ const module: ModuleDefinition = {
   path: '/generate',
   group: 'analysis',
   order: 2,
-  status: 'soon',
+  status: 'beta',
   page: lazy(() => import('./Page')),
 };
 export default module;

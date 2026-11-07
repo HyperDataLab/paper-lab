@@ -227,3 +227,16 @@
     padding: var(--space-6) var(--space-4);
   }
 }
+@media print {
+  .desktopSidebar,
+  .topbar {
+    display: none;
+  }
+  .content {
+    padding: 0;
+    max-width: none;
+  }
+  .shell {
+    display: block;
+  }
+}

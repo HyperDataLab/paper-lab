@@ -36,6 +36,7 @@ product will keep adding modules (Section/IMRaD, Citation, Figure captions, Batc
 - Inside a module, sub-views use **tabs** (e.g. Evaluate: `Văn bản | Số liệu | Cấu trúc đoạn | JSON`), never a
   second sidebar.
 - Evaluate's `Cấu trúc đoạn` tab shows the structure confidence, sentence roles, flow chain and metrics with denominators.
+- Evaluate's `Điểm` tab shows the rubric, coverage, confidence, score evidence and provisional-scoring caveat.
 
 ## 2. Evaluate workspace layout (PRD §6 A–D)
 
@@ -56,7 +57,7 @@ inspector opens in a right drawer; below 768 px, it appears below the document.
 │ Sentence 62 · Verb 70 · Concise 75 · Organization 60 · Flow 72       │                      │
 └──────────────────────────────────────────────────────────────────────┴──────────────────────┘
 Filter bar: Tất cả | Đã xác nhận | Ứng viên | Câu | Mạch | Từ ngữ   [ẩn độ tin cậy thấp]
-D. Diff (Revise module): side-by-side before/after with aligned change spans.
+D. Diff (Revise module): show original and revised text side by side from 1024 px, stacking them below that width. Code-aligned deletions use strikethrough and insertions use underlining as well as colour; labels identify each mark. List each change's rationale and issue IDs, and identify unexplained changes. Selecting a meaning check highlights its source or revised spans.
 ```
 
 ## 3. Issue highlighting
@@ -112,3 +113,20 @@ Color is never the only signal (WCAG 1.4.1). Each category has a color **and** a
   (stylistic suggestion), "Vi phạm đã xác nhận" (confirmed). Default to the weakest label when unsure.
 - Every async view has loading (skeleton), empty (explain + primary action), error (message + retry + details).
 - AI actions show the privacy notice once per consent version before the first call.
+
+## 6. Generate workspace
+
+At 1280 px and above, Generate presents the claim and evidence form, generated paragraph, and provenance
+checks in three columns. Below that width the panels stack. Evidence rows retain their identifiers when
+reordered; hovering or focusing a sentence's evidence chip highlights its corresponding row. The reading
+view shows sentence roles and marks failed provenance with the critical double underline, icon and text.
+The checks panel lists unused evidence and requests for missing support. A failed check requires an explicit
+confirmation naming the failures before the user can create an analysis.
+
+## 7. Report and comparison
+
+Saved analyses expose a report menu in Evaluate and History. The printable report includes traceable issue
+markers, a legend, scoring context and limitations. Print layout removes navigation and controls, uses A4
+margins and page breaks, and retains distinct line styles in greyscale. History selects two analyses for
+comparison; revision analyses link to their source. Comparison places aligned text side by side, identifies
+insertions and deletions with line styles, and labels metric and score changes with arrows and numbers.

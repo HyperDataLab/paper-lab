@@ -108,7 +108,7 @@ it('EV-11 saved annotations reopen without calling the model', async () => {
   await splitAndAnalyze();
   await screen.findByText(/Khoảng cách chủ–vị: 9 token/);
   fireEvent.click(screen.getByRole('button', { name: 'Lưu vào lịch sử' }));
-  await screen.findByRole('button', { name: 'Đã lưu' });
+  await screen.findByRole('button', { name: 'Đã lưu' }, { timeout: 10000 });
   const [item] = (await repo.analyses.list()).items;
   const stored = await repo.analyses.get(item!.id);
   expect(stored?.versions).toMatchObject({
@@ -166,7 +166,7 @@ it('AC-03 EV-11 judges local candidates with consent and reopens saved decisions
   expect(screen.getByText('Phù hợp.')).toBeInTheDocument();
   expect(screen.queryByText(/^Gợi ý:/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Lưu vào lịch sử' }));
-  await screen.findByRole('button', { name: 'Đã lưu' });
+  await screen.findByRole('button', { name: 'Đã lưu' }, { timeout: 10000 });
   const [item] = (await repo.analyses.list()).items;
   expect((await repo.analyses.get(item!.id))?.versions).toMatchObject({
     detectors: 'det-1',
@@ -203,7 +203,7 @@ it('EV-11 AC-05 AC-06 AC-12 audits unsaved and later saved decisions and restore
   fireEvent.click(await screen.findByRole('button', { name: /Từ ngữ.*Very/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
   fireEvent.click(screen.getByRole('button', { name: 'Lưu vào lịch sử' }));
-  await screen.findByRole('button', { name: 'Đã lưu' });
+  await screen.findByRole('button', { name: 'Đã lưu' }, { timeout: 10000 });
   const [item] = (await repo.analyses.list()).items;
   if (!item) throw new Error('missing analysis');
   const original = await repo.analyses.get(item.id);

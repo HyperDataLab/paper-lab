@@ -3,6 +3,9 @@ export const PROMPT_VERSIONS = {
   sentenceSyntax: 'sent-syntax-1',
   candidateJudge: 'cand-judge-1',
   paragraphStructure: 'para-struct-2',
+  scoring: 'score-2',
+  revision: 'revise-1',
+  generation: 'gen-2',
 } as const;
 export const CONNECTION_TEST_SYSTEM = 'You are a connection test. Return the requested JSON object.';
 export const CONNECTION_TEST_USER =
@@ -10,3 +13,6 @@ export const CONNECTION_TEST_USER =
 export * from './sentenceSyntax';
 export * from './candidateJudge';
 export * from './paragraphStructure';
+export * from './scoring';
+export * from './revision';
+export * from './generation';

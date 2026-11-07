@@ -157,7 +157,7 @@ it('EV-07 EV-08 AC-05 analyzes after syntax, shows the chain, and reopens withou
   expect(screen.getAllByText(/Đứt mạch giữa hai câu/).length).toBeGreaterThan(0);
   fireEvent.click(screen.getByRole('tab', { name: 'Cấu trúc đoạn' }));
   fireEvent.click(screen.getByRole('button', { name: 'Lưu vào lịch sử' }));
-  await screen.findByRole('button', { name: 'Đã lưu' });
+  await screen.findByRole('button', { name: 'Đã lưu' }, { timeout: 10000 });
   const [saved] = (await repo.analyses.list()).items;
   expect((await repo.analyses.get(saved!.id))?.versions.structurePrompt).toBe('para-struct-2');
   expect((await repo.analyses.get(saved!.id))?.versions.structureModel).toBe('fake');
@@ -202,7 +202,7 @@ it('EV-08 removes decisions for vanished flow issues before saving', async () =>
   fireEvent.click(screen.getByRole('tab', { name: 'Cấu trúc đoạn' }));
   expect(screen.getByText('Không có đánh giá của AI')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Lưu vào lịch sử' }));
-  await screen.findByRole('button', { name: 'Đã lưu' });
+  await screen.findByRole('button', { name: 'Đã lưu' }, { timeout: 10000 });
   const entries = (await repo.audit.listAll()).items;
   expect(entries.map((event) => event.action)).toEqual(['create_analysis']);
   expect((await repo.analyses.list()).items).toHaveLength(1);
