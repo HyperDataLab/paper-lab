@@ -1,0 +1,15 @@
+.panel {
+  display: grid;
+  gap: var(--space-4);
+}
+.reviewLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .reviewLayout {
+    grid-template-columns: 1fr;
+  }
+}
