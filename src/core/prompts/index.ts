@@ -12,6 +12,7 @@ export const PROMPT_VERSIONS = {
   scoringPaper: 'score-paper-1',
   paragraphTransition: 'para-flow-1',
   paperReview: 'paper-review-1',
+  styleProbe: 'style-probe-1',
 } as const;
 export const CONNECTION_TEST_SYSTEM = 'You are a connection test. Return the requested JSON object.';
 export const CONNECTION_TEST_USER =
@@ -25,3 +26,4 @@ export * from './generation';
 export * from './paperContext';
 export * from './paragraphTransition';
 export * from './paperReview';
+export * from './styleProbe';
