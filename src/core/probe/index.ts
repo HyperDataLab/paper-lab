@@ -2,6 +2,7 @@ import { meaningChecks } from '../revision/meaningChecks';
 import type { Analysis, Paper, PaperParagraph } from '../schemas';
 import type { Scores } from '../schemas/scores';
 import { DIMENSIONS } from '../scoring/rubric';
+import { PROMPT_VERSIONS } from '../prompts';
 
 export const PROBE_MINIMUM = 3;
 export const PROBE_DEFAULT = 5;
@@ -21,6 +22,7 @@ function hash(value: string): number {
 export function selectProbeParagraphs(
   paper: Paper,
   analyses: Analysis[],
+  model: string,
   n = PROBE_DEFAULT,
   seed = paper.id,
 ) {
@@ -35,6 +37,8 @@ export function selectProbeParagraphs(
           analysis.origin.paperId === paper.id &&
           analysis.origin.paragraphId === paragraph.id &&
           analysis.text.sourceHash === paragraph.textHash &&
+          analysis.versions.scoringPrompt === PROMPT_VERSIONS.scoringPaper &&
+          analysis.versions.scoringModel === model &&
           analysis.scores?.dimensions.some((dimension) => dimension.applicable && dimension.score !== null),
       ),
   );
@@ -59,7 +63,10 @@ export function selectProbeParagraphs(
 }
 
 export function estimateProbe(analyses: Analysis[]) {
-  return analyses.reduce((sum, analysis) => sum + 4 + (analysis.versions.judgePrompt ? 1 : 0), 0);
+  return analyses.reduce(
+    (sum, analysis) => sum + 4 + (analysis.versions.judgePrompt ? 1 : 0) + (analysis.paragraph ? 1 : 0),
+    0,
+  );
 }
 
 export function validateProbe(original: string, rewritten: string, preserveTerms: string[] = []) {
@@ -140,9 +147,10 @@ export function summariseProbe(items: ProbeItem[]) {
         : [];
     }),
   );
-  const valid = items.filter((item) => item.original && item.rewritten && item.baseline).length;
-  const sensitive = [overall, ...Object.values(dimensions)].some(
+  const metrics = [overall, ...Object.values(dimensions)];
+  const sensitive = metrics.some(
     (value) =>
+      value.n >= PROBE_MINIMUM &&
       value.meanDelta !== null &&
       value.meanNoise !== null &&
       Math.abs(value.meanDelta) >
@@ -155,12 +163,11 @@ export function summariseProbe(items: ProbeItem[]) {
   return {
     overall,
     dimensions,
-    verdict:
-      valid < PROBE_MINIMUM
-        ? ('insufficient' as const)
-        : sensitive
-          ? ('style_sensitive' as const)
-          : ('stable' as const),
+    verdict: !metrics.some((value) => value.n >= PROBE_MINIMUM)
+      ? ('insufficient' as const)
+      : sensitive
+        ? ('style_sensitive' as const)
+        : ('stable' as const),
   };
 }
 

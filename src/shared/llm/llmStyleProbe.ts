@@ -1,13 +1,18 @@
 import { buildSentenceAnnotations, validateSyntaxOutput } from '@/core/analysis';
 import { BatchBudgetExceededError, contextFor } from '@/core/batch';
 import { applyJudgement, detectCandidates } from '@/core/detectors';
+import { paragraphIssues } from '@/core/paragraph/issues';
+import { computeParagraphMetrics } from '@/core/paragraph/metrics';
+import { validateParagraphStructure } from '@/core/paragraph/validateParagraphStructure';
 import { estimateProbe, selectProbeParagraphs, summariseProbe, validateProbe } from '@/core/probe';
 import {
   buildCandidateJudgePrompt,
+  buildParagraphStructurePrompt,
   buildScoringPrompt,
   buildSentenceSyntaxPrompt,
   buildStyleProbePrompt,
   CandidateJudgeOutputSchema,
+  ParagraphStructureOutputSchema,
   PROMPT_VERSIONS,
   ScoringOutputSchema,
   SentenceSyntaxOutputSchema,
@@ -36,7 +41,7 @@ export function createStyleProbeRun(
     preserveTerms?: Record<string, string[]>;
   },
 ): PaperProbeRun {
-  const paragraphs = selectProbeParagraphs(paper, analyses, options.n, options.seed);
+  const paragraphs = selectProbeParagraphs(paper, analyses, options.model, options.n, options.seed);
   const selected = paragraphs.map((p) => {
     const found = analyses
       .filter(
@@ -45,6 +50,8 @@ export function createStyleProbeRun(
           a.origin.paperId === paper.id &&
           a.origin.paragraphId === p.id &&
           a.text.sourceHash === p.textHash &&
+          a.versions.scoringPrompt === PROMPT_VERSIONS.scoringPaper &&
+          a.versions.scoringModel === options.model &&
           a.scores?.dimensions.some((d) => d.applicable && d.score !== null),
       )
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
@@ -171,7 +178,7 @@ export async function llmStyleProbe(
           onRequest,
           signal: options.signal,
         });
-        const annotations = buildSentenceAnnotations(text, validateSyntaxOutput(syntax.data.sentences, text));
+        let annotations = buildSentenceAnnotations(text, validateSyntaxOutput(syntax.data.sentences, text));
         let issues = detectCandidates(text, annotations);
         if (original.versions.judgePrompt) {
           const judgement = await client.completeJson({
@@ -185,14 +192,42 @@ export async function llmStyleProbe(
           });
           issues = applyJudgement(issues, judgement.data, text, annotations);
         }
+        let paragraph: Analysis['paragraph'] = null;
+        let paragraphMetrics: Analysis['paragraphMetrics'] = null;
+        let flowLinks: Analysis['flowLinks'] = [];
+        if (original.paragraph) {
+          const response = await client.completeJson({
+            ...buildParagraphStructurePrompt(text, annotations, original.context, context),
+            schema: ParagraphStructureOutputSchema,
+            schemaName: 'paragraph_structure',
+            promptVersion: PROMPT_VERSIONS.paragraphStructurePaper,
+            temperature: 0,
+            onRequest,
+            signal: options.signal,
+          });
+          const structure = validateParagraphStructure(response.data, text, annotations);
+          paragraph = structure.paragraph;
+          flowLinks = structure.flowLinks;
+          paragraphMetrics = computeParagraphMetrics(paragraph, structure.roles, flowLinks);
+          annotations = annotations.map((annotation) => {
+            const role = structure.roles.find((item) => item.sentenceId === annotation.sentenceId);
+            return {
+              ...annotation,
+              role: role?.role ?? null,
+              roleConfidence: role?.confidence ?? null,
+              roleRationale: role?.rationale ?? null,
+            };
+          });
+          issues = [...issues, ...paragraphIssues(paragraph, flowLinks, text, structure.roles)];
+        }
         const revised: Analysis = {
           ...original,
           text,
           sentenceAnnotations: annotations,
           issues,
-          paragraph: null,
-          paragraphMetrics: null,
-          flowLinks: [],
+          paragraph,
+          paragraphMetrics,
+          flowLinks,
           scores: null,
         };
         const score = async (analysis: Analysis) => {

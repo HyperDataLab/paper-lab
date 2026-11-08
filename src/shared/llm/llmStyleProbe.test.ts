@@ -4,12 +4,27 @@ import { probeAt, probeFixture } from '@/test/probeFixtures';
 import { createLlmClient } from './client';
 import { acceptConsent } from './consent';
 import { ConsentRequiredError } from './errors';
-import { createStyleProbeRun, llmStyleProbe } from './llmStyleProbe';
+import { createStyleProbeRun, estimateProbe, llmStyleProbe } from './llmStyleProbe';
+import { validateParagraphStructure } from '@/core/paragraph/validateParagraphStructure';
+import { ParagraphStructureOutputSchema } from '@/core/prompts';
 
 const config = { baseUrl: '/llm', model: 'test' };
 const runId = '00000000-0000-4000-8000-000000000099';
+const structure = ParagraphStructureOutputSchema.parse({
+  type: 'LD',
+  typeScores: { 'TS-D': 0, LD: 0.9, LDR: 0, OCAR: 0, UNKNOWN: 0.1 },
+  centralPointSentenceId: null,
+  identifiability: 2,
+  evidence: '',
+  roles: [],
+  offTopicSentenceIds: [],
+  unityRationale: '',
+  pairs: [],
+  rationale: '',
+});
 function setup() {
   const calls: string[] = [];
+  const prompts: { name: string; user: string }[] = [];
   let failFirst = false;
   let identical = false;
   const fetch = vi.fn<typeof globalThis.fetch>(async (_url, request) => {
@@ -24,6 +39,7 @@ function setup() {
       return new Response('', { status: 429 });
     }
     const user = body.messages[1]?.content ?? '';
+    prompts.push({ name, user });
     const number = user.match(/experiment (\d+)/)?.[1] ?? '0';
     const data =
       name === 'style_probe'
@@ -32,22 +48,27 @@ function setup() {
           ? { sentences: [] }
           : name === 'candidate_judgement'
             ? { judgements: [], passive: [] }
-            : {
-                dimensions: ['verb_word_choice', 'concision_modifiers'].map((id) => ({
-                  id,
-                  rubric: 2,
-                  confidence: 1,
-                  evidenceIssueIds: [],
-                  evidenceSentenceIds: [],
-                  rationale: '',
-                })),
-              };
+            : name === 'paragraph_structure'
+              ? structure
+              : {
+                  dimensions: ['verb_word_choice', 'concision_modifiers', 'paragraph_organization'].map(
+                    (id) => ({
+                      id,
+                      rubric: 2,
+                      confidence: 1,
+                      evidenceIssueIds: [],
+                      evidenceSentenceIds: [],
+                      rationale: '',
+                    }),
+                  ),
+                };
     return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(data) } }] }), {
       status: 200,
     });
   });
   return {
     calls,
+    prompts,
     fetch,
     client: createLlmClient(config, { fetch, sleep: async () => {}, now: () => 0 }),
     retry: () => {
@@ -61,6 +82,53 @@ function setup() {
 beforeEach(() => {
   localStorage.clear();
   vi.stubGlobal('crypto', webcrypto);
+});
+
+it('P6 plans with the newest compatible score and refuses incompatible samples', async () => {
+  const { paper, analyses } = await probeFixture();
+  const first = analyses[0];
+  if (!first) throw new Error('fixture');
+  const newer = structuredClone(first);
+  newer.id = '00000000-0000-4000-8000-000000000098';
+  newer.updatedAt = '2026-02-01T00:00:00.000Z';
+  newer.versions.scoringModel = 'other';
+  const options = { n: 10, budget: 50, model: 'test', id: runId, now: probeAt };
+  const run = createStyleProbeRun(paper, [...analyses, newer], options);
+  expect(run.analysisIds).toContain(first.id);
+  expect(run.analysisIds).not.toContain(newer.id);
+  expect(() => createStyleProbeRun(paper, [first, newer, ...analyses.slice(1, 2)], options)).toThrow(
+    'Cần chấm điểm ít nhất 3 đoạn trước',
+  );
+});
+
+it('P6 recomputes paragraph structure with paper context before scoring and estimates the call', async () => {
+  acceptConsent(config, true);
+  const { paper, analyses } = await probeFixture();
+  analyses.forEach((analysis) => {
+    analysis.paragraph = validateParagraphStructure(structure, analysis.text, []).paragraph;
+  });
+  const run = createStyleProbeRun(paper, analyses, {
+    n: 3,
+    budget: 15,
+    model: 'test',
+    id: runId,
+    now: probeAt,
+  });
+  expect(estimateProbe(analyses.filter((a) => run.analysisIds.includes(a.id)))).toBe(15);
+  const { client, calls, prompts } = setup();
+  const result = await llmStyleProbe(client, paper, analyses, run, {
+    config,
+    now: () => probeAt,
+    save: async () => {},
+  });
+  expect(result.callsUsed).toBe(15);
+  expect(calls).toEqual(
+    Array(3).fill(['style_probe', 'sentence_syntax', 'paragraph_structure', 'scoring', 'scoring']).flat(),
+  );
+  expect(prompts.find((p) => p.name === 'paragraph_structure')?.user).toContain('Section role: methods');
+  expect(
+    result.items[0]?.rewritten?.dimensions.find((d) => d.id === 'paragraph_organization')?.applicable,
+  ).toBe(true);
 });
 
 it('P6 performs sequential calls and checkpoints each paragraph, with optional judgement', async () => {
