@@ -24,7 +24,7 @@ Status: ⬜ not started · 🟨 in progress · ✅ accepted.
 | #    | Slice                                                                                   | Status |
 | ---- | --------------------------------------------------------------------------------------- | ------ |
 | P1   | Paper import and paper map (PDF / LaTeX / Markdown, IMRaD roles) — beta                 | ✅     |
-| P1.1 | PDF layout quality: wrapped headings, two-column order, superscripts, real-PDF fixtures | ⬜     |
+| P1.1 | PDF layout quality: wrapped headings, two-column order, superscripts, real-PDF fixtures | 🟨     |
 | P2   | Batch paragraph pipeline with section-aware prompts                                     | ✅     |
 | P3   | Paper-level aggregation and inter-paragraph flow                                        | ✅     |
 | P4   | Verifiable checks (citations, numbers, figures/tables, acronyms)                        | ✅     |

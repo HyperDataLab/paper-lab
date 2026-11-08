@@ -118,3 +118,55 @@ it('keeps continuation candidates in the same column and rejects prose and citat
   ]);
   expect(paper.paragraphs.map((p) => p.text).join(' ')).toContain('(Jones et al., 2023)');
 });
+it('joins wrapped headings in either column and continues body across column and page breaks', async () => {
+  const left = { x: 20, end: 160, height: 14, pageStart: 1, column: 'left' as const };
+  const right = { ...left, x: 240, end: 380, column: 'right' as const };
+  const input = [
+    { ...left, text: '1 Methods for synthetic' },
+    { ...left, text: 'paired examples' },
+    { ...left, height: 10, text: 'A synthetic para-' },
+    { ...right, height: 10, text: 'graph continues', breakBefore: true },
+    { ...right, height: 10, pageStart: 2, text: 'across pages.' },
+    { ...right, pageStart: 2, text: '2 Results: Paired patterns', breakBefore: true },
+    { ...right, pageStart: 2, text: 'in synthetic samples' },
+    { ...right, height: 10, pageStart: 2, text: 'A complete sentence.' },
+  ];
+  const paper = await segmentPaper(input);
+  expect(paper.sections.map((s) => s.heading)).toEqual([
+    'Methods for synthetic paired examples',
+    'Results: Paired patterns in synthetic samples',
+  ]);
+  expect(paper.paragraphs.map((p) => p.text)).toEqual([
+    'A synthetic paragraph continues across pages.',
+    'A complete sentence.',
+  ]);
+  expect(await segmentPaper(input)).toEqual(paper);
+});
+it('groups hanging and numbered references and assigns appendix roles while rejecting prompt blocks', async () => {
+  const paper = await segmentPaper([
+    { text: 'References', height: 14 },
+    { text: 'Stone, A. A fictional entry.', x: 20 },
+    { text: 'More fictional details.', x: 35 },
+    { text: 'Vale, B. Another entry.', x: 20 },
+    { text: 'Continued details.', x: 35 },
+    { text: '[3] A numbered entry.', x: 20 },
+    { text: 'Its continuation.', x: 35 },
+    { text: 'A Limitations', height: 14 },
+    { text: 'A synthetic limitation.', height: 10 },
+    { text: 'B.1 Additional analysis', height: 14 },
+    { text: 'PAPER TITLE: {title}', height: 14 },
+    { text: 'OUTPUT FORMAT:', height: 14 },
+    { text: 'Results', height: 14, monospace: true },
+    { text: 'Methods', height: 14, boxed: true },
+  ]);
+  expect(paper.sections.map((s) => [s.heading, s.role])).toEqual([
+    ['References', 'references'],
+    ['Limitations', 'appendix'],
+    ['Additional analysis', 'appendix'],
+  ]);
+  expect(paper.paragraphs.filter((p) => p.kind === 'reference').map((p) => p.text)).toEqual([
+    'Stone, A. A fictional entry. More fictional details.',
+    'Vale, B. Another entry. Continued details.',
+    '[3] A numbered entry. Its continuation.',
+  ]);
+});

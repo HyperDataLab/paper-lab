@@ -9,6 +9,8 @@ export interface TextItemLike {
   height: number;
   width?: number;
   hasEOL?: boolean;
+  fontName?: string;
+  monospace?: boolean;
 }
 export interface PdfLine {
   text: string;
@@ -19,6 +21,7 @@ export interface PdfLine {
   column?: 'left' | 'right' | 'full';
   columnStart?: number;
   columnEnd?: number;
+  monospace?: boolean;
 }
 export interface PdfPage {
   page: number;
@@ -103,6 +106,7 @@ export function itemsToLines(items: TextItemLike[], pageHeight: number): PdfLine
       end: line.end,
       y: line.y,
       height: line.height,
+      monospace: line.parts.some((part) => part.item.monospace),
       ...(line.column
         ? { column: line.column, columnStart: line.columnStart, columnEnd: line.columnEnd }
         : {}),
@@ -116,7 +120,6 @@ function orderColumns<T extends { x: number; end: number; y: number; height: num
   let split: number | undefined;
   let bestGap = 0;
   let leftStart = 0;
-  let rightStart = 0;
   for (let i = 1; i < starts.length; i++) {
     const left = starts[i - 1];
     const right = starts[i];
@@ -124,26 +127,28 @@ function orderColumns<T extends { x: number; end: number; y: number; height: num
     const gap = right - left;
     const a = lines.filter((line) => line.end <= right - 5);
     const b = lines.filter((line) => line.x >= right);
-    if (gap <= bestGap || gap < 40 || a.length < 2 || b.length < 2) continue;
-    const paired = a.filter((line) =>
-      b.some((other) => Math.abs(line.y - other.y) <= Math.max(line.height, other.height) * 1.5),
-    );
-    if (paired.length < 2) continue;
-    split = (Math.max(...a.map((line) => line.end)) + right) / 2;
+    if (
+      gap <= bestGap ||
+      gap < 40 ||
+      a.length < 2 ||
+      b.length < 2 ||
+      Math.min(a.length, b.length) < lines.length * 0.2
+    )
+      continue;
+    const overlap =
+      Math.min(Math.max(...a.map((line) => line.y)), Math.max(...b.map((line) => line.y))) -
+      Math.max(Math.min(...a.map((line) => line.y)), Math.min(...b.map((line) => line.y)));
+    if (overlap < 0) continue;
+    const candidate = (Math.max(...a.map((line) => line.end)) + right) / 2;
+    const crossing = lines.filter((line) => line.x < candidate && line.end > candidate);
+    if (crossing.length > lines.length * 0.25) continue;
+    split = candidate;
     bestGap = gap;
     leftStart = Math.min(...a.map((line) => line.x));
-    rightStart = right;
   }
   if (split === undefined) return lines.sort((a, b) => a.y - b.y || a.x - b.x);
   const gutter = split;
-  const spanning = lines
-    .filter(
-      (line) =>
-        line.x < gutter &&
-        line.x <= leftStart + (rightStart - leftStart) * 0.25 &&
-        line.end > rightStart + (rightStart - leftStart) * 0.25,
-    )
-    .sort((a, b) => a.y - b.y);
+  const spanning = lines.filter((line) => line.x < gutter && line.end > gutter).sort((a, b) => a.y - b.y);
   const result: (T & { column?: 'left' | 'right' | 'full'; columnStart?: number; columnEnd?: number })[] = [];
   let previousY = -Infinity;
   for (const boundary of [...spanning, null]) {
@@ -199,6 +204,7 @@ export function removeRunningHeaders(pages: PdfPage[]): PaperLine[] {
           column: line.column,
           columnStart: line.columnStart,
           columnEnd: line.columnEnd,
+          ...(line.monospace ? { monospace: true } : {}),
         },
       ];
     });
@@ -217,7 +223,13 @@ export async function extractPdfText(data: ArrayBuffer, onProgress?: (done: numb
       const viewport = page.getViewport({ scale: 1 });
       const content = await page.getTextContent();
       const items = content.items.filter((item): item is typeof item & TextItemLike => 'str' in item);
-      pages.push({ page: n, height: viewport.height, lines: itemsToLines(items, viewport.height) });
+      const styledItems = items.map((item) => ({
+        ...item,
+        monospace: /mono|courier|typewriter/i.test(
+          `${item.fontName ?? ''} ${content.styles[item.fontName ?? '']?.fontFamily ?? ''}`,
+        ),
+      }));
+      pages.push({ page: n, height: viewport.height, lines: itemsToLines(styledItems, viewport.height) });
       page.cleanup();
       onProgress?.(n, doc.numPages);
     }

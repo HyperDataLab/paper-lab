@@ -233,3 +233,43 @@ it('keeps same-baseline columns separate and reads each column from top to botto
     ['First', 'Second'],
   );
 });
+it('does not mistake isolated indents for a column and detects staggered columns', () => {
+  const item = (str: string, x: number, y: number) => ({
+    str,
+    width: 60,
+    height: 10,
+    transform: [1, 0, 0, 10, x, 200 - y],
+  });
+  const single = itemsToLines(
+    [
+      item('One', 20, 20),
+      item('Indented', 240, 35),
+      item('Two', 20, 50),
+      item('Three', 20, 65),
+      item('Four', 20, 80),
+      item('Five', 20, 95),
+    ],
+    200,
+  );
+  expect(single.map((line) => line.text)).toEqual(['One', 'Indented', 'Two', 'Three', 'Four', 'Five']);
+  expect(single.every((line) => line.column === undefined)).toBe(true);
+  const columns = itemsToLines(
+    [
+      item('Left one', 20, 20),
+      item('Right one', 240, 40),
+      item('Left two', 20, 70),
+      item('Right two', 240, 90),
+      item('Left three', 20, 120),
+      item('Right three', 240, 140),
+    ],
+    200,
+  );
+  expect(columns.map((line) => line.text)).toEqual([
+    'Left one',
+    'Left two',
+    'Left three',
+    'Right one',
+    'Right two',
+    'Right three',
+  ]);
+});

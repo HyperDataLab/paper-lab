@@ -11,6 +11,8 @@ export interface PaperLine {
   column?: 'left' | 'right' | 'full';
   columnStart?: number;
   columnEnd?: number;
+  monospace?: boolean;
+  boxed?: boolean;
 }
 const roles: [RegExp, Section['role']][] = [
   [/^abstract\b/i, 'abstract'],
@@ -41,6 +43,7 @@ function heading(
   const known = roles.some(([pattern]) => pattern.test(name));
   const caps = /[A-Z]/.test(name) && name === name.toUpperCase() && /^[A-Z\d\s&-]+$/.test(name);
   const explicit = Boolean(markdown || latex);
+  if (!latex && /[{}]/.test(trimmed)) return null;
   if (
     !explicit &&
     (!/^[A-Z]/.test(name) ||
@@ -103,6 +106,8 @@ export async function segmentPaper(input: string | PaperLine[]) {
     .sort((a, b) => a - b);
   const median = heights[Math.floor(heights.length / 2)];
   let outline: number[] = [];
+  let afterReferences = false;
+  const referenceStarts = new Map<string, number>();
   async function flush() {
     if (!buffer.length || !current) return;
     let text = buffer[0] ?? '';
@@ -144,7 +149,20 @@ export async function segmentPaper(input: string | PaperLine[]) {
         line.height === undefined ||
         Math.abs(line.height - footnoteHeight) <= footnoteHeight * 0.15) &&
       (median === undefined || line.height === undefined || line.height <= median);
-    const found = footnote || continuation ? null : heading(text, line.height, median);
+    const appendix = afterReferences
+      ? /^([A-Z])(?:\.(\d+(?:\.\d+)*))?\.?\s+([A-Z][^{}]*[^\s:])$/.exec(text)
+      : null;
+    const found =
+      footnote || continuation || line.monospace || line.boxed || /^\|.*\|$/.test(text)
+        ? null
+        : appendix
+          ? {
+              heading: appendix[3] ?? text,
+              level: appendix[2] ? appendix[2].split('.').length + 1 : 1,
+              role: 'appendix' as const,
+              numbers: null,
+            }
+          : heading(text, line.height, median);
     if (found?.numbers) {
       const nums = found.numbers;
       const depth = nums.length;
@@ -180,6 +198,9 @@ export async function segmentPaper(input: string | PaperLine[]) {
         nextText.length > 0 &&
         nextText.length <= 80 &&
         nextText.split(/\s+/).length <= 10 &&
+        !next.monospace &&
+        !next.boxed &&
+        !/[{}]/.test(nextText) &&
         /^[A-Za-z]/.test(nextText) &&
         !/[-.!?:;,]$/.test(nextText) &&
         !/[()]/.test(nextText) &&
@@ -199,6 +220,7 @@ export async function segmentPaper(input: string | PaperLine[]) {
         pageStart: line.pageStart ?? null,
       };
       sections.push(current);
+      if (current.role === 'references') afterReferences = true;
       continue;
     }
     if (!current) {
@@ -223,7 +245,34 @@ export async function segmentPaper(input: string | PaperLine[]) {
               : /^(?:[-*•]|\d+[.)])\s+/.test(text)
                 ? 'list'
                 : 'body';
-    if (line.breakBefore || nextKind !== kind || (nextKind !== 'body' && !continuation)) await flush();
+    const previous = lines[index - 1];
+    const boundary =
+      line.breakBefore || (previous && (line.pageStart ?? null) !== (previous.pageStart ?? null));
+    const continuesBody =
+      nextKind === 'body' &&
+      kind === 'body' &&
+      buffer.length > 0 &&
+      !/[.!?]["'”’\])]*$/.test(buffer[buffer.length - 1] ?? '') &&
+      /^[a-z]/.test(text);
+    const referenceKey = `${line.pageStart ?? ''}:${line.column ?? ''}`;
+    const referenceStart = referenceStarts.get(referenceKey);
+    const namedReference = /^(?:\[\d+\]|[A-Z][\p{L}'’-]+,\s*(?:[A-Z]\.)+)/u.test(text);
+    const newReference =
+      nextKind === 'reference' &&
+      (namedReference ||
+        (line.x !== undefined && referenceStart !== undefined && line.x <= referenceStart + 2));
+    if (
+      nextKind === 'reference' &&
+      line.x !== undefined &&
+      (referenceStart === undefined || line.x < referenceStart)
+    )
+      referenceStarts.set(referenceKey, line.x);
+    if (
+      nextKind !== kind ||
+      (nextKind === 'reference' ? newReference : nextKind !== 'body' && !continuation) ||
+      (boundary && nextKind !== 'reference' && !continuesBody)
+    )
+      await flush();
     if (!buffer.length) {
       page = line.pageStart ?? null;
       kind = nextKind;
