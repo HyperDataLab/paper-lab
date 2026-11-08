@@ -27,6 +27,7 @@ export const AuditEventSchema = z.object({
     'review_transition',
     'review_check',
     'run_review',
+    'run_probe',
     'review_point',
     'save_notes',
   ]),

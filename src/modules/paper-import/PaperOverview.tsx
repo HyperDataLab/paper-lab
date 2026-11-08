@@ -1,3 +1,4 @@
+import { latestStyleWarning } from '@/core/probe';
 import { useEffect, useState } from 'react';
 import type { Analysis, Paper, PaperOverviewRecord, PaperRun, PaperChecksRecord } from '@/core/schemas';
 import { useRepositories } from '@/shared/storage/StorageProvider';
@@ -27,6 +28,16 @@ export function PaperOverview({
   const repo = useRepositories();
   const [record, setRecord] = useState<PaperOverviewRecord>();
   const [error, setError] = useState('');
+  const [styleWarning, setStyleWarning] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    void repo.paperProbes.get(paper.id).then((probes) => {
+      if (active) setStyleWarning(latestStyleWarning(probes?.runs));
+    });
+    return () => {
+      active = false;
+    };
+  }, [paper.id, repo]);
   useEffect(() => {
     let active = true;
     void repo.paperOverviews
@@ -84,6 +95,12 @@ export function PaperOverview({
           </p>
         )}
         <p>Tổng quan chỉ thống kê kết quả các đoạn đã phân tích; không phải điểm đánh giá bài báo.</p>
+        {styleWarning && (
+          <p role="status">
+            Điểm trên bài này có thể bị ảnh hưởng bởi văn phong (kiểm tra độ bền ngày{' '}
+            {new Date(styleWarning).toLocaleDateString('vi-VN')}).
+          </p>
+        )}
         <OverviewTable paper={paper} overview={overview} />
       </Card>
       <Card>

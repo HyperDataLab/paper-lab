@@ -20,6 +20,7 @@ import { useParagraphAnalysis } from './useParagraphAnalysis';
 import { ParagraphView } from './ParagraphView';
 import { useScoring } from './useScoring';
 import { ScoresView } from './ScoresView';
+import { latestStyleWarning } from '@/core/probe';
 import { AnalysisSchema } from '@/core/schemas';
 import { RUBRIC_VERSION } from '@/core/scoring/rubric';
 import { ReportMenu } from '@/shared/report/ReportMenu';
@@ -32,6 +33,7 @@ export default function Page() {
   const [generationId, setGenerationId] = useState<string | null>(null);
   const [parent, setParent] = useState<{ id: string; title: string } | null>(null);
   const [paperBreadcrumb, setPaperBreadcrumb] = useState<{ id: string; heading: string } | null>(null);
+  const [styleWarning, setStyleWarning] = useState<string | null>(null);
   const syntax = useSyntaxAnalysis();
   const judge = useCandidateJudge();
   const paragraph = useParagraphAnalysis();
@@ -83,12 +85,16 @@ export default function Page() {
         setRevisionOverrides({});
         setParent(null);
         setPaperBreadcrumb(null);
+        setStyleWarning(null);
         if (value.origin?.kind === 'paper') {
           const origin = value.origin;
           void repositories.papers.get(origin.paperId).then((paper) => {
             const paragraph = paper?.paragraphs.find((item) => item.id === origin.paragraphId);
             const section = paper?.sections.find((item) => item.id === paragraph?.sectionId);
             if (active && paper && section) setPaperBreadcrumb({ id: paper.id, heading: section.heading });
+          });
+          void repositories.paperProbes.get(origin.paperId).then((probes) => {
+            if (active) setStyleWarning(latestStyleWarning(probes?.runs));
           });
         }
         setGenerationId(value.origin?.kind === 'generated' ? value.origin.generationId : null);
@@ -585,6 +591,7 @@ export default function Page() {
             <ScoresView
               scores={scoring.result?.scores ?? null}
               issues={issues}
+              styleWarning={styleWarning}
               onIssue={(issueId) => {
                 setSelectedIssue((previous) => ({ id: issueId, nonce: (previous?.nonce ?? 0) + 1 }));
                 setView('text');

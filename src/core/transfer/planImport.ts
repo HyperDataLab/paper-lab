@@ -154,6 +154,7 @@ export function planImport(
     paperOverviews: parsed.data.paperOverviews.filter((record) => eligiblePapers.has(record.paperId)),
     paperChecks: parsed.data.paperChecks.filter((record) => eligiblePapers.has(record.paperId)),
     paperReviews: parsed.data.paperReviews.filter((record) => eligiblePapers.has(record.paperId)),
+    paperProbes: parsed.data.paperProbes.filter((record) => eligiblePapers.has(record.paperId)),
     skipped,
     suppressed,
     auditEvents,

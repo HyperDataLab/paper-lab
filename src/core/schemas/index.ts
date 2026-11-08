@@ -13,3 +13,4 @@ export * from './paperRun';
 export * from './paperOverview';
 export * from './paperChecks';
 export * from './paperReview';
+export * from './paperProbe';

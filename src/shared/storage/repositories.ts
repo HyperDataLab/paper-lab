@@ -23,6 +23,7 @@ import {
   type PaperChecksRecord,
   type CheckDecision,
   PaperReviewsRecordSchema,
+  PaperProbesRecordSchema,
 } from '@/core/schemas';
 import { validateLocations } from '@/core/paperChecks';
 import { aggregatePaper, transitionStatus } from '@/core/paperOverview';
@@ -33,6 +34,7 @@ import { analyzeText } from '@/core/text/analyzeText';
 import { z } from 'zod';
 import type { ParagraphDb } from './db';
 import { createPaperReviewsRepository, rebuildReviewRecord } from './paperReviews';
+import { createPaperProbesRepository } from './paperProbes';
 export class SourceImmutableError extends Error {
   override name = 'SourceImmutableError';
 }
@@ -456,6 +458,7 @@ export function createRepositories(
           db.paperChecks,
           db.paperRuns,
           db.paperReviews,
+          db.paperProbes,
           db.reviewNgrams,
           db.auditEvents,
         ],
@@ -465,6 +468,7 @@ export function createRepositories(
             await db.paperOverviews.delete(id);
             await db.paperChecks.delete(id);
             await db.paperReviews.delete(id);
+            await db.paperProbes.delete(id);
             await db.reviewNgrams.where('paperId').equals(id).delete();
             await db.paperRuns.where('paperId').equals(id).delete();
             await db.auditEvents.add(makeAudit(id, 'delete_paper', 'human'));
@@ -635,6 +639,7 @@ export function createRepositories(
     },
   };
   const paperReviews = createPaperReviewsRepository(db, now, makeAudit);
+  const paperProbes = createPaperProbesRepository(db, now, makeAudit);
   const transfer = {
     async exportAll(appVersion: string) {
       const a = await readAnalyses();
@@ -655,6 +660,7 @@ export function createRepositories(
         ).filter((value): value is PaperOverviewRecord => value !== undefined),
         (await db.paperChecks.toArray()).map((value) => PaperChecksRecordSchema.parse(value)),
         (await db.paperReviews.toArray()).map((value) => PaperReviewsRecordSchema.parse(value)),
+        (await db.paperProbes.toArray()).map((value) => PaperProbesRecordSchema.parse(value)),
       );
     },
     async previewImport(raw: unknown) {
@@ -729,6 +735,7 @@ export function createRepositories(
           db.paperOverviews,
           db.paperChecks,
           db.paperReviews,
+          db.paperProbes,
           db.reviewNgrams,
         ],
         async () => {
@@ -863,6 +870,12 @@ export function createRepositories(
               await db.reviewNgrams.bulkPut(rebuilt.ngrams);
             }
           }
+          for (const record of plan.paperProbes) {
+            if (!(await db.papers.get(record.paperId))) continue;
+            const existing = await paperProbes.get(record.paperId);
+            if (!existing || record.updatedAt > existing.updatedAt)
+              await db.paperProbes.put(PaperProbesRecordSchema.parse(record));
+          }
           for (const event of plan.auditEvents)
             if (
               (event.action !== 'review_transition' ||
@@ -884,6 +897,7 @@ export function createRepositories(
     paperOverviews,
     paperChecks,
     paperReviews,
+    paperProbes,
     transfer,
   };
 }

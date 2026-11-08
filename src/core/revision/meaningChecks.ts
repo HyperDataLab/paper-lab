@@ -44,15 +44,38 @@ const hedge = /\b(?:may|might|could|suggests?|likely|possibly|appears?|approxima
 const strong =
   /\b(?:proves?|proved|demonstrates?\s+conclusively|demonstrated\s+conclusively|definitely|always)\b/giu;
 
-export function meaningChecks(source: string, revised: string, preserveTerms: string[]): MeaningCheck[] {
+// Units that change the meaning of a number when swapped. Used only by the order-insensitive comparison,
+// where the word after a number may legitimately change because the sentence was reordered.
+const measurementUnit =
+  /^(?:[%‰°]+.*|.*\/.*|(?:ns|µs|μs|ms|s|sec|secs|seconds?|min|mins|minutes?|h|hrs?|hours?|days?|weeks?|months?|years?|nm|µm|μm|mm|cm|m|km|ng|µg|μg|mg|g|kg|t|ml|l|µl|μl|mol|mmol|µmol|μmol|nmol|m|mm|µm|hz|khz|mhz|ghz|kb|mb|gb|tb|k|fold|x|ppm|ppb))$/iu;
+function numberWithRealUnit(item: Located): Located {
+  const match = /^(.*?\d)(?:\s*([^\d\s].*))?$/su.exec(item.value);
+  if (!match) return item;
+  const [, number = item.value, unit = ''] = match;
+  return { ...item, value: unit && measurementUnit.test(unit) ? `${number} ${unit}` : number };
+}
+
+export type MeaningCheckOptions = {
+  /** Compare negations and numbers over the whole text, for rewrites that only reorder wording. */
+  orderInsensitive?: boolean;
+};
+
+export function meaningChecks(
+  source: string,
+  revised: string,
+  preserveTerms: string[],
+  options: MeaningCheckOptions = {},
+): MeaningCheck[] {
   const sourceCitations = find(source, citation, 'source');
   const revisedCitations = find(revised, citation, 'revised');
   const quantities = (text: string, side: Side, citations: Located[]) =>
     find(text, quantity, side, true).filter(
       (number) => !citations.some((c) => number.start < c.end && number.end > c.start),
     );
-  const beforeNumbers = quantities(source, 'source', sourceCitations);
-  const afterNumbers = quantities(revised, 'revised', revisedCitations);
+  const normaliseNumbers = (items: Located[]) =>
+    options.orderInsensitive ? items.map(numberWithRealUnit) : items;
+  const beforeNumbers = normaliseNumbers(quantities(source, 'source', sourceCitations));
+  const afterNumbers = normaliseNumbers(quantities(revised, 'revised', revisedCitations));
   const differences = (a: Located[], b: Located[]) => [...excess(a, b), ...excess(b, a)];
   // Align clause windows by position; this deliberately flags reordered negations for review.
   const clausePattern =
@@ -61,12 +84,15 @@ export function meaningChecks(source: string, revised: string, preserveTerms: st
     find(text, clausePattern, side).filter((item) => !/^(?:and|but|or|yet|while|whereas)$/u.test(item.value));
   const beforeClauses = clauses(source, 'source');
   const afterClauses = clauses(revised, 'revised');
-  const missingNegations: Located[] = [];
-  beforeClauses.forEach((clause, index) => {
-    const prior = find(clause.value, negation, 'source');
-    const next = find(afterClauses[index]?.value ?? '', negation, 'revised');
-    if (prior.length > next.length) missingNegations.push(clause);
-  });
+  const missingNegations: Located[] = options.orderInsensitive
+    ? excess(find(source, negation, 'source'), find(revised, negation, 'revised'))
+    : [];
+  if (!options.orderInsensitive)
+    beforeClauses.forEach((clause, index) => {
+      const prior = find(clause.value, negation, 'source');
+      const next = find(afterClauses[index]?.value ?? '', negation, 'revised');
+      if (prior.length > next.length) missingNegations.push(clause);
+    });
   const missingHedges = excess(find(source, hedge, 'source'), find(revised, hedge, 'revised'));
   const addedStrength = excess(find(revised, strong, 'revised'), find(source, strong, 'source'));
   const missingTerms = preserveTerms.filter((term) => term && !revised.includes(term));
