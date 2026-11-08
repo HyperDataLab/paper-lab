@@ -26,6 +26,7 @@ export function transitionPairs(paper: Paper, analyses: Analysis[]): TransitionP
           pairId: `${from.id}->${to.id}`,
           sectionId: section.id,
           sectionRole: section.role,
+          sectionHeading: section.heading,
           from: {
             paragraphId: from.id,
             analysisId: a.id,

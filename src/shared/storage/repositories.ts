@@ -442,9 +442,11 @@ export function createRepositories(
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     },
     async delete(id: string) {
-      await db.transaction('rw', db.papers, db.auditEvents, async () => {
+      await db.transaction('rw', db.papers, db.paperOverviews, db.paperRuns, db.auditEvents, async () => {
         if (await db.papers.get(id)) {
           await db.papers.delete(id);
+          await db.paperOverviews.delete(id);
+          await db.paperRuns.where('paperId').equals(id).delete();
           await db.auditEvents.add(makeAudit(id, 'delete_paper', 'human'));
         }
       });
@@ -512,10 +514,18 @@ export function createRepositories(
         const finding = current?.transitions?.findings.find((item) => item.id === findingId);
         if (!current || !current.transitions || !finding) throw new Error('Transition finding not found');
         if (finding.status === status) return current;
+        const reviewedAt = new Date(
+          Math.max(
+            Date.parse(now()),
+            Date.parse(current.transitions.updatedAt) + 1,
+            current.transitions.reviewedAt ? Date.parse(current.transitions.reviewedAt) + 1 : 0,
+          ),
+        ).toISOString();
         const value = PaperOverviewRecordSchema.parse({
           ...current,
           transitions: {
             ...current.transitions,
+            reviewedAt,
             findings: current.transitions.findings.map((item) =>
               item.id === findingId ? { ...item, status } : item,
             ),
@@ -525,6 +535,7 @@ export function createRepositories(
         await db.auditEvents.add(
           AuditEventSchema.parse({
             ...makeAudit(paperId, 'review_transition', 'human'),
+            at: reviewedAt,
             issueId: findingId,
             before: { status: finding.status },
             after: { status },
@@ -655,18 +666,36 @@ export function createRepositories(
             await db.papers.put(paper);
             await db.auditEvents.add(makeAudit(paper.id, 'import', 'system'));
           }
+          const importedFindings = new Map<string, Set<string>>();
           for (const record of plan.paperOverviews) {
             if (!(await db.papers.get(record.paperId))) continue;
             const existing = await db.paperOverviews.get(record.paperId);
             if (
               !existing ||
               (record.transitions &&
-                (!existing.transitions || record.transitions.updatedAt > existing.transitions.updatedAt))
-            )
+                (!existing.transitions ||
+                  Math.max(
+                    Date.parse(record.transitions.updatedAt),
+                    Date.parse(record.transitions.reviewedAt ?? record.transitions.updatedAt),
+                  ) >
+                    Math.max(
+                      Date.parse(existing.transitions.updatedAt),
+                      Date.parse(existing.transitions.reviewedAt ?? existing.transitions.updatedAt),
+                    )))
+            ) {
               await db.paperOverviews.put(PaperOverviewRecordSchema.parse(record));
+              importedFindings.set(
+                record.paperId,
+                new Set(record.transitions?.findings.map((finding) => finding.id) ?? []),
+              );
+            }
           }
           for (const event of plan.auditEvents)
-            if (!(await db.auditEvents.get(event.id)))
+            if (
+              (event.action !== 'review_transition' ||
+                (event.issueId && importedFindings.get(event.analysisId)?.has(event.issueId))) &&
+              !(await db.auditEvents.get(event.id))
+            )
               await db.auditEvents.add(AuditEventSchema.parse(event));
         },
       );

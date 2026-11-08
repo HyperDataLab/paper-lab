@@ -53,6 +53,7 @@ export const TransitionPairSchema = z.object({
   pairId: z.string(),
   sectionId: z.string(),
   sectionRole: z.string(),
+  sectionHeading: z.string().optional(),
   from: TransitionEndpointSchema,
   to: TransitionEndpointSchema,
 });
@@ -93,6 +94,7 @@ export const PaperOverviewRecordSchema = z
         promptVersion: z.string(),
         model: z.string(),
         updatedAt: z.iso.datetime(),
+        reviewedAt: z.iso.datetime().optional(),
         stale: z.boolean().optional(),
       })
       .nullable(),

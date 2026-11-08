@@ -9,6 +9,7 @@ export function mergeTransitions(
   const ids = new Set(result.pairs.map((pair) => pair.pairId));
   return {
     ...result,
+    reviewedAt: previous?.reviewedAt,
     pairs: [...(previous?.pairs ?? []).filter((item) => !ids.has(item.pairId)), ...result.pairs],
     judgements: [
       ...(previous?.judgements ?? [])

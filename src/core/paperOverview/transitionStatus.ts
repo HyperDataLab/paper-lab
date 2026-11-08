@@ -24,7 +24,17 @@ export function transitionStatus(
             next.analysisUpdatedAt > (judgement.judgedAt ?? transitions.updatedAt))
       );
     };
-    return { ...judgement, available, stale: !available || changed('from') || changed('to') };
+    return {
+      ...judgement,
+      available,
+      stale:
+        !available ||
+        before?.sectionRole !== after?.sectionRole ||
+        before?.sectionHeading === undefined ||
+        before.sectionHeading !== after?.sectionHeading ||
+        changed('from') ||
+        changed('to'),
+    };
   });
   return { ...transitions, judgements, stale: judgements.some((item) => item.stale) };
 }

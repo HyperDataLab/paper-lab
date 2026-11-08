@@ -210,6 +210,22 @@ describe('P3 paper overview', () => {
       updatedAt: at,
     };
     expect(transitionStatus(paper, input, stored).stale).toBe(false);
+    const roleChanged = {
+      ...paper,
+      sections: paper.sections.map((s) => (s.id === 'a' ? { ...s, role: 'results' as const } : s)),
+    };
+    expect(transitionStatus(roleChanged, input, stored).judgements.every((j) => j.stale)).toBe(true);
+    const headingChanged = {
+      ...paper,
+      sections: paper.sections.map((s) => (s.id === 'a' ? { ...s, heading: 'New heading' } : s)),
+    };
+    expect(transitionStatus(headingChanged, input, stored).stale).toBe(true);
+    expect(
+      transitionStatus(paper, input, {
+        ...stored,
+        pairs: pairs.map((pair) => ({ ...pair, sectionHeading: undefined })),
+      }).stale,
+    ).toBe(true);
     const first = input[0];
     if (!first) throw new Error('missing analysis');
     first.updatedAt = '2026-02-01T00:00:00.000Z';

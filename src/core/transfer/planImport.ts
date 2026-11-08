@@ -116,6 +116,7 @@ export function planImport(
   const papersToInsert: typeof parsed.data.papers = [];
   const papersToUpdate: typeof parsed.data.papers = [];
   const seenPapers = new Set<string>();
+  const eligiblePapers = new Set<string>();
   for (const paper of parsed.data.papers) {
     if (seenPapers.has(paper.id)) {
       skipped.push({ id: paper.id, reason: 'duplicate paper id' });
@@ -130,6 +131,7 @@ export function planImport(
     } else if (Date.parse(paper.updatedAt) > Date.parse(previous.updatedAt)) papersToUpdate.push(paper);
     else skipped.push({ id: paper.id, reason: 'not newer' });
     auditEligible.add(paper.id);
+    eligiblePapers.add(paper.id);
   }
   const seen = new Set(auditIds);
   let auditSkipped = 0;
@@ -149,7 +151,7 @@ export function planImport(
     generationsToInsert,
     papersToInsert,
     papersToUpdate,
-    paperOverviews: parsed.data.paperOverviews,
+    paperOverviews: parsed.data.paperOverviews.filter((record) => eligiblePapers.has(record.paperId)),
     skipped,
     suppressed,
     auditEvents,
