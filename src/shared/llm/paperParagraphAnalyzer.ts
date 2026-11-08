@@ -56,6 +56,7 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
     context: PaperContext,
     step: BatchStep | 'detectors',
     analysisId: string | null,
+    onRepair?: () => void,
   ): Promise<string> {
     let current = analysisId ? await repositories.analyses.get(analysisId) : undefined;
     if (!current) {
@@ -90,27 +91,22 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
         versions: { ...versions, detectors: DETECTOR_VERSION },
       });
     } else if (step === 'syntax') {
-      const raw = [];
-      let model: string | null = null;
-      for (let i = 0; i < analysis.text.sentences.length; i += 40) {
-        const result = await client.completeJson({
-          ...buildSentenceSyntaxPrompt(analysis.text, analysis.text.sentences.slice(i, i + 40), context),
-          schema: SentenceSyntaxOutputSchema,
-          schemaName: 'sentence_syntax',
-          promptVersion: PAPER_PROMPT_VERSIONS.syntax,
-          temperature: 0,
-        });
-        raw.push(...result.data.sentences);
-        model = result.meta.model;
-      }
+      const result = await client.completeJson({
+        ...buildSentenceSyntaxPrompt(analysis.text, analysis.text.sentences, context),
+        schema: SentenceSyntaxOutputSchema,
+        schemaName: 'sentence_syntax',
+        promptVersion: PAPER_PROMPT_VERSIONS.syntax,
+        temperature: 0,
+      });
+      if (result.meta.repaired) onRepair?.();
       const sentenceAnnotations = buildSentenceAnnotations(
         analysis.text,
-        validateSyntaxOutput(raw, analysis.text),
+        validateSyntaxOutput(result.data.sentences, analysis.text),
       );
       await repositories.analyses.update(analysis.id, {
         sentenceAnnotations,
         issues: mergeHumanDecisions(detectCandidates(analysis.text, sentenceAnnotations), analysis.issues),
-        versions: { ...versions, syntaxProvider: PAPER_PROMPT_VERSIONS.syntax, model },
+        versions: { ...versions, syntaxProvider: PAPER_PROMPT_VERSIONS.syntax, model: result.meta.model },
       });
     } else if (step === 'judge') {
       const result = await client.completeJson({
@@ -127,6 +123,7 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
         promptVersion: PAPER_PROMPT_VERSIONS.judge,
         temperature: 0,
       });
+      if (result.meta.repaired) onRepair?.();
       await repositories.analyses.update(analysis.id, {
         issues: mergeHumanDecisions(
           applyJudgement(analysis.issues, result.data, analysis.text, analysis.sentenceAnnotations),
@@ -147,6 +144,7 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
         promptVersion: PAPER_PROMPT_VERSIONS.structure,
         temperature: 0,
       });
+      if (result.meta.repaired) onRepair?.();
       const structure = validateParagraphStructure(result.data, analysis.text, analysis.sentenceAnnotations);
       const sentenceAnnotations = analysis.sentenceAnnotations.map((annotation) => {
         const role = structure.roles.find((item) => item.sentenceId === annotation.sentenceId);
@@ -198,6 +196,7 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
         promptVersion: PAPER_PROMPT_VERSIONS.score,
         temperature: 0,
       });
+      if (result.meta.repaired) onRepair?.();
       const scores = computeScores(result.data, availability, analysis.issues, {
         sentenceIds: analysis.text.sentences.map((s) => s.id),
         contextLimited: analysis.contextLimited,

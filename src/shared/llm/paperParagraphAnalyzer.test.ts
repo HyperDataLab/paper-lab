@@ -140,3 +140,49 @@ it('P2 applies paper syntax, judgement, structure and scoring to an existing ana
   expect(analysis?.contextLimited).toBe(true);
   expect(completeJson).toHaveBeenCalledTimes(4);
 });
+
+it('P2 uses one syntax request for a long paragraph and reports repair', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const at = '2026-01-01T00:00:00.000Z';
+  const text = Array(41).fill('This works.').join(' ');
+  const paragraph = {
+    id: 'p',
+    sectionId: 's',
+    order: 0,
+    text,
+    textHash: await sourceHash(text),
+    kind: 'body' as const,
+    pageStart: null,
+  };
+  const paper: Paper = {
+    schemaVersion: 1,
+    id: crypto.randomUUID(),
+    title: '',
+    createdAt: at,
+    updatedAt: at,
+    source: { kind: 'text', fileName: '', pageCount: null, sha256: '' },
+    sections: [{ id: 's', heading: 'Methods', role: 'methods', level: 1, pageStart: null }],
+    paragraphs: [paragraph],
+  };
+  const repositories = createRepositories(createDb(`p2-${crypto.randomUUID()}`));
+  const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => ({
+    data: options.schema.parse({ sentences: [] }),
+    meta: { model: 'fake', promptVersion: options.promptVersion, latencyMs: 1, repaired: true },
+  })) as LlmClient['completeJson'];
+  const analyzer = createPaperParagraphAnalyzer({ completeJson }, repositories, paper);
+  const onRepair = vi.fn();
+  await analyzer.analyze(
+    paragraph,
+    {
+      role: 'methods',
+      heading: 'Methods',
+      previousLast: null,
+      nextFirst: null,
+    },
+    'syntax',
+    null,
+    onRepair,
+  );
+  expect(completeJson).toHaveBeenCalledTimes(1);
+  expect(onRepair).toHaveBeenCalledOnce();
+});

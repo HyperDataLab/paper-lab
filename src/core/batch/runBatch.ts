@@ -11,6 +11,7 @@ export type BatchDeps = {
     context: PaperContext,
     step: BatchStep | 'detectors',
     analysisId: string | null,
+    onRepair?: () => void,
   ) => Promise<string>;
   save: (run: PaperRun) => Promise<unknown>;
   now: () => string;
@@ -119,6 +120,10 @@ export async function runBatch(
               contextFor(deps.paper, paragraph),
               step,
               item.analysisId,
+              () => {
+                run.callsUsed++;
+                item.calls++;
+              },
             );
             break;
           } catch (error) {

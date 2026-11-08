@@ -75,6 +75,16 @@ describe('P2 runBatch', () => {
     expect(t.sleep.mock.calls.map(([ms]) => ms)).toEqual([1000, 2000]);
     expect(result.callsUsed).toBe(8);
   });
+  it('counts a repaired response as an extra call', async () => {
+    const t = setup();
+    t.analyze.mockImplementation(async (_p, _c, step, _id, onRepair) => {
+      if (step === 'judge') onRepair?.();
+      return '00000000-0000-4000-8000-000000000003';
+    });
+    const result = await runBatch(t.run, t.deps);
+    expect(result.callsUsed).toBe(9);
+    expect(result.items.map((item) => item.calls)).toEqual([3, 3, 3]);
+  });
   it('does not retry 4xx and continues after a failed item', async () => {
     const t = setup();
     t.analyze.mockImplementation(async (p, _c, step) => {

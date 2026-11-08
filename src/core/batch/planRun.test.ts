@@ -3,7 +3,7 @@ import type { Paper } from '../schemas';
 import { planRun } from './planRun';
 
 describe('P2 planRun', () => {
-  it('skips non-body paragraphs and estimates syntax in section batches', () => {
+  it('skips non-body paragraphs and estimates one syntax call per paragraph', () => {
     const paper: Paper = {
       schemaVersion: 1,
       id: '00000000-0000-4000-8000-000000000001',
@@ -17,7 +17,7 @@ describe('P2 planRun', () => {
           id: 'p1',
           sectionId: 's',
           order: 0,
-          text: Array(25).fill('This works.').join(' '),
+          text: Array(85).fill('This works.').join(' '),
           kind: 'body',
           textHash: 'a',
           pageStart: null,
@@ -26,7 +26,7 @@ describe('P2 planRun', () => {
           id: 'p2',
           sectionId: 's',
           order: 1,
-          text: Array(20).fill('This works.').join(' '),
+          text: 'This works.',
           kind: 'body',
           textHash: 'b',
           pageStart: null,
