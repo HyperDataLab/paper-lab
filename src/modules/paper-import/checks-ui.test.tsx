@@ -64,6 +64,7 @@ it('P4 runs local checks, navigates to evidence, reviews and shows overview coun
     </MemoryRouter>,
   );
   await screen.findByText('An introduction.');
+  expect(screen.getByText('Minh bạch')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('tab', { name: 'Kiểm tra' }));
   expect(screen.getByText(/Các kiểm tra tự động là thử nghiệm/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Chạy kiểm tra' }));
@@ -71,7 +72,8 @@ it('P4 runs local checks, navigates to evidence, reviews and shows overview coun
   const card = heading.closest('section') ?? heading.parentElement;
   if (!card) throw new Error('Missing card');
   expect(within(card).getByText('Cảnh báo')).toBeInTheDocument();
-  expect(screen.getAllByText('Thử nghiệm')).toHaveLength(6);
+  expect(screen.getAllByText(/Chưa hiệu chuẩn/)).toHaveLength(6);
+  expect(screen.getByLabelText('Ẩn mục chưa đáng tin')).not.toBeChecked();
   expect(screen.getByText(/Lần chạy gần nhất/)).toBeInTheDocument();
   fireEvent.click(within(card).getByRole('button', { name: /p2:.*Figure 2/ }));
   expect(screen.getByRole('tab', { name: 'Sơ đồ' })).toHaveAttribute('aria-selected', 'true');

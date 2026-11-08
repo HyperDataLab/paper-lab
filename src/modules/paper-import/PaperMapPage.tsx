@@ -26,6 +26,7 @@ import { PaperOverview } from './PaperOverview';
 import { PaperChecks } from './PaperChecks';
 import { PaperReview } from './PaperReview';
 import type { ReactNode } from 'react';
+import { Transparency } from '@/shared/report/Transparency';
 
 function BatchWorkspace({
   paper,
@@ -167,6 +168,7 @@ export default function PaperMapPage() {
     <div className={styles.page}>
       <Link to="/papers">← Bài báo đã nhập</Link>
       <h1>{paper.title}</h1>
+      <Transparency paper={paper} />
       <BatchWorkspace paper={paper}>
         {(batch) => (
           <>

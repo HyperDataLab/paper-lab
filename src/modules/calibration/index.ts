@@ -8,7 +8,7 @@ const module: ModuleDefinition = {
   path: '/calibration',
   group: 'labs',
   order: 5,
-  status: 'soon',
+  status: 'beta',
   page: lazy(() => import('./Page')),
 };
 export default module;

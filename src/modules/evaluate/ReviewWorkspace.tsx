@@ -20,6 +20,9 @@ import { Badge } from '@/shared/ui/Badge';
 import styles from './review.module.css';
 import { roleLabels } from './roleLabels';
 import type { useParagraphAnalysis } from './useParagraphAnalysis';
+import { CalibrationBadge } from '@/shared/calibration/CalibrationBadge';
+import { calibrationStatus } from '@/core/calibration';
+import type { CalibrationData } from '@/shared/calibration/data';
 
 const categories: Record<Issue['category'], string> = {
   structure: 'Cấu trúc câu',
@@ -46,6 +49,7 @@ export function ReviewWorkspace({
   selectedIssue,
   revisionSelection,
   onRevisionSelection,
+  calibrationStats,
 }: {
   text: TextAnalysis;
   issues: Issue[];
@@ -55,12 +59,16 @@ export function ReviewWorkspace({
   selectedIssue?: { id: string; nonce: number } | null;
   revisionSelection?: string[];
   onRevisionSelection?: (id: string, selected: boolean) => void;
+  calibrationStats?: CalibrationData['stats'];
 }) {
   const toast = useToast();
   const [selected, setSelected] = useState<string | null>(null);
   const [category, setCategory] = useState<Issue['category'] | null>(null);
   const [filter, setFilter] = useState('all');
   const [low, setLow] = useState(false);
+  const [hideUnreliable, setHideUnreliable] = useState(false);
+  const statsFor = (type: string) =>
+    calibrationStats?.find((row) => row.kind === 'issue' && row.type === type);
   const [done, setDone] = useState(false);
   const [previousSelection, setPreviousSelection] = useState<typeof selectedIssue>(null);
   if (selectedIssue !== previousSelection) {
@@ -129,6 +137,8 @@ export function ReviewWorkspace({
     (i) =>
       (!category || i.category === category) &&
       (!low || i.confidence >= 0.5) &&
+      (!hideUnreliable ||
+        calibrationStatus(statsFor(i.type) ?? { n: 0, wilsonLow: null }) !== 'unreliable') &&
       (filter === 'all' || (filter === 'candidate' ? i.status === 'candidate' : i.status !== 'candidate')),
   );
   const boundaries = [
@@ -201,6 +211,9 @@ export function ReviewWorkspace({
       <Checkbox checked={low} onChange={(e) => setLow(e.target.checked)}>
         Ẩn độ tin cậy thấp
       </Checkbox>
+      <Checkbox checked={hideUnreliable} onChange={(event) => setHideUnreliable(event.target.checked)}>
+        Ẩn mục chưa đáng tin
+      </Checkbox>
       {visible.filter((i) => handled(i) === done).length === 0 && (
         <p>{issues.length ? 'Đã xem hết gợi ý' : 'Chưa có gợi ý'}</p>
       )}
@@ -245,6 +258,7 @@ export function ReviewWorkspace({
                 id={`card-${i.id}`}
                 className={`${styles.cardItem} ${styles[`color_${i.category}`]} ${selected === i.id ? styles.expanded : ''} ${hovered === i.id ? styles.hovered : ''} ${i.severity === 'info' ? styles.acceptable : ''} ${i.status === 'dismissed_by_human' ? styles.dismissed : ''}`}
               >
+                <CalibrationBadge stats={statsFor(i.type)} />
                 {revisionSelection && onRevisionSelection && (
                   <Checkbox
                     disabled={i.status === 'dismissed_by_human'}

@@ -113,6 +113,17 @@ it('EV-12 renders report sections and prints', async () => {
     'Giới hạn',
   ])
     expect(await screen.findByRole('heading', { name })).toBeInTheDocument();
+  expect(screen.getByText('Minh bạch')).toBeInTheDocument();
+  fireEvent.click(screen.getByText('Minh bạch'));
+  expect(screen.getAllByText(/Hiệu chuẩn tại thời điểm chạy: Không được ghi nhận/).length).toBeGreaterThan(0);
+  const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  vi.stubGlobal(
+    'URL',
+    Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:transparency'), revokeObjectURL: vi.fn() }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Tải bản ghi minh bạch JSON' }));
+  expect(anchorClick).toHaveBeenCalledOnce();
+  anchorClick.mockRestore();
   fireEvent.click(screen.getByRole('button', { name: 'In / Lưu PDF' }));
   expect(print).toHaveBeenCalledOnce();
   print.mockRestore();

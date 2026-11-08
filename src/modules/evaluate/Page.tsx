@@ -24,9 +24,11 @@ import { latestStyleWarning } from '@/core/probe';
 import { AnalysisSchema } from '@/core/schemas';
 import { RUBRIC_VERSION } from '@/core/scoring/rubric';
 import { ReportMenu } from '@/shared/report/ReportMenu';
+import { useCalibration } from '@/shared/calibration/useCalibration';
 
 export default function Page() {
   const repositories = useRepositories();
+  const calibration = useCalibration(repositories);
   const navigate = useNavigate();
   const location = useLocation();
   const [revisionOverrides, setRevisionOverrides] = useState<Record<string, boolean>>({});
@@ -575,6 +577,7 @@ export default function Page() {
           </Tabs>
           <div id="text-panel" role="tabpanel" aria-labelledby="text-tab" hidden={view !== 'text'}>
             <ReviewWorkspace
+              calibrationStats={calibration?.stats}
               revisionSelection={id || createdId ? revisionSelection : undefined}
               onRevisionSelection={(issueId, selected) =>
                 setRevisionOverrides((old) => ({ ...old, [issueId]: selected }))
