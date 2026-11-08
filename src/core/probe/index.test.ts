@@ -1,7 +1,8 @@
+import { meaningChecks } from '../revision/meaningChecks';
 import { describe, expect, it } from 'vitest';
 import { STYLE_PROBE_SYSTEM, PROMPT_VERSIONS } from '../prompts';
 import { ScoresSchema, type Scores } from '../schemas/scores';
-import { estimateProbe, selectProbeParagraphs, summariseProbe, validateProbe } from './index';
+import { estimateProbe, selectProbeParagraphs, summariseProbe, validateProbe, type ProbeItem } from './index';
 import { probeFixture } from '@/test/probeFixtures';
 
 function score(value: number, applicable = true): Scores {
@@ -95,7 +96,9 @@ Return the rewritten paragraph only.`);
       meanNoise: 1,
       n: 3,
     });
-    expect(result.verdict).toBe('style_sensitive');
+    // A mean of 6 over three paragraphs is less than one rubric level on one paragraph (25 / 3).
+    expect(result.verdict).toBe('stable');
+    expect(summariseProbe([item(12, 1), item(12, 1), item(12, 1)]).verdict).toBe('style_sensitive');
     expect(summariseProbe([item(10, 6), item(10, 6), item(10, 6)]).verdict).toBe('stable');
     expect(summariseProbe([item(5, 0), item(5, 0), item(5, 0)]).verdict).toBe('stable');
     expect(summariseProbe([item(11, 5), item(11, 5), item(11, 5)]).verdict).toBe('style_sensitive');
@@ -115,5 +118,52 @@ Return the rewritten paragraph only.`);
     const resultByDimension = summariseProbe([perDimension, perDimension, perDimension]);
     expect(resultByDimension.verdict).toBe('style_sensitive');
     expect(resultByDimension.dimensions.sentence_structure?.meanDelta).toBe(-10);
+  });
+});
+
+describe('P6 style-only rewrites may reorder wording', () => {
+  it('keeps a reordered sentence whose negations and numbers are unchanged', () => {
+    const original =
+      'Our attack differs fundamentally in that it requires no tuning, no targeting, and no hidden text. See § 4 for details.';
+    const rewritten =
+      'Fundamentally, our attack differs in that it requires no tuning, no targeting, and no hidden text. Details are in § 4.';
+    expect(validateProbe(original, rewritten)).toMatchObject({ valid: true, reasons: [] });
+  });
+  it('still discards a dropped negation, a changed value and a changed unit', () => {
+    expect(validateProbe('It did not improve.', 'It improved.').valid).toBe(false);
+    expect(validateProbe('Growth rose by 12%.', 'Growth rose by 13%.').valid).toBe(false);
+    expect(validateProbe('It took 5 days to finish.', 'It took 5 weeks to finish.').valid).toBe(false);
+    expect(validateProbe('Dose was 10 mg/L here.', 'Here dose was 10 g/L.').valid).toBe(false);
+  });
+  it('the Revise checks stay position-sensitive by default', () => {
+    const original = 'It has no effect, and it works.';
+    const reordered = 'It works, and it has no effect.';
+    expect(meaningChecks(original, reordered, []).find((c) => c.id === 'negation_preserved')?.status).toBe(
+      'fail',
+    );
+    expect(
+      meaningChecks(original, reordered, [], { orderInsensitive: true }).find(
+        (c) => c.id === 'negation_preserved',
+      )?.status,
+    ).toBe('pass');
+  });
+});
+
+describe('P6 verdict needs more than one rubric level on one paragraph', () => {
+  const scores = (score: number) =>
+    ({
+      overall: null,
+      dimensions: [{ id: 'verb_word_choice', applicable: true, score }],
+    }) as unknown as NonNullable<ProbeItem['original']>;
+  const item = (original: number, rewritten: number): ProbeItem => ({
+    original: scores(original),
+    rewritten: scores(rewritten),
+    baseline: scores(original),
+  });
+  it('one level on one of three paragraphs stays stable', () => {
+    expect(summariseProbe([item(75, 50), item(75, 75), item(75, 75)]).verdict).toBe('stable');
+  });
+  it('one level on two of three paragraphs is style sensitive', () => {
+    expect(summariseProbe([item(75, 50), item(75, 50), item(75, 75)]).verdict).toBe('style_sensitive');
   });
 });

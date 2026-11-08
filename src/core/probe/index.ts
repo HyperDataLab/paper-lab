@@ -9,6 +9,8 @@ export const PROBE_MAXIMUM = 10;
 // Product heuristics, pending calibration against labelled test–retest data.
 export const PROBE_DELTA_THRESHOLD = 5;
 export const PROBE_NOISE_MULTIPLIER = 2;
+// One rubric level is 25 points: a single level change on one paragraph is not evidence of a style effect.
+export const PROBE_RUBRIC_STEP = 25;
 
 function hash(value: string): number {
   let result = 2166136261;
@@ -61,7 +63,8 @@ export function estimateProbe(analyses: Analysis[]) {
 }
 
 export function validateProbe(original: string, rewritten: string, preserveTerms: string[] = []) {
-  const checks = meaningChecks(original, rewritten, preserveTerms);
+  // A style-only rewrite may reorder clauses, so compare over the whole paragraph rather than by position.
+  const checks = meaningChecks(original, rewritten, preserveTerms, { orderInsensitive: true });
   const reasons = checks
     .filter(
       (check) => check.status === 'fail' || (check.id === 'hedging_preserved' && check.status === 'warn'),
@@ -142,7 +145,12 @@ export function summariseProbe(items: ProbeItem[]) {
     (value) =>
       value.meanDelta !== null &&
       value.meanNoise !== null &&
-      Math.abs(value.meanDelta) > Math.max(PROBE_DELTA_THRESHOLD, PROBE_NOISE_MULTIPLIER * value.meanNoise),
+      Math.abs(value.meanDelta) >
+        Math.max(
+          PROBE_DELTA_THRESHOLD,
+          PROBE_NOISE_MULTIPLIER * value.meanNoise,
+          PROBE_RUBRIC_STEP / value.n,
+        ),
   );
   return {
     overall,
