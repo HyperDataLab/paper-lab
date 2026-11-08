@@ -1,4 +1,10 @@
-import { collectDecisions, collectTargets, matchLabels, precisionByType } from '@/core/calibration';
+import {
+  calibrationStatus,
+  collectTargets,
+  deduplicateLabels,
+  matchLabels,
+  precisionByType,
+} from '@/core/calibration';
 import type { CalibrationLabel, ExportPackage } from '@/core/schemas';
 import type { Repositories } from '@/shared/storage/repositories';
 export async function loadCalibration(repo: Repositories) {
@@ -10,15 +16,14 @@ export function calibrationData(data: ExportPackage) {
     papers: data.papers,
     checks: data.paperChecks,
     reviews: data.paperReviews,
+    auditEvents: data.auditEvents,
   };
-  const labels = [
-    ...matchLabels(
-      data.calibrationLabels.flatMap((set) => set.data.labels),
-      store,
-    ).matched,
-    ...collectDecisions(store),
-  ];
-  const targets = collectTargets(store).targets;
+  const collected = collectTargets(store);
+  const imported = data.calibrationLabels.flatMap((set) =>
+    matchLabels(set.data.labels, store).matched.map((label) => ({ label, at: set.importedAt })),
+  );
+  const { labels, conflicts } = deduplicateLabels([...imported, ...collected.timedDecisions]);
+  const targets = collected.targets;
   const findings = labels.filter(
     (label): label is Extract<CalibrationLabel, { label: string }> => typeof label.label === 'string',
   );
@@ -26,6 +31,7 @@ export function calibrationData(data: ExportPackage) {
     data,
     store,
     labels,
+    conflicts,
     targets,
     stats: precisionByType(
       findings,
@@ -34,3 +40,11 @@ export function calibrationData(data: ExportPackage) {
   };
 }
 export type CalibrationData = ReturnType<typeof calibrationData>;
+export async function captureCalibration(repo: Repositories) {
+  return (await loadCalibration(repo)).stats.map(({ kind, type, n, wilsonLow }) => ({
+    kind,
+    type,
+    n,
+    status: calibrationStatus({ n, wilsonLow }),
+  }));
+}

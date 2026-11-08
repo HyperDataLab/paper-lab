@@ -12,6 +12,7 @@ import { TextField } from '@/shared/ui/TextField';
 import { LENS_DESCRIPTIONS } from './reviewLabels';
 import { ReviewResults } from './ReviewResults';
 import styles from './review.module.css';
+import { captureCalibration } from '@/shared/calibration/data';
 
 export function PaperReview({
   paper,
@@ -88,6 +89,8 @@ export function PaperReview({
     setError('');
     try {
       if (!(await llm.ensureConsent('paper')) || abort.signal.aborted) return;
+      const calibrationSnapshot = await captureCalibration(repo);
+      let callsUsed = 0;
       const results = await llmPaperReviewer(llm.client, paper, {
         lenses,
         sectionIds: sections,
@@ -97,12 +100,17 @@ export function PaperReview({
         config: llm.config,
         budget,
         signal: abort.signal,
-        onRequest: async (count) => setUsed(count),
+        onRequest: async (count) => {
+          callsUsed = count;
+          setUsed(count);
+        },
       });
       if (abort.signal.aborted) return;
       const reviews = results.map((result) => result.review);
       const merged = mergePanel(reviews);
       const saved = await repo.paperReviews.saveRun(paper.id, {
+        calibrationSnapshot,
+        callsUsed,
         id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
         lenses,

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { analyzeText } from '@/core/text';
-import type { Issue, TextAnalysis } from '@/core/schemas';
+import type { CalibrationSnapshot, Issue, TextAnalysis } from '@/core/schemas';
 import { Button } from '@/shared/ui/Button';
 import { TextField } from '@/shared/ui/TextField';
 import { Card } from '@/shared/ui/Card';
@@ -25,13 +25,18 @@ import { AnalysisSchema } from '@/core/schemas';
 import { RUBRIC_VERSION } from '@/core/scoring/rubric';
 import { ReportMenu } from '@/shared/report/ReportMenu';
 import { useCalibration } from '@/shared/calibration/useCalibration';
+import { captureCalibration } from '@/shared/calibration/data';
 
 export default function Page() {
   const repositories = useRepositories();
-  const calibration = useCalibration(repositories);
   const navigate = useNavigate();
   const location = useLocation();
   const [revisionOverrides, setRevisionOverrides] = useState<Record<string, boolean>>({});
+  const [snapshots, setSnapshots] = useState<Record<string, CalibrationSnapshot>>({});
+  async function captureStep(step: string) {
+    const snapshot = await captureCalibration(repositories);
+    setSnapshots((previous) => ({ ...previous, [step]: snapshot }));
+  }
   const [generationId, setGenerationId] = useState<string | null>(null);
   const [parent, setParent] = useState<{ id: string; title: string } | null>(null);
   const [paperBreadcrumb, setPaperBreadcrumb] = useState<{ id: string; heading: string } | null>(null);
@@ -71,6 +76,7 @@ export default function Page() {
       previous: Issue;
     }[]
   >([]);
+  const calibration = useCalibration(repositories, `${createdId ?? id ?? ''}:${decisions.length}`);
   const [view, setView] = useState<'text' | 'sentences' | 'paragraph' | 'scores'>('text');
   const [selectedIssue, setSelectedIssue] = useState<{ id: string; nonce: number } | null>(null);
   const [selectedSentence, setSelectedSentence] = useState<string | null>(null);
@@ -219,6 +225,7 @@ export default function Page() {
         scores: scoring.result?.scores ?? null,
         versions: {
           ...syntax.versions,
+          calibrationSnapshots: snapshots,
           detectors: DETECTOR_VERSION,
           ...(judge.versions ?? {}),
           structurePrompt: paragraph.result?.promptVersion ?? null,
@@ -253,6 +260,7 @@ export default function Page() {
     }
   }
   async function run() {
+    setSnapshots({});
     setLoading(true);
     setError(null);
     setSaved(false);
@@ -426,7 +434,7 @@ export default function Page() {
                 resetJudge();
                 resetParagraph();
                 resetScoring();
-                void syntax.run(result);
+                void captureStep('syntax').then(() => syntax.run(result));
               }}
             />
             {!id && (
@@ -443,7 +451,9 @@ export default function Page() {
                     }
                     onClick={() => {
                       resetScoring();
-                      void paragraph.run(result, syntax.annotations, issues);
+                      void captureStep('structure').then(() =>
+                        paragraph.run(result, syntax.annotations, issues),
+                      );
                     }}
                   >
                     Phân tích cấu trúc đoạn (AI)
@@ -467,12 +477,14 @@ export default function Page() {
                   <Button
                     disabled={saved || syntax.running || paragraph.running || scoring.running}
                     onClick={() =>
-                      void judge.run(
-                        result,
-                        syntax.annotations,
-                        candidates,
-                        { before: null, after: null, audience: null },
-                        issues,
+                      void captureStep('judge').then(() =>
+                        judge.run(
+                          result,
+                          syntax.annotations,
+                          candidates,
+                          { before: null, after: null, audience: null },
+                          issues,
+                        ),
                       )
                     }
                   >
@@ -526,7 +538,7 @@ export default function Page() {
                         issues,
                         parentAnalysisId: null,
                       });
-                      void scoring.run(analysis);
+                      void captureStep('score').then(() => scoring.run(analysis));
                     }}
                   >
                     Chấm điểm (AI)

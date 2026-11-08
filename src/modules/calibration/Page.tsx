@@ -7,6 +7,9 @@ import { loadCalibration, type CalibrationData } from '@/shared/calibration/data
 import { downloadJson } from '@/shared/calibration/download';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
+import { labels as issueLabels } from '@/modules/evaluate/issueLabels';
+import { LENSES } from '@/core/prompts';
+import { DIMENSIONS } from '@/core/scoring/rubric';
 const fmt = (value: number | null) => (value === null ? '—' : value.toFixed(2));
 export default function Page() {
   const repo = useRepositories();
@@ -70,6 +73,19 @@ export default function Page() {
     ),
     data.store.analyses,
   );
+  const labelFor = (kind: string, id: string) => {
+    if (kind === 'issue')
+      return { group: 'Vấn đề', label: issueLabels[id as keyof typeof issueLabels] ?? id };
+    if (kind === 'check')
+      return {
+        group: 'Kiểm tra',
+        label:
+          data.store.checks.flatMap((record) => record.report.checks).find((check) => check.id === id)
+            ?.label ?? id,
+      };
+    if (kind === 'point') return { group: 'Góc nhìn', label: LENSES[id as keyof typeof LENSES]?.label ?? id };
+    return { group: 'Điểm', label: DIMENSIONS.find((dimension) => dimension.id === id)?.label ?? id };
+  };
   const template = {
     format: 'paragraph-lab-labels',
     version: 1,
@@ -83,6 +99,7 @@ export default function Page() {
     <div>
       <h1>Hiệu chuẩn</h1>
       <p>n nhỏ không phải là bằng chứng về độ tin cậy. Các ngưỡng là mặc định cần hiệu chuẩn.</p>
+      <p>Mâu thuẫn giữa các nhãn cùng người đánh giá và mục: {data.conflicts} (giữ nhãn mới nhất).</p>
       <Card>
         <h2>Nhãn đánh giá</h2>
         <p>
@@ -167,8 +184,8 @@ export default function Page() {
           <tbody>
             {data.stats.map((row) => (
               <tr key={`${row.kind}:${row.type}`}>
-                <td>
-                  {row.kind}: {row.type}
+                <td title={row.type}>
+                  {labelFor(row.kind, row.type).group}: {labelFor(row.kind, row.type).label}
                 </td>
                 <td>{row.correct}</td>
                 <td>{row.incorrect}</td>
@@ -201,8 +218,8 @@ export default function Page() {
                 <td>
                   {row.a} / {row.b}
                 </td>
-                <td>
-                  {row.kind}: {row.type}
+                <td title={row.type}>
+                  {labelFor(row.kind, row.type).group}: {labelFor(row.kind, row.type).label}
                 </td>
                 <td>{row.n}</td>
                 <td>{fmt(row.kappa)}</td>
@@ -226,7 +243,7 @@ export default function Page() {
           <tbody>
             {scores.map((row) => (
               <tr key={row.dimension}>
-                <td>{row.dimension}</td>
+                <td title={row.dimension}>{labelFor('score', row.dimension).label}</td>
                 <td>{row.n}</td>
                 <td>{fmt(row.mae)}</td>
                 <td>

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CalibrationLabelsSchema } from '../schemas';
 import {
   calibrationStatus,
+  deduplicateLabels,
   collectDecisions,
   interRaterAgreement,
   kappa,
@@ -15,6 +16,17 @@ import type { CalibrationStore } from './index';
 const target = { kind: 'issue', type: 'FUZZY_VERB', textHash: 'hash', quote: 'word' } as const;
 const empty: CalibrationStore = { analyses: [], papers: [], checks: [], reviews: [] };
 describe('P7 calibration', () => {
+  it('P7 deduplicates rater targets using timestamps and reports conflicting targets once', () => {
+    const a = { rater: 'a', target, label: 'correct' as const };
+    const b = { ...a, label: 'incorrect' as const };
+    const result = deduplicateLabels([
+      { label: b, at: '2026-03' },
+      { label: a, at: '2026-01' },
+      { label: a, at: '2026-02' },
+    ]);
+    expect(result).toEqual({ labels: [b], conflicts: 1 });
+    expect(precisionByType([a, a, b])[0]).toMatchObject({ n: 1, correct: 0, incorrect: 1 });
+  });
   it('round trips the label template and validates labels', () => {
     expect(CalibrationLabelsSchema.parse(JSON.parse(JSON.stringify(labelTemplate())))).toEqual(
       labelTemplate(),
@@ -54,7 +66,7 @@ describe('P7 calibration', () => {
     const [emptyStats] = precisionByType([], [{ kind: 'issue', type: 'x' }]);
     expect(emptyStats).toMatchObject({ n: 0, precision: null, wilsonLow: null });
     const [stats] = precisionByType(
-      Array.from({ length: 10 }, () => ({ rater: 'a', target, label: 'correct' as const })),
+      Array.from({ length: 10 }, (_, i) => ({ rater: `r${i}`, target, label: 'correct' as const })),
     );
     expect(stats?.wilsonLow).toBeCloseTo(0.72247, 4);
     expect(stats?.wilsonHigh).toBeCloseTo(1);

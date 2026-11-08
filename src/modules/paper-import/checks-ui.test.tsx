@@ -86,6 +86,7 @@ it('P4 runs local checks, navigates to evidence, reviews and shows overview coun
   if (!cardAgain) throw new Error('Missing card');
   fireEvent.click(within(cardAgain).getByRole('button', { name: 'Xác nhận' }));
   await within(cardAgain).findByText('Đã xác nhận');
+  expect(await within(cardAgain).findByText('Chưa hiệu chuẩn (n=1)')).toBeInTheDocument();
   fireEvent.click(within(cardAgain).getByRole('button', { name: 'Hoàn tác' }));
   fireEvent.click(await within(cardAgain).findByRole('button', { name: 'Bỏ qua' }));
   const dismissed = await within(cardAgain).findByText('Đã bỏ qua (1)');

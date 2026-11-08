@@ -39,3 +39,12 @@ export const CalibrationLabelSetSchema = z.object({
 });
 export type CalibrationLabel = z.infer<typeof CalibrationLabelSchema>;
 export type CalibrationLabelSet = z.infer<typeof CalibrationLabelSetSchema>;
+export const CalibrationSnapshotSchema = z.array(
+  z.object({
+    kind: z.enum(['issue', 'check', 'point']),
+    type: z.string(),
+    n: z.number().int().nonnegative(),
+    status: z.enum(['uncalibrated', 'reliable', 'unreliable']),
+  }),
+);
+export type CalibrationSnapshot = z.infer<typeof CalibrationSnapshotSchema>;

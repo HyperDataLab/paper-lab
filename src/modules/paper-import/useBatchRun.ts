@@ -7,6 +7,7 @@ import { useLlm } from '@/shared/llm/LlmProvider';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { mergeTransitions, transitionPairs } from '@/core/paperOverview';
 import { createLlmParagraphTransition } from '@/shared/llm/llmParagraphTransition';
+import { captureCalibration } from '@/shared/calibration/data';
 
 export function useBatchRun(paper: Paper) {
   const repo = useRepositories();
@@ -57,6 +58,17 @@ export function useBatchRun(paper: Paper) {
         value,
         {
           paper,
+          captureCalibration: () => captureCalibration(repo),
+          recordCalibration: async (analysisId, step, snapshot) => {
+            const analysis = await repo.analyses.get(analysisId);
+            if (!analysis) throw new Error('Analysis not found');
+            await repo.analyses.update(analysisId, {
+              versions: {
+                ...analysis.versions,
+                calibrationSnapshots: { ...analysis.versions.calibrationSnapshots, [step]: snapshot },
+              },
+            });
+          },
           ...analyzer,
           getTransitionPairs: async () => transitionPairs(paper, await repo.analyses.listByPaper(paper.id)),
           analyzeTransitions: async (pairs, onRequest) => {
@@ -114,6 +126,8 @@ export function useBatchRun(paper: Paper) {
       plan,
       budget: plan.budget,
       callsUsed: 0,
+      callsByStep: {},
+      calibrationSnapshots: {},
       promptVersions: PAPER_PROMPT_VERSIONS,
       model: config.model,
       items: plan.paragraphs.map((p) => ({

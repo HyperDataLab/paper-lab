@@ -40,7 +40,10 @@ it('P7 previews matched and unmatched labels, imports, downloads a template and 
       <Page />
     </StorageProvider>,
   );
-  expect(await screen.findByText('issue: WEAK_MODIFIER')).toBeInTheDocument();
+  expect(await screen.findByText('Vấn đề: Từ bổ nghĩa cần xem xét')).toHaveAttribute(
+    'title',
+    'WEAK_MODIFIER',
+  );
   expect(screen.getByText('Chưa hiệu chuẩn (n=0)')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Tải mẫu nhãn' }));
   expect(create).toHaveBeenCalledWith(expect.any(Blob));
@@ -65,7 +68,31 @@ it('P7 previews matched and unmatched labels, imports, downloads a template and 
   fireEvent.click(screen.getByRole('button', { name: 'Xác nhận nhập nhãn' }));
   expect(await screen.findByText('Chưa hiệu chuẩn (n=1)')).toBeInTheDocument();
   expect(screen.getByText(/labels.json/)).toBeInTheDocument();
+  await repo.calibrationLabels.import('duplicate.json', {
+    format: 'paragraph-lab-labels',
+    version: 1,
+    labels: [label],
+  });
+  expect(
+    (await import('@/shared/calibration/data')).calibrationData(await repo.transfer.exportAll('test'))
+      .stats[0]?.n,
+  ).toBe(1);
   fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ nhãn' }));
   await waitFor(() => expect(screen.queryByText(/labels.json/)).not.toBeInTheDocument());
+  const conflict = new File([], 'conflict.json', { type: 'application/json' });
+  Object.defineProperty(conflict, 'text', {
+    value: async () =>
+      JSON.stringify({
+        format: 'paragraph-lab-labels',
+        version: 1,
+        labels: [{ ...label, label: 'incorrect' }],
+      }),
+  });
+  fireEvent.change(screen.getByLabelText('Tệp nhãn'), { target: { files: [conflict] } });
+  fireEvent.click(await screen.findByRole('button', { name: 'Xác nhận nhập nhãn' }));
+  expect(
+    await screen.findByText(/Mâu thuẫn giữa các nhãn cùng người đánh giá và mục: 1/),
+  ).toBeInTheDocument();
+  expect(screen.getByText('Chưa hiệu chuẩn (n=1)')).toBeInTheDocument();
   click.mockRestore();
 });

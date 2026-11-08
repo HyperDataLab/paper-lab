@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react';
-import type { AnalysisReport, Paper, PaperRun, PaperReviewsRecord, PaperProbesRecord } from '@/core/schemas';
+import type {
+  AnalysisReport,
+  CalibrationSnapshot,
+  Paper,
+  PaperRun,
+  PaperReviewsRecord,
+  PaperProbesRecord,
+  PaperChecksRecord,
+} from '@/core/schemas';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { downloadJson } from '@/shared/calibration/download';
 import { Button } from '@/shared/ui/Button';
@@ -13,11 +21,12 @@ type Step = {
   date: string | null;
   calls: number | null;
   sections: string[] | null;
-  calibration: null;
+  calibration: CalibrationSnapshot | null;
+  cachedSections?: string[];
 };
 function analysisSteps(report: AnalysisReport): Step[] {
   const a = report.analysis;
-  const make = (step: string, model: string | null, prompt: string | null): Step => ({
+  const make = (step: string, key: string, model: string | null, prompt: string | null): Step => ({
     step,
     model,
     prompt,
@@ -26,12 +35,13 @@ function analysisSteps(report: AnalysisReport): Step[] {
     date: null,
     calls: null,
     sections: null,
-    calibration: null,
+    calibration: a.versions.calibrationSnapshots?.[key] ?? null,
   });
   return [
-    make('Phân tích câu', a.versions.model, a.versions.prompt),
-    make('Cấu trúc đoạn', a.versions.structureModel, a.versions.structurePrompt),
-    make('Chấm điểm', a.versions.scoringModel, a.versions.scoringPrompt),
+    make('Phân tích câu', 'syntax', a.versions.model, a.versions.prompt),
+    make('Đánh giá theo ngữ cảnh', 'judge', a.versions.model, a.versions.judgePrompt),
+    make('Cấu trúc đoạn', 'structure', a.versions.structureModel, a.versions.structurePrompt),
+    make('Chấm điểm', 'score', a.versions.scoringModel, a.versions.scoringPrompt),
   ];
 }
 function paperSteps(
@@ -39,22 +49,59 @@ function paperSteps(
   runs: PaperRun[],
   reviews?: PaperReviewsRecord,
   probes?: PaperProbesRecord,
+  checks?: PaperChecksRecord,
 ): Step[] {
   const sections = (ids: string[]) => ids.map((id) => paper.sections.find((s) => s.id === id)?.heading ?? id);
   return [
-    ...runs.map((run): Step => ({
-      step: `Phân tích bài báo: ${run.plan.steps.join(', ')}`,
-      model: run.model,
-      prompt: Object.entries(run.promptVersions)
-        .map(([key, value]) => `${key}: ${value}`)
-        .join(', '),
-      rubric: null,
-      detectors: null,
-      date: run.createdAt,
-      calls: run.callsUsed,
-      sections: null,
-      calibration: null,
-    })),
+    ...(checks
+      ? [
+          {
+            step: 'Kiểm tra',
+            model: null,
+            prompt: null,
+            rubric: null,
+            detectors: checks.report.version,
+            date: checks.report.generatedAt,
+            calls: 0,
+            sections: [],
+            calibration: checks.calibrationSnapshot ?? null,
+          } satisfies Step,
+        ]
+      : []),
+    ...runs.flatMap((run) =>
+      run.plan.steps.map((step): Step => ({
+        step: `Phân tích bài báo: ${step}`,
+        model: run.model,
+        prompt: Object.entries(run.promptVersions)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join(', '),
+        rubric: null,
+        detectors: null,
+        date: run.createdAt,
+        calls: run.callsByStep?.[step] ?? null,
+        sections: sections(
+          run.plan.sectionIds.filter((id) =>
+            run.plan.paragraphs.some(
+              (p) =>
+                p.sectionId === id &&
+                !run.plan.skipped.some((s) => s.paragraphId === p.paragraphId) &&
+                run.items.some((item) => item.paragraphId === p.paragraphId && item.status !== 'skipped'),
+            ),
+          ),
+        ),
+        cachedSections: sections(
+          run.plan.sectionIds.filter((id) =>
+            run.plan.paragraphs.some(
+              (p) =>
+                p.sectionId === id &&
+                !run.plan.skipped.some((s) => s.paragraphId === p.paragraphId) &&
+                run.items.some((item) => item.paragraphId === p.paragraphId && item.status === 'cached'),
+            ),
+          ),
+        ),
+        calibration: run.calibrationSnapshots?.[step] ?? null,
+      })),
+    ),
     ...(reviews?.runs ?? []).map((run): Step => ({
       step: 'Phản biện AI',
       model: run.model,
@@ -62,9 +109,9 @@ function paperSteps(
       rubric: null,
       detectors: null,
       date: run.createdAt,
-      calls: null,
+      calls: run.callsUsed ?? null,
       sections: sections(run.sectionIds),
-      calibration: null,
+      calibration: run.calibrationSnapshot ?? null,
     })),
     ...(probes?.runs ?? []).map((run): Step => ({
       step: 'Độ bền điểm',
@@ -77,7 +124,7 @@ function paperSteps(
       date: run.createdAt,
       calls: run.callsUsed,
       sections: sections([...new Set(run.items.map((item) => item.sectionId))]),
-      calibration: null,
+      calibration: run.calibrationSnapshot ?? null,
     })),
   ];
 }
@@ -92,9 +139,10 @@ export function Transparency({ paper, report }: { paper?: Paper; report?: Analys
       repo.paperRuns.listByPaper(paper.id),
       repo.paperReviews.get(paper.id),
       repo.paperProbes.get(paper.id),
+      repo.paperChecks.get(paper.id),
     ])
-      .then(([runs, reviews, probes]) => {
-        if (active) setSteps(paperSteps(paper, runs, reviews, probes));
+      .then(([runs, reviews, probes, checks]) => {
+        if (active) setSteps(paperSteps(paper, runs, reviews, probes, checks));
       })
       .catch((cause: unknown) => {
         if (active) setError(String(cause));
@@ -137,7 +185,19 @@ export function Transparency({ paper, report }: { paper?: Paper; report?: Analys
             </p>
             <p>
               Ngày: {step.date ?? 'Không rõ'} · Số lần gọi: {step.calls ?? 'Không rõ'} · Mục gửi đến model:{' '}
-              {step.sections?.join(', ') || 'Không rõ'} · Hiệu chuẩn tại thời điểm chạy: Không được ghi nhận
+              {step.sections === null ? 'Không rõ' : step.sections.join(', ') || 'Không có'} · Mục có đoạn
+              dùng bộ nhớ đệm: {step.cachedSections?.join(', ') || 'Không có'} · Hiệu chuẩn tại thời điểm
+              chạy:{' '}
+              {step.calibration === null
+                ? 'Không được ghi nhận'
+                : step.calibration.length === 0
+                  ? 'Chưa có dữ liệu'
+                  : step.calibration
+                      .map(
+                        (item) =>
+                          `${item.kind}/${item.type}: ${item.status === 'reliable' ? 'Đáng tin' : item.status === 'unreliable' ? 'Chưa đáng tin' : 'Chưa hiệu chuẩn'} (n=${item.n})`,
+                      )
+                      .join('; ')}
             </p>
           </div>
         ))}

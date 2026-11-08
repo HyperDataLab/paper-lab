@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CalibrationSnapshotSchema } from './calibration';
 
 export const CheckLocationSchema = z
   .object({
@@ -37,6 +38,7 @@ export const CheckDecisionSchema = z.object({
   at: z.iso.datetime(),
 });
 export const PaperChecksRecordSchema = z.object({
+  calibrationSnapshot: CalibrationSnapshotSchema.nullable().optional(),
   schemaVersion: z.literal(1),
   paperId: z.uuid(),
   report: PaperCheckReportSchema,

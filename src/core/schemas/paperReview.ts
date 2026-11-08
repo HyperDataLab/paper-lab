@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { LensSchema, PaperReviewOutputSchema, ReviewPointSchema } from '../prompts/paperReview';
+import { CalibrationSnapshotSchema } from './calibration';
 
 const AnchorSchema = z
   .object({
@@ -32,6 +33,8 @@ export const ReviewDecisionSchema = z.object({
   at: z.iso.datetime(),
 });
 export const PaperReviewRunSchema = z.object({
+  calibrationSnapshot: CalibrationSnapshotSchema.nullable().optional(),
+  callsUsed: z.number().int().nonnegative().nullable().optional(),
   id: z.uuid(),
   createdAt: z.iso.datetime(),
   lenses: z.array(LensSchema),

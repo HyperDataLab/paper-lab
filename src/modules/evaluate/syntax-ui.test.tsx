@@ -213,6 +213,7 @@ it('EV-11 AC-05 AC-06 AC-12 audits unsaved and later saved decisions and restore
     'confirm',
   ]);
   fireEvent.click(screen.getByRole('tab', { name: /Đã xử lý/ }));
+  expect(await screen.findByText('Chưa hiệu chuẩn (n=1)')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /Từ ngữ.*Very/ }));
   fireEvent.change(screen.getByLabelText('Mức độ'), { target: { value: 'major' } });
   await waitFor(async () => expect((await repo.analyses.get(item.id))?.issues[0]?.severity).toBe('major'));

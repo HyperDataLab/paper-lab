@@ -1,4 +1,11 @@
-import type { Analysis, CalibrationLabel, Paper, PaperChecksRecord, PaperReviewsRecord } from '../schemas';
+import type {
+  Analysis,
+  AuditEvent,
+  CalibrationLabel,
+  Paper,
+  PaperChecksRecord,
+  PaperReviewsRecord,
+} from '../schemas';
 import { CalibrationLabelsSchema } from '../schemas';
 
 export type CalibrationStore = {
@@ -6,11 +13,12 @@ export type CalibrationStore = {
   papers: Paper[];
   checks: PaperChecksRecord[];
   reviews: PaperReviewsRecord[];
+  auditEvents?: AuditEvent[];
 };
 type Target = CalibrationLabel['target'];
 type FindingLabel = Extract<CalibrationLabel, { label: string }>;
 type ScoreLabel = Extract<CalibrationLabel, { label: number }>;
-const key = (target: Target) =>
+export const targetKey = (target: Target) =>
   target.kind === 'score'
     ? JSON.stringify([target.kind, target.textHash, target.dimension])
     : JSON.stringify([target.kind, target.textHash, target.type, target.quote]);
@@ -19,22 +27,42 @@ const excerpt = (text: string, start: number, end: number) => Array.from(text).s
 export function collectTargets(store: CalibrationStore) {
   const targets: Target[] = [];
   const decisions: CalibrationLabel[] = [];
-  const add = (target: Target, status?: string, note?: string) => {
+  const timedDecisions: { label: CalibrationLabel; at: string }[] = [];
+  const add = (target: Target, status?: string, note?: string, at = '') => {
     targets.push(target);
-    if (target.kind !== 'score' && (status === 'confirmed_by_human' || status === 'dismissed_by_human'))
-      decisions.push({
+    if (target.kind !== 'score' && (status === 'confirmed_by_human' || status === 'dismissed_by_human')) {
+      const label: CalibrationLabel = {
         rater: 'local',
         target,
         label: status === 'confirmed_by_human' ? 'correct' : 'incorrect',
         ...(note ? { note } : {}),
-      });
+      };
+      decisions.push(label);
+      timedDecisions.push({ label, at });
+    }
   };
   for (const analysis of store.analyses) {
     for (const issue of analysis.issues)
       for (const span of issue.spans) {
         const quote = excerpt(analysis.text.sourceText, span.start, span.end);
         if (quote)
-          add({ kind: 'issue', type: issue.type, textHash: analysis.text.sourceHash, quote }, issue.status);
+          add(
+            { kind: 'issue', type: issue.type, textHash: analysis.text.sourceHash, quote },
+            issue.status,
+            undefined,
+            store.auditEvents
+              ?.filter(
+                (event) =>
+                  event.analysisId === analysis.id &&
+                  event.issueId === issue.id &&
+                  (event.action === 'confirm' || event.action === 'dismiss'),
+              )
+              .map((event) => event.at)
+              .sort()
+              .at(-1) ??
+              analysis.updatedAt ??
+              '',
+          );
       }
     for (const score of analysis.scores?.dimensions ?? [])
       if (score.rubric !== null)
@@ -55,6 +83,7 @@ export function collectTargets(store: CalibrationStore) {
                 { kind: 'check', type: check.id, textHash: paragraph.textHash, quote },
                 decision?.status,
                 decision?.note,
+                decision?.at,
               );
           }
     for (const record of store.reviews.filter((v) => v.paperId === paper.id))
@@ -70,10 +99,11 @@ export function collectTargets(store: CalibrationStore) {
                 { kind: 'point', type: lens, textHash: paragraph.textHash, quote },
                 decision?.status,
                 decision?.note,
+                decision?.at,
               );
         }
   }
-  return { targets, decisions };
+  return { targets, decisions, timedDecisions };
 }
 export function collectDecisions(store: CalibrationStore) {
   return collectTargets(store).decisions;
@@ -82,10 +112,27 @@ export function labelTemplate() {
   return CalibrationLabelsSchema.parse({ format: 'paragraph-lab-labels', version: 1, labels: [] });
 }
 export function matchLabels(labels: CalibrationLabel[], store: CalibrationStore) {
-  const keys = new Set(collectTargets(store).targets.map(key));
+  const keys = new Set(collectTargets(store).targets.map(targetKey));
   return {
-    matched: labels.filter((label) => keys.has(key(label.target))),
-    unmatched: labels.filter((label) => !keys.has(key(label.target))),
+    matched: labels.filter((label) => keys.has(targetKey(label.target))),
+    unmatched: labels.filter((label) => !keys.has(targetKey(label.target))),
+  };
+}
+
+export function deduplicateLabels(entries: { label: CalibrationLabel; at: string }[]) {
+  const chosen = new Map<string, { label: CalibrationLabel; at: string }>();
+  const values = new Map<string, Set<string | number>>();
+  for (const entry of entries) {
+    const id = JSON.stringify([entry.label.rater, targetKey(entry.label.target)]);
+    const seen = values.get(id) ?? new Set<string | number>();
+    seen.add(entry.label.label);
+    values.set(id, seen);
+    const previous = chosen.get(id);
+    if (!previous || entry.at >= previous.at) chosen.set(id, entry);
+  }
+  return {
+    labels: [...chosen.values()].map((entry) => entry.label),
+    conflicts: [...values.values()].filter((seen) => seen.size > 1).length,
   };
 }
 
@@ -101,7 +148,8 @@ export function precisionByType(
     const id = JSON.stringify([target.kind, target.type]);
     if (!groups.has(id)) groups.set(id, { kind: target.kind, type: target.type, correct: 0, incorrect: 0 });
   }
-  for (const label of labels) {
+  for (const label of deduplicateLabels(labels.map((label) => ({ label, at: '' }))).labels) {
+    if (typeof label.label !== 'string') continue;
     const group = groups.get(JSON.stringify([label.target.kind, label.target.type]));
     if (group) group[label.label]++;
   }
@@ -125,7 +173,10 @@ export function precisionByType(
 // Product defaults, subject to calibration against a human benchmark.
 export const MIN_CALIBRATION_N = 30;
 export const MIN_WILSON_LOW = 0.65;
-export function calibrationStatus(stats: { n: number; wilsonLow: number | null }) {
+export function calibrationStatus(stats: {
+  n: number;
+  wilsonLow: number | null;
+}): 'uncalibrated' | 'reliable' | 'unreliable' {
   return stats.n < MIN_CALIBRATION_N || stats.wilsonLow === null
     ? 'uncalibrated'
     : stats.wilsonLow >= MIN_WILSON_LOW
@@ -146,7 +197,7 @@ export function interRaterAgreement(labels: CalibrationLabel[], raterA: string, 
   if (raterA === raterB) return [];
   const targets = new Map<string, Map<string, CalibrationLabel[]>>();
   for (const label of labels.filter((v) => v.rater === raterA || v.rater === raterB)) {
-    const id = key(label.target),
+    const id = targetKey(label.target),
       byRater = targets.get(id) ?? new Map<string, CalibrationLabel[]>();
     byRater.set(label.rater, [...(byRater.get(label.rater) ?? []), label]);
     targets.set(id, byRater);

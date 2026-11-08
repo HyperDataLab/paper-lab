@@ -130,7 +130,13 @@ export function createPaperReviewsRepository(
       return db.transaction('rw', [db.papers, db.paperReviews, db.auditEvents], async () => {
         if (!(await db.papers.get(paperId))) throw new Error('Paper not found');
         const current = await get(paperId);
-        const at = nextTime(current);
+        const latestAudit = await db.auditEvents.orderBy('at').last();
+        const at = new Date(
+          Math.max(
+            Date.parse(nextTime(current)),
+            Date.parse(latestAudit?.at ?? '1970-01-01T00:00:00.000Z') + 1,
+          ),
+        ).toISOString();
         const humanNotes = { paperId, text: skip ? '' : text, writtenAt: at, revealedAt: at };
         const value = PaperReviewsRecordSchema.parse({
           ...(current ?? empty(paperId, at)),
@@ -167,7 +173,13 @@ export function createPaperReviewsRepository(
           !current.runs.at(-1)?.merged.some((point) => point.id === pointId)
         )
           throw new Error('Review point not available');
-        const at = nextTime(current);
+        const latestAudit = await db.auditEvents.orderBy('at').last();
+        const at = new Date(
+          Math.max(
+            Date.parse(nextTime(current)),
+            Date.parse(latestAudit?.at ?? '1970-01-01T00:00:00.000Z') + 1,
+          ),
+        ).toISOString();
         const before = current.decisions.find((d) => d.pointId === pointId) ?? null;
         const decisions = current.decisions.filter((d) => d.pointId !== pointId);
         const after = status === 'candidate' ? null : { pointId, status, note, at };
