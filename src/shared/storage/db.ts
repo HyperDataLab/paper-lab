@@ -9,6 +9,7 @@ import type {
   PaperOverviewRecord,
   PaperChecksRecord,
   PaperReviewsRecord,
+  PaperProbesRecord,
 } from '@/core/schemas';
 import type { ReviewNgram } from '@/core/reviewPanel';
 export class ParagraphDb extends Dexie {
@@ -21,6 +22,7 @@ export class ParagraphDb extends Dexie {
   paperOverviews!: Table<PaperOverviewRecord, string>;
   paperChecks!: Table<PaperChecksRecord, string>;
   paperReviews!: Table<PaperReviewsRecord, string>;
+  paperProbes!: Table<PaperProbesRecord, string>;
   reviewNgrams!: Table<ReviewNgram, [string, string]>;
   constructor(name = 'paragraph-lab') {
     super(name);
@@ -41,6 +43,7 @@ export class ParagraphDb extends Dexie {
     this.version(6).stores({ paperOverviews: 'paperId' });
     this.version(7).stores({ paperChecks: 'paperId' });
     this.version(8).stores({ paperReviews: 'paperId', reviewNgrams: '[hash+paperId], paperId' });
+    this.version(9).stores({ paperProbes: 'paperId' });
   }
 }
 export function createDb(name?: string) {

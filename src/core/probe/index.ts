@@ -62,7 +62,11 @@ export function estimateProbe(analyses: Analysis[]) {
 
 export function validateProbe(original: string, rewritten: string, preserveTerms: string[] = []) {
   const checks = meaningChecks(original, rewritten, preserveTerms);
-  const reasons = checks.filter((check) => check.status === 'fail').map((check) => check.detail);
+  const reasons = checks
+    .filter(
+      (check) => check.status === 'fail' || (check.id === 'hedging_preserved' && check.status === 'warn'),
+    )
+    .map((check) => check.detail);
   if (original === rewritten) reasons.push('không có thay đổi');
   return { valid: reasons.length === 0, reasons, checks };
 }
@@ -111,8 +115,18 @@ export function summariseProbe(items: ProbeItem[]) {
     ]),
   );
   const overall = metric(
-    items.flatMap(({ original, rewritten, baseline }) =>
-      original?.overall != null && rewritten?.overall != null && baseline?.overall != null
+    items.flatMap(({ original, rewritten, baseline }) => {
+      const applicable = (scores: Scores) =>
+        scores.dimensions
+          .filter((d) => d.applicable && d.score !== null)
+          .map((d) => d.id)
+          .sort()
+          .join('|');
+      return original?.overall != null &&
+        rewritten?.overall != null &&
+        baseline?.overall != null &&
+        applicable(original) === applicable(rewritten) &&
+        applicable(original) === applicable(baseline)
         ? [
             {
               original: original.overall,
@@ -120,13 +134,12 @@ export function summariseProbe(items: ProbeItem[]) {
               baseline: baseline.overall,
             },
           ]
-        : [],
-    ),
+        : [];
+    }),
   );
   const valid = items.filter((item) => item.original && item.rewritten && item.baseline).length;
   const sensitive = [overall, ...Object.values(dimensions)].some(
     (value) =>
-      value.n >= PROBE_MINIMUM &&
       value.meanDelta !== null &&
       value.meanNoise !== null &&
       Math.abs(value.meanDelta) > Math.max(PROBE_DELTA_THRESHOLD, PROBE_NOISE_MULTIPLIER * value.meanNoise),
