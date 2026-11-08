@@ -209,15 +209,21 @@ export function unsupportedClaims(paper: Paper) {
   }
   for (const section of paper.sections)
     if (/\b(?:answers? to reviewers?|response to reviewers?)\b/iu.test(section.heading)) {
-      const p = paper.paragraphs.find((item) => item.sectionId === section.id && item.text.length > 0);
-      const loc = p ? matches(p, /.+/gu)[0] : undefined;
+      const sectionParagraphs = paper.paragraphs.filter(
+        (item) => item.sectionId === section.id && item.text.trim(),
+      );
+      const p =
+        sectionParagraphs.find(
+          (item) => item.kind === 'heading_like' && item.text.includes(section.heading),
+        ) ?? sectionParagraphs[0];
+      const loc = p ? matches(p, /[\s\S]+/gu)[0] : undefined;
       if (loc)
         findings.push(finding(id, 'reviewers', 'info', 'Mục này có tiêu đề trả lời người phản biện.', [loc]));
     }
   return result(
     id,
     'Khẳng định cần dẫn chứng',
-    paragraphs.length > 0,
+    paragraphs.length > 0 || findings.length > 0,
     findings,
     'Dẫn chứng có thể nằm ở vị trí khác hoặc dùng định dạng khác.',
   );

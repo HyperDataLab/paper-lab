@@ -85,6 +85,26 @@ describe('P4 figures_tables', () => {
   });
 });
 describe('P4 acronyms', () => {
+  it('P4 reports conflicting expansions with both definition locations', () => {
+    const result = check(
+      paper([
+        ['methods', 'random forest (RF).'],
+        ['methods', 'radio frequency (RF).'],
+      ]),
+      'acronyms',
+    );
+    expect(result?.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: expect.stringContaining('duplicate:RF'),
+          locations: expect.arrayContaining([
+            expect.objectContaining({ paragraphId: 'p0' }),
+            expect.objectContaining({ paragraphId: 'p1' }),
+          ]),
+        }),
+      ]),
+    );
+  });
   it('recognizes definitions, plural and ignored acronyms and flags prior uses', () => {
     expect(
       check(paper([['methods', 'random forest (RF) works. RFs work. DNA works.']]), 'acronyms')?.status,
@@ -143,6 +163,18 @@ describe('P4 claim_strength_drift', () => {
   });
 });
 describe('P4 unsupported_claims', () => {
+  it('P4 anchors a reviewer section to its first nonempty paragraph', () => {
+    const p = paper([['other', '😀 Response details.']]);
+    const section = p.sections[0];
+    const paragraph = p.paragraphs[0];
+    if (!section || !paragraph) throw new Error('Missing fixture');
+    p.sections[0] = { ...section, heading: 'Response to reviewers' };
+    const finding = check(p, 'unsupported_claims')?.findings.find((f) => f.id.includes(':reviewers:'));
+    expect(finding?.locations).toEqual([
+      { paragraphId: 'p0', start: 0, end: Array.from(paragraph.text).length },
+    ]);
+    expect(finding?.evidence).toEqual(['😀 Response details.']);
+  });
   it('suppresses supported claims and checks later proofs', () => {
     expect(
       check(paper([['results', 'Extensive experiments were performed.']]), 'unsupported_claims')?.status,
@@ -167,6 +199,22 @@ describe('P4 unsupported_claims', () => {
     );
     expect(noProof?.findings.some((f) => f.id.includes(':theorem:'))).toBe(true);
     expect(proof?.findings.some((f) => f.id.includes(':theorem:'))).toBe(false);
+  });
+});
+describe('P4 missing inputs', () => {
+  it.each([
+    ['citations_references', paper([])],
+    ['citations_references', paper([['references', '[1] Smith, 2020.', 'reference']])],
+    ['citations_references', paper([['results', 'A result.']])],
+    ['figures_tables', paper([])],
+    ['acronyms', paper([['results', 'Figure 1.', 'caption']])],
+    ['numbers_consistency', paper([['abstract', 'A claim.']])],
+    ['numbers_consistency', paper([['results', 'A result.']])],
+    ['claim_strength_drift', paper([['abstract', 'A claim.']])],
+    ['claim_strength_drift', paper([['results', 'A result.']])],
+    ['unsupported_claims', paper([])],
+  ])('P4 %s is not applicable without required inputs', (id, p) => {
+    expect(check(p as Paper, id as string)).toMatchObject({ status: 'not_applicable', findings: [] });
   });
 });
 describe('P4 location validation', () => {
