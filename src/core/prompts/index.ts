@@ -10,6 +10,7 @@ export const PROMPT_VERSIONS = {
   candidateJudgePaper: 'cand-judge-paper-1',
   paragraphStructurePaper: 'para-struct-paper-1',
   scoringPaper: 'score-paper-1',
+  paragraphTransition: 'para-flow-1',
 } as const;
 export const CONNECTION_TEST_SYSTEM = 'You are a connection test. Return the requested JSON object.';
 export const CONNECTION_TEST_USER =
@@ -21,3 +22,4 @@ export * from './scoring';
 export * from './revision';
 export * from './generation';
 export * from './paperContext';
+export * from './paragraphTransition';

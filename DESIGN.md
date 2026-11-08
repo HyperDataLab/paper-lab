@@ -139,3 +139,8 @@ The paper map presents section and AI-step checkboxes, a call budget and a live 
 Manuscript consent precedes calls. The panel shows overall and section progress, and paragraph badges combine
 icons with text. Failed paragraphs offer retry; completed results link to Evaluate with their issue count and
 score context. A run interrupted by a reload appears paused and can be resumed.
+
+The paper page also has Sơ đồ and Tổng quan tabs. Tổng quan presents section coverage, issue counts with
+numbered bars, per-dimension score distributions, recurring issue filters and paragraph transition chains.
+It identifies stale and unavailable transitions, offers audited human review and links each endpoint to its
+analysis. It never presents a paper-level total score.

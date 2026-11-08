@@ -5,6 +5,8 @@ import { createPaperParagraphAnalyzer, PAPER_PROMPT_VERSIONS } from '@/shared/ll
 import { describeLlmError } from '@/shared/llm/describeError';
 import { useLlm } from '@/shared/llm/LlmProvider';
 import { useRepositories } from '@/shared/storage/StorageProvider';
+import { mergeTransitions, transitionPairs } from '@/core/paperOverview';
+import { createLlmParagraphTransition } from '@/shared/llm/llmParagraphTransition';
 
 export function useBatchRun(paper: Paper) {
   const repo = useRepositories();
@@ -56,6 +58,23 @@ export function useBatchRun(paper: Paper) {
         {
           paper,
           ...analyzer,
+          getTransitionPairs: async () => transitionPairs(paper, await repo.analyses.listByPaper(paper.id)),
+          analyzeTransitions: async (pairs, onRequest) => {
+            const current = await repo.paperOverviews.get(paper.id);
+            if (!current) throw new Error('Paper not found');
+            const old = current.transitions;
+            const result = await createLlmParagraphTransition(client).analyze(
+              pairs,
+              old?.findings,
+              undefined,
+              onRequest,
+            );
+            const judgedAt = new Date().toISOString();
+            await repo.paperOverviews.save({
+              ...current,
+              transitions: mergeTransitions(old, result, judgedAt),
+            });
+          },
           analyze: async (...args) => {
             try {
               return await analyzer.analyze(...args);

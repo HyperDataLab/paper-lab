@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const BatchStepSchema = z.enum(['syntax', 'judge', 'structure', 'score']);
+export const BatchStepSchema = z.enum(['syntax', 'judge', 'structure', 'score', 'transitions']);
 export const RunPlanSchema = z.object({
   sectionIds: z.array(z.string()),
   steps: z.array(BatchStepSchema),
@@ -12,6 +12,7 @@ export const RunPlanSchema = z.object({
     judge: z.number().int().nonnegative(),
     structure: z.number().int().nonnegative(),
     score: z.number().int().nonnegative(),
+    transitions: z.number().int().nonnegative().optional(),
   }),
   total: z.number().int().nonnegative(),
   withinBudget: z.boolean(),
@@ -28,6 +29,7 @@ export const PaperRunSchema = z.object({
   callsUsed: z.number().int().nonnegative(),
   promptVersions: z.record(z.string(), z.string()),
   model: z.string(),
+  transitionDone: z.array(z.string()).optional(),
   items: z.array(
     z.object({
       paragraphId: z.string(),
