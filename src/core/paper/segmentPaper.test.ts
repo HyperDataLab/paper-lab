@@ -198,3 +198,47 @@ it('treats PDF prompt text and reference continuations as text while joining ind
     'Vale, B. Another synthetic entry.',
   ]);
 });
+it('recognizes numbered uppercase PDF section names while rejecting numbered prompts', async () => {
+  const pdf = { source: 'pdf' as const, height: 12, pageStart: 1 };
+  const result = await segmentPaper([
+    { ...pdf, text: '1 INTRODUCTION' },
+    { ...pdf, text: 'A synthetic sentence.' },
+    { ...pdf, text: '2 METHODS' },
+    { ...pdf, text: 'A method description.' },
+    { ...pdf, text: '3 OUTPUT FORMAT' },
+  ]);
+  expect(result.sections.map((section) => [section.heading, section.role])).toEqual([
+    ['INTRODUCTION', 'introduction'],
+    ['METHODS', 'methods'],
+  ]);
+});
+it('starts a named reference at a different x from the hanging-indent minimum', async () => {
+  const result = await segmentPaper([
+    { text: 'References', x: 20, pageStart: 1 },
+    { text: 'Oak, A. First fictional entry.', x: 20, pageStart: 1 },
+    { text: 'continued details.', x: 30, pageStart: 1 },
+    { text: 'Vale, B. Second fictional entry.', x: 35, pageStart: 1 },
+    { text: 'more details.', x: 45, pageStart: 1 },
+  ]);
+  expect(result.paragraphs.map((paragraph) => paragraph.text)).toEqual([
+    'Oak, A. First fictional entry. continued details.',
+    'Vale, B. Second fictional entry. more details.',
+  ]);
+});
+it('continues across page or column changes but respects an ordinary vertical gap', async () => {
+  const left = { pageStart: 1, column: 'left' as const };
+  const right = { pageStart: 1, column: 'right' as const };
+  const result = await segmentPaper([
+    { ...left, text: 'Introduction' },
+    { ...left, text: 'An unfinished passage' },
+    { ...left, text: 'separate paragraph.', breakBefore: true },
+    { ...left, text: 'An intercolumn para-', breakBefore: true },
+    { ...right, text: 'graph continues', breakBefore: true },
+    { ...right, pageStart: 2, text: 'across pages.' },
+  ]);
+  expect(result.paragraphs.map((paragraph) => paragraph.text)).toEqual([
+    'An unfinished passage',
+    'separate paragraph.',
+    'An intercolumn paragraph continues across pages.',
+  ]);
+});

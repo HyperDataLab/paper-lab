@@ -170,12 +170,13 @@ export async function segmentPaper(input: string | PaperLine[]) {
               numbers: null,
             }
           : heading(text, line.height, median);
+    const headingName = found?.heading ?? text;
     if (
       line.source === 'pdf' &&
       (/^#/.test(text) ||
-        (!roles.some(([pattern]) => pattern.test(text)) &&
-          /^[A-Z\d\s&:.,!?'-]+$/.test(text) &&
-          text.trim().split(/\s+/).length >= 2))
+        (!roles.some(([pattern]) => pattern.test(headingName)) &&
+          /^[A-Z\d\s&:.,!?'-]+$/.test(headingName) &&
+          headingName.trim().split(/\s+/).length >= 2))
     )
       found = null;
     if (
@@ -273,9 +274,14 @@ export async function segmentPaper(input: string | PaperLine[]) {
                 ? 'list'
                 : 'body';
     const previous = lines[index - 1];
-    const boundary =
-      line.breakBefore || (previous && (line.pageStart ?? null) !== (previous.pageStart ?? null));
+    const pageOrColumnBreak = Boolean(
+      previous &&
+      ((line.pageStart != null && previous.pageStart != null && line.pageStart !== previous.pageStart) ||
+        (line.column !== undefined && previous.column !== undefined && line.column !== previous.column)),
+    );
+    const boundary = line.breakBefore || pageOrColumnBreak;
     const continuesBody =
+      pageOrColumnBreak &&
       nextKind === 'body' &&
       kind === 'body' &&
       buffer.length > 0 &&
@@ -286,10 +292,8 @@ export async function segmentPaper(input: string | PaperLine[]) {
     const namedReference = /^(?:\[\d+\]|[A-Z][\p{L}'’-]+,\s*(?:[A-Z]\.)+)/u.test(text);
     const newReference =
       nextKind === 'reference' &&
-      (/^\[\d+\]/.test(text) ||
-        (line.x === undefined
-          ? namedReference
-          : referenceStart !== undefined && line.x <= referenceStart + 2));
+      (namedReference ||
+        (line.x !== undefined && referenceStart !== undefined && line.x <= referenceStart + 2));
     if (
       nextKind === 'reference' &&
       line.x !== undefined &&

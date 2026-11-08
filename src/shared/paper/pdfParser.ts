@@ -127,6 +127,9 @@ function orderColumns<T extends { x: number; end: number; y: number; height: num
   lines: T[],
   pageWidth?: number,
 ): (T & { column?: 'left' | 'right' | 'full'; columnStart?: number; columnEnd?: number })[] {
+  const overlapsVertically = (a: T[], b: T[]) =>
+    Math.min(Math.max(...a.map((line) => line.y)), Math.max(...b.map((line) => line.y))) >=
+    Math.max(Math.min(...a.map((line) => line.y)), Math.min(...b.map((line) => line.y)));
   const starts = [...new Set(lines.map((line) => line.x))].sort((a, b) => a - b);
   let split: number | undefined;
   let bestGap = 0;
@@ -147,10 +150,7 @@ function orderColumns<T extends { x: number; end: number; y: number; height: num
       Math.min(a.length, b.length) < lines.length * 0.2
     )
       continue;
-    const overlap =
-      Math.min(Math.max(...a.map((line) => line.y)), Math.max(...b.map((line) => line.y))) -
-      Math.max(Math.min(...a.map((line) => line.y)), Math.min(...b.map((line) => line.y)));
-    if (overlap < 0) continue;
+    if (!overlapsVertically(a, b)) continue;
     const candidate = (Math.max(...a.map((line) => line.end)) + right) / 2;
     const crossing = lines.filter((line) => line.x < candidate && line.end > candidate);
     if (crossing.length > lines.length * 0.25) continue;
@@ -167,7 +167,8 @@ function orderColumns<T extends { x: number; end: number; y: number; height: num
       left.length >= 2 &&
       right.length >= 2 &&
       Math.min(left.length, right.length) >= lines.length * 0.2 &&
-      crossing <= lines.length * 0.25
+      crossing <= lines.length * 0.25 &&
+      overlapsVertically(left, right)
     ) {
       split = centre;
       leftStart = Math.min(...left.map((line) => line.x));

@@ -317,3 +317,30 @@ it('splits large gaps before page-centre column ordering and joins superscripts 
     'right',
   ]);
 });
+it('requires vertical overlap for page-width column detection', () => {
+  const item = (str: string, x: number, y: number) => ({
+    str,
+    width: 60,
+    height: 10,
+    transform: [1, 0, 0, 10, x, 200 - y],
+  });
+  const separated = itemsToLines(
+    [item('First', 20, 20), item('Second', 20, 40), item('Third', 240, 110), item('Fourth', 240, 130)],
+    200,
+    400,
+  );
+  expect(separated.map((line) => line.text)).toEqual(['First', 'Second', 'Third', 'Fourth']);
+  expect(separated.every((line) => line.column === undefined)).toBe(true);
+  const overlapping = itemsToLines(
+    [
+      item('Left one', 20, 20),
+      item('Right one', 240, 35),
+      item('Left two', 20, 50),
+      item('Right two', 240, 65),
+    ],
+    200,
+    400,
+  );
+  expect(overlapping.map((line) => line.text)).toEqual(['Left one', 'Left two', 'Right one', 'Right two']);
+  expect(overlapping.map((line) => line.column)).toEqual(['left', 'left', 'right', 'right']);
+});
