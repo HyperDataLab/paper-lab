@@ -24,6 +24,8 @@ import {
   type CheckDecision,
   PaperReviewsRecordSchema,
   PaperProbesRecordSchema,
+  CalibrationLabelsSchema,
+  CalibrationLabelSetSchema,
 } from '@/core/schemas';
 import { validateLocations } from '@/core/paperChecks';
 import { aggregatePaper, transitionStatus } from '@/core/paperOverview';
@@ -640,6 +642,30 @@ export function createRepositories(
   };
   const paperReviews = createPaperReviewsRepository(db, now, makeAudit);
   const paperProbes = createPaperProbesRepository(db, now, makeAudit);
+  const calibrationLabels = {
+    async import(sourceFileName: string, data: unknown) {
+      const value = CalibrationLabelSetSchema.parse({
+        schemaVersion: 1,
+        id: ids(),
+        sourceFileName,
+        importedAt: now(),
+        data: CalibrationLabelsSchema.parse(data),
+      });
+      await db.transaction('rw', db.calibrationLabels, db.auditEvents, async () => {
+        await db.calibrationLabels.add(value);
+        await db.auditEvents.add(makeAudit(value.id, 'import_labels', 'human'));
+      });
+      return value;
+    },
+    async list() {
+      return (await db.calibrationLabels.toArray())
+        .map((item) => CalibrationLabelSetSchema.parse(item))
+        .sort((a, b) => b.importedAt.localeCompare(a.importedAt));
+    },
+    async delete(id: string) {
+      await db.calibrationLabels.delete(id);
+    },
+  };
   const transfer = {
     async exportAll(appVersion: string) {
       const a = await readAnalyses();
@@ -661,6 +687,7 @@ export function createRepositories(
         (await db.paperChecks.toArray()).map((value) => PaperChecksRecordSchema.parse(value)),
         (await db.paperReviews.toArray()).map((value) => PaperReviewsRecordSchema.parse(value)),
         (await db.paperProbes.toArray()).map((value) => PaperProbesRecordSchema.parse(value)),
+        await calibrationLabels.list(),
       );
     },
     async previewImport(raw: unknown) {
@@ -691,6 +718,7 @@ export function createRepositories(
             { updatedAt: paper.updatedAt, sha256: paper.source.sha256 },
           ]),
         ),
+        new Set(await db.calibrationLabels.toCollection().primaryKeys()),
       );
     },
     async applyImport(plan: Extract<ImportPlan, { ok: true }>) {
@@ -737,8 +765,13 @@ export function createRepositories(
           db.paperReviews,
           db.paperProbes,
           db.reviewNgrams,
+          db.calibrationLabels,
         ],
         async () => {
+          for (const item of plan.calibrationLabels) {
+            if (await db.calibrationLabels.get(item.id)) throw new Error('Import preview is out of date');
+            await db.calibrationLabels.add(CalibrationLabelSetSchema.parse(item));
+          }
           if (plan.suppressed.length) console.warn('Suppressed invalid imported spans', plan.suppressed);
           for (const value of [...plan.toInsert, ...plan.toUpdate]) {
             const incoming = validateAnalysisSpans(AnalysisSchema.parse(value)).valid;
@@ -898,6 +931,7 @@ export function createRepositories(
     paperChecks,
     paperReviews,
     paperProbes,
+    calibrationLabels,
     transfer,
   };
 }
