@@ -3,8 +3,17 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { CheckCard } from './CheckCard';
 import type { CheckHandlers } from './checkTypes';
+import { useState } from 'react';
+import { useRepositories } from '@/shared/storage/StorageProvider';
+import { useCalibration } from '@/shared/calibration/useCalibration';
+import { calibrationStatus } from '@/core/calibration';
+import { Checkbox } from '@/shared/ui/Checkbox';
 type Props = CheckHandlers & { paper: Paper; record: PaperChecksRecord | undefined; onRun: () => void };
 export function PaperChecks({ paper, record, onRun, onReview, onLocation }: Props) {
+  const [hide, setHide] = useState(false);
+  const repo = useRepositories();
+  const calibration = useCalibration(repo, record);
+  const stats = (id: string) => calibration?.stats.find((row) => row.kind === 'check' && row.type === id);
   return (
     <>
       <Card>
@@ -13,22 +22,31 @@ export function PaperChecks({ paper, record, onRun, onReview, onLocation }: Prop
         <Button variant="primary" onClick={onRun}>
           Chạy kiểm tra
         </Button>
+        <Checkbox checked={hide} onChange={(event) => setHide(event.target.checked)}>
+          Ẩn mục chưa đáng tin
+        </Checkbox>
         <p>
           {record
             ? `Lần chạy gần nhất: ${new Date(record.report.generatedAt).toLocaleString('vi-VN')}`
             : 'Chưa chạy kiểm tra.'}
         </p>
       </Card>
-      {record?.report.checks.map((check) => (
-        <CheckCard
-          key={check.id}
-          check={check}
-          record={record}
-          paper={paper}
-          onReview={onReview}
-          onLocation={onLocation}
-        />
-      ))}
+      {record?.report.checks
+        .filter(
+          (check) =>
+            !hide || calibrationStatus(stats(check.id) ?? { n: 0, wilsonLow: null }) !== 'unreliable',
+        )
+        .map((check) => (
+          <CheckCard
+            key={check.id}
+            check={check}
+            calibration={stats(check.id)}
+            record={record}
+            paper={paper}
+            onReview={onReview}
+            onLocation={onLocation}
+          />
+        ))}
     </>
   );
 }

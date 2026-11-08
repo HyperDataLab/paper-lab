@@ -161,3 +161,26 @@ it('EV-11 retains human status and severity when judgement is rerun', () => {
     { status: 'dismissed_by_human', severity: 'moderate' },
   ]);
 });
+
+it('P7 shows calibration and only hides unreliable suggestions when requested', async () => {
+  const text = await analyzeText('😀 Very clear results.');
+  const calibrationStats = [
+    {
+      kind: 'issue' as const,
+      type: 'WEAK_MODIFIER',
+      correct: 0,
+      incorrect: 30,
+      n: 30,
+      precision: 0,
+      wilsonLow: 0,
+      wilsonHigh: 0.12,
+    },
+  ];
+  render(
+    <ReviewWorkspace text={text} issues={[issue]} onChange={() => {}} calibrationStats={calibrationStats} />,
+  );
+  expect(screen.getByText('Chưa đáng tin (n=30)')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Từ ngữ.*Very/ })).toBeInTheDocument();
+  fireEvent.click(screen.getByLabelText('Ẩn mục chưa đáng tin'));
+  expect(screen.queryByRole('button', { name: /Từ ngữ.*Very/ })).not.toBeInTheDocument();
+});

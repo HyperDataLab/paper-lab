@@ -26,6 +26,8 @@ import { PaperOverview } from './PaperOverview';
 import { PaperChecks } from './PaperChecks';
 import { PaperReview } from './PaperReview';
 import type { ReactNode } from 'react';
+import { Transparency } from '@/shared/report/Transparency';
+import { captureCalibration } from '@/shared/calibration/data';
 
 function BatchWorkspace({
   paper,
@@ -167,6 +169,7 @@ export default function PaperMapPage() {
     <div className={styles.page}>
       <Link to="/papers">← Bài báo đã nhập</Link>
       <h1>{paper.title}</h1>
+      <Transparency paper={paper} />
       <BatchWorkspace paper={paper}>
         {(batch) => (
           <>
@@ -216,13 +219,16 @@ export default function PaperMapPage() {
                   paper={paper}
                   record={checks}
                   onRun={() => {
-                    void repo.paperChecks
-                      .save({
-                        schemaVersion: 1,
-                        paperId: paper.id,
-                        report: runPaperChecks(paper),
-                        decisions: [],
-                      })
+                    void captureCalibration(repo)
+                      .then((calibrationSnapshot) =>
+                        repo.paperChecks.save({
+                          schemaVersion: 1,
+                          paperId: paper.id,
+                          report: runPaperChecks(paper),
+                          decisions: [],
+                          calibrationSnapshot,
+                        }),
+                      )
                       .then(setChecks)
                       .catch((cause: unknown) => setError(String(cause)));
                   }}

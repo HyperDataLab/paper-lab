@@ -7,6 +7,7 @@ import { Button } from '@/shared/ui/Button';
 import { loadReport } from '@/shared/report/loadReport';
 import { ReportText } from './ReportText';
 import styles from './report.module.css';
+import { Transparency } from '@/shared/report/Transparency';
 
 export default function ReportPage() {
   const { id = '' } = useParams();
@@ -47,6 +48,7 @@ export default function ReportPage() {
         <Button onClick={() => window.print()}>In / Lưu PDF</Button>
       </div>
       <h1>Báo cáo phân tích</h1>
+      <Transparency report={report} />
       <section>
         <h2>Thông tin &amp; phiên bản</h2>
         <p>

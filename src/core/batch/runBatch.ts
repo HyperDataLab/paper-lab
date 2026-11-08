@@ -1,4 +1,11 @@
-import type { BatchStep, Paper, PaperParagraph, PaperRun, TransitionPair } from '../schemas';
+import type {
+  BatchStep,
+  CalibrationSnapshot,
+  Paper,
+  PaperParagraph,
+  PaperRun,
+  TransitionPair,
+} from '../schemas';
 import type { PaperContext } from '../prompts/paperContext';
 import { segmentSentences } from '../text/segment';
 import { sliceCp } from '../text/offsets';
@@ -19,6 +26,12 @@ export type BatchDeps = {
   findCached?: (paragraph: PaperParagraph, run: PaperRun) => Promise<string | null>;
   getTransitionPairs?: () => Promise<TransitionPair[]>;
   analyzeTransitions?: (pairs: TransitionPair[], onRequest: () => Promise<void>) => Promise<void>;
+  captureCalibration?: () => Promise<CalibrationSnapshot>;
+  recordCalibration?: (
+    analysisId: string,
+    step: BatchStep | 'detectors',
+    snapshot: CalibrationSnapshot,
+  ) => Promise<void>;
 };
 export class BatchBudgetExceededError extends Error {}
 
@@ -63,6 +76,11 @@ export async function runBatch(
   signal: BatchSignal = {},
 ): Promise<PaperRun> {
   const run = structuredClone(input);
+  const snapshot = async (step: BatchStep | 'detectors') => {
+    if (!deps.captureCalibration) return;
+    run.calibrationSnapshots ??= {};
+    if (!(step in run.calibrationSnapshots)) run.calibrationSnapshots[step] = await deps.captureCalibration();
+  };
   const checkpoint = async () => {
     run.updatedAt = deps.now();
     await deps.save(structuredClone(run));
@@ -100,7 +118,11 @@ export async function runBatch(
       item.status = 'running';
       item.error = null;
       if (!item.analysisId) {
+        await snapshot('detectors');
         item.analysisId = await deps.analyze(paragraph, contextFor(deps.paper, paragraph), 'detectors', null);
+        const calibration = run.calibrationSnapshots?.detectors;
+        if (calibration && deps.recordCalibration)
+          await deps.recordCalibration(item.analysisId, 'detectors', calibration);
         await checkpoint();
       }
       for (const step of run.plan.steps) {
@@ -112,6 +134,7 @@ export async function runBatch(
           return run;
         }
         let attempt = 0;
+        await snapshot(step);
         for (;;) {
           try {
             item.analysisId = await deps.analyze(
@@ -122,10 +145,14 @@ export async function runBatch(
               async () => {
                 if (run.callsUsed >= run.budget) throw new BatchBudgetExceededError();
                 run.callsUsed++;
+                if (run.callsByStep) run.callsByStep[step] = (run.callsByStep[step] ?? 0) + 1;
                 item.calls++;
                 await checkpoint();
               },
             );
+            const calibration = run.calibrationSnapshots?.[step];
+            if (calibration && deps.recordCalibration)
+              await deps.recordCalibration(item.analysisId, step, calibration);
             break;
           } catch (error) {
             if (!retryable(error) || attempt >= 3) throw error;
@@ -181,12 +208,14 @@ export async function runBatch(
         if (!chunk.length) continue;
         if (await stop()) return run;
         try {
+          await snapshot('transitions');
           let attempt = 0;
           for (;;) {
             try {
               await deps.analyzeTransitions(chunk, async () => {
                 if (run.callsUsed >= run.budget) throw new BatchBudgetExceededError();
                 run.callsUsed++;
+                if (run.callsByStep) run.callsByStep.transitions = (run.callsByStep.transitions ?? 0) + 1;
                 await checkpoint();
               });
               break;

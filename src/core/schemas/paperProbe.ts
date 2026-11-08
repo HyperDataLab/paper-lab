@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ScoresSchema } from './scores';
+import { CalibrationSnapshotSchema } from './calibration';
 
 const MetricSchema = z.object({
   meanDelta: z.number().nullable(),
@@ -24,6 +25,7 @@ export const ProbeItemSchema = z.object({
   baseline: ScoresSchema.nullable(),
 });
 export const PaperProbeRunSchema = z.object({
+  calibrationSnapshot: CalibrationSnapshotSchema.nullable().optional(),
   id: z.uuid(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),

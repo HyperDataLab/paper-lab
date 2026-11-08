@@ -55,6 +55,20 @@ function setup(budget = 20) {
   return { run, analyze, save, sleep, deps: { paper, analyze, save, sleep, now: () => at } };
 }
 describe('P2 runBatch', () => {
+  it('P7 records a snapshot per executed step and actual calls including retries', async () => {
+    const t = setup();
+    t.run.callsByStep = {};
+    t.run.calibrationSnapshots = {};
+    const captureCalibration = vi.fn(async () => [
+      { kind: 'issue' as const, type: 'FUZZY_VERB', n: 30, status: 'reliable' as const },
+    ]);
+    const recordCalibration = vi.fn(async () => {});
+    const result = await runBatch(t.run, { ...t.deps, captureCalibration, recordCalibration });
+    expect(result.callsByStep).toEqual({ judge: 3, score: 3 });
+    expect(result.calibrationSnapshots?.judge?.[0]).toMatchObject({ status: 'reliable', n: 30 });
+    expect(captureCalibration).toHaveBeenCalledTimes(3);
+    expect(recordCalibration).toHaveBeenCalledTimes(9);
+  });
   it('checkpoints every step and paragraph and supplies neighbouring sentences', async () => {
     const t = setup();
     const result = await runBatch(t.run, t.deps);

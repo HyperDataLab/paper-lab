@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { analyzeText } from '@/core/text';
-import type { Issue, TextAnalysis } from '@/core/schemas';
+import type { CalibrationSnapshot, Issue, TextAnalysis } from '@/core/schemas';
 import { Button } from '@/shared/ui/Button';
 import { TextField } from '@/shared/ui/TextField';
 import { Card } from '@/shared/ui/Card';
@@ -24,12 +24,21 @@ import { latestStyleWarning } from '@/core/probe';
 import { AnalysisSchema } from '@/core/schemas';
 import { RUBRIC_VERSION } from '@/core/scoring/rubric';
 import { ReportMenu } from '@/shared/report/ReportMenu';
+import { useCalibration } from '@/shared/calibration/useCalibration';
+import { captureCalibration } from '@/shared/calibration/data';
 
 export default function Page() {
   const repositories = useRepositories();
   const navigate = useNavigate();
   const location = useLocation();
   const [revisionOverrides, setRevisionOverrides] = useState<Record<string, boolean>>({});
+  const [snapshots, setSnapshots] = useState<Record<string, CalibrationSnapshot>>({});
+  // Provenance only: it must never delay or block the AI action. A failed capture shows as "không rõ".
+  function captureStep(step: string) {
+    captureCalibration(repositories)
+      .then((snapshot) => setSnapshots((previous) => ({ ...previous, [step]: snapshot })))
+      .catch(() => undefined);
+  }
   const [generationId, setGenerationId] = useState<string | null>(null);
   const [parent, setParent] = useState<{ id: string; title: string } | null>(null);
   const [paperBreadcrumb, setPaperBreadcrumb] = useState<{ id: string; heading: string } | null>(null);
@@ -69,6 +78,7 @@ export default function Page() {
       previous: Issue;
     }[]
   >([]);
+  const calibration = useCalibration(repositories, `${createdId ?? id ?? ''}:${decisions.length}`);
   const [view, setView] = useState<'text' | 'sentences' | 'paragraph' | 'scores'>('text');
   const [selectedIssue, setSelectedIssue] = useState<{ id: string; nonce: number } | null>(null);
   const [selectedSentence, setSelectedSentence] = useState<string | null>(null);
@@ -217,6 +227,7 @@ export default function Page() {
         scores: scoring.result?.scores ?? null,
         versions: {
           ...syntax.versions,
+          calibrationSnapshots: snapshots,
           detectors: DETECTOR_VERSION,
           ...(judge.versions ?? {}),
           structurePrompt: paragraph.result?.promptVersion ?? null,
@@ -251,6 +262,7 @@ export default function Page() {
     }
   }
   async function run() {
+    setSnapshots({});
     setLoading(true);
     setError(null);
     setSaved(false);
@@ -424,6 +436,7 @@ export default function Page() {
                 resetJudge();
                 resetParagraph();
                 resetScoring();
+                captureStep('syntax');
                 void syntax.run(result);
               }}
             />
@@ -441,6 +454,7 @@ export default function Page() {
                     }
                     onClick={() => {
                       resetScoring();
+                      captureStep('structure');
                       void paragraph.run(result, syntax.annotations, issues);
                     }}
                   >
@@ -464,15 +478,16 @@ export default function Page() {
                 ) : (
                   <Button
                     disabled={saved || syntax.running || paragraph.running || scoring.running}
-                    onClick={() =>
+                    onClick={() => {
+                      captureStep('judge');
                       void judge.run(
                         result,
                         syntax.annotations,
                         candidates,
                         { before: null, after: null, audience: null },
                         issues,
-                      )
-                    }
+                      );
+                    }}
                   >
                     Đánh giá theo ngữ cảnh (AI)
                   </Button>
@@ -524,6 +539,7 @@ export default function Page() {
                         issues,
                         parentAnalysisId: null,
                       });
+                      captureStep('score');
                       void scoring.run(analysis);
                     }}
                   >
@@ -575,6 +591,7 @@ export default function Page() {
           </Tabs>
           <div id="text-panel" role="tabpanel" aria-labelledby="text-tab" hidden={view !== 'text'}>
             <ReviewWorkspace
+              calibrationStats={calibration?.stats}
               revisionSelection={id || createdId ? revisionSelection : undefined}
               onRevisionSelection={(issueId, selected) =>
                 setRevisionOverrides((old) => ({ ...old, [issueId]: selected }))

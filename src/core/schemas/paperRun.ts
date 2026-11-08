@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CalibrationSnapshotSchema } from './calibration';
 
 export const BatchStepSchema = z.enum(['syntax', 'judge', 'structure', 'score', 'transitions']);
 export const RunPlanSchema = z.object({
@@ -27,6 +28,8 @@ export const PaperRunSchema = z.object({
   plan: RunPlanSchema,
   budget: z.number().int().nonnegative(),
   callsUsed: z.number().int().nonnegative(),
+  callsByStep: z.record(z.string(), z.number().int().nonnegative()).nullable().optional(),
+  calibrationSnapshots: z.record(z.string(), CalibrationSnapshotSchema).nullable().optional(),
   promptVersions: z.record(z.string(), z.string()),
   model: z.string(),
   transitionDone: z.array(z.string()).optional(),

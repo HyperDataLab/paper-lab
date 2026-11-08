@@ -24,6 +24,8 @@ import {
   type CheckDecision,
   PaperReviewsRecordSchema,
   PaperProbesRecordSchema,
+  CalibrationLabelsSchema,
+  CalibrationLabelSetSchema,
 } from '@/core/schemas';
 import { validateLocations } from '@/core/paperChecks';
 import { aggregatePaper, transitionStatus } from '@/core/paperOverview';
@@ -107,7 +109,7 @@ export function createRepositories(
       issueId: string,
       change: { status?: Issue['status']; severity?: Issue['severity'] },
     ) {
-      return db.transaction('rw', db.analyses, db.auditEvents, async () => {
+      return db.transaction('rw', db.analyses, db.auditEvents, db.calibrationLabels, async () => {
         const current = await analyses.get(id);
         if (!current) throw new Error('Analysis not found');
         const issue = current.issues.find((item) => item.id === issueId);
@@ -124,9 +126,19 @@ export function createRepositories(
                 : next === 'dismissed_by_human'
                   ? 'dismiss'
                   : 'reopen';
+          const lastAudit = await db.auditEvents.orderBy('at').last();
+          const lastLabel = await db.calibrationLabels.orderBy('importedAt').last();
+          const at = new Date(
+            Math.max(
+              Date.parse(now()),
+              Date.parse(lastAudit?.at ?? '1970-01-01T00:00:00.000Z') + 1,
+              Date.parse(lastLabel?.importedAt ?? '1970-01-01T00:00:00.000Z') + 1,
+            ),
+          ).toISOString();
           await db.auditEvents.add(
             AuditEventSchema.parse({
               ...makeAudit(id, action, 'human'),
+              at,
               issueId,
               before: { [field]: updated[field] },
               after: { [field]: next },
@@ -612,9 +624,11 @@ export function createRepositories(
         if (!current?.report.checks.some((check) => check.findings.some((f) => f.id === findingId)))
           throw new Error('Check finding not found');
         const before = current.decisions.find((d) => d.findingId === findingId);
+        const lastAudit = await db.auditEvents.orderBy('at').last();
         const at = new Date(
           Math.max(
             Date.parse(now()),
+            Date.parse(lastAudit?.at ?? '1970-01-01T00:00:00.000Z') + 1,
             Date.parse(current.report.generatedAt) + 1,
             Date.parse(current.reviewedAt ?? current.report.generatedAt) + 1,
             ...current.decisions.map((d) => Date.parse(d.at) + 1),
@@ -640,6 +654,40 @@ export function createRepositories(
   };
   const paperReviews = createPaperReviewsRepository(db, now, makeAudit);
   const paperProbes = createPaperProbesRepository(db, now, makeAudit);
+  const calibrationLabels = {
+    async import(sourceFileName: string, data: unknown) {
+      const parsed = CalibrationLabelsSchema.parse(data);
+      return db.transaction('rw', db.calibrationLabels, db.auditEvents, async () => {
+        const lastAudit = await db.auditEvents.orderBy('at').last();
+        const lastLabel = await db.calibrationLabels.orderBy('importedAt').last();
+        const at = new Date(
+          Math.max(
+            Date.parse(now()),
+            Date.parse(lastAudit?.at ?? '1970-01-01T00:00:00.000Z') + 1,
+            Date.parse(lastLabel?.importedAt ?? '1970-01-01T00:00:00.000Z') + 1,
+          ),
+        ).toISOString();
+        const value = CalibrationLabelSetSchema.parse({
+          schemaVersion: 1,
+          id: ids(),
+          sourceFileName,
+          importedAt: at,
+          data: parsed,
+        });
+        await db.calibrationLabels.add(value);
+        await db.auditEvents.add({ ...makeAudit(value.id, 'import_labels', 'human'), at });
+        return value;
+      });
+    },
+    async list() {
+      return (await db.calibrationLabels.toArray())
+        .map((item) => CalibrationLabelSetSchema.parse(item))
+        .sort((a, b) => b.importedAt.localeCompare(a.importedAt));
+    },
+    async delete(id: string) {
+      await db.calibrationLabels.delete(id);
+    },
+  };
   const transfer = {
     async exportAll(appVersion: string) {
       const a = await readAnalyses();
@@ -661,6 +709,7 @@ export function createRepositories(
         (await db.paperChecks.toArray()).map((value) => PaperChecksRecordSchema.parse(value)),
         (await db.paperReviews.toArray()).map((value) => PaperReviewsRecordSchema.parse(value)),
         (await db.paperProbes.toArray()).map((value) => PaperProbesRecordSchema.parse(value)),
+        await calibrationLabels.list(),
       );
     },
     async previewImport(raw: unknown) {
@@ -691,6 +740,7 @@ export function createRepositories(
             { updatedAt: paper.updatedAt, sha256: paper.source.sha256 },
           ]),
         ),
+        new Set(await db.calibrationLabels.toCollection().primaryKeys()),
       );
     },
     async applyImport(plan: Extract<ImportPlan, { ok: true }>) {
@@ -737,8 +787,13 @@ export function createRepositories(
           db.paperReviews,
           db.paperProbes,
           db.reviewNgrams,
+          db.calibrationLabels,
         ],
         async () => {
+          for (const item of plan.calibrationLabels) {
+            if (await db.calibrationLabels.get(item.id)) throw new Error('Import preview is out of date');
+            await db.calibrationLabels.add(CalibrationLabelSetSchema.parse(item));
+          }
           if (plan.suppressed.length) console.warn('Suppressed invalid imported spans', plan.suppressed);
           for (const value of [...plan.toInsert, ...plan.toUpdate]) {
             const incoming = validateAnalysisSpans(AnalysisSchema.parse(value)).valid;
@@ -898,6 +953,7 @@ export function createRepositories(
     paperChecks,
     paperReviews,
     paperProbes,
+    calibrationLabels,
     transfer,
   };
 }

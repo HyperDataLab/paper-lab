@@ -8,6 +8,7 @@ import { PaperOverviewRecordSchema } from './paperOverview';
 import { PaperChecksRecordSchema } from './paperChecks';
 import { PaperReviewsRecordSchema } from './paperReview';
 import { PaperProbesRecordSchema } from './paperProbe';
+import { CalibrationLabelSetSchema } from './calibration';
 export const ExportPackageSchema = z.object({
   format: z.literal('paragraph-lab-export'),
   formatVersion: z.literal(1),
@@ -22,5 +23,6 @@ export const ExportPackageSchema = z.object({
   paperChecks: z.array(PaperChecksRecordSchema).default([]),
   paperReviews: z.array(PaperReviewsRecordSchema).default([]),
   paperProbes: z.array(PaperProbesRecordSchema).default([]),
+  calibrationLabels: z.array(CalibrationLabelSetSchema).default([]),
 });
 export type ExportPackage = z.infer<typeof ExportPackageSchema>;

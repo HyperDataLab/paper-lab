@@ -13,6 +13,7 @@ import { Card } from '@/shared/ui/Card';
 import { Select } from '@/shared/ui/Select';
 import { TextField } from '@/shared/ui/TextField';
 import styles from './probe.module.css';
+import { captureCalibration } from '@/shared/calibration/data';
 
 const PLAN_ID = '00000000-0000-4000-8000-000000000000';
 const number = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 });
@@ -74,7 +75,11 @@ export function PaperProbe({ paper, analyses }: { paper: Paper; analyses: Analys
     setError('');
     try {
       if (!(await llm.ensureConsent('paper')) || abort.signal.aborted) return;
-      await llmStyleProbe(llm.client, paper, analyses, run, {
+      const nextRun =
+        run.calibrationSnapshot == null
+          ? { ...run, calibrationSnapshot: await captureCalibration(repo) }
+          : run;
+      await llmStyleProbe(llm.client, paper, analyses, nextRun, {
         config: llm.config,
         now: () => new Date().toISOString(),
         signal: abort.signal,

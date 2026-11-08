@@ -17,6 +17,7 @@ export function planImport(
   existingRevisionIds = new Set<string>(),
   existingGenerationIds = new Set<string>(),
   existingPapers = new Map<string, { updatedAt: string; sha256: string }>(),
+  existingLabelIds = new Set<string>(),
 ) {
   existing = new Map(existing);
   const parsed = ExportPackageSchema.extend({ analyses: z.array(z.unknown()) }).safeParse(rawJson);
@@ -133,6 +134,12 @@ export function planImport(
     auditEligible.add(paper.id);
     eligiblePapers.add(paper.id);
   }
+  const calibrationLabels = parsed.data.calibrationLabels.filter((item) => {
+    if (existingLabelIds.has(item.id)) return false;
+    existingLabelIds.add(item.id);
+    return true;
+  });
+  for (const item of parsed.data.calibrationLabels) auditEligible.add(item.id);
   const seen = new Set(auditIds);
   let auditSkipped = 0;
   const auditEvents: AuditEvent[] = parsed.data.auditEvents.filter((event) => {
@@ -155,6 +162,7 @@ export function planImport(
     paperChecks: parsed.data.paperChecks.filter((record) => eligiblePapers.has(record.paperId)),
     paperReviews: parsed.data.paperReviews.filter((record) => eligiblePapers.has(record.paperId)),
     paperProbes: parsed.data.paperProbes.filter((record) => eligiblePapers.has(record.paperId)),
+    calibrationLabels,
     skipped,
     suppressed,
     auditEvents,

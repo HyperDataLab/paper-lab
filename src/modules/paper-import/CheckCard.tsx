@@ -3,18 +3,21 @@ import { Badge } from '@/shared/ui/Badge';
 import { Card } from '@/shared/ui/Card';
 import { CHECK_STATUSES, type CheckHandlers } from './checkTypes';
 import { FindingRow } from './CheckFinding';
+import { CalibrationBadge } from '@/shared/calibration/CalibrationBadge';
 export function CheckCard({
   check,
   record,
   paper,
   onReview,
   onLocation,
+  calibration,
 }: {
   check: CheckResult;
   record: PaperChecksRecord;
   paper: Paper;
   onReview: CheckHandlers['onReview'];
   onLocation: CheckHandlers['onLocation'];
+  calibration?: { n: number; wilsonLow: number | null };
 }) {
   const status = CHECK_STATUSES[check.status];
   const Icon = status.icon;
@@ -41,7 +44,7 @@ export function CheckCard({
       <Badge tone={status.tone} icon={<Icon size={16} aria-hidden="true" />}>
         {status.label}
       </Badge>{' '}
-      <Badge>Thử nghiệm</Badge>
+      <CalibrationBadge stats={calibration} />
       <p>{check.summary}</p>
       <details>
         <summary>Nguy cơ báo nhầm</summary>

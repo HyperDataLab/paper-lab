@@ -145,10 +145,16 @@ numbered bars, per-dimension score distributions, recurring issue filters and pa
 It identifies stale and unavailable transitions, offers audited human review and links each endpoint to its
 analysis. It never presents a paper-level total score.
 
-The Kiểm tra tab runs deterministic checks locally and always labels them experimental. Each check shows its
+The Kiểm tra tab runs deterministic checks locally and shows its current calibration status with n. Each check shows its
 status, false-positive risks and anchored findings; users can confirm, dismiss or undo a decision. Dismissed
 findings are collapsed, and selecting a quoted location opens the map at the highlighted passage. Tổng quan
 links to the checks and shows counts by status.
+
+The Hiệu chuẩn page imports human labels after a matched/unmatched preview, offers a finding-prefilled template,
+and shows precision intervals, inter-rater agreement and score bias with denominators. Small samples are not
+evidence of reliability. The optional filter hides unreliable checks or issue types only when enabled. A
+collapsible Minh bạch section in the paper and report views displays recorded provenance; unavailable historical
+fields are identified as unknown and the section offers a JSON download.
 
 The Độ bền điểm tab follows Phản biện AI. It states that it measures the scorer and is not a way to raise a score,
 then offers the sample size, call estimate and budget. A verdict appears only when a run has finished: a badge
