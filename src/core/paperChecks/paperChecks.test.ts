@@ -27,6 +27,66 @@ function paper(
 }
 const check = (p: Paper, id: string) => runPaperChecks(p, new Date(at)).checks.find((c) => c.id === id);
 describe('P4 citations_references', () => {
+  it('P4 reports unsafe, out-of-bound and large numeric ranges without silently dropping them', () => {
+    const result = check(
+      paper([
+        [
+          'introduction',
+          'See [1–1002], [9999–10000], [10001], [9007199254740992–9007199254740993] and [9999999999999999999999999999999999999999999999999999999999999999999–9999999999999999999999999999999999999999999999999999999999999999999].',
+        ],
+        ['references', '[9999] Example, 2024.', 'reference'],
+        ['references', '[10000] Example, 2024.', 'reference'],
+      ]),
+      'citations_references',
+    );
+    expect(result?.findings.filter((f) => f.id.includes(':unchecked:'))).toHaveLength(4);
+    expect(
+      result?.findings
+        .filter((f) => f.id.includes(':unchecked:'))
+        .every((f) => f.message.includes('Không kiểm tra được')),
+    ).toBe(true);
+    expect(result?.findings.some((f) => f.id.includes(':missing:n:9999:'))).toBe(false);
+    expect(result?.findings.some((f) => f.id.includes(':missing:n:10000:'))).toBe(false);
+  });
+  it('P4 groups missing author citations with every location and a use count', () => {
+    const result = check(
+      paper([
+        ['introduction', 'The results (Morris, 2020) agree with Morris (2020).'],
+        ['discussion', 'A different report (Morris, 2020) is relevant.'],
+        ['references', 'A reference with no identifiable author.', 'reference'],
+      ]),
+      'citations_references',
+    );
+    const missing = result?.findings.filter((f) => f.id.includes(':missing:morris:2020:'));
+    expect(missing).toHaveLength(1);
+    expect(missing?.[0]?.locations).toHaveLength(3);
+    expect(missing?.[0]?.evidence).toContain('3 lần trích dẫn');
+  });
+  it('P4 ignores table, heading, caption and non-author year labels while recognizing real author-year forms', () => {
+    const result = check(
+      paper([
+        [
+          'results',
+          'FAccT 2025 and Æ 2026 are labels.\n| Smith, 2020 | 3.25 | Jones (2021) |\nPrior work (Smith, 2020; Brown et al., 2021a) agrees with Green and Lee (2019).',
+        ],
+        ['results', 'Figure 1. (Caption, 2022)', 'caption'],
+        ['results', 'Heading (Heading, 2023)', 'heading_like'],
+        ['references', 'Unidentified reference line.', 'reference'],
+      ]),
+      'citations_references',
+    );
+    const missing = result?.findings.filter((f) => f.id.includes(':missing:')) ?? [];
+    expect(missing).toHaveLength(3);
+    expect(missing.map((f) => f.id)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('smith:2020'),
+        expect.stringContaining('brown:2021a'),
+        expect.stringContaining('green:2019'),
+      ]),
+    );
+    expect(missing.every((f) => f.locations.every((location) => location.paragraphId === 'p0'))).toBe(true);
+    expect(missing.find((f) => f.id.includes('smith:2020'))?.locations).toHaveLength(1);
+  });
   it('P4 finds a surname and year across interrupted reference lines and skips incomplete unused entries', () => {
     const p = paper([
       ['introduction', 'Earlier work (Álvarez, 2021a) provides context.'],
@@ -105,8 +165,9 @@ describe('P4 citations_references', () => {
       ]),
       'citations_references',
     );
-    expect(result?.findings).toHaveLength(1);
-    expect(result?.findings[0]?.message).toContain('1–3999999');
+    expect(result?.findings).toHaveLength(2);
+    expect(result?.findings.some((f) => f.message.includes('1–3999999'))).toBe(true);
+    expect(result?.findings.some((f) => f.message.includes('Không kiểm tra được'))).toBe(true);
     expect(result?.summary).toBe(`${result?.findings.length} mục cần xem lại.`);
   });
   it('P4 keeps suffix letters distinct and reports unused split references once', () => {
@@ -159,6 +220,22 @@ describe('P4 citations_references', () => {
   });
 });
 describe('P4 figures_tables', () => {
+  it('P4 reports large figure and table gaps as bounded ranges', () => {
+    const result = check(
+      paper([
+        ['results', 'Figure 3. A caption.', 'caption'],
+        ['results', 'Figure 1000. A caption.', 'caption'],
+        ['results', 'Table 1000000000. A caption.', 'caption'],
+      ]),
+      'figures_tables',
+    );
+    const gaps = result?.findings.filter((f) => f.id.includes(':gap:')) ?? [];
+    expect(gaps.map((f) => f.message)).toEqual([
+      'Thiếu Hình 1–2.',
+      'Thiếu Hình 4–999.',
+      'Thiếu Bảng 1–999999999.',
+    ]);
+  });
   it('matches Fig. with Figure and identifies missing captions and gaps', () => {
     expect(
       check(

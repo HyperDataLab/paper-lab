@@ -60,27 +60,60 @@ function referenceEntries(refs: Paper['paragraphs']) {
     ];
   });
 }
-function numbers(text: string): number[] {
+function numbers(text: string): { values: number[]; unchecked: string[] } {
   const values: number[] = [];
+  const unchecked: string[] = [];
   for (const part of text.replace(/[[\]]/gu, '').split(/\s*[,;]\s*/u)) {
     const range = /^(\d+)\s*[-–—]\s*(\d+)$/u.exec(part);
     if (range) {
       const a = Number(range[1]),
         b = Number(range[2]);
-      if (b >= a && b - a <= 1000) for (let i = a; i <= b; i++) values.push(i);
-    } else if (/^\d+$/u.test(part.trim())) values.push(Number(part));
+      if (
+        Number.isSafeInteger(a) &&
+        Number.isSafeInteger(b) &&
+        a > 0 &&
+        b <= 10000 &&
+        b >= a &&
+        b - a <= 1000
+      )
+        for (let i = a; i <= b; i++) values.push(i);
+      else unchecked.push(part);
+    } else if (/^\d+$/u.test(part.trim())) {
+      const number = Number(part);
+      if (Number.isSafeInteger(number) && number > 0 && number <= 10000) values.push(number);
+      else unchecked.push(part);
+    }
   }
-  return values;
+  return { values, unchecked };
+}
+const parentheticalAuthor =
+  /(?<=[(;])\s*\p{Lu}[\p{Ll}\p{M}]+(?:[-'’]\p{Lu}?[\p{Ll}\p{M}]+)*(?:\s+(?:et al\.|(?:and|&)\s+\p{Lu}[\p{Ll}\p{M}]+))?\s*,\s*(?:19|20)\d{2}[a-z]?(?=\s*[,;)])/gu;
+const narrativeAuthor =
+  /(?<![\p{L}\p{M}])\p{Lu}[\p{Ll}\p{M}]+(?:[-'’]\p{Lu}?[\p{Ll}\p{M}]+)*(?:\s+(?:et al\.|(?:and|&)\s+\p{Lu}[\p{Ll}\p{M}]+))?\s*\((?:19|20)\d{2}[a-z]?\)/gu;
+function tableLine(location: Located) {
+  const text = Array.from(location.paragraph.text);
+  const start = text.lastIndexOf('\n', location.start - 1) + 1;
+  const end = text.indexOf('\n', location.end);
+  const line = text.slice(start, end < 0 ? text.length : end).join('');
+  const symbols = line.match(/[|│┆┊]/gu)?.length ?? 0;
+  const visible = line.match(/\S/gu)?.length ?? 0;
+  const nonletters = line.match(/[^\p{L}\p{M}\s]/gu)?.length ?? 0;
+  return symbols >= 2 || (visible > 0 && nonletters > visible / 2);
 }
 export function citationsReferences(paper: Paper) {
   const id = 'citations_references';
   const refs = paper.paragraphs.filter((p) => p.kind === 'reference' || role(paper, p) === 'references');
   const body = paper.paragraphs.filter((p) => !refs.includes(p) && p.kind === 'body');
+  const unchecked: { text: string; loc: Located }[] = [];
   const cited = body.flatMap((p) => [
-    ...matches(p, /\[\s*\d+(?:\s*[,;–—-]\s*\d+)*\s*\]/gu).flatMap((m) =>
-      numbers(m.text).map((n) => ({ key: `n:${n}`, loc: m })),
-    ),
-    ...matches(p, authorYear).map((m) => ({ key: key(m.text), loc: m })),
+    ...matches(p, /\[\s*\d+(?:\s*[,;–—-]\s*\d+)*\s*\]/gu).flatMap((m) => {
+      const parsed = numbers(m.text);
+      unchecked.push(...parsed.unchecked.map((text) => ({ text, loc: m })));
+      return parsed.values.map((n) => ({ key: `n:${n}`, loc: m }));
+    }),
+    ...[...matches(p, parentheticalAuthor), ...matches(p, narrativeAuthor)]
+      .filter((m) => !tableLine(m))
+      .map((m) => ({ key: key(m.text), loc: m })),
   ]);
   const entries = referenceEntries(refs);
   const referenceParagraphs = refs.filter((p) => p.kind === 'reference');
@@ -88,13 +121,30 @@ export function citationsReferences(paper: Paper) {
     (referenceParagraphs.length ? referenceParagraphs : refs).map((p) => p.text).join(' '),
   );
   const findings: Finding[] = [];
+  const missing = new Map<string, Located[]>();
   for (const item of cited)
-    if (!entries.some((e) => e.keys.includes(item.key)) && !referenceTextMatches(item.key, referenceText))
-      findings.push(
-        finding(id, `missing:${item.key}`, 'moderate', 'Trích dẫn chưa có tài liệu tham khảo tương ứng.', [
-          item.loc,
-        ]),
-      );
+    if (!entries.some((e) => e.keys.includes(item.key)) && !referenceTextMatches(item.key, referenceText)) {
+      const locations = missing.get(item.key) ?? [];
+      locations.push(item.loc);
+      missing.set(item.key, locations);
+    }
+  for (const [citationKey, locations] of missing) {
+    const candidate = finding(
+      id,
+      `missing:${citationKey}`,
+      'moderate',
+      'Trích dẫn chưa có tài liệu tham khảo tương ứng.',
+      locations,
+    );
+    candidate.evidence.push(`${locations.length} lần trích dẫn`);
+    findings.push(candidate);
+  }
+  for (const item of unchecked)
+    findings.push(
+      finding(id, `unchecked:${item.text}`, 'minor', `Không kiểm tra được trích dẫn số ${item.text}.`, [
+        item.loc,
+      ]),
+    );
   for (const entry of entries)
     if (entry.clean && entry.keys.length && !entry.keys.some((k) => cited.some((c) => c.key === k)))
       findings.push(
@@ -144,14 +194,28 @@ export function figuresTables(paper: Paper) {
       );
   for (const type of ['figure', 'table']) {
     const items = captions.filter((c) => c.key.startsWith(type));
-    const nums = items.map((c) => Number(c.key.split(':')[1]));
-    if (nums.length)
-      for (let n = 1; n < Math.max(...nums); n++)
-        if (!nums.includes(n)) {
-          const loc: Located | undefined = items[0]?.loc;
-          if (loc)
-            findings.push(finding(id, `gap:${type}:${n}`, 'minor', `Thiếu số thứ tự ${type} ${n}.`, [loc]));
-        }
+    const nums = [
+      ...new Set(items.map((c) => Number(c.key.split(':')[1])).filter(Number.isSafeInteger)),
+    ].sort((a, b) => a - b);
+    let previous = 0;
+    for (const n of nums) {
+      if (n > previous + 1) {
+        const first = previous + 1;
+        const gap = first === n - 1 ? `${first}` : `${first}–${n - 1}`;
+        const loc = items.find((item) => Number(item.key.split(':')[1]) === n)?.loc;
+        if (loc)
+          findings.push(
+            finding(
+              id,
+              `gap:${type}:${gap}`,
+              'minor',
+              `Thiếu ${type === 'figure' ? 'Hình' : 'Bảng'} ${gap}.`,
+              [loc],
+            ),
+          );
+      }
+      previous = n;
+    }
   }
   return result(
     id,

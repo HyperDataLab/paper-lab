@@ -776,7 +776,6 @@ export function createRepositories(
               );
             }
           }
-          const importedChecks = new Map<string, Set<string>>();
           for (const record of plan.paperChecks) {
             const paper = await papers.get(record.paperId);
             if (!paper) continue;
@@ -803,18 +802,12 @@ export function createRepositories(
                 },
               });
               await db.paperChecks.put(value);
-              importedChecks.set(
-                record.paperId,
-                new Set(checks.flatMap((check) => check.findings.map((f) => f.id))),
-              );
             }
           }
           for (const event of plan.auditEvents)
             if (
               (event.action !== 'review_transition' ||
                 (event.issueId && importedFindings.get(event.analysisId)?.has(event.issueId))) &&
-              (event.action !== 'review_check' ||
-                (event.issueId && importedChecks.get(event.analysisId)?.has(event.issueId))) &&
               !(await db.auditEvents.get(event.id))
             )
               await db.auditEvents.add(AuditEventSchema.parse(event));
