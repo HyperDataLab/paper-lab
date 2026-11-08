@@ -31,6 +31,7 @@ export default function Page() {
   const [revisionOverrides, setRevisionOverrides] = useState<Record<string, boolean>>({});
   const [generationId, setGenerationId] = useState<string | null>(null);
   const [parent, setParent] = useState<{ id: string; title: string } | null>(null);
+  const [paperBreadcrumb, setPaperBreadcrumb] = useState<{ id: string; heading: string } | null>(null);
   const syntax = useSyntaxAnalysis();
   const judge = useCandidateJudge();
   const paragraph = useParagraphAnalysis();
@@ -81,6 +82,15 @@ export default function Page() {
         if (!value) throw new Error('Analysis not found');
         setRevisionOverrides({});
         setParent(null);
+        setPaperBreadcrumb(null);
+        if (value.origin?.kind === 'paper') {
+          const origin = value.origin;
+          void repositories.papers.get(origin.paperId).then((paper) => {
+            const paragraph = paper?.paragraphs.find((item) => item.id === origin.paragraphId);
+            const section = paper?.sections.find((item) => item.id === paragraph?.sectionId);
+            if (active && paper && section) setPaperBreadcrumb({ id: paper.id, heading: section.heading });
+          });
+        }
         setGenerationId(value.origin?.kind === 'generated' ? value.origin.generationId : null);
         if (value.parentAnalysisId)
           void repositories.analyses.get(value.parentAnalysisId).then((source) => {
@@ -258,6 +268,11 @@ export default function Page() {
   return (
     <div className={styles.page}>
       <h1>Đánh giá</h1>
+      {paperBreadcrumb && (
+        <p>
+          <Link to={`/papers/${paperBreadcrumb.id}`}>Bài báo › {paperBreadcrumb.heading}</Link>
+        </p>
+      )}
       {generationId && (
         <p>
           <Link to={`/generate?id=${generationId}`}>Đoạn soạn từ luận điểm</Link>

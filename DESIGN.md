@@ -132,3 +132,10 @@ markers, a legend, scoring context and limitations. Print layout removes navigat
 margins and page breaks, and retains distinct line styles in greyscale. History selects two analyses for
 comparison; revision analyses link to their source. Comparison places aligned text side by side, identifies
 insertions and deletions with line styles, and labels metric and score changes with arrows and numbers.
+
+## 8. Paper batch panel
+
+The paper map presents section and AI-step checkboxes, a call budget and a live estimate before starting.
+Manuscript consent precedes calls. The panel shows overall and section progress, and paragraph badges combine
+icons with text. Failed paragraphs offer retry; completed results link to Evaluate with their issue count and
+score context. A run interrupted by a reload appears paused and can be resumed.
