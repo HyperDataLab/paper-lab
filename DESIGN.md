@@ -150,6 +150,13 @@ status, false-positive risks and anchored findings; users can confirm, dismiss o
 findings are collapsed, and selecting a quoted location opens the map at the highlighted passage. Tổng quan
 links to the checks and shows counts by status.
 
+The Độ bền điểm tab follows Phản biện AI. It states that it measures the scorer and is not a way to raise a score,
+then offers the sample size, call estimate and budget. A verdict appears only when a run has finished: a badge
+(Ổn định, Nhạy với văn phong, Chưa đủ dữ liệu), a table of signed change, absolute change, test–retest noise and n,
+the discarded rewrites with reasons, and per-paragraph scores. Rewritten text sits in a collapsed section for
+verification only, with no copy or apply action. A style-sensitive verdict shows a warning on Tổng quan and in the
+Điểm tab of Evaluate.
+
 The Phản biện AI tab follows Kiểm tra. It presents human notes before revealing reviews, then keeps those
 notes beside the advisory results on wide screens and stacks them on smaller screens. Setup shows the selected
 sections, reviewer lenses, character and call estimates, budget and manuscript consent. Results show anchoring,

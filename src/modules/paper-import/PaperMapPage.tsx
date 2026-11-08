@@ -16,6 +16,7 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Select } from '@/shared/ui/Select';
 import { Tabs } from '@/shared/ui/Tabs';
+import { PaperProbe } from './PaperProbe';
 import styles from './page.module.css';
 import { BatchPanel } from './BatchPanel';
 import { BatchParagraphStatus } from './BatchParagraphStatus';
@@ -52,7 +53,7 @@ export default function PaperMapPage() {
   const [error, setError] = useState('');
   const [counts, setCounts] = useState<{ sentences: number; words: number } | null>(null);
   const [candidateCounts, setCandidateCounts] = useState<Record<string, number>>({});
-  const [tab, setTab] = useState<'map' | 'overview' | 'checks' | 'review'>('map');
+  const [tab, setTab] = useState<'map' | 'overview' | 'checks' | 'review' | 'probe'>('map');
   const [filter, setFilter] = useState<string[] | null>(null);
   const [checks, setChecks] = useState<PaperChecksRecord>();
   const [highlight, setHighlight] = useState<Finding['locations'][number] | null>(null);
@@ -182,6 +183,9 @@ export default function PaperMapPage() {
               <Button role="tab" aria-selected={tab === 'review'} onClick={() => setTab('review')}>
                 Phản biện AI
               </Button>
+              <Button role="tab" aria-selected={tab === 'probe'} onClick={() => setTab('probe')}>
+                Độ bền điểm
+              </Button>
             </Tabs>
             {tab === 'overview' ? (
               <PaperOverview
@@ -238,6 +242,8 @@ export default function PaperMapPage() {
                   }}
                 />
               </>
+            ) : tab === 'probe' ? (
+              <PaperProbe paper={paper} analyses={batch.analyses} />
             ) : tab === 'review' ? (
               <PaperReview
                 paper={paper}

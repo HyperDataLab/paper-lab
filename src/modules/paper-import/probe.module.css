@@ -1,0 +1,25 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.table th,
+.table td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.setup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: flex-end;
+}
+.muted {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.rewrite {
+  font-family: var(--font-reading);
+  white-space: pre-wrap;
+}

@@ -10,11 +10,13 @@ export function ScoresView({
   issues,
   onIssue,
   onSentence,
+  styleWarning = null,
 }: {
   scores: Scores | null;
   issues: Issue[];
   onIssue: (id: string) => void;
   onSentence: (id: string) => void;
+  styleWarning?: string | null;
 }) {
   if (!scores)
     return (
@@ -36,6 +38,12 @@ export function ScoresView({
         {scores.rubricVersion} · {scores.contextLimited ? 'context_limited' : 'đủ ngữ cảnh'}
       </p>
       {scores.overallSuppressedReason && <p>{scores.overallSuppressedReason}</p>}
+      {styleWarning && (
+        <p role="status">
+          Điểm trên bài này có thể bị ảnh hưởng bởi văn phong (kiểm tra độ bền ngày{' '}
+          {new Date(styleWarning).toLocaleDateString('vi-VN')}).
+        </p>
+      )}
       {scores.issueSnapshot !== issueSnapshot(issues) && (
         <p role="status">Điểm có thể đã cũ do bạn vừa xác nhận/bỏ qua gợi ý — chấm lại để cập nhật</p>
       )}

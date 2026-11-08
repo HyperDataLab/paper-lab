@@ -28,8 +28,8 @@ Status: ⬜ not started · 🟨 in progress · ✅ accepted.
 | P2   | Batch paragraph pipeline with section-aware prompts                                     | ✅     |
 | P3   | Paper-level aggregation and inter-paragraph flow                                        | ✅     |
 | P4   | Verifiable checks (citations, numbers, figures/tables, acronyms)                        | ✅     |
-| P5   | AI reviewer panel (lenses, anchored points, diversity metrics)                          | 🟨     |
-| P6   | Score robustness probe (style-only rewrite → score sensitivity)                         | ⬜     |
+| P5   | AI reviewer panel (lenses, anchored points, diversity metrics)                          | ✅     |
+| P6   | Score robustness probe (style-only rewrite → score sensitivity)                         | 🟨     |
 | P7   | Calibration and transparency                                                            | ⬜     |
 
 P2 follow-up: share syntax requests across paragraphs in the same section, in batches of at most 40

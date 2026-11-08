@@ -155,3 +155,14 @@ export function summariseProbe(items: ProbeItem[]) {
           : ('stable' as const),
   };
 }
+
+/** Date of the latest finished probe when it found the scorer style-sensitive, otherwise null. */
+export function latestStyleWarning(
+  runs: { status: string; updatedAt: string; summary: { verdict: string } }[] | undefined,
+): string | null {
+  const latest = (runs ?? [])
+    .filter((run) => run.status === 'done')
+    .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))
+    .at(-1);
+  return latest?.summary.verdict === 'style_sensitive' ? latest.updatedAt : null;
+}
