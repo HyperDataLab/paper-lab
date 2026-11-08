@@ -73,3 +73,70 @@ it('P2 creates paper analyses and keeps human decisions on a detector rerun', as
   expect(await analyzer.findCached(paragraph, run)).toBe(id);
   expect(client.completeJson).not.toHaveBeenCalled();
 });
+
+it('P2 applies paper syntax, judgement, structure and scoring to an existing analysis', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const at = '2026-01-01T00:00:00.000Z';
+  const text = 'This is very important. Results were obtained.';
+  const paper: Paper = {
+    schemaVersion: 1,
+    id: crypto.randomUUID(),
+    title: '',
+    createdAt: at,
+    updatedAt: at,
+    source: { kind: 'text', fileName: '', pageCount: null, sha256: '' },
+    sections: [{ id: 's', heading: 'Results', role: 'results', level: 1, pageStart: null }],
+    paragraphs: [
+      {
+        id: 'p',
+        sectionId: 's',
+        order: 0,
+        text,
+        textHash: await sourceHash(text),
+        kind: 'body',
+        pageStart: null,
+      },
+    ],
+  };
+  const repositories = createRepositories(createDb(`p2-${crypto.randomUUID()}`));
+  const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => {
+    const answers: Record<string, unknown> = {
+      sentence_syntax: { sentences: [] },
+      candidate_judgement: { judgements: [], passive: [] },
+      paragraph_structure: {
+        type: 'LD',
+        typeScores: { 'TS-D': 0.1, LD: 0.8, LDR: 0.2, OCAR: 0.1, UNKNOWN: 0.1 },
+        centralPointSentenceId: 's1',
+        identifiability: 3,
+        evidence: '',
+        roles: [],
+        offTopicSentenceIds: [],
+        unityRationale: '',
+        pairs: [],
+        rationale: '',
+      },
+      scoring: { dimensions: [] },
+    };
+    return {
+      data: options.schema.parse(answers[options.schemaName]),
+      meta: { model: 'fake', promptVersion: options.promptVersion, latencyMs: 1, repaired: false },
+    };
+  }) as LlmClient['completeJson'];
+  const analyzer = createPaperParagraphAnalyzer({ completeJson }, repositories, paper);
+  const paragraph = paper.paragraphs[0];
+  if (!paragraph) throw new Error('missing paragraph');
+  const context = { role: 'results' as const, heading: 'Results', previousLast: null, nextFirst: null };
+  const id = await analyzer.analyze(paragraph, context, 'detectors', null);
+  for (const step of ['syntax', 'judge', 'structure', 'score'] as const) {
+    expect(await analyzer.analyze(paragraph, context, step, id)).toBe(id);
+  }
+  const analysis = await repositories.analyses.get(id);
+  expect(analysis?.versions).toMatchObject({
+    syntaxProvider: 'sent-syntax-paper-1',
+    judgePrompt: 'cand-judge-paper-1',
+    structurePrompt: 'para-struct-paper-1',
+    scoringPrompt: 'score-paper-1',
+  });
+  expect(analysis?.contextLimited).toBe(true);
+  expect(completeJson).toHaveBeenCalledTimes(4);
+});
