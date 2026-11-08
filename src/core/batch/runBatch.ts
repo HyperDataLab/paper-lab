@@ -181,11 +181,21 @@ export async function runBatch(
         if (!chunk.length) continue;
         if (await stop()) return run;
         try {
-          await deps.analyzeTransitions(chunk, async () => {
-            if (run.callsUsed >= run.budget) throw new BatchBudgetExceededError();
-            run.callsUsed++;
-            await checkpoint();
-          });
+          let attempt = 0;
+          for (;;) {
+            try {
+              await deps.analyzeTransitions(chunk, async () => {
+                if (run.callsUsed >= run.budget) throw new BatchBudgetExceededError();
+                run.callsUsed++;
+                await checkpoint();
+              });
+              break;
+            } catch (error) {
+              if (!retryable(error) || attempt >= 3) throw error;
+              await deps.sleep(1000 * 2 ** attempt++);
+              if (await stop()) return run;
+            }
+          }
         } catch (error) {
           run.status = error instanceof BatchBudgetExceededError ? 'budget_exceeded' : 'failed';
           await checkpoint();

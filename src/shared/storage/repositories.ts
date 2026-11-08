@@ -20,7 +20,7 @@ import {
   PaperOverviewRecordSchema,
   type PaperOverviewRecord,
 } from '@/core/schemas';
-import { aggregatePaper } from '@/core/paperOverview';
+import { aggregatePaper, transitionStatus } from '@/core/paperOverview';
 import { buildExportPackage } from '@/core/transfer/buildExportPackage';
 import { planImport, type ImportPlan } from '@/core/transfer/planImport';
 import { sourceHash } from '@/core/text/hash';
@@ -485,11 +485,13 @@ export function createRepositories(
       const paper = await papers.get(paperId);
       if (!paper) return undefined;
       const stored = await db.paperOverviews.get(paperId);
+      const saved = stored ? PaperOverviewRecordSchema.parse(stored).transitions : null;
+      const paperAnalyses = await analyses.listByPaper(paperId);
       return PaperOverviewRecordSchema.parse({
         schemaVersion: 1,
         paperId,
-        overview: aggregatePaper(paper, await analyses.listByPaper(paperId)),
-        transitions: stored ? PaperOverviewRecordSchema.parse(stored).transitions : null,
+        overview: aggregatePaper(paper, paperAnalyses),
+        transitions: saved ? transitionStatus(paper, paperAnalyses, saved) : null,
       });
     },
     async save(input: PaperOverviewRecord) {

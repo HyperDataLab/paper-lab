@@ -47,6 +47,7 @@ export const TransitionEndpointSchema = z.object({
   span: SpanSchema,
   quote: z.string(),
   sentence: z.string(),
+  analysisUpdatedAt: z.iso.datetime().optional(),
 });
 export const TransitionPairSchema = z.object({
   pairId: z.string(),
@@ -63,6 +64,9 @@ export const TransitionJudgementSchema = z.object({
   confidence: z.number().min(0).max(1),
   rationale: z.string(),
   measured: z.boolean(),
+  judgedAt: z.iso.datetime().optional(),
+  available: z.boolean().optional(),
+  stale: z.boolean().optional(),
 });
 export const TransitionFindingSchema = z.object({
   id: z.string(),
@@ -89,6 +93,7 @@ export const PaperOverviewRecordSchema = z
         promptVersion: z.string(),
         model: z.string(),
         updatedAt: z.iso.datetime(),
+        stale: z.boolean().optional(),
       })
       .nullable(),
   })

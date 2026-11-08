@@ -29,6 +29,7 @@ export function transitionPairs(paper: Paper, analyses: Analysis[]): TransitionP
           from: {
             paragraphId: from.id,
             analysisId: a.id,
+            analysisUpdatedAt: a.updatedAt,
             span: stress,
             quote: sliceCp(from.text, stress.start, stress.end),
             sentence: sliceCp(from.text, last.start, last.end),
@@ -36,6 +37,7 @@ export function transitionPairs(paper: Paper, analyses: Analysis[]): TransitionP
           to: {
             paragraphId: to.id,
             analysisId: b.id,
+            analysisUpdatedAt: b.updatedAt,
             span: topic,
             quote: sliceCp(to.text, topic.start, topic.end),
             sentence: sliceCp(to.text, first.start, first.end),

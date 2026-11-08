@@ -5,7 +5,7 @@ import { createPaperParagraphAnalyzer, PAPER_PROMPT_VERSIONS } from '@/shared/ll
 import { describeLlmError } from '@/shared/llm/describeError';
 import { useLlm } from '@/shared/llm/LlmProvider';
 import { useRepositories } from '@/shared/storage/StorageProvider';
-import { transitionPairs } from '@/core/paperOverview';
+import { mergeTransitions, transitionPairs } from '@/core/paperOverview';
 import { createLlmParagraphTransition } from '@/shared/llm/llmParagraphTransition';
 
 export function useBatchRun(paper: Paper) {
@@ -69,22 +69,10 @@ export function useBatchRun(paper: Paper) {
               undefined,
               onRequest,
             );
-            const ids = new Set(pairs.map((pair) => pair.pairId));
+            const judgedAt = new Date().toISOString();
             await repo.paperOverviews.save({
               ...current,
-              transitions: {
-                ...result,
-                pairs: [...(old?.pairs ?? []).filter((item) => !ids.has(item.pairId)), ...result.pairs],
-                judgements: [
-                  ...(old?.judgements ?? []).filter((item) => !ids.has(item.pairId)),
-                  ...result.judgements,
-                ],
-                findings: [
-                  ...(old?.findings ?? []).filter((item) => !ids.has(item.pairId)),
-                  ...result.findings,
-                ],
-                updatedAt: new Date().toISOString(),
-              },
+              transitions: mergeTransitions(old, result, judgedAt),
             });
           },
           analyze: async (...args) => {

@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { AnalysisSchema, type Paper } from '../schemas';
 import { analyzeText } from '../text/analyzeText';
 import { PROMPT_VERSIONS, buildParagraphTransitionPrompt } from '../prompts';
-import { aggregatePaper, transitionFindings, transitionPairs, validateTransitions } from './index';
+import {
+  aggregatePaper,
+  transitionFindings,
+  transitionPairs,
+  transitionStatus,
+  validateTransitions,
+} from './index';
 
 const at = '2026-01-01T00:00:00.000Z';
 const paper: Paper = {
@@ -177,6 +183,49 @@ describe('P3 paper overview', () => {
       median: 40,
       q3: 50,
       max: 60,
+    });
+  });
+  it('P3 reports unavailable pairs and staleness using each judgement snapshot', async () => {
+    const input = await analyses();
+    const pairs = transitionPairs(paper, input);
+    const judgements = validateTransitions(
+      {
+        pairs: pairs.map((p) => ({
+          pairId: p.pairId,
+          continuity: 'derived',
+          discourseRelation: 'example',
+          linked: true,
+          confidence: 1,
+          rationale: '',
+        })),
+      },
+      pairs,
+    );
+    const stored = {
+      pairs,
+      judgements,
+      findings: [],
+      model: 'm',
+      promptVersion: 'para-flow-1',
+      updatedAt: at,
+    };
+    expect(transitionStatus(paper, input, stored).stale).toBe(false);
+    const first = input[0];
+    if (!first) throw new Error('missing analysis');
+    first.updatedAt = '2026-02-01T00:00:00.000Z';
+    expect(transitionStatus(paper, input, stored).judgements.map((j) => [j.available, j.stale])).toEqual([
+      [true, true],
+      [true, false],
+    ]);
+    first.sentenceAnnotations = [];
+    expect(transitionStatus(paper, input, stored).judgements[0]).toMatchObject({
+      available: false,
+      stale: true,
+    });
+    const removed = { ...paper, paragraphs: paper.paragraphs.filter((p) => p.id !== 'p0') };
+    expect(transitionStatus(removed, input, stored).judgements[0]).toMatchObject({
+      available: false,
+      stale: true,
     });
   });
 });
