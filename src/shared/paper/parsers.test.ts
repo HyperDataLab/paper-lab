@@ -79,6 +79,7 @@ it('removes stamps and page numbers while retaining line heights', () => {
     {
       text: 'Introduction',
       pageStart: 1,
+      source: 'pdf',
       breakBefore: false,
       height: 14,
       x: 0,
@@ -271,5 +272,48 @@ it('does not mistake isolated indents for a column and detects staggered columns
     'Right one',
     'Right two',
     'Right three',
+  ]);
+});
+it('splits large gaps before page-centre column ordering and joins superscripts with whitespace items', () => {
+  const item = (str: string, x: number, y: number, width: number, height = 10) => ({
+    str,
+    width,
+    height,
+    transform: [1, 0, 0, height, x, 200 - y],
+  });
+  const lines = itemsToLines(
+    [
+      item('Wide title', 20, 10, 360),
+      item('Left', 20, 40, 50),
+      item('Right', 240, 40, 50),
+      item('Left next', 20, 60, 50),
+      item('Right next', 240, 60, 50),
+      item('43', 20, 80, 12),
+      item(' ', 32, 80, 1),
+      item('rd', 33, 76, 5, 6),
+      item(' ', 38, 76, 3, 6),
+      item(' meeting', 41, 80, 50),
+      item('Right last', 240, 80, 50),
+    ],
+    200,
+    400,
+  );
+  expect(lines.map((line) => line.text)).toEqual([
+    'Wide title',
+    'Left',
+    'Left next',
+    '43rd meeting',
+    'Right',
+    'Right next',
+    'Right last',
+  ]);
+  expect(lines.map((line) => line.column)).toEqual([
+    'full',
+    'left',
+    'left',
+    'left',
+    'right',
+    'right',
+    'right',
   ]);
 });

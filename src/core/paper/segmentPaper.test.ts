@@ -170,3 +170,31 @@ it('groups hanging and numbered references and assigns appendix roles while reje
     '[3] A numbered entry. Its continuation.',
   ]);
 });
+it('treats PDF prompt text and reference continuations as text while joining indented heading wraps', async () => {
+  const base = { source: 'pdf' as const, height: 10, pageStart: 1, column: 'right' as const };
+  const paper = await segmentPaper([
+    { ...base, x: 200, text: '1 Introduction' },
+    { ...base, x: 200, text: '# SAMPLE PROMPT:' },
+    { ...base, x: 200, text: 'SYNTHETIC INSTRUCTION' },
+    { ...base, x: 200, text: '2 Results: Synthetic analysis is' },
+    { ...base, x: 220, text: 'useful' },
+    { ...base, x: 200, text: 'References' },
+    { ...base, x: 200, text: 'Stone, A. Synthetic title.' },
+    { ...base, x: 210, text: 'A. Fictional continuation. In Proceedings' },
+    { ...base, x: 210, text: 'of an invented event.' },
+    { ...base, x: 200, text: 'Vale, B. Another synthetic entry.' },
+    { ...base, x: 200, text: 'A Limitations', height: 14 },
+    { ...base, x: 200, text: 'B.1 Further analysis', height: 14 },
+  ]);
+  expect(paper.sections.map((s) => s.heading)).toEqual([
+    'Introduction',
+    'Results: Synthetic analysis is useful',
+    'References',
+    'Limitations',
+    'Further analysis',
+  ]);
+  expect(paper.paragraphs.filter((p) => p.kind === 'reference').map((p) => p.text)).toEqual([
+    'Stone, A. Synthetic title. A. Fictional continuation. In Proceedings of an invented event.',
+    'Vale, B. Another synthetic entry.',
+  ]);
+});

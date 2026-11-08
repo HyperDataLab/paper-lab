@@ -13,6 +13,7 @@ export interface PaperLine {
   columnEnd?: number;
   monospace?: boolean;
   boxed?: boolean;
+  source?: 'pdf';
 }
 const roles: [RegExp, Section['role']][] = [
   [/^abstract\b/i, 'abstract'],
@@ -108,6 +109,11 @@ export async function segmentPaper(input: string | PaperLine[]) {
   let outline: number[] = [];
   let afterReferences = false;
   const referenceStarts = new Map<string, number>();
+  for (const line of lines) {
+    if (line.x === undefined) continue;
+    const key = `${line.pageStart ?? ''}:${line.column ?? ''}`;
+    referenceStarts.set(key, Math.min(referenceStarts.get(key) ?? line.x, line.x));
+  }
   async function flush() {
     if (!buffer.length || !current) return;
     let text = buffer[0] ?? '';
@@ -134,6 +140,7 @@ export async function segmentPaper(input: string | PaperLine[]) {
       continue;
     }
     if (/^\d{1,4}$|^page\s+\d+(?:\s+of\s+\d+)?$|^arxiv:\s*\d/i.test(text)) continue;
+    if (line.source === 'pdf' && /^[-+]?\d\.\d$/.test(text)) continue;
     const footnote =
       /^(?:proceedings of the|copyright\s+\d{4}|correspondence(?:\s+to)?\s*:|\*?corresponding author\b)/i.test(
         text,
@@ -150,9 +157,9 @@ export async function segmentPaper(input: string | PaperLine[]) {
         Math.abs(line.height - footnoteHeight) <= footnoteHeight * 0.15) &&
       (median === undefined || line.height === undefined || line.height <= median);
     const appendix = afterReferences
-      ? /^([A-Z])(?:\.(\d+(?:\.\d+)*))?\.?\s+([A-Z][^{}]*[^\s:])$/.exec(text)
+      ? /^([A-Z])(?:\.(\d+(?:\.\d+)*))?\s+([A-Z][^{}]*[^\s:])$/.exec(text)
       : null;
-    const found =
+    let found =
       footnote || continuation || line.monospace || line.boxed || /^\|.*\|$/.test(text)
         ? null
         : appendix
@@ -163,6 +170,23 @@ export async function segmentPaper(input: string | PaperLine[]) {
               numbers: null,
             }
           : heading(text, line.height, median);
+    if (
+      line.source === 'pdf' &&
+      (/^#/.test(text) ||
+        (!roles.some(([pattern]) => pattern.test(text)) &&
+          /^[A-Z\d\s&:.,!?'-]+$/.test(text) &&
+          text.trim().split(/\s+/).length >= 2))
+    )
+      found = null;
+    if (
+      current?.role === 'references' &&
+      !appendix &&
+      !/^(?:\d+(?:\.\d+)*\.?\s+)?(?:abstract|introduction|methods?|results?|discussion|conclusions?|references|bibliography|appendix|acknowledg(?:e)?ments?)\b/i.test(
+        text,
+      ) &&
+      !/^\d+(?:\.\d+)*\.?\s+[A-Z]/.test(text)
+    )
+      found = null;
     if (found?.numbers) {
       const nums = found.numbers;
       const depth = nums.length;
@@ -185,7 +209,8 @@ export async function segmentPaper(input: string | PaperLine[]) {
         ((line.x === undefined && next.x === undefined) ||
           (line.x !== undefined &&
             next.x !== undefined &&
-            Math.abs(line.x - next.x) <= Math.max(6, line.height ?? 10) &&
+            Math.abs(line.x - next.x) <=
+              Math.max(6, (line.height ?? 10) * (line.source === 'pdf' ? 2.5 : 1)) &&
             line.column === next.column &&
             (line.columnStart === undefined || next.x >= line.columnStart - 2) &&
             (line.columnEnd === undefined || (next.end !== undefined && next.end <= line.columnEnd + 2))));
@@ -201,10 +226,12 @@ export async function segmentPaper(input: string | PaperLine[]) {
         !next.monospace &&
         !next.boxed &&
         !/[{}]/.test(nextText) &&
+        !(afterReferences && /^[A-Z](?:\.\d+(?:\.\d+)*)?\s+[A-Z]/.test(nextText)) &&
         /^[A-Za-z]/.test(nextText) &&
         !/[-.!?:;,]$/.test(nextText) &&
         !/[()]/.test(nextText) &&
-        !/\b(?:is|are|was|were|has|have|shows?|suggests?|indicates?|demonstrates?)\b/i.test(nextText) &&
+        (line.source === 'pdf' ||
+          !/\b(?:is|are|was|were|has|have|shows?|suggests?|indicates?|demonstrates?)\b/i.test(nextText)) &&
         !heading(nextText, next.height, median) &&
         (sameHeight || (line.height === undefined && next.height === undefined && /^[a-z]/.test(nextText)))
       ) {
@@ -259,8 +286,10 @@ export async function segmentPaper(input: string | PaperLine[]) {
     const namedReference = /^(?:\[\d+\]|[A-Z][\p{L}'’-]+,\s*(?:[A-Z]\.)+)/u.test(text);
     const newReference =
       nextKind === 'reference' &&
-      (namedReference ||
-        (line.x !== undefined && referenceStart !== undefined && line.x <= referenceStart + 2));
+      (/^\[\d+\]/.test(text) ||
+        (line.x === undefined
+          ? namedReference
+          : referenceStart !== undefined && line.x <= referenceStart + 2));
     if (
       nextKind === 'reference' &&
       line.x !== undefined &&
