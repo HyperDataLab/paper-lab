@@ -14,6 +14,7 @@ const steps: { id: BatchStep; label: string }[] = [
   { id: 'judge', label: 'Đánh giá ngữ cảnh' },
   { id: 'structure', label: 'Cấu trúc đoạn' },
   { id: 'score', label: 'Chấm điểm' },
+  { id: 'transitions', label: 'Chuyển đoạn' },
 ];
 export function BatchPanel({ paper, batch }: { paper: Paper; batch: ReturnType<typeof useBatchRun> }) {
   const [sections, setSections] = useState<string[]>([]);
@@ -72,6 +73,9 @@ export function BatchPanel({ paper, batch }: { paper: Paper; batch: ReturnType<t
       <p>
         Ước tính ~{plan.total} lượt gọi AI (giới hạn {budget})
       </p>
+      {selectedSteps.includes('transitions') && (
+        <p>Chuyển đoạn: ~{plan.calls.transitions ?? 0} lượt gọi AI</p>
+      )}
       {!plan.withinBudget && <p role="alert">Ước tính vượt giới hạn lượt gọi.</p>}
       <Button
         disabled={running || !plan.withinBudget || !plan.paragraphs.length || !selectedSteps.length}
