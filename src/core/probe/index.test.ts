@@ -35,25 +35,35 @@ function score(value: number, applicable = true): Scores {
 describe('P6 probe', () => {
   it('P6 selects deterministically across sections and refuses fewer than three eligible bodies', async () => {
     const { paper, analyses } = await probeFixture();
-    const chosen = selectProbeParagraphs(paper, analyses, 3, 'seed');
-    expect(chosen).toEqual(selectProbeParagraphs(paper, analyses, 3, 'seed'));
+    const chosen = selectProbeParagraphs(paper, analyses, 'test', 3, 'seed');
+    expect(chosen).toEqual(selectProbeParagraphs(paper, analyses, 'test', 3, 'seed'));
     expect(new Set(chosen.map((p) => p.sectionId)).size).toBe(3);
-    expect(selectProbeParagraphs(paper, analyses)).toHaveLength(5);
-    expect(selectProbeParagraphs(paper, analyses, 10)).toHaveLength(6);
-    expect(() => selectProbeParagraphs(paper, analyses.slice(0, 2))).toThrow(
+    expect(selectProbeParagraphs(paper, analyses, 'test')).toHaveLength(5);
+    expect(selectProbeParagraphs(paper, analyses, 'test', 10)).toHaveLength(6);
+    expect(() => selectProbeParagraphs(paper, analyses.slice(0, 2), 'test')).toThrow(
       'Cần chấm điểm ít nhất 3 đoạn trước',
     );
-    expect(() => selectProbeParagraphs(paper, analyses, 2)).toThrow('sample size');
-    expect(() => selectProbeParagraphs(paper, analyses, 11)).toThrow('sample size');
-    expect(() => selectProbeParagraphs(paper, analyses, 3.5)).toThrow('sample size');
+    expect(() => selectProbeParagraphs(paper, analyses, 'test', 2)).toThrow('sample size');
+    expect(() => selectProbeParagraphs(paper, analyses, 'test', 11)).toThrow('sample size');
+    expect(() => selectProbeParagraphs(paper, analyses, 'test', 3.5)).toThrow('sample size');
     const altered = structuredClone(paper);
     const firstParagraph = altered.paragraphs[0];
     if (!firstParagraph) throw new Error('fixture');
     firstParagraph.kind = 'caption';
-    expect(selectProbeParagraphs(altered, analyses, 10)).toHaveLength(5);
+    expect(selectProbeParagraphs(altered, analyses, 'test', 10)).toHaveLength(5);
     firstParagraph.kind = 'body';
     firstParagraph.textHash = 'changed';
-    expect(selectProbeParagraphs(altered, analyses, 10)).toHaveLength(5);
+    expect(selectProbeParagraphs(altered, analyses, 'test', 10)).toHaveLength(5);
+  });
+  it('P6 requires three compatible scorer versions and models', async () => {
+    const { paper, analyses } = await probeFixture();
+    analyses.slice(2).forEach((a, i) => {
+      if (i % 2) a.versions.scoringModel = 'other';
+      else a.versions.scoringPrompt = 'old';
+    });
+    expect(() => selectProbeParagraphs(paper, analyses, 'test')).toThrow(
+      'Cần chấm điểm ít nhất 3 đoạn trước',
+    );
   });
   it('P6 estimates four requests and an extra judgement when present', async () => {
     const { analyses } = await probeFixture();
@@ -118,6 +128,25 @@ Return the rewritten paragraph only.`);
     const resultByDimension = summariseProbe([perDimension, perDimension, perDimension]);
     expect(resultByDimension.verdict).toBe('style_sensitive');
     expect(resultByDimension.dimensions.sentence_structure?.meanDelta).toBe(-10);
+  });
+  it('P6 requires three comparable observations per metric for a verdict or sensitivity', () => {
+    const noOverall = (value: Scores) => ({ ...value, overall: null });
+    const comparable = {
+      original: noOverall(score(50)),
+      rewritten: noOverall(score(90)),
+      baseline: noOverall(score(50)),
+    };
+    const missing = { original: score(50, false), rewritten: score(90), baseline: score(50) };
+    expect(summariseProbe([comparable, comparable, missing]).verdict).toBe('insufficient');
+    const other = (value: number) => ({
+      ...noOverall(score(value)),
+      dimensions: score(value).dimensions.map((dimension) => ({
+        ...dimension,
+        id: 'verb_word_choice' as const,
+      })),
+    });
+    const stable = { original: other(50), rewritten: other(50), baseline: other(50) };
+    expect(summariseProbe([comparable, comparable, stable, stable, stable]).verdict).toBe('stable');
   });
 });
 
