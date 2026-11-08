@@ -28,10 +28,22 @@ export async function rebuildReviewRecord(
   const parsed = PaperReviewsRecordSchema.parse(input);
   if (parsed.paperId !== paper.id) throw new Error('Review paper mismatch');
   const allNgrams = new Map<string, { hash: string; paperId: string }>();
+  const legacyIds = new Map<string, Set<string>>();
   const runs: PaperReviewRun[] = [];
   for (const run of parsed.runs) {
     const reviews = run.reviews.map((review) => anchorReview(review, paper, run.sectionIds));
     const merged = mergePanel(reviews);
+    for (const point of merged) {
+      const legacy = JSON.stringify([
+        point.lenses,
+        point.anchor.paragraphId,
+        point.anchor.start,
+        point.anchor.end,
+      ]);
+      const ids = legacyIds.get(legacy) ?? new Set<string>();
+      ids.add(point.id);
+      legacyIds.set(legacy, ids);
+    }
     const templates = await templatePhrases(reviews, paper.id, previous);
     for (const item of templates.ngrams) allNgrams.set(item.hash, ReviewNgramSchema.parse(item));
     runs.push(
@@ -48,7 +60,14 @@ export async function rebuildReviewRecord(
       }),
     );
   }
-  return { record: PaperReviewsRecordSchema.parse({ ...parsed, runs }), ngrams: [...allNgrams.values()] };
+  const decisions = parsed.decisions.map((decision) => {
+    const ids = legacyIds.get(decision.pointId);
+    return ids?.size === 1 ? { ...decision, pointId: [...ids][0] } : decision;
+  });
+  return {
+    record: PaperReviewsRecordSchema.parse({ ...parsed, runs, decisions }),
+    ngrams: [...allNgrams.values()],
+  };
 }
 
 export function createPaperReviewsRepository(

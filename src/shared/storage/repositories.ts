@@ -694,17 +694,29 @@ export function createRepositories(
       const ngrams = await db.reviewNgrams.toArray();
       const preparedReviews = new Map<
         string,
-        { paper: Paper; rebuilt: Awaited<ReturnType<typeof rebuildReviewRecord>> }
+        {
+          paper: Paper;
+          previousUpdatedAt: string | undefined;
+          rebuilt: Awaited<ReturnType<typeof rebuildReviewRecord>>;
+        }
       >();
       for (const record of plan.paperReviews) {
         const paper =
           [...plan.papersToInsert, ...plan.papersToUpdate].find((p) => p.id === record.paperId) ??
           (await papers.get(record.paperId));
-        if (paper)
+        const existing = await paperReviews.get(record.paperId);
+        if (paper && (!existing || record.updatedAt > existing.updatedAt))
           preparedReviews.set(record.paperId, {
             paper,
-            rebuilt: await rebuildReviewRecord(paper, record, ngrams),
+            previousUpdatedAt: existing?.updatedAt,
+            rebuilt: await rebuildReviewRecord(paper, record, []),
           });
+      }
+      const corpus = ngrams.filter((item) => !preparedReviews.has(item.paperId));
+      for (const prepared of preparedReviews.values()) corpus.push(...prepared.rebuilt.ngrams);
+      for (const [paperId, prepared] of preparedReviews) {
+        const record = plan.paperReviews.find((item) => item.paperId === paperId);
+        if (record) prepared.rebuilt = await rebuildReviewRecord(prepared.paper, record, corpus);
       }
       await db.transaction(
         'rw',
@@ -839,8 +851,10 @@ export function createRepositories(
             const paper = await papers.get(record.paperId);
             if (!paper) continue;
             const existing = await paperReviews.get(record.paperId);
+            const prepared = preparedReviews.get(record.paperId);
+            if (prepared && prepared.previousUpdatedAt !== existing?.updatedAt)
+              throw new Error('Review changed; retry');
             if (!existing || record.updatedAt > existing.updatedAt) {
-              const prepared = preparedReviews.get(record.paperId);
               if (!prepared || JSON.stringify(prepared.paper.paragraphs) !== JSON.stringify(paper.paragraphs))
                 throw new Error('Paper changed');
               const rebuilt = prepared.rebuilt;

@@ -160,3 +160,97 @@ it('P5 skipping notes reveals results and unanchored points cannot be reviewed',
   expect((await repo.paperReviews.getVisible(paper.id))?.runs).toHaveLength(1);
   await expect(repo.paperReviews.review(paper.id, 'unanchored', 'confirmed_by_human')).rejects.toThrow();
 });
+it('P5 imports four reviewed papers as one corpus and flags phrases from three other papers', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const source = createRepositories(createDb(`review-corpus-source-${crypto.randomUUID()}`));
+  const papers: Paper[] = [];
+  for (let i = 0; i < 4; i++) {
+    const { paper, run } = fixture();
+    papers.push(paper);
+    await source.papers.create(paper);
+    await source.paperReviews.saveRun(paper.id, run);
+  }
+  const data = await source.transfer.exportAll('test');
+  const subsetIds = new Set(papers.slice(0, 3).map((paper) => paper.id));
+  const subset = {
+    ...data,
+    papers: data.papers.filter((paper) => subsetIds.has(paper.id)),
+    paperReviews: data.paperReviews.filter((record) => subsetIds.has(record.paperId)),
+  };
+  const three = createRepositories(createDb(`review-three-${crypto.randomUUID()}`));
+  const threePlan = await three.transfer.previewImport(subset);
+  if (!threePlan.ok) throw new Error(threePlan.error);
+  await three.transfer.applyImport(threePlan);
+  for (const paper of papers.slice(0, 3))
+    expect((await three.paperReviews.get(paper.id))?.runs[0]?.metrics.templates).toEqual([]);
+  const destDb = createDb(`review-corpus-dest-${crypto.randomUUID()}`);
+  const dest = createRepositories(destDb);
+  const plan = await dest.transfer.previewImport(data);
+  if (!plan.ok) throw new Error(plan.error);
+  await dest.transfer.applyImport(plan);
+  for (const paper of papers) {
+    const flags = (await dest.paperReviews.get(paper.id))?.runs[0]?.metrics.templates ?? [];
+    expect(flags.some((item) => item.phrase === 'cần mô tả chi tiết hơn về')).toBe(true);
+  }
+  expect(
+    (await destDb.reviewNgrams.toArray()).every(
+      (item) => Object.keys(item).sort().join(',') === 'hash,paperId',
+    ),
+  ).toBe(true);
+});
+it('P5 migrates an unambiguous old decision id when a review is rebuilt', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const source = createRepositories(createDb(`review-old-id-${crypto.randomUUID()}`));
+  const { paper, run } = fixture();
+  await source.papers.create(paper);
+  const saved = await source.paperReviews.saveRun(paper.id, run);
+  const point = saved.runs[0]?.merged[0];
+  if (!point) throw new Error('missing point');
+  await source.paperReviews.saveNotes(paper.id, '', true);
+  await source.paperReviews.review(paper.id, point.id, 'confirmed_by_human');
+  const data = await source.transfer.exportAll('test');
+  const record = data.paperReviews[0];
+  if (!record || !record.decisions[0]) throw new Error('missing decision');
+  record.decisions[0].pointId = JSON.stringify([
+    point.lenses,
+    point.anchor.paragraphId,
+    point.anchor.start,
+    point.anchor.end,
+  ]);
+  const dest = createRepositories(createDb(`review-old-id-dest-${crypto.randomUUID()}`));
+  const plan = await dest.transfer.previewImport(data);
+  if (!plan.ok) throw new Error(plan.error);
+  await dest.transfer.applyImport(plan);
+  expect((await dest.paperReviews.get(paper.id))?.decisions[0]?.pointId).toBe(point.id);
+});
+it('P5 preserves independent decisions for points from the same lens and quotation across reruns', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const repo = createRepositories(createDb(`review-distinct-${crypto.randomUUID()}`));
+  const { paper, run } = fixture();
+  const review = run.reviews[0];
+  const point = review?.points[0];
+  if (!review || !point) throw new Error('missing fixture');
+  const reviews = [{ ...review, points: [point, { ...point, point: 'Một nhận xét khác' }] }];
+  const input = { ...run, reviews, merged: mergePanel(reviews) };
+  await repo.papers.create(paper);
+  const saved = await repo.paperReviews.saveRun(paper.id, input);
+  await repo.paperReviews.saveNotes(paper.id, '', true);
+  const points = saved.runs[0]?.merged ?? [];
+  const first = points[0],
+    second = points[1];
+  if (!first || !second) throw new Error('missing points');
+  await repo.paperReviews.review(paper.id, first.id, 'confirmed_by_human');
+  await repo.paperReviews.review(paper.id, second.id, 'dismissed_by_human');
+  const rerun = await repo.paperReviews.saveRun(paper.id, {
+    ...input,
+    id: crypto.randomUUID(),
+    reviews: [{ ...review, points: [...reviews[0]!.points].reverse() }],
+  });
+  expect(rerun.decisions).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ pointId: first.id, status: 'confirmed_by_human' }),
+      expect.objectContaining({ pointId: second.id, status: 'dismissed_by_human' }),
+    ]),
+  );
+  expect(rerun.runs[1]?.merged.map((item) => item.id)).toEqual(points.map((item) => item.id));
+});

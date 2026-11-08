@@ -61,6 +61,15 @@ function overlap(a: string, b: string) {
     y = new Set(tokens(b));
   return Math.min(x.size, y.size) ? [...x].filter((t) => y.has(t)).length / Math.min(x.size, y.size) : 0;
 }
+function pointDiscriminator(point: AnchoredPoint) {
+  const text = point.point.normalize('NFC').toLowerCase().trim().replace(/\s+/gu, ' ');
+  let hash = 14695981039346656037n;
+  for (const char of text) {
+    hash ^= BigInt(char.codePointAt(0) ?? 0);
+    hash = BigInt.asUintN(64, hash * 1099511628211n);
+  }
+  return [point.lens, point.kind, point.dimension, hash.toString(16).padStart(16, '0')];
+}
 export type MergedPoint = {
   id: string;
   lenses: Lens[];
@@ -81,20 +90,19 @@ export function mergePanel(reviews: AnchoredReview[]): MergedPoint[] {
         a.point.localeCompare(b.point),
     );
   for (const point of points) {
-    const matching = groups.filter((g) =>
-      g.some(
-        (p) =>
-          p.lens !== point.lens &&
-          p.anchor.paragraphId === point.anchor.paragraphId &&
-          ((p.anchor.start < point.anchor.end && point.anchor.start < p.anchor.end) ||
-            overlap(p.quote, point.quote) >= 0.6),
-      ),
+    const matching = groups.find(
+      (g) =>
+        !g.some((p) => p.lens === point.lens) &&
+        g.some(
+          (p) =>
+            p.lens !== point.lens &&
+            p.anchor.paragraphId === point.anchor.paragraphId &&
+            ((p.anchor.start < point.anchor.end && point.anchor.start < p.anchor.end) ||
+              overlap(p.quote, point.quote) >= 0.6),
+        ),
     );
-    if (matching.length) {
-      const combined = [point, ...matching.flat()];
-      for (const group of matching) groups.splice(groups.indexOf(group), 1);
-      groups.push(combined);
-    } else groups.push([point]);
+    if (matching) matching.push(point);
+    else groups.push([point]);
   }
   return groups
     .map((wordings) => {
@@ -113,7 +121,13 @@ export function mergePanel(reviews: AnchoredReview[]): MergedPoint[] {
         (['major', 'moderate', 'minor'] as const).find((s) => wordings.some((p) => p.severity === s)) ??
         'minor';
       return {
-        id: JSON.stringify([lenses, anchor.paragraphId, anchor.start, anchor.end]),
+        id: JSON.stringify([
+          lenses,
+          anchor.paragraphId,
+          anchor.start,
+          anchor.end,
+          wordings.map(pointDiscriminator).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+        ]),
         lenses,
         anchor,
         severity,

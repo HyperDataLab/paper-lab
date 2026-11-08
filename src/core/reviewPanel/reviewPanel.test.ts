@@ -111,6 +111,30 @@ describe('P5 review panel', () => {
     expect(reviewRevealed(notes)).toBe(true);
     expect(reviewRevealed(null)).toBe(false);
   });
+  it('P5 gives same-lens points at one span distinct stable decision ids, even with another lens', () => {
+    const first = output.points[0];
+    if (!first) throw new Error('Missing point');
+    const points = [
+      first,
+      { ...first, point: 'Một nhận xét khác' },
+      { ...first, kind: 'question' as const },
+      { ...first, dimension: 'clarity' as const },
+    ];
+    const review = anchorReview({ ...output, points }, paper, ['s']);
+    const other = anchorReview({ ...output, lens: 'clarity_editor' }, paper, ['s']);
+    const merged = mergePanel([review, other]);
+    expect(merged).toHaveLength(4);
+    expect(new Set(merged.map((point) => point.id)).size).toBe(4);
+    const revised = anchorReview(
+      {
+        ...output,
+        points: [...points].reverse().map((p) => ({ ...p, point: `  ${p.point.toUpperCase()}  ` })),
+      },
+      paper,
+      ['s'],
+    );
+    expect(mergePanel([other, revised]).map((point) => point.id)).toEqual(merged.map((point) => point.id));
+  });
   it('P5 flags phrases only after three other papers and stores hashes', async () => {
     const review = anchorReview(output, paper, ['s']);
     const initial = await templatePhrases([review], 'a', []);
