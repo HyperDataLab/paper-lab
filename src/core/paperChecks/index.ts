@@ -1,10 +1,11 @@
 import type { Paper, PaperCheckReport } from '../schemas';
 import { validateLocations } from './common';
 import { citationsReferences, figuresTables } from './references';
-import { acronyms, numbersConsistency, claimStrengthDrift, unsupportedClaims } from './language';
+import { acronyms } from './acronyms';
+import { numbersConsistency, claimStrengthDrift, unsupportedClaims } from './language';
 
 export { validateLocations } from './common';
-export { IGNORED_ACRONYMS } from './language';
+export { IGNORED_ACRONYMS } from './acronyms';
 export function runPaperChecks(paper: Paper, now = new Date()): PaperCheckReport {
   let droppedLocations = 0;
   const checks = [

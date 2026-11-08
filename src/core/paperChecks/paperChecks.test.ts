@@ -27,6 +27,103 @@ function paper(
 }
 const check = (p: Paper, id: string) => runPaperChecks(p, new Date(at)).checks.find((c) => c.id === id);
 describe('P4 citations_references', () => {
+  it('P4 finds a surname and year across interrupted reference lines and skips incomplete unused entries', () => {
+    const p = paper([
+      ['introduction', 'Earlier work (Álvarez, 2021a) provides context.'],
+      ['references', 'Baker, A., Cardenas, L., and Alvarez, Q.,', 'reference'],
+      ['introduction', 'An unrelated body line is interleaved.'],
+      ['references', 'Diaz, R., and Evans, T. Synthetic work on classification.', 'reference'],
+      ['references', 'An Example Journal, volume 8, 2021a. Additional details follow.', 'reference'],
+    ]);
+    const first = p.paragraphs[1];
+    if (!first) throw new Error('Missing reference');
+    for (const paragraph of p.paragraphs.filter((paragraph) => paragraph.kind === 'reference'))
+      paragraph.sectionId = first.sectionId;
+    expect(check(p, 'citations_references')?.findings).toEqual([]);
+  });
+  it('P4 fallback requires surname boundaries, matching suffix and a year within 400 characters', () => {
+    const atLimit = paper([
+      ['introduction', 'See (Álvarez, 2021a).'],
+      ['references', `Names include Alvarez${' '.repeat(400)}2021a.`, 'reference'],
+    ]);
+    expect(check(atLimit, 'citations_references')?.findings.some((f) => f.id.includes(':missing:'))).toBe(
+      false,
+    );
+    for (const reference of [
+      'Alvarezson, A. A report from 2021a.',
+      `Citation text names Alvarez ${'x'.repeat(401)} 2021a.`,
+      'Alvarez, A. A report from 2021b.',
+    ]) {
+      const p = paper([
+        ['introduction', 'See (Álvarez, 2021a).'],
+        ['references', reference, 'reference'],
+      ]);
+      expect(check(p, 'citations_references')?.findings.some((f) => f.id.includes(':missing:'))).toBe(true);
+    }
+  });
+  it('P4 only reports unused references for clean author-year entries', () => {
+    const p = paper([
+      ['introduction', 'See (Rivera, 2024).'],
+      ['references', 'Rivera, T. An example article, 2024.', 'reference'],
+      ['references', 'Kim, A. Another example article, 2020.', 'reference'],
+      ['references', 'Unfinished line without a publication year', 'reference'],
+      ['references', 'A stray continuation with 2021.', 'reference'],
+    ]);
+    const result = check(p, 'citations_references');
+    expect(result?.findings).toHaveLength(1);
+    expect(result?.findings[0]?.locations[0]?.paragraphId).toBe('p2');
+  });
+  it('P4 matches realistic reference entries, continued entries, suffixes and author separators', () => {
+    const p = paper([
+      [
+        'introduction',
+        'Prior work (Álvarez, 2021; Chen et al., 2023a; Dubois & Miller, 2018; Patel and Wu, 2017) agrees.',
+      ],
+      [
+        'references',
+        'Alvarez, R. L. A study of review practices. Journal of Testing, 15:40–48, 2021.',
+        'reference',
+      ],
+      ['references', 'Chen, H., Singh, P., and Wang, T. Measuring scientific reports.', 'reference'],
+      ['references', 'Proceedings of the Example Conference, 2023a.', 'reference'],
+      ['references', 'Dubois, M., and Miller, R. A synthetic analysis. Example Journal, 2018.', 'reference'],
+      ['references', 'Patel, K., and Wu, Y. A separate result. Example Press, 2017.', 'reference'],
+    ]);
+    const refSection = p.paragraphs[1]?.sectionId;
+    if (!refSection) throw new Error('Missing references');
+    for (const paragraph of p.paragraphs.slice(2)) paragraph.sectionId = refSection;
+    const result = check(p, 'citations_references');
+    expect(result?.status).toBe('pass');
+    expect(result?.findings).toEqual([]);
+    expect(result?.summary).toBe('0 mục cần xem lại.');
+  });
+  it('P4 counts bounded numeric-gap findings instead of expanding large reference numbers', () => {
+    const result = check(
+      paper([
+        ['introduction', 'The data are described in [4000000].'],
+        ['references', '[4000000] Rivera, A. A synthetic article. Example Journal, 2024.', 'reference'],
+      ]),
+      'citations_references',
+    );
+    expect(result?.findings).toHaveLength(1);
+    expect(result?.findings[0]?.message).toContain('1–3999999');
+    expect(result?.summary).toBe(`${result?.findings.length} mục cần xem lại.`);
+  });
+  it('P4 keeps suffix letters distinct and reports unused split references once', () => {
+    const p = paper([
+      ['introduction', 'The method follows (Nguyen et al., 2022b).'],
+      ['references', 'Nguyen, Q., and Tran, H. A synthetic title.', 'reference'],
+      ['references', 'Example proceedings, 2022a.', 'reference'],
+    ]);
+    const first = p.paragraphs[1];
+    const continuation = p.paragraphs[2];
+    if (!first || !continuation) throw new Error('Missing references');
+    continuation.sectionId = first.sectionId;
+    const result = check(p, 'citations_references');
+    expect(result?.findings).toHaveLength(2);
+    expect(result?.findings[1]?.locations).toHaveLength(2);
+    expect(result?.summary).toBe('2 mục cần xem lại.');
+  });
   it('matches ranges and reports missing and unused entries', () => {
     const p = paper([
       ['introduction', 'See [1–3].'],
@@ -35,7 +132,7 @@ describe('P4 citations_references', () => {
       ['references', '[4] Park, 2021.', 'reference'],
     ]);
     expect(check(p, 'citations_references')?.status).toBe('fail');
-    expect(check(p, 'citations_references')?.findings.length).toBeGreaterThanOrEqual(3);
+    expect(check(p, 'citations_references')?.findings.length).toBeGreaterThanOrEqual(2);
     expect(
       check(
         paper([
@@ -85,6 +182,49 @@ describe('P4 figures_tables', () => {
   });
 });
 describe('P4 acronyms', () => {
+  it('P4 skips lowercase words, uppercase lines and model names without suppressing real acronyms', () => {
+    const result = check(
+      paper([
+        ['introduction', 'We use QXZ and QXZ for the measurement. The word output is ordinary language.'],
+        [
+          'appendix',
+          'ALL NEW THE NOT ONLY EXACT OUTPUT\nReturn OUTPUT and OUTPUT in the response.\nPRINT RAW TOKENS QZZ QZZ\nA model uses GPT and BERT and LLaMA and T5.',
+        ],
+      ]),
+      'acronyms',
+    );
+    expect(result?.findings).toHaveLength(1);
+    expect(result?.findings[0]?.locations[0]?.paragraphId).toBe('p0');
+    expect(result?.findings[0]?.evidence[0]).toBe('QXZ');
+  });
+  it('P4 groups repeated acronyms, ignores venues and excludes references and front matter', () => {
+    const p = paper([
+      ['title', 'ZXY ZXY'],
+      ['other', 'JKL JKL'],
+      [
+        'introduction',
+        'RFQ RFQ RFQs and ICLR AAAI NeurIPS ICML ACL EMNLP FAccT arXiv are discussed in this longer passage about scientific meetings and research.',
+      ],
+      ['introduction', 'RFQ and XYZ and ICML are discussed in additional ordinary prose.'],
+      ['references', 'Taylor, A. RFQ RFQ XYZ XYZ. Example Press, 2024.', 'reference'],
+    ]);
+    const front = p.sections[1];
+    if (!front) throw new Error('Missing front matter');
+    front.heading = 'Front matter';
+    const result = check(p, 'acronyms');
+    expect(result?.findings).toHaveLength(1);
+    expect(result?.findings[0]?.locations).toEqual([{ paragraphId: 'p2', start: 0, end: 3 }]);
+    expect(result?.findings[0]?.evidence).toContain('4 lần xuất hiện trong nội dung');
+  });
+  it('P4 emits one first-use finding even when a defined acronym is repeatedly used early', () => {
+    const result = check(
+      paper([['methods', 'RFQ and RFQ. regional frequency quotient (RFQ) was tested. RFQ.']]),
+      'acronyms',
+    );
+    expect(result?.findings).toHaveLength(1);
+    expect(result?.findings[0]?.locations[0]).toEqual({ paragraphId: 'p0', start: 0, end: 3 });
+    expect(result?.findings[0]?.evidence).toContain('4 lần xuất hiện trong nội dung');
+  });
   it('P4 reports conflicting expansions with both definition locations', () => {
     const result = check(
       paper([

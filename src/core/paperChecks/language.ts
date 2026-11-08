@@ -3,59 +3,6 @@ import { quantity, citation } from '../revision/meaningChecks';
 import { segmentSentences } from '../text/segment';
 import { finding, matches, result, role, type Located } from './common';
 
-export const IGNORED_ACRONYMS = [
-  'AI',
-  'LLM',
-  'DNA',
-  'RNA',
-  'PCR',
-  'USA',
-  'UK',
-  'EU',
-  'CI',
-  'SD',
-  'SE',
-  'ID',
-  'PDF',
-  'URL',
-];
-export function acronyms(paper: Paper) {
-  const id = 'acronyms',
-    findings: Finding[] = [];
-  const definitions = new Map<string, { expansion: string; loc: Located }>();
-  const paragraphs = paper.paragraphs.filter((p) => p.kind === 'body');
-  for (const p of paragraphs) {
-    const defs = matches(p, /\b(?:[\p{L}][\p{L}-]*\s+){1,7}\(([A-Z]{2,8})\)/gu);
-    const words = matches(p, /\b[A-Z]{2,8}\d*s?\b/gu);
-    for (const word of words) {
-      const name = word.text.replace(/s$/u, '');
-      if (IGNORED_ACRONYMS.includes(name)) continue;
-      const def = defs.find((d) => d.start <= word.start && d.end >= word.end);
-      if (def) {
-        const expansion = def.text.slice(0, def.text.lastIndexOf('(')).trim().toLowerCase();
-        const previous = definitions.get(name);
-        if (previous && previous.expansion !== expansion)
-          findings.push(
-            finding(id, `duplicate:${name}`, 'minor', 'Chữ viết tắt có các định nghĩa khác nhau.', [
-              previous.loc,
-              def,
-            ]),
-          );
-        else definitions.set(name, { expansion, loc: def });
-      } else if (!definitions.has(name))
-        findings.push(
-          finding(id, `undefined:${name}`, 'minor', 'Chữ viết tắt được dùng trước khi định nghĩa.', [word]),
-        );
-    }
-  }
-  return result(
-    id,
-    'Chữ viết tắt',
-    paragraphs.length > 0,
-    findings,
-    'Tên riêng và cách định nghĩa khác có thể bị nhận diện nhầm.',
-  );
-}
 function quantities(p: Paper['paragraphs'][number]) {
   return matches(p, quantity).filter(
     (m) =>

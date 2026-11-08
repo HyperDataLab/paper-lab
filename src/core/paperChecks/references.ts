@@ -2,11 +2,63 @@ import type { Finding, Paper } from '../schemas';
 import { finding, matches, result, role, type Located } from './common';
 
 const normalize = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+function referenceTextMatches(citationKey: string, referenceText: string) {
+  if (citationKey.startsWith('n:')) return false;
+  const [surname, year] = citationKey.split(':');
+  if (!surname || !year) return false;
+  const escaped = surname.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+  const names = new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`, 'gu');
+  const yearPattern = new RegExp(`(?<![\\p{L}\\p{N}])${year}(?![\\p{L}\\p{N}])`, 'u');
+  for (const match of referenceText.matchAll(names)) {
+    const after = referenceText.slice(match.index + match[0].length);
+    const yearMatch = yearPattern.exec(after);
+    if (yearMatch && Array.from(after.slice(0, yearMatch.index)).length <= 400) return true;
+  }
+  return false;
+}
 const authorYear =
-  /\b([\p{L}\p{M}'’]+)(?:\s+(?:et al\.|and\s+[\p{L}\p{M}'’]+|&\s*[\p{L}\p{M}'’]+))?\s*[, (]+\s*(\d{4}[a-z]?)/giu;
+  /(?<![\p{L}\p{M}])([\p{L}\p{M}'’]+)(?:\s+(?:et al\.|and\s+[\p{L}\p{M}'’]+|&\s*[\p{L}\p{M}'’]+))?\s*[, (]+\s*((?:19|20)\d{2}[a-z]?)/giu;
 function key(text: string) {
   const m = new RegExp(authorYear.source, 'iu').exec(text);
   return m ? `${normalize(m[1] ?? '')}:${m[2]?.toLowerCase()}` : '';
+}
+function referenceEntries(refs: Paper['paragraphs']) {
+  const entries: { paragraphs: Paper['paragraphs']; sectionId: string }[] = [];
+  for (const p of refs) {
+    if (!p.text.trim()) continue;
+    const start =
+      /^\s*(?:\[\d+\]|\d+[.)])\s*/u.test(p.text) ||
+      /^\s*[\p{L}\p{M}'’.-]+(?:\s+[\p{L}\p{M}'’.-]+)*,\s*\p{L}\./iu.test(p.text);
+    const previous = entries[entries.length - 1];
+    if (!previous || previous.sectionId !== p.sectionId || start)
+      entries.push({ paragraphs: [p], sectionId: p.sectionId });
+    else previous.paragraphs.push(p);
+  }
+  return entries.flatMap(({ paragraphs }, index) => {
+    const first = paragraphs[0];
+    if (!first) return [];
+    const locs = paragraphs.flatMap((p) => matches(p, /[\s\S]+/gu));
+    const text = paragraphs.map((p) => p.text).join(' ');
+    const number = /^\s*(?:\[(\d+)\]|(\d+)[.)])/u.exec(text);
+    const withoutNumber = text.replace(/^\s*(?:\[\d+\]|\d+[.)])\s*/u, '');
+    const surname = /^\s*([\p{L}\p{M}'’.-]+(?:\s+[\p{L}\p{M}'’.-]+)*),/u.exec(withoutNumber)?.[1];
+    const years = [...withoutNumber.matchAll(/(?<!\d)(?:19|20)\d{2}[a-z]?(?![\p{L}\p{N}])/giu)];
+    const year = years[years.length - 1]?.[0];
+    const authorKey =
+      surname && year
+        ? `${normalize(surname.replace(/\s+et al\.$/iu, ''))}:${year.toLowerCase()}`
+        : key(withoutNumber);
+    return [
+      {
+        keys: [...(number ? [`n:${number[1] ?? number[2]}`] : []), ...(authorKey ? [authorKey] : [])],
+        locs,
+        index,
+        clean:
+          /^\s*[\p{L}\p{M}'’.-]+(?:\s+[\p{L}\p{M}'’.-]+)*,\s*\p{L}\./u.test(text) &&
+          /(?<!\d)(?:19|20)\d{2}[a-z]?[.\s]*$/iu.test(text),
+      },
+    ];
+  });
 }
 function numbers(text: string): number[] {
   const values: number[] = [];
@@ -30,35 +82,38 @@ export function citationsReferences(paper: Paper) {
     ),
     ...matches(p, authorYear).map((m) => ({ key: key(m.text), loc: m })),
   ]);
-  const entries = refs.flatMap((p, i) => {
-    const loc = matches(p, /.+/gu)[0];
-    if (!loc) return [];
-    const number = /^\s*(?:\[(\d+)\]|(\d+)[.)])/u.exec(p.text);
-    const k = key(p.text);
-    return [{ keys: [...(number ? [`n:${number[1] ?? number[2]}`] : []), ...(k ? [k] : [])], loc, index: i }];
-  });
+  const entries = referenceEntries(refs);
+  const referenceParagraphs = refs.filter((p) => p.kind === 'reference');
+  const referenceText = normalize(
+    (referenceParagraphs.length ? referenceParagraphs : refs).map((p) => p.text).join(' '),
+  );
   const findings: Finding[] = [];
   for (const item of cited)
-    if (!entries.some((e) => e.keys.includes(item.key)))
+    if (!entries.some((e) => e.keys.includes(item.key)) && !referenceTextMatches(item.key, referenceText))
       findings.push(
         finding(id, `missing:${item.key}`, 'moderate', 'Trích dẫn chưa có tài liệu tham khảo tương ứng.', [
           item.loc,
         ]),
       );
   for (const entry of entries)
-    if (entry.keys.length && !entry.keys.some((k) => cited.some((c) => c.key === k)))
+    if (entry.clean && entry.keys.length && !entry.keys.some((k) => cited.some((c) => c.key === k)))
       findings.push(
-        finding(id, `unused:${entry.index}`, 'info', 'Tài liệu tham khảo chưa được trích dẫn.', [entry.loc]),
+        finding(id, `unused:${entry.index}`, 'info', 'Tài liệu tham khảo chưa được trích dẫn.', entry.locs),
       );
   const numeric = entries.flatMap((e) =>
     e.keys.filter((k) => k.startsWith('n:')).map((k) => Number(k.slice(2))),
   );
-  if (numeric.length)
-    for (let n = 1; n < Math.max(...numeric); n++)
-      if (!numeric.includes(n)) {
-        const loc = entries.find((e) => e.keys.includes(`n:${n + 1}`))?.loc ?? entries[0]?.loc;
-        if (loc) findings.push(finding(id, `gap:${n}`, 'minor', `Thiếu số thứ tự tài liệu ${n}.`, [loc]));
-      }
+  let previous = 0;
+  for (const n of [...new Set(numeric)].sort((a, b) => a - b)) {
+    if (n > previous + 1) {
+      const loc = entries.find((e) => e.keys.includes(`n:${n}`))?.locs[0];
+      const first = previous + 1;
+      const missing = first === n - 1 ? `${first}` : `${first}–${n - 1}`;
+      if (loc)
+        findings.push(finding(id, `gap:${missing}`, 'minor', `Thiếu số thứ tự tài liệu ${missing}.`, [loc]));
+    }
+    previous = n;
+  }
   return result(
     id,
     'Trích dẫn và tài liệu tham khảo',
