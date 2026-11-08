@@ -11,3 +11,4 @@ export * from './report';
 export * from './paper';
 export * from './paperRun';
 export * from './paperOverview';
+export * from './paperChecks';
