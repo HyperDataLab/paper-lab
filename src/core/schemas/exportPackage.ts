@@ -6,6 +6,7 @@ import { GenerationSchema } from './generation';
 import { PaperSchema } from './paper';
 import { PaperOverviewRecordSchema } from './paperOverview';
 import { PaperChecksRecordSchema } from './paperChecks';
+import { PaperReviewsRecordSchema } from './paperReview';
 export const ExportPackageSchema = z.object({
   format: z.literal('paragraph-lab-export'),
   formatVersion: z.literal(1),
@@ -18,5 +19,6 @@ export const ExportPackageSchema = z.object({
   papers: z.array(PaperSchema).default([]),
   paperOverviews: z.array(PaperOverviewRecordSchema).default([]),
   paperChecks: z.array(PaperChecksRecordSchema).default([]),
+  paperReviews: z.array(PaperReviewsRecordSchema).default([]),
 });
 export type ExportPackage = z.infer<typeof ExportPackageSchema>;

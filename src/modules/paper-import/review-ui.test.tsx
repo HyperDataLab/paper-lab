@@ -1,0 +1,183 @@
+import 'fake-indexeddb/auto';
+import { webcrypto } from 'node:crypto';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { beforeEach, expect, it, vi } from 'vitest';
+import { LENSES, LensSchema } from '@/core/prompts';
+import type { Paper } from '@/core/schemas';
+import type { LlmClient } from '@/shared/llm/client';
+import { LlmProvider } from '@/shared/llm/LlmProvider';
+import { createDb } from '@/shared/storage/db';
+import { createRepositories } from '@/shared/storage/repositories';
+import { StorageProvider } from '@/shared/storage/StorageProvider';
+import PaperMapPage from './PaperMapPage';
+import { PaperReview } from './PaperReview';
+
+beforeEach(() => {
+  vi.stubGlobal('crypto', webcrypto);
+  localStorage.clear();
+});
+async function setup(large = false, waitForAbort = false) {
+  const repo = createRepositories(createDb(`review-ui-${crypto.randomUUID()}`));
+  const at = '2026-01-01T00:00:00.000Z';
+  const paper: Paper = {
+    schemaVersion: 1,
+    id: crypto.randomUUID(),
+    title: 'Bài phản biện',
+    createdAt: at,
+    updatedAt: at,
+    source: { kind: 'text', fileName: '', pageCount: null, sha256: '' },
+    sections: [
+      { id: 's', heading: 'Methods', role: 'methods', level: 1, pageStart: null },
+      { id: 'r', heading: 'References', role: 'references', level: 1, pageStart: null },
+    ],
+    paragraphs: [
+      {
+        id: 'p',
+        sectionId: 's',
+        order: 0,
+        text: large ? 'a'.repeat(60001) : '😀 The method was described for all readers.',
+        kind: 'body',
+        pageStart: null,
+        textHash: '',
+      },
+    ],
+  };
+  await repo.papers.create(paper);
+  const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => {
+    await options.onRequest?.();
+    if (waitForAbort)
+      await new Promise<void>((_resolve, reject) => {
+        options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), {
+          once: true,
+        });
+      });
+    const lens = LensSchema.options.find((item) =>
+      options.system.includes(LENSES[item].description.replace(/\.$/u, '')),
+    );
+    return {
+      data: options.schema.parse({
+        lens,
+        summary: 'Tóm tắt mẫu',
+        points: [
+          {
+            kind: 'weakness',
+            dimension: 'soundness',
+            paragraphId: 'p',
+            quote: 'The method was described for all readers',
+            point: 'Cần giải thích phương pháp',
+            rationale: 'Thiếu chi tiết',
+            severity: 'moderate',
+            confidence: 0.8,
+          },
+        ],
+        unanchored: [{ point: 'Không có vị trí', reason: 'thiếu trích dẫn' }],
+        cannotJudge: [{ dimension: 'originality', reason: 'thiếu bối cảnh' }],
+      }),
+      meta: { model: 'fake', promptVersion: options.promptVersion, latencyMs: 1, repaired: false },
+    };
+  }) as LlmClient['completeJson'];
+  render(
+    <MemoryRouter initialEntries={[`/papers/${paper.id}`]}>
+      <StorageProvider repositories={repo}>
+        <LlmProvider innerClient={{ completeJson }}>
+          {large ? (
+            <PaperReview paper={paper} onLocation={() => {}} />
+          ) : (
+            <Routes>
+              <Route path="/papers/:id" element={<PaperMapPage />} />
+            </Routes>
+          )}
+        </LlmProvider>
+      </StorageProvider>
+    </MemoryRouter>,
+  );
+  if (!large) {
+    await screen.findByText(/The method was described/);
+    fireEvent.click(screen.getByRole('tab', { name: 'Phản biện AI' }));
+  }
+  await screen.findByLabelText('Nhận xét của bạn trước khi xem AI');
+  return { repo, paper, completeJson };
+}
+it('P5 reveals reviews after skip, filters and audits decisions, and navigates to the quote', async () => {
+  const scroll = vi.fn();
+  Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: scroll });
+  const { repo, paper, completeJson } = await setup();
+  expect(screen.getByRole('button', { name: 'Bỏ qua bước này' })).toBeInTheDocument();
+  const setupCard = screen.getByRole('heading', { name: 'Thiết lập phản biện AI' }).closest('section');
+  if (!setupCard) throw new Error('missing setup');
+  expect(within(setupCard).getByRole('checkbox', { name: /Phương pháp/ })).toBeChecked();
+  expect(within(setupCard).getByRole('checkbox', { name: /References/ })).not.toBeChecked();
+  fireEvent.click(screen.getByRole('button', { name: 'Chạy phản biện (AI)' }));
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('bản thảo');
+  expect(completeJson).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Đồng ý và tiếp tục' }));
+  await waitFor(() => expect(completeJson).toHaveBeenCalledTimes(5));
+  await waitFor(async () => expect((await repo.paperReviews.get(paper.id))?.runs).toHaveLength(1));
+  expect(screen.queryByText(/Tỷ lệ neo trích dẫn/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Bỏ qua bước này' }));
+  expect(await screen.findByText(/Tỷ lệ neo trích dẫn: 5\/10/)).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      'Phản biện AI chỉ mang tính tham khảo: không chấm điểm, không đề xuất chấp nhận hay từ chối.',
+    ),
+  ).toBeInTheDocument();
+  expect(screen.getByText(/Độ trùng ý giữa các góc nhìn/)).toBeInTheDocument();
+  expect(screen.getAllByText(/Trùng ý:/).length).toBeGreaterThan(0);
+  expect(screen.getByText(/Cụm khuôn mẫu:/)).toBeInTheDocument();
+  expect(screen.getByText(/Đồng thuận với nhận xét của bạn:/)).toBeInTheDocument();
+  expect(screen.getByText(/Model: fake/)).toHaveTextContent('paper-review-1');
+  const results = screen.getByRole('region', { name: 'Kết quả phản biện' });
+  expect(within(results).queryByText(/rating/i)).not.toBeInTheDocument();
+  expect(within(results).getByRole('heading', { name: 'Không đánh giá được' })).toBeInTheDocument();
+  const unanchored = screen.getByRole('heading', { name: 'Chưa xác định vị trí' }).closest('section');
+  if (!unanchored) throw new Error('missing section');
+  expect(within(unanchored).getAllByText(/Không có vị trí/)).toHaveLength(5);
+  expect(within(unanchored).queryByRole('button', { name: 'Xác nhận' })).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Loại nhận xét'), { target: { value: 'strength' } });
+  expect(screen.getByText('Không có nhận xét phù hợp.')).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Loại nhận xét'), { target: { value: 'weakness' } });
+  fireEvent.change(screen.getByLabelText('Khía cạnh'), { target: { value: 'clarity' } });
+  expect(screen.getByText('Không có nhận xét phù hợp.')).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Khía cạnh'), { target: { value: 'soundness' } });
+  fireEvent.change(screen.getByLabelText('Góc nhìn'), { target: { value: 'methods_skeptic' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+  await screen.findByText('Đã xác nhận');
+  fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Bỏ qua' }));
+  await screen.findByText('Đã bỏ qua');
+  fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }));
+  await waitFor(async () =>
+    expect(
+      (await repo.audit.listByAnalysis(paper.id)).items.filter((event) => event.action === 'review_point'),
+    ).toHaveLength(4),
+  );
+  fireEvent.click(screen.getByRole('button', { name: /p:.*The method/ }));
+  expect(
+    screen.getByText('The method was described for all readers', { selector: 'mark' }),
+  ).toBeInTheDocument();
+  expect(scroll).toHaveBeenCalled();
+});
+it('P5 cancels an in-flight review without saving a run', async () => {
+  const { repo, paper, completeJson } = await setup(false, true);
+  fireEvent.click(screen.getByRole('button', { name: 'Chạy phản biện (AI)' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
+  await waitFor(() => expect(completeJson).toHaveBeenCalledTimes(1));
+  fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Chạy phản biện (AI)' })).toBeEnabled());
+  expect(await repo.paperReviews.get(paper.id)).toBeUndefined();
+});
+it('P5 guards large selected sections and retains notes after save', async () => {
+  const { completeJson } = await setup(true);
+  expect(screen.getByRole('alert')).toHaveTextContent('Vui lòng chọn ít phần hơn');
+  expect(screen.getByRole('button', { name: 'Chạy phản biện (AI)' })).toBeDisabled();
+  fireEvent.change(screen.getByLabelText('Nhận xét của bạn trước khi xem AI'), {
+    target: { value: 'Nhận xét riêng' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+  await waitFor(() =>
+    expect(screen.queryByRole('button', { name: 'Bỏ qua bước này' })).not.toBeInTheDocument(),
+  );
+  expect(screen.getByLabelText('Nhận xét của bạn trước khi xem AI')).toHaveValue('Nhận xét riêng');
+  expect(completeJson).not.toHaveBeenCalled();
+});

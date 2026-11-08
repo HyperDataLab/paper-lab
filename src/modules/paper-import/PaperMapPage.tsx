@@ -23,6 +23,7 @@ import { useBatchRun } from './useBatchRun';
 import { SECTION_ROLE_LABELS } from './sectionRoles';
 import { PaperOverview } from './PaperOverview';
 import { PaperChecks } from './PaperChecks';
+import { PaperReview } from './PaperReview';
 import type { ReactNode } from 'react';
 
 function BatchWorkspace({
@@ -51,7 +52,7 @@ export default function PaperMapPage() {
   const [error, setError] = useState('');
   const [counts, setCounts] = useState<{ sentences: number; words: number } | null>(null);
   const [candidateCounts, setCandidateCounts] = useState<Record<string, number>>({});
-  const [tab, setTab] = useState<'map' | 'overview' | 'checks'>('map');
+  const [tab, setTab] = useState<'map' | 'overview' | 'checks' | 'review'>('map');
   const [filter, setFilter] = useState<string[] | null>(null);
   const [checks, setChecks] = useState<PaperChecksRecord>();
   const [highlight, setHighlight] = useState<Finding['locations'][number] | null>(null);
@@ -178,6 +179,9 @@ export default function PaperMapPage() {
               <Button role="tab" aria-selected={tab === 'checks'} onClick={() => setTab('checks')}>
                 Kiểm tra
               </Button>
+              <Button role="tab" aria-selected={tab === 'review'} onClick={() => setTab('review')}>
+                Phản biện AI
+              </Button>
             </Tabs>
             {tab === 'overview' ? (
               <PaperOverview
@@ -234,6 +238,19 @@ export default function PaperMapPage() {
                   }}
                 />
               </>
+            ) : tab === 'review' ? (
+              <PaperReview
+                paper={paper}
+                checks={checks}
+                onLocation={(location) => {
+                  const paragraph = paper.paragraphs.find((item) => item.id === location.paragraphId);
+                  if (!paragraph) return;
+                  setFilter(null);
+                  setSelected(paragraph.sectionId);
+                  setHighlight(location);
+                  setTab('map');
+                }}
+              />
             ) : (
               <>
                 <Button onClick={() => void runDetectors()}>Chạy bộ phát hiện cục bộ</Button>

@@ -7,6 +7,7 @@ import {
   type Paper,
   type PaperOverviewRecord,
   type PaperChecksRecord,
+  type PaperReviewsRecord,
 } from '../schemas';
 export function buildExportPackage(
   analyses: Analysis[],
@@ -18,6 +19,7 @@ export function buildExportPackage(
   papers: Paper[] = [],
   paperOverviews: PaperOverviewRecord[] = [],
   paperChecks: PaperChecksRecord[] = [],
+  paperReviews: PaperReviewsRecord[] = [],
 ) {
   return ExportPackageSchema.parse({
     format: 'paragraph-lab-export',
@@ -31,5 +33,6 @@ export function buildExportPackage(
     papers,
     paperOverviews,
     paperChecks,
+    paperReviews,
   });
 }

@@ -149,3 +149,10 @@ The Kiểm tra tab runs deterministic checks locally and always labels them expe
 status, false-positive risks and anchored findings; users can confirm, dismiss or undo a decision. Dismissed
 findings are collapsed, and selecting a quoted location opens the map at the highlighted passage. Tổng quan
 links to the checks and shows counts by status.
+
+The Phản biện AI tab follows Kiểm tra. It presents human notes before revealing reviews, then keeps those
+notes beside the advisory results on wide screens and stacks them on smaller screens. Setup shows the selected
+sections, reviewer lenses, character and call estimates, budget and manuscript consent. Results show anchoring,
+similarity, template and human-agreement counts, with filters and audited decisions on anchored points. Quotes
+open the paper map at the highlighted span; unanchored points remain separate and cannot be confirmed. Model and
+prompt versions accompany the advisory banner.
