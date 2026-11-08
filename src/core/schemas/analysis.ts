@@ -57,6 +57,7 @@ export const AnalysisSchema = z.object({
     structureModel: z.string().nullable().default(null),
     scoringPrompt: z.string().nullable().default(null),
     scoringModel: z.string().nullable().default(null),
+    paperStepKeys: z.record(z.string(), z.string()).default({}),
   }),
   sentenceAnnotations: z.array(SentenceAnnotationSchema),
   paragraph: ParagraphSchema.nullable().default(null),
@@ -69,6 +70,7 @@ export const AnalysisSchema = z.object({
     .discriminatedUnion('kind', [
       z.object({ kind: z.literal('generated'), generationId: z.uuid() }),
       z.object({ kind: z.literal('revision'), revisionId: z.uuid() }),
+      z.object({ kind: z.literal('paper'), paperId: z.uuid(), paragraphId: z.string() }),
     ])
     .nullable()
     .default(null),

@@ -22,6 +22,8 @@ export const AuditEventSchema = z.object({
     'accept_generation',
     'import_paper',
     'delete_paper',
+    'start_run',
+    'finish_run',
   ]),
   before: z.unknown().nullable(),
   after: z.unknown().nullable(),

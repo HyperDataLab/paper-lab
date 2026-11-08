@@ -7,3 +7,4 @@ export * from './describeError';
 export * from './llmSyntaxProvider';
 export * from './llmCandidateJudge';
 export * from './llmGenerator';
+export * from './paperParagraphAnalyzer';

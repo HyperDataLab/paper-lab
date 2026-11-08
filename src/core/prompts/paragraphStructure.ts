@@ -3,6 +3,7 @@ import { CONTINUITIES, RELATIONS, SENTENCE_ROLES, STRUCTURE_TYPES } from '../sch
 import type { SentenceAnnotation } from '../schemas/analysis';
 import type { TextAnalysis } from '../schemas/text';
 import { createOffsetIndex } from '../text/offsets';
+import type { PaperContext } from './paperContext';
 
 const confidence = z.number().min(0).max(1);
 export const ParagraphStructureOutputSchema = z.object({
@@ -35,6 +36,7 @@ export function buildParagraphStructurePrompt(
   text: TextAnalysis,
   annotations: SentenceAnnotation[],
   context: { before: string | null; after: string | null; audience: string | null },
+  paperContext?: PaperContext,
 ) {
   const offsets = createOffsetIndex(text.sourceText);
   const quote = (span: { start: number; end: number } | null | undefined) =>
@@ -48,6 +50,6 @@ export function buildParagraphStructurePrompt(
   return {
     system:
       'Classify the paragraph only, based on Schimel: TS-D is topic sentence plus development; LD is lead plus development; LDR adds resolution; OCAR is opening, challenge, action, resolution. Assign sentence roles and a score for each type; use UNKNOWN when no structure fits. Judge every adjacent pair: does the first stress connect to the next topic, and what discourse relation connects them? Use other only when you can name the relation in rationale; if no relation is defensible use none. Never return offsets or rewrite text. Write rationale and evidence in Vietnamese.',
-    user: `Context: ${context.before || context.after || context.audience ? JSON.stringify(context) : 'context not provided'}\n\n${sentences}`,
+    user: `${paperContext ? `Section role: ${paperContext.role}\nPrevious paragraph ends with: ${JSON.stringify(paperContext.previousLast)}\nNext paragraph starts with: ${JSON.stringify(paperContext.nextFirst)}\n` : ''}Context: ${context.before || context.after || context.audience ? JSON.stringify(context) : 'context not provided'}\n\n${sentences}`,
   };
 }
