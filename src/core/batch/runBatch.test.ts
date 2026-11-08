@@ -46,7 +46,10 @@ function setup(budget = 20) {
       error: null,
     })),
   };
-  const analyze = vi.fn<BatchDeps['analyze']>(async () => '00000000-0000-4000-8000-000000000003');
+  const analyze = vi.fn<BatchDeps['analyze']>(async (_p, _c, step, _id, onRequest) => {
+    if (step !== 'detectors') await onRequest?.();
+    return '00000000-0000-4000-8000-000000000003';
+  });
   const save = vi.fn<BatchDeps['save']>(async () => {});
   const sleep = vi.fn<BatchDeps['sleep']>(async () => {});
   return { run, analyze, save, sleep, deps: { paper, analyze, save, sleep, now: () => at } };
@@ -67,7 +70,8 @@ describe('P2 runBatch', () => {
   it('retries transient failures with exponential backoff', async () => {
     const t = setup();
     let attempts = 0;
-    t.analyze.mockImplementation(async (_p, _c, step) => {
+    t.analyze.mockImplementation(async (_p, _c, step, _id, onRequest) => {
+      if (step !== 'detectors') await onRequest?.();
       if (step === 'judge' && attempts++ < 2) throw { status: attempts === 1 ? 429 : 503 };
       return '00000000-0000-4000-8000-000000000003';
     });
@@ -77,8 +81,9 @@ describe('P2 runBatch', () => {
   });
   it('counts a repaired response as an extra call', async () => {
     const t = setup();
-    t.analyze.mockImplementation(async (_p, _c, step, _id, onRepair) => {
-      if (step === 'judge') onRepair?.();
+    t.analyze.mockImplementation(async (_p, _c, step, _id, onRequest) => {
+      if (step !== 'detectors') await onRequest?.();
+      if (step === 'judge') await onRequest?.();
       return '00000000-0000-4000-8000-000000000003';
     });
     const result = await runBatch(t.run, t.deps);
@@ -131,5 +136,24 @@ describe('P2 runBatch', () => {
     });
     expect(result.items.every((item) => item.status === 'cached')).toBe(true);
     expect(t.analyze).not.toHaveBeenCalled();
+  });
+  it('P2 uses neighbouring body paragraphs across section boundaries', async () => {
+    const t = setup();
+    const first = paper.paragraphs[0];
+    if (!first) throw new Error('missing paragraph');
+    const across: Paper = {
+      ...paper,
+      sections: [
+        ...paper.sections,
+        { id: 'next', heading: 'Results', role: 'results', level: 1, pageStart: null },
+      ],
+      paragraphs: [
+        ...paper.paragraphs,
+        { ...first, id: 'caption', sectionId: 'next', kind: 'caption', order: 0 },
+        { ...first, id: 'nextbody', text: 'Next section.', sectionId: 'next', order: 1 },
+      ],
+    };
+    await runBatch(t.run, { ...t.deps, paper: across });
+    expect(t.analyze.mock.calls.find(([p]) => p.id === 'p2')?.[1].nextFirst).toBe('Next section.');
   });
 });

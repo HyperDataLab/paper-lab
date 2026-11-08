@@ -7,6 +7,7 @@ import { Card } from '@/shared/ui/Card';
 import { Checkbox } from '@/shared/ui/Checkbox';
 import { TextField } from '@/shared/ui/TextField';
 import type { useBatchRun } from './useBatchRun';
+import { SECTION_ROLE_LABELS } from './sectionRoles';
 
 const steps: { id: BatchStep; label: string }[] = [
   { id: 'syntax', label: 'Phân tích câu' },
@@ -37,8 +38,11 @@ export function BatchPanel({ paper, batch }: { paper: Paper; batch: ReturnType<t
               )
             }
           >
-            {section.heading} <Badge>{section.role}</Badge> (
-            {paper.paragraphs.filter((p) => p.sectionId === section.id && p.kind === 'body').length} đoạn)
+            {section.heading}{' '}
+            <span title={section.role}>
+              <Badge>{SECTION_ROLE_LABELS[section.role]}</Badge>
+            </span>{' '}
+            ({paper.paragraphs.filter((p) => p.sectionId === section.id && p.kind === 'body').length} đoạn)
           </Checkbox>
         ))}
       </fieldset>
@@ -82,7 +86,8 @@ export function BatchPanel({ paper, batch }: { paper: Paper; batch: ReturnType<t
       )}
       {run && ['paused', 'budget_exceeded', 'failed'].includes(run.status) && (
         <>
-          <Button onClick={batch.resume}>Tiếp tục</Button> <Button onClick={batch.cancel}>Huỷ</Button>
+          <Button onClick={() => batch.resume(budget)}>Tiếp tục</Button>{' '}
+          <Button onClick={batch.cancel}>Huỷ</Button>
         </>
       )}
       {batch.error && <p role="alert">Không thể chạy phân tích: {batch.error}</p>}

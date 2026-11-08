@@ -57,6 +57,7 @@ export const AnalysisSchema = z.object({
     structureModel: z.string().nullable().default(null),
     scoringPrompt: z.string().nullable().default(null),
     scoringModel: z.string().nullable().default(null),
+    paperStepKeys: z.record(z.string(), z.string()).default({}),
   }),
   sentenceAnnotations: z.array(SentenceAnnotationSchema),
   paragraph: ParagraphSchema.nullable().default(null),

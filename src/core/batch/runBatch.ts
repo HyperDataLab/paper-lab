@@ -11,13 +11,14 @@ export type BatchDeps = {
     context: PaperContext,
     step: BatchStep | 'detectors',
     analysisId: string | null,
-    onRepair?: () => void,
+    onRequest?: () => Promise<void>,
   ) => Promise<string>;
   save: (run: PaperRun) => Promise<unknown>;
   now: () => string;
   sleep: (ms: number) => Promise<void>;
   findCached?: (paragraph: PaperParagraph, run: PaperRun) => Promise<string | null>;
 };
+export class BatchBudgetExceededError extends Error {}
 
 function retryable(error: unknown): boolean {
   if (typeof error !== 'object' || error === null) return false;
@@ -29,12 +30,16 @@ function retryable(error: unknown): boolean {
   );
 }
 
-function contextFor(paper: Paper, paragraph: PaperParagraph): PaperContext {
+export function contextFor(paper: Paper, paragraph: PaperParagraph): PaperContext {
   const section = paper.sections.find((s) => s.id === paragraph.sectionId);
   if (!section) throw new Error('Section not found');
   const neighbours = paper.paragraphs
-    .filter((p) => p.sectionId === section.id && p.kind === 'body')
-    .sort((a, b) => a.order - b.order);
+    .filter((p) => p.kind === 'body')
+    .sort(
+      (a, b) =>
+        paper.sections.findIndex((s) => s.id === a.sectionId) -
+          paper.sections.findIndex((s) => s.id === b.sectionId) || a.order - b.order,
+    );
   const index = neighbours.findIndex((p) => p.id === paragraph.id);
   const firstOrLast = (p: PaperParagraph | undefined, last: boolean) => {
     if (!p) return null;
@@ -105,24 +110,17 @@ export async function runBatch(
         }
         let attempt = 0;
         for (;;) {
-          if (run.callsUsed >= run.budget) {
-            item.status = 'pending';
-            run.status = 'budget_exceeded';
-            await checkpoint();
-            return run;
-          }
-          run.callsUsed++;
-          item.calls++;
-          await checkpoint();
           try {
             item.analysisId = await deps.analyze(
               paragraph,
               contextFor(deps.paper, paragraph),
               step,
               item.analysisId,
-              () => {
+              async () => {
+                if (run.callsUsed >= run.budget) throw new BatchBudgetExceededError();
                 run.callsUsed++;
                 item.calls++;
+                await checkpoint();
               },
             );
             break;
@@ -141,6 +139,12 @@ export async function runBatch(
       }
       item.status = 'done';
     } catch (error) {
+      if (error instanceof BatchBudgetExceededError) {
+        item.status = 'pending';
+        run.status = 'budget_exceeded';
+        await checkpoint();
+        return run;
+      }
       item.status = 'failed';
       item.error = error instanceof Error ? error.message : String(error);
     }

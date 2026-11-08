@@ -139,6 +139,42 @@ it('P2 applies paper syntax, judgement, structure and scoring to an existing ana
   });
   expect(analysis?.contextLimited).toBe(true);
   expect(completeJson).toHaveBeenCalledTimes(4);
+  const candidate = analysis?.issues[0];
+  if (!analysis || !candidate) throw new Error('missing candidate');
+  const flow = {
+    ...candidate,
+    id: 'retained-flow',
+    category: 'flow' as const,
+    status: 'dismissed_by_human' as const,
+  };
+  await repositories.analyses.update(id, { issues: [...analysis.issues, flow] });
+  await analyzer.analyze(paragraph, context, 'detectors', id);
+  await analyzer.analyze(paragraph, context, 'syntax', id);
+  const refreshed = await repositories.analyses.get(id);
+  expect(refreshed?.issues.find((issue) => issue.id === flow.id)?.status).toBe('dismissed_by_human');
+  expect(refreshed?.scores).toEqual(analysis.scores);
+  const plan = planRun(paper, { sectionIds: ['s'], steps: ['syntax'], budget: 5 });
+  const run: PaperRun = {
+    schemaVersion: 1,
+    id: crypto.randomUUID(),
+    paperId: paper.id,
+    createdAt: at,
+    updatedAt: at,
+    status: 'idle',
+    plan,
+    budget: 5,
+    callsUsed: 0,
+    promptVersions: { syntax: 'sent-syntax-paper-1' },
+    model: 'fake',
+    items: [],
+  };
+  expect(await analyzer.findCached(paragraph, run)).toBe(id);
+  expect(await analyzer.findCached(paragraph, { ...run, model: 'different' })).toBeNull();
+  const changed = createPaperParagraphAnalyzer({ completeJson }, repositories, {
+    ...paper,
+    sections: paper.sections.map((section) => ({ ...section, role: 'discussion' })),
+  });
+  expect(await changed.findCached(paragraph, run)).toBeNull();
 });
 
 it('P2 uses one syntax request for a long paragraph and reports repair', async () => {
@@ -165,12 +201,15 @@ it('P2 uses one syntax request for a long paragraph and reports repair', async (
     paragraphs: [paragraph],
   };
   const repositories = createRepositories(createDb(`p2-${crypto.randomUUID()}`));
-  const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => ({
-    data: options.schema.parse({ sentences: [] }),
-    meta: { model: 'fake', promptVersion: options.promptVersion, latencyMs: 1, repaired: true },
-  })) as LlmClient['completeJson'];
+  const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => {
+    await options.onRequest?.();
+    return {
+      data: options.schema.parse({ sentences: [] }),
+      meta: { model: 'fake', promptVersion: options.promptVersion, latencyMs: 1, repaired: true },
+    };
+  }) as LlmClient['completeJson'];
   const analyzer = createPaperParagraphAnalyzer({ completeJson }, repositories, paper);
-  const onRepair = vi.fn();
+  const onRepair = vi.fn(async () => {});
   await analyzer.analyze(
     paragraph,
     {

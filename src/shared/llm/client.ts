@@ -16,6 +16,7 @@ type Options<T> = {
   promptVersion: string;
   temperature?: number;
   signal?: AbortSignal;
+  onRequest?: () => Promise<void>;
 };
 export type LlmClient = {
   completeJson<T>(options: Options<T>): Promise<{
@@ -76,6 +77,8 @@ export function createLlmClient(config: LlmConfig, deps: Deps = defaults): LlmCl
         let response: Response | undefined;
         let body: unknown;
         for (let attempt = 0; attempt < 3; attempt++) {
+          if (options.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+          await options.onRequest?.();
           const controller = new AbortController();
           let timedOut = false;
           const timer = setTimeout(() => {

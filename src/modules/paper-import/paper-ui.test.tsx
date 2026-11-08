@@ -43,6 +43,9 @@ async function importPaper() {
 it('imports a paper, persists and audits role edits, then prefills Evaluate', async () => {
   const repo = setup();
   await importPaper();
+  expect(await screen.findByText('0 ứng viên cục bộ')).toBeInTheDocument();
+  expect(screen.getByRole('option', { name: 'Phương pháp' })).toHaveAttribute('title', 'methods');
+  fireEvent.click(screen.getByRole('button', { name: 'Chạy bộ phát hiện cục bộ' }));
   expect(screen.getByText('sec1_p01')).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Vai trò của mục'), { target: { value: 'methods' } });
   await waitFor(async () => expect((await repo.papers.list())[0]?.sections[0]?.role).toBe('methods'));
@@ -156,6 +159,75 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   render(tree(`/papers/${paper.id}`));
   expect(await screen.findByRole('button', { name: 'Tiếp tục' })).toBeInTheDocument();
   expect((await repo.paperRuns.get(run.id))?.status).toBe('paused');
+});
+
+it('P2 increases a budget on the same run when resuming', async () => {
+  localStorage.clear();
+  const repo = createRepositories(createDb(`batch-ui-${crypto.randomUUID()}`));
+  const view = render(
+    <MemoryRouter initialEntries={['/papers']}>
+      <StorageProvider repositories={repo}>
+        <LlmProvider>
+          <Routes>
+            <Route path="/papers" element={<Page />} />
+            <Route path="/papers/:id" element={<PaperMapPage />} />
+          </Routes>
+        </LlmProvider>
+      </StorageProvider>
+    </MemoryRouter>,
+  );
+  await importPaper();
+  const paper = (await repo.papers.list())[0];
+  if (!paper) throw new Error('missing paper');
+  const { planRun } = await import('@/core/batch');
+  const plan = planRun(paper, { sectionIds: [paper.sections[0]?.id ?? ''], steps: ['syntax'], budget: 0 });
+  const at = new Date().toISOString();
+  const run = await repo.paperRuns.create({
+    schemaVersion: 1,
+    id: crypto.randomUUID(),
+    paperId: paper.id,
+    createdAt: at,
+    updatedAt: at,
+    status: 'budget_exceeded',
+    plan,
+    budget: 0,
+    callsUsed: 0,
+    promptVersions: {},
+    model: 'fake',
+    items: plan.paragraphs.map((p) => ({
+      paragraphId: p.paragraphId,
+      textHash: p.textHash,
+      analysisId: null,
+      status: 'pending',
+      stepsDone: [],
+      calls: 0,
+      error: null,
+    })),
+  });
+  view.unmount();
+  const client: LlmClient = {
+    completeJson: async (options) => {
+      await options.onRequest?.();
+      throw new Error('fake failure');
+    },
+  };
+  render(
+    <MemoryRouter initialEntries={[`/papers/${paper.id}`]}>
+      <StorageProvider repositories={repo}>
+        <LlmProvider innerClient={client}>
+          <Routes>
+            <Route path="/papers/:id" element={<PaperMapPage />} />
+          </Routes>
+        </LlmProvider>
+      </StorageProvider>
+    </MemoryRouter>,
+  );
+  fireEvent.change(await screen.findByLabelText('Giới hạn lượt gọi'), { target: { value: '10' } });
+  fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục' }));
+  expect(await screen.findByText(/Các đoạn được chọn của bản thảo/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Đồng ý và tiếp tục' }));
+  await waitFor(async () => expect((await repo.paperRuns.get(run.id))?.budget).toBe(10));
+  expect(await repo.paperRuns.listByPaper(paper.id)).toHaveLength(1);
 });
 
 it('P2 pauses after the current call and resumes the remaining step', async () => {

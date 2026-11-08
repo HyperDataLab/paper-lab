@@ -23,6 +23,7 @@ import { DIMENSIONS, RUBRIC_VERSION } from '@/core/scoring/rubric';
 import { analyzeText } from '@/core/text/analyzeText';
 import type { Repositories } from '@/shared/storage/repositories';
 import type { LlmClient } from './client';
+import { contextFor } from '@/core/batch';
 
 export const PAPER_PROMPT_VERSIONS = {
   syntax: PROMPT_VERSIONS.sentenceSyntaxPaper,
@@ -30,6 +31,22 @@ export const PAPER_PROMPT_VERSIONS = {
   structure: PROMPT_VERSIONS.paragraphStructurePaper,
   score: PROMPT_VERSIONS.scoringPaper,
 };
+
+function refreshedCandidates(analysis: Analysis, annotations: Analysis['sentenceAnnotations']) {
+  const detected = detectCandidates(analysis.text, annotations);
+  const ids = new Set(detected.map((issue) => issue.id));
+  const retained = analysis.issues.filter(
+    (issue) =>
+      issue.category === 'flow' ||
+      issue.category === 'organization' ||
+      (!ids.has(issue.id) &&
+        (issue.status === 'confirmed_by_human' || issue.status === 'dismissed_by_human')),
+  );
+  return mergeHumanDecisions(
+    [...detected, ...retained.filter((issue) => !ids.has(issue.id))],
+    analysis.issues,
+  );
+}
 
 export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Repositories, paper: Paper) {
   async function findCached(paragraph: PaperParagraph, run: PaperRun): Promise<string | null> {
@@ -47,7 +64,11 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
         structure: analysis.versions.structurePrompt,
         score: analysis.versions.scoringPrompt,
       };
-      return run.plan.steps.every((step) => versions[step] === run.promptVersions[step]);
+      const key = JSON.stringify([contextFor(paper, paragraph), run.model]);
+      return run.plan.steps.every(
+        (step) =>
+          versions[step] === run.promptVersions[step] && analysis.versions.paperStepKeys[step] === key,
+      );
     });
     return found?.id ?? null;
   }
@@ -56,7 +77,7 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
     context: PaperContext,
     step: BatchStep | 'detectors',
     analysisId: string | null,
-    onRepair?: () => void,
+    onRequest?: () => Promise<void>,
   ): Promise<string> {
     let current = analysisId ? await repositories.analyses.get(analysisId) : undefined;
     if (!current) {
@@ -79,15 +100,16 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
     }
     const analysis: Analysis = current;
     const versions = { ...analysis.versions };
+    const stepVersions = (model: string) => ({
+      ...versions.paperStepKeys,
+      [step]: JSON.stringify([context, model]),
+    });
     if (step === 'detectors') {
       await repositories.analyses.update(analysis.id, {
         title: `${context.heading} · ${paragraph.id}`,
         context: { before: context.previousLast, after: context.nextFirst, audience: null },
         contextLimited: !context.previousLast || !context.nextFirst,
-        issues: mergeHumanDecisions(
-          detectCandidates(analysis.text, analysis.sentenceAnnotations),
-          analysis.issues,
-        ),
+        issues: refreshedCandidates(analysis, analysis.sentenceAnnotations),
         versions: { ...versions, detectors: DETECTOR_VERSION },
       });
     } else if (step === 'syntax') {
@@ -97,16 +119,22 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
         schemaName: 'sentence_syntax',
         promptVersion: PAPER_PROMPT_VERSIONS.syntax,
         temperature: 0,
+        onRequest,
       });
-      if (result.meta.repaired) onRepair?.();
       const sentenceAnnotations = buildSentenceAnnotations(
         analysis.text,
         validateSyntaxOutput(result.data.sentences, analysis.text),
       );
       await repositories.analyses.update(analysis.id, {
         sentenceAnnotations,
-        issues: mergeHumanDecisions(detectCandidates(analysis.text, sentenceAnnotations), analysis.issues),
-        versions: { ...versions, syntaxProvider: PAPER_PROMPT_VERSIONS.syntax, model: result.meta.model },
+        issues: refreshedCandidates(analysis, sentenceAnnotations),
+        scores: analysis.scores,
+        versions: {
+          ...versions,
+          syntaxProvider: PAPER_PROMPT_VERSIONS.syntax,
+          model: result.meta.model,
+          paperStepKeys: stepVersions(result.meta.model),
+        },
       });
     } else if (step === 'judge') {
       const result = await client.completeJson({
@@ -122,14 +150,19 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
         schemaName: 'candidate_judgement',
         promptVersion: PAPER_PROMPT_VERSIONS.judge,
         temperature: 0,
+        onRequest,
       });
-      if (result.meta.repaired) onRepair?.();
       await repositories.analyses.update(analysis.id, {
         issues: mergeHumanDecisions(
           applyJudgement(analysis.issues, result.data, analysis.text, analysis.sentenceAnnotations),
           analysis.issues,
         ),
-        versions: { ...versions, judgePrompt: PAPER_PROMPT_VERSIONS.judge, model: result.meta.model },
+        versions: {
+          ...versions,
+          judgePrompt: PAPER_PROMPT_VERSIONS.judge,
+          model: result.meta.model,
+          paperStepKeys: stepVersions(result.meta.model),
+        },
       });
     } else if (step === 'structure') {
       const result = await client.completeJson({
@@ -143,8 +176,8 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
         schemaName: 'paragraph_structure',
         promptVersion: PAPER_PROMPT_VERSIONS.structure,
         temperature: 0,
+        onRequest,
       });
-      if (result.meta.repaired) onRepair?.();
       const structure = validateParagraphStructure(result.data, analysis.text, analysis.sentenceAnnotations);
       const sentenceAnnotations = analysis.sentenceAnnotations.map((annotation) => {
         const role = structure.roles.find((item) => item.sentenceId === annotation.sentenceId);
@@ -179,6 +212,7 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
           ...versions,
           structurePrompt: PAPER_PROMPT_VERSIONS.structure,
           structureModel: result.meta.model,
+          paperStepKeys: stepVersions(result.meta.model),
         },
       });
     } else {
@@ -195,8 +229,8 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
         schemaName: 'scoring',
         promptVersion: PAPER_PROMPT_VERSIONS.score,
         temperature: 0,
+        onRequest,
       });
-      if (result.meta.repaired) onRepair?.();
       const scores = computeScores(result.data, availability, analysis.issues, {
         sentenceIds: analysis.text.sentences.map((s) => s.id),
         contextLimited: analysis.contextLimited,
@@ -208,6 +242,7 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
           rubric: RUBRIC_VERSION,
           scoringPrompt: PAPER_PROMPT_VERSIONS.score,
           scoringModel: result.meta.model,
+          paperStepKeys: stepVersions(result.meta.model),
         },
       });
     }

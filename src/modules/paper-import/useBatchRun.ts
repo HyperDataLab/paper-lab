@@ -130,7 +130,13 @@ export function useBatchRun(paper: Paper) {
     analyses,
     error,
     start,
-    resume: () => run && void execute(run),
+    resume: (budget: number) =>
+      run &&
+      void execute(
+        run.status === 'budget_exceeded'
+          ? { ...run, budget, plan: { ...run.plan, budget, withinBudget: run.plan.total <= budget } }
+          : run,
+      ),
     retry,
     pause: () => {
       signal.current.action = 'pause';

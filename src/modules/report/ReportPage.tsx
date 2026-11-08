@@ -60,11 +60,13 @@ export default function ReportPage() {
           Tokenizer: {analysis.text.tokenizerVersion} · Segmenter: {analysis.text.segmenterVersion}
         </p>
         <ul>
-          {Object.entries(analysis.versions).map(([key, value]) => (
-            <li key={key}>
-              {key}: {value ?? '—'}
-            </li>
-          ))}
+          {Object.entries(analysis.versions)
+            .filter(([key]) => key !== 'paperStepKeys')
+            .map(([key, value]) => (
+              <li key={key}>
+                {key}: {typeof value === 'string' ? value : '—'}
+              </li>
+            ))}
         </ul>
       </section>
       <section>

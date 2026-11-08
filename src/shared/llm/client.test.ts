@@ -137,6 +137,17 @@ it('retries 429 with Retry-After and does not retry 401', async () => {
   expect(denied.fetchMock).toHaveBeenCalledTimes(1);
   expect(new LlmHttpError(401, false)).toBeInstanceOf(Error);
 });
+it('P2 invokes the request hook before retries and repair, and stops before a refused request', async () => {
+  const t = setup([response('', 429), response('bad'), response(valid)]);
+  let used = 0;
+  const onRequest = vi.fn(async () => {
+    if (used === 2) throw new Error('budget');
+    used++;
+  });
+  await expect(t.client.completeJson({ ...options, onRequest })).rejects.toThrow('budget');
+  expect(onRequest).toHaveBeenCalledTimes(3);
+  expect(t.fetchMock).toHaveBeenCalledTimes(2);
+});
 it('times out', async () => {
   vi.useFakeTimers();
   const fetchMock = vi

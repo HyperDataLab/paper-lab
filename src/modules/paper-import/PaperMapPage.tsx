@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { SectionSchema, type Paper, type Section } from '@/core/schemas';
 import { analyzeText } from '@/core/text';
+import { detectCandidates } from '@/core/detectors';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
@@ -11,6 +12,7 @@ import styles from './page.module.css';
 import { BatchPanel } from './BatchPanel';
 import { BatchParagraphStatus } from './BatchParagraphStatus';
 import { useBatchRun } from './useBatchRun';
+import { SECTION_ROLE_LABELS } from './sectionRoles';
 import type { ReactNode } from 'react';
 
 function BatchWorkspace({
@@ -38,6 +40,7 @@ export default function PaperMapPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [counts, setCounts] = useState<{ sentences: number; words: number } | null>(null);
+  const [candidateCounts, setCandidateCounts] = useState<Record<string, number>>({});
   useEffect(() => {
     let active = true;
     if (!id) return;
@@ -49,13 +52,24 @@ export default function PaperMapPage() {
         setSelected(value?.sections[0]?.id ?? '');
         setLoading(false);
         if (value)
-          void Promise.all(value.paragraphs.filter((p) => p.kind === 'body').map((p) => analyzeText(p.text)))
+          void Promise.all(
+            value.paragraphs
+              .filter((p) => p.kind === 'body')
+              .map(async (p) => ({ id: p.id, text: await analyzeText(p.text) })),
+          )
             .then((analyses) => {
-              if (active)
+              if (active) {
                 setCounts({
-                  sentences: analyses.reduce((n, a) => n + a.sentences.length, 0),
-                  words: analyses.reduce((n, a) => n + a.tokens.filter((t) => t.kind === 'word').length, 0),
+                  sentences: analyses.reduce((n, a) => n + a.text.sentences.length, 0),
+                  words: analyses.reduce(
+                    (n, a) => n + a.text.tokens.filter((t) => t.kind === 'word').length,
+                    0,
+                  ),
                 });
+                setCandidateCounts(
+                  Object.fromEntries(analyses.map((a) => [a.id, detectCandidates(a.text, null).length])),
+                );
+              }
             })
             .catch((cause: unknown) => {
               if (active) setError(String(cause));
@@ -75,6 +89,19 @@ export default function PaperMapPage() {
     if (!paper) return;
     try {
       setPaper(await repo.papers.editRole(paper.id, selected, role));
+    } catch (cause) {
+      setError(String(cause));
+    }
+  }
+  async function runDetectors() {
+    if (!paper) return;
+    try {
+      const values = await Promise.all(
+        paper.paragraphs
+          .filter((p) => p.kind === 'body')
+          .map(async (p) => [p.id, detectCandidates(await analyzeText(p.text), null).length] as const),
+      );
+      setCandidateCounts(Object.fromEntries(values));
     } catch (cause) {
       setError(String(cause));
     }
@@ -106,6 +133,7 @@ export default function PaperMapPage() {
       <BatchWorkspace paper={paper}>
         {(batch) => (
           <>
+            <Button onClick={() => void runDetectors()}>Chạy bộ phát hiện cục bộ</Button>
             {error && (
               <div role="alert">
                 Không thể xử lý bài báo.
@@ -126,8 +154,10 @@ export default function PaperMapPage() {
                       onClick={() => setSelected(item.id)}
                     >
                       <span>
-                        <Badge>{item.role}</Badge> {item.heading} (
-                        {paper.paragraphs.filter((p) => p.sectionId === item.id).length})
+                        <span title={item.role}>
+                          <Badge>{SECTION_ROLE_LABELS[item.role]}</Badge>
+                        </span>{' '}
+                        {item.heading} ({paper.paragraphs.filter((p) => p.sectionId === item.id).length})
                       </span>
                     </Button>
                   ))}
@@ -146,8 +176,8 @@ export default function PaperMapPage() {
                       }}
                     >
                       {SectionSchema.shape.role.options.map((role) => (
-                        <option key={role} value={role}>
-                          {role}
+                        <option key={role} value={role} title={role}>
+                          {SECTION_ROLE_LABELS[role]}
                         </option>
                       ))}
                     </Select>
@@ -161,6 +191,9 @@ export default function PaperMapPage() {
                           <span>{item.id} </span>
                           <Badge>{item.kind}</Badge>
                           <p className={styles.reading}>{item.text}</p>
+                          {item.kind === 'body' && candidateCounts[item.id] !== undefined && (
+                            <p>{candidateCounts[item.id]} ứng viên cục bộ</p>
+                          )}
                           <BatchParagraphStatus
                             item={batch.run?.items.find((entry) => entry.paragraphId === item.id)}
                             analysis={batch.analyses.find(
@@ -193,8 +226,8 @@ export default function PaperMapPage() {
                 <h3>Số mục theo vai trò</h3>
                 <ul>
                   {Object.entries(roles).map(([role, count]) => (
-                    <li key={role}>
-                      {role}: {count}
+                    <li key={role} title={role}>
+                      {SECTION_ROLE_LABELS[role as Section['role']]}: {count}
                     </li>
                   ))}
                 </ul>
