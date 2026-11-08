@@ -30,6 +30,7 @@ export const PAPER_PROMPT_VERSIONS = {
   judge: PROMPT_VERSIONS.candidateJudgePaper,
   structure: PROMPT_VERSIONS.paragraphStructurePaper,
   score: PROMPT_VERSIONS.scoringPaper,
+  transitions: PROMPT_VERSIONS.paragraphTransition,
 };
 
 function refreshedCandidates(analysis: Analysis, annotations: Analysis['sentenceAnnotations']) {
@@ -65,10 +66,12 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
         score: analysis.versions.scoringPrompt,
       };
       const key = JSON.stringify([contextFor(paper, paragraph), run.model]);
-      return run.plan.steps.every(
-        (step) =>
-          versions[step] === run.promptVersions[step] && analysis.versions.paperStepKeys[step] === key,
-      );
+      return run.plan.steps
+        .filter((step) => step !== 'transitions')
+        .every(
+          (step) =>
+            versions[step] === run.promptVersions[step] && analysis.versions.paperStepKeys[step] === key,
+        );
     });
     return found?.id ?? null;
   }

@@ -17,7 +17,10 @@ import {
   SectionSchema,
   PaperRunSchema,
   type PaperRun,
+  PaperOverviewRecordSchema,
+  type PaperOverviewRecord,
 } from '@/core/schemas';
+import { aggregatePaper } from '@/core/paperOverview';
 import { buildExportPackage } from '@/core/transfer/buildExportPackage';
 import { planImport, type ImportPlan } from '@/core/transfer/planImport';
 import { sourceHash } from '@/core/text/hash';
@@ -477,6 +480,58 @@ export function createRepositories(
       return value;
     },
   };
+  const paperOverviews = {
+    async get(paperId: string) {
+      const paper = await papers.get(paperId);
+      if (!paper) return undefined;
+      const stored = await db.paperOverviews.get(paperId);
+      return PaperOverviewRecordSchema.parse({
+        schemaVersion: 1,
+        paperId,
+        overview: aggregatePaper(paper, await analyses.listByPaper(paperId)),
+        transitions: stored ? PaperOverviewRecordSchema.parse(stored).transitions : null,
+      });
+    },
+    async save(input: PaperOverviewRecord) {
+      const parsed = PaperOverviewRecordSchema.parse(input);
+      const current = await paperOverviews.get(parsed.paperId);
+      if (!current) throw new Error('Paper not found');
+      const value = PaperOverviewRecordSchema.parse({ ...parsed, overview: current.overview });
+      await db.paperOverviews.put(value);
+      return value;
+    },
+    async reviewTransition(
+      paperId: string,
+      findingId: string,
+      status: 'confirmed_by_human' | 'dismissed_by_human' | 'candidate',
+    ) {
+      return db.transaction('rw', db.paperOverviews, db.papers, db.analyses, db.auditEvents, async () => {
+        const current = await paperOverviews.get(paperId);
+        const finding = current?.transitions?.findings.find((item) => item.id === findingId);
+        if (!current || !current.transitions || !finding) throw new Error('Transition finding not found');
+        if (finding.status === status) return current;
+        const value = PaperOverviewRecordSchema.parse({
+          ...current,
+          transitions: {
+            ...current.transitions,
+            findings: current.transitions.findings.map((item) =>
+              item.id === findingId ? { ...item, status } : item,
+            ),
+          },
+        });
+        await db.paperOverviews.put(value);
+        await db.auditEvents.add(
+          AuditEventSchema.parse({
+            ...makeAudit(paperId, 'review_transition', 'human'),
+            issueId: findingId,
+            before: { status: finding.status },
+            after: { status },
+          }),
+        );
+        return value;
+      });
+    },
+  };
   const transfer = {
     async exportAll(appVersion: string) {
       const a = await readAnalyses();
@@ -490,6 +545,11 @@ export function createRepositories(
         storedRevisions,
         await generations.list(),
         await papers.list(),
+        (
+          await Promise.all(
+            (await db.paperOverviews.toCollection().primaryKeys()).map((id) => paperOverviews.get(id)),
+          )
+        ).filter((value): value is PaperOverviewRecord => value !== undefined),
       );
     },
     async previewImport(raw: unknown) {
@@ -528,11 +588,7 @@ export function createRepositories(
           throw new Error('Revision hash mismatch');
       await db.transaction(
         'rw',
-        db.analyses,
-        db.auditEvents,
-        db.revisions,
-        db.generations,
-        db.papers,
+        [db.analyses, db.auditEvents, db.revisions, db.generations, db.papers, db.paperOverviews],
         async () => {
           if (plan.suppressed.length) console.warn('Suppressed invalid imported spans', plan.suppressed);
           for (const value of [...plan.toInsert, ...plan.toUpdate]) {
@@ -597,6 +653,16 @@ export function createRepositories(
             await db.papers.put(paper);
             await db.auditEvents.add(makeAudit(paper.id, 'import', 'system'));
           }
+          for (const record of plan.paperOverviews) {
+            if (!(await db.papers.get(record.paperId))) continue;
+            const existing = await db.paperOverviews.get(record.paperId);
+            if (
+              !existing ||
+              (record.transitions &&
+                (!existing.transitions || record.transitions.updatedAt > existing.transitions.updatedAt))
+            )
+              await db.paperOverviews.put(PaperOverviewRecordSchema.parse(record));
+          }
           for (const event of plan.auditEvents)
             if (!(await db.auditEvents.get(event.id)))
               await db.auditEvents.add(AuditEventSchema.parse(event));
@@ -604,6 +670,6 @@ export function createRepositories(
       );
     },
   };
-  return { analyses, audit, revisions, generations, papers, paperRuns, transfer };
+  return { analyses, audit, revisions, generations, papers, paperRuns, paperOverviews, transfer };
 }
 export type Repositories = ReturnType<typeof createRepositories>;

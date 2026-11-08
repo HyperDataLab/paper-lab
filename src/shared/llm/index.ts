@@ -8,3 +8,4 @@ export * from './llmSyntaxProvider';
 export * from './llmCandidateJudge';
 export * from './llmGenerator';
 export * from './paperParagraphAnalyzer';
+export * from './llmParagraphTransition';

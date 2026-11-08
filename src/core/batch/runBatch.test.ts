@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { Paper, PaperRun } from '../schemas';
+import type { Paper, PaperRun, TransitionPair } from '../schemas';
 import { planRun } from './planRun';
 import { runBatch, type BatchDeps, type BatchSignal } from './runBatch';
 
@@ -136,6 +136,53 @@ describe('P2 runBatch', () => {
     });
     expect(result.items.every((item) => item.status === 'cached')).toBe(true);
     expect(t.analyze).not.toHaveBeenCalled();
+  });
+  it('P3 estimates and executes section transition chunks within the budget', async () => {
+    const t = setup(1);
+    t.run.plan = planRun(paper, { sectionIds: ['s'], steps: ['transitions'], budget: 1 });
+    expect(t.run.plan.calls.transitions).toBe(1);
+    const pairs = [
+      {
+        pairId: 'p0->p1',
+        sectionId: 's',
+        sectionRole: 'methods',
+        from: {
+          paragraphId: 'p0',
+          analysisId: '00000000-0000-4000-8000-000000000003',
+          span: { start: 0, end: 1 },
+          quote: 'F',
+          sentence: 'First.',
+        },
+        to: {
+          paragraphId: 'p1',
+          analysisId: '00000000-0000-4000-8000-000000000004',
+          span: { start: 0, end: 1 },
+          quote: 'S',
+          sentence: 'Second.',
+        },
+      },
+    ];
+    const analyzeTransitions = vi.fn(async (_pairs: TransitionPair[], onRequest: () => Promise<void>) =>
+      onRequest(),
+    );
+    const result = await runBatch(t.run, {
+      ...t.deps,
+      getTransitionPairs: async () => pairs,
+      analyzeTransitions,
+    });
+    expect(result.status).toBe('done');
+    expect(result.callsUsed).toBe(1);
+    expect(result.transitionDone).toEqual(['p0->p1']);
+    expect(result.plan.skipped).toContainEqual({
+      paragraphId: 'p1->p2',
+      reason: 'missing syntax annotations',
+    });
+    const limited = await runBatch(
+      { ...t.run, budget: 0 },
+      { ...t.deps, getTransitionPairs: async () => pairs, analyzeTransitions },
+    );
+    expect(limited.status).toBe('budget_exceeded');
+    expect(limited.callsUsed).toBe(0);
   });
   it('P2 uses neighbouring body paragraphs across section boundaries', async () => {
     const t = setup();

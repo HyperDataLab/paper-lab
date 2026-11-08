@@ -1,5 +1,13 @@
 import Dexie, { type Table } from 'dexie';
-import type { Analysis, AuditEvent, Revision, Generation, Paper, PaperRun } from '@/core/schemas';
+import type {
+  Analysis,
+  AuditEvent,
+  Revision,
+  Generation,
+  Paper,
+  PaperRun,
+  PaperOverviewRecord,
+} from '@/core/schemas';
 export class ParagraphDb extends Dexie {
   analyses!: Table<Analysis, string>;
   auditEvents!: Table<AuditEvent, string>;
@@ -7,6 +15,7 @@ export class ParagraphDb extends Dexie {
   generations!: Table<Generation, string>;
   papers!: Table<Paper, string>;
   paperRuns!: Table<PaperRun, string>;
+  paperOverviews!: Table<PaperOverviewRecord, string>;
   constructor(name = 'paragraph-lab') {
     super(name);
     this.version(1).stores({
@@ -23,6 +32,7 @@ export class ParagraphDb extends Dexie {
     });
     this.version(4).stores({ papers: 'id, updatedAt, title' });
     this.version(5).stores({ paperRuns: 'id, paperId, updatedAt' });
+    this.version(6).stores({ paperOverviews: 'paperId' });
   }
 }
 export function createDb(name?: string) {

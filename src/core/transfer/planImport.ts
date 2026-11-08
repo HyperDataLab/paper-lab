@@ -149,6 +149,7 @@ export function planImport(
     generationsToInsert,
     papersToInsert,
     papersToUpdate,
+    paperOverviews: parsed.data.paperOverviews,
     skipped,
     suppressed,
     auditEvents,

@@ -1,4 +1,4 @@
-import type { BatchStep, Paper, PaperParagraph, PaperRun } from '../schemas';
+import type { BatchStep, Paper, PaperParagraph, PaperRun, TransitionPair } from '../schemas';
 import type { PaperContext } from '../prompts/paperContext';
 import { segmentSentences } from '../text/segment';
 import { sliceCp } from '../text/offsets';
@@ -17,6 +17,8 @@ export type BatchDeps = {
   now: () => string;
   sleep: (ms: number) => Promise<void>;
   findCached?: (paragraph: PaperParagraph, run: PaperRun) => Promise<string | null>;
+  getTransitionPairs?: () => Promise<TransitionPair[]>;
+  analyzeTransitions?: (pairs: TransitionPair[], onRequest: () => Promise<void>) => Promise<void>;
 };
 export class BatchBudgetExceededError extends Error {}
 
@@ -102,6 +104,7 @@ export async function runBatch(
         await checkpoint();
       }
       for (const step of run.plan.steps) {
+        if (step === 'transitions') continue;
         if (item.stepsDone.includes(step)) continue;
         if (await stop()) {
           item.status = 'pending';
@@ -149,6 +152,49 @@ export async function runBatch(
       item.error = error instanceof Error ? error.message : String(error);
     }
     await checkpoint();
+  }
+  if (run.plan.steps.includes('transitions')) {
+    if (!deps.getTransitionPairs || !deps.analyzeTransitions)
+      throw new Error('Transition provider not configured');
+    const pairs = await deps.getTransitionPairs();
+    run.transitionDone ??= [];
+    for (const section of deps.paper.sections.filter((s) => run.plan.sectionIds.includes(s.id))) {
+      const available = pairs.filter((p) => p.sectionId === section.id);
+      const bodies = deps.paper.paragraphs
+        .filter((p) => p.sectionId === section.id && p.kind === 'body')
+        .sort((a, b) => a.order - b.order);
+      for (let i = 1; i < bodies.length; i++) {
+        const from = bodies[i - 1];
+        const to = bodies[i];
+        if (
+          from &&
+          to &&
+          !available.some((p) => p.from.paragraphId === from.id && p.to.paragraphId === to.id)
+        ) {
+          const paragraphId = `${from.id}->${to.id}`;
+          if (!run.plan.skipped.some((s) => s.paragraphId === paragraphId))
+            run.plan.skipped.push({ paragraphId, reason: 'missing syntax annotations' });
+        }
+      }
+      for (let i = 0; i < available.length; i += 12) {
+        const chunk = available.slice(i, i + 12).filter((p) => !run.transitionDone?.includes(p.pairId));
+        if (!chunk.length) continue;
+        if (await stop()) return run;
+        try {
+          await deps.analyzeTransitions(chunk, async () => {
+            if (run.callsUsed >= run.budget) throw new BatchBudgetExceededError();
+            run.callsUsed++;
+            await checkpoint();
+          });
+        } catch (error) {
+          run.status = error instanceof BatchBudgetExceededError ? 'budget_exceeded' : 'failed';
+          await checkpoint();
+          return run;
+        }
+        run.transitionDone.push(...chunk.map((p) => p.pairId));
+        await checkpoint();
+      }
+    }
   }
   run.status = 'done';
   await checkpoint();
