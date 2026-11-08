@@ -22,6 +22,7 @@ import {
   PaperChecksRecordSchema,
   type PaperChecksRecord,
   type CheckDecision,
+  PaperReviewsRecordSchema,
 } from '@/core/schemas';
 import { validateLocations } from '@/core/paperChecks';
 import { aggregatePaper, transitionStatus } from '@/core/paperOverview';
@@ -31,6 +32,7 @@ import { sourceHash } from '@/core/text/hash';
 import { analyzeText } from '@/core/text/analyzeText';
 import { z } from 'zod';
 import type { ParagraphDb } from './db';
+import { createPaperReviewsRepository, rebuildReviewRecord } from './paperReviews';
 export class SourceImmutableError extends Error {
   override name = 'SourceImmutableError';
 }
@@ -448,12 +450,22 @@ export function createRepositories(
     async delete(id: string) {
       await db.transaction(
         'rw',
-        [db.papers, db.paperOverviews, db.paperChecks, db.paperRuns, db.auditEvents],
+        [
+          db.papers,
+          db.paperOverviews,
+          db.paperChecks,
+          db.paperRuns,
+          db.paperReviews,
+          db.reviewNgrams,
+          db.auditEvents,
+        ],
         async () => {
           if (await db.papers.get(id)) {
             await db.papers.delete(id);
             await db.paperOverviews.delete(id);
             await db.paperChecks.delete(id);
+            await db.paperReviews.delete(id);
+            await db.reviewNgrams.where('paperId').equals(id).delete();
             await db.paperRuns.where('paperId').equals(id).delete();
             await db.auditEvents.add(makeAudit(id, 'delete_paper', 'human'));
           }
@@ -622,6 +634,7 @@ export function createRepositories(
       });
     },
   };
+  const paperReviews = createPaperReviewsRepository(db, now, makeAudit);
   const transfer = {
     async exportAll(appVersion: string) {
       const a = await readAnalyses();
@@ -641,6 +654,7 @@ export function createRepositories(
           )
         ).filter((value): value is PaperOverviewRecord => value !== undefined),
         (await db.paperChecks.toArray()).map((value) => PaperChecksRecordSchema.parse(value)),
+        (await db.paperReviews.toArray()).map((value) => PaperReviewsRecordSchema.parse(value)),
       );
     },
     async previewImport(raw: unknown) {
@@ -677,6 +691,21 @@ export function createRepositories(
       for (const revision of plan.revisionsToInsert)
         if ((await sourceHash(revision.revisedText)) !== revision.revisedHash)
           throw new Error('Revision hash mismatch');
+      const ngrams = await db.reviewNgrams.toArray();
+      const preparedReviews = new Map<
+        string,
+        { paper: Paper; rebuilt: Awaited<ReturnType<typeof rebuildReviewRecord>> }
+      >();
+      for (const record of plan.paperReviews) {
+        const paper =
+          [...plan.papersToInsert, ...plan.papersToUpdate].find((p) => p.id === record.paperId) ??
+          (await papers.get(record.paperId));
+        if (paper)
+          preparedReviews.set(record.paperId, {
+            paper,
+            rebuilt: await rebuildReviewRecord(paper, record, ngrams),
+          });
+      }
       await db.transaction(
         'rw',
         [
@@ -687,6 +716,8 @@ export function createRepositories(
           db.papers,
           db.paperOverviews,
           db.paperChecks,
+          db.paperReviews,
+          db.reviewNgrams,
         ],
         async () => {
           if (plan.suppressed.length) console.warn('Suppressed invalid imported spans', plan.suppressed);
@@ -804,6 +835,20 @@ export function createRepositories(
               await db.paperChecks.put(value);
             }
           }
+          for (const record of plan.paperReviews) {
+            const paper = await papers.get(record.paperId);
+            if (!paper) continue;
+            const existing = await paperReviews.get(record.paperId);
+            if (!existing || record.updatedAt > existing.updatedAt) {
+              const prepared = preparedReviews.get(record.paperId);
+              if (!prepared || JSON.stringify(prepared.paper.paragraphs) !== JSON.stringify(paper.paragraphs))
+                throw new Error('Paper changed');
+              const rebuilt = prepared.rebuilt;
+              await db.paperReviews.put(rebuilt.record);
+              await db.reviewNgrams.where('paperId').equals(record.paperId).delete();
+              await db.reviewNgrams.bulkPut(rebuilt.ngrams);
+            }
+          }
           for (const event of plan.auditEvents)
             if (
               (event.action !== 'review_transition' ||
@@ -824,6 +869,7 @@ export function createRepositories(
     paperRuns,
     paperOverviews,
     paperChecks,
+    paperReviews,
     transfer,
   };
 }

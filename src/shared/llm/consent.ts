@@ -77,3 +77,7 @@ export function hasValidConsent(config: LlmConfig): boolean {
 export function requireConsent(config: LlmConfig): void {
   if (!hasValidConsent(config)) throw new ConsentRequiredError();
 }
+export function requirePaperConsent(config: LlmConfig): void {
+  requireConsent(config);
+  if (!hasPaperConsent(config)) throw new ConsentRequiredError();
+}

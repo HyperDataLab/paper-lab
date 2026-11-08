@@ -63,6 +63,19 @@ export const PaperReviewOutputSchema = z.object({
 export type PaperReviewOutput = z.infer<typeof PaperReviewOutputSchema>;
 export type ReviewPoint = z.infer<typeof ReviewPointSchema>;
 
+export function paperReviewSize(paper: Paper, sectionIds: string[]) {
+  const selected = new Set(sectionIds);
+  const characters = paper.paragraphs
+    .filter((p) => selected.has(p.sectionId) && p.kind === 'body')
+    .reduce((sum, p) => sum + p.text.length, 0);
+  if (characters > 60000) throw new Error('Vui lòng chọn ít phần hơn (tối đa 60.000 ký tự).');
+  return characters;
+}
+export function planPaperReview(paper: Paper, sectionIds: string[], lenses: Lens[]) {
+  if (new Set(lenses).size !== lenses.length) throw new Error('Duplicate review lens');
+  return { characters: paperReviewSize(paper, sectionIds), estimatedCalls: lenses.length };
+}
+
 export function buildPaperReviewPrompt(
   paper: Paper,
   options: { lens: Lens; sectionIds: string[]; checkSummary: string },
@@ -71,8 +84,7 @@ export function buildPaperReviewPrompt(
   const provided = paper.sections.filter((s) => selected.has(s.id));
   const missing = paper.sections.filter((s) => !selected.has(s.id));
   const paragraphs = paper.paragraphs.filter((p) => selected.has(p.sectionId) && p.kind === 'body');
-  if (paragraphs.reduce((sum, p) => sum + p.text.length, 0) > 60000)
-    throw new Error('Vui lòng chọn ít phần hơn (tối đa 60.000 ký tự).');
+  paperReviewSize(paper, options.sectionIds);
   const sections = (items: Paper['sections']) =>
     items.map((s) => `${s.id} | ${s.role} | ${s.heading}`).join('; ') || 'none';
   return {

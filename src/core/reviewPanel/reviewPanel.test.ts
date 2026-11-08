@@ -8,6 +8,7 @@ import {
   mergePanel,
   panelSimilarity,
   reviewRevealed,
+  visibleReviewRuns,
   templatePhrases,
 } from './index';
 
@@ -120,5 +121,41 @@ describe('P5 review panel', () => {
     const result = await templatePhrases([review], 'a', previous);
     expect(result.flags.length).toBeGreaterThan(0);
     expect(result.ngrams[0]).not.toHaveProperty('phrase');
+  });
+  it('P5 uses exact and case-insensitive anchors, never a different paragraph', () => {
+    const exact = anchorReview(
+      { ...output, points: [{ ...output.points[0]!, quote: 'are described here' }] },
+      paper,
+      ['s'],
+    );
+    expect(exact.points).toHaveLength(1);
+    const insensitive = anchorReview(
+      { ...output, points: [{ ...output.points[0]!, quote: '"some important methods"' }] },
+      paper,
+      ['s'],
+    );
+    expect(insensitive.points[0]?.anchor).toEqual({ paragraphId: 'p', start: 2, end: 28 });
+    expect(anchorReview(output, paper, ['r']).unanchored).toHaveLength(1);
+    expect(
+      anchorReview({ ...output, points: [{ ...output.points[0]!, quote: '' }] }, paper, ['s']).unanchored,
+    ).toHaveLength(1);
+    expect(visibleReviewRuns(null, [1])).toEqual([]);
+    expect(visibleReviewRuns({ paperId: 'a', text: '', writtenAt: 'now', revealedAt: 'now' }, [1])).toEqual([
+      1,
+    ]);
+  });
+  it('P5 disjoint review texts have zero similarity', () => {
+    const a = anchorReview(output, paper, ['s']);
+    const b = anchorReview(
+      {
+        ...output,
+        lens: 'clarity_editor',
+        points: [{ ...output.points[0]!, point: 'different unrelated words', rationale: 'another subject' }],
+      },
+      paper,
+      ['s'],
+    );
+    expect(panelSimilarity([a, b]).mean).toBe(0);
+    expect(panelSimilarity([a, b]).similarPairs).toEqual([]);
   });
 });

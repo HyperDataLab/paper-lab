@@ -70,8 +70,18 @@ export type MergedPoint = {
 };
 export function mergePanel(reviews: AnchoredReview[]): MergedPoint[] {
   const groups: AnchoredPoint[][] = [];
-  for (const point of reviews.flatMap((r) => r.points)) {
-    const group = groups.find((g) =>
+  const points = reviews
+    .flatMap((r) => r.points)
+    .sort(
+      (a, b) =>
+        a.anchor.paragraphId.localeCompare(b.anchor.paragraphId) ||
+        a.anchor.start - b.anchor.start ||
+        a.anchor.end - b.anchor.end ||
+        a.lens.localeCompare(b.lens) ||
+        a.point.localeCompare(b.point),
+    );
+  for (const point of points) {
+    const matching = groups.filter((g) =>
       g.some(
         (p) =>
           p.lens !== point.lens &&
@@ -80,32 +90,37 @@ export function mergePanel(reviews: AnchoredReview[]): MergedPoint[] {
             overlap(p.quote, point.quote) >= 0.6),
       ),
     );
-    if (group) group.push(point);
-    else groups.push([point]);
+    if (matching.length) {
+      const combined = [point, ...matching.flat()];
+      for (const group of matching) groups.splice(groups.indexOf(group), 1);
+      groups.push(combined);
+    } else groups.push([point]);
   }
-  return groups.map((wordings) => {
-    const sorted = [...wordings].sort(
-      (a, b) => a.anchor.start - b.anchor.start || a.anchor.end - b.anchor.end,
-    );
-    const first = sorted[0];
-    if (!first) throw new Error('Empty review group');
-    const lenses = [...new Set(wordings.map((p) => p.lens))].sort();
-    const anchor = {
-      paragraphId: first.anchor.paragraphId,
-      start: Math.min(...wordings.map((p) => p.anchor.start)),
-      end: Math.max(...wordings.map((p) => p.anchor.end)),
-    };
-    const severity =
-      (['major', 'moderate', 'minor'] as const).find((s) => wordings.some((p) => p.severity === s)) ??
-      'minor';
-    return {
-      id: JSON.stringify([lenses, anchor.paragraphId, anchor.start, anchor.end]),
-      lenses,
-      anchor,
-      severity,
-      wordings,
-    };
-  });
+  return groups
+    .map((wordings) => {
+      const sorted = [...wordings].sort(
+        (a, b) => a.anchor.start - b.anchor.start || a.anchor.end - b.anchor.end,
+      );
+      const first = sorted[0];
+      if (!first) throw new Error('Empty review group');
+      const lenses = [...new Set(wordings.map((p) => p.lens))].sort();
+      const anchor = {
+        paragraphId: first.anchor.paragraphId,
+        start: Math.min(...wordings.map((p) => p.anchor.start)),
+        end: Math.max(...wordings.map((p) => p.anchor.end)),
+      };
+      const severity =
+        (['major', 'moderate', 'minor'] as const).find((s) => wordings.some((p) => p.severity === s)) ??
+        'minor';
+      return {
+        id: JSON.stringify([lenses, anchor.paragraphId, anchor.start, anchor.end]),
+        lenses,
+        anchor,
+        severity,
+        wordings,
+      };
+    })
+    .sort((a, b) => a.id.localeCompare(b.id));
 }
 export function anchoringRate(reviews: AnchoredReview[]) {
   const anchored = reviews.reduce((n, r) => n + r.points.length, 0);
@@ -124,4 +139,7 @@ export function agreement(points: MergedPoint[], notes: HumanNotes | null) {
 }
 export function reviewRevealed(notes: HumanNotes | null) {
   return notes?.revealedAt != null;
+}
+export function visibleReviewRuns<T>(notes: HumanNotes | null, runs: T[]): T[] {
+  return reviewRevealed(notes) ? runs : [];
 }
