@@ -33,9 +33,11 @@ export default function Page() {
   const location = useLocation();
   const [revisionOverrides, setRevisionOverrides] = useState<Record<string, boolean>>({});
   const [snapshots, setSnapshots] = useState<Record<string, CalibrationSnapshot>>({});
-  async function captureStep(step: string) {
-    const snapshot = await captureCalibration(repositories);
-    setSnapshots((previous) => ({ ...previous, [step]: snapshot }));
+  // Provenance only: it must never delay or block the AI action. A failed capture shows as "không rõ".
+  function captureStep(step: string) {
+    captureCalibration(repositories)
+      .then((snapshot) => setSnapshots((previous) => ({ ...previous, [step]: snapshot })))
+      .catch(() => undefined);
   }
   const [generationId, setGenerationId] = useState<string | null>(null);
   const [parent, setParent] = useState<{ id: string; title: string } | null>(null);
@@ -434,7 +436,8 @@ export default function Page() {
                 resetJudge();
                 resetParagraph();
                 resetScoring();
-                void captureStep('syntax').then(() => syntax.run(result));
+                captureStep('syntax');
+                void syntax.run(result);
               }}
             />
             {!id && (
@@ -451,9 +454,8 @@ export default function Page() {
                     }
                     onClick={() => {
                       resetScoring();
-                      void captureStep('structure').then(() =>
-                        paragraph.run(result, syntax.annotations, issues),
-                      );
+                      captureStep('structure');
+                      void paragraph.run(result, syntax.annotations, issues);
                     }}
                   >
                     Phân tích cấu trúc đoạn (AI)
@@ -476,17 +478,16 @@ export default function Page() {
                 ) : (
                   <Button
                     disabled={saved || syntax.running || paragraph.running || scoring.running}
-                    onClick={() =>
-                      void captureStep('judge').then(() =>
-                        judge.run(
-                          result,
-                          syntax.annotations,
-                          candidates,
-                          { before: null, after: null, audience: null },
-                          issues,
-                        ),
-                      )
-                    }
+                    onClick={() => {
+                      captureStep('judge');
+                      void judge.run(
+                        result,
+                        syntax.annotations,
+                        candidates,
+                        { before: null, after: null, audience: null },
+                        issues,
+                      );
+                    }}
                   >
                     Đánh giá theo ngữ cảnh (AI)
                   </Button>
@@ -538,7 +539,8 @@ export default function Page() {
                         issues,
                         parentAnalysisId: null,
                       });
-                      void captureStep('score').then(() => scoring.run(analysis));
+                      captureStep('score');
+                      void scoring.run(analysis);
                     }}
                   >
                     Chấm điểm (AI)
