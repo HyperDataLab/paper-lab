@@ -19,7 +19,11 @@ import {
   type PaperRun,
   PaperOverviewRecordSchema,
   type PaperOverviewRecord,
+  PaperChecksRecordSchema,
+  type PaperChecksRecord,
+  type CheckDecision,
 } from '@/core/schemas';
+import { validateLocations } from '@/core/paperChecks';
 import { aggregatePaper, transitionStatus } from '@/core/paperOverview';
 import { buildExportPackage } from '@/core/transfer/buildExportPackage';
 import { planImport, type ImportPlan } from '@/core/transfer/planImport';
@@ -442,14 +446,19 @@ export function createRepositories(
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     },
     async delete(id: string) {
-      await db.transaction('rw', db.papers, db.paperOverviews, db.paperRuns, db.auditEvents, async () => {
-        if (await db.papers.get(id)) {
-          await db.papers.delete(id);
-          await db.paperOverviews.delete(id);
-          await db.paperRuns.where('paperId').equals(id).delete();
-          await db.auditEvents.add(makeAudit(id, 'delete_paper', 'human'));
-        }
-      });
+      await db.transaction(
+        'rw',
+        [db.papers, db.paperOverviews, db.paperChecks, db.paperRuns, db.auditEvents],
+        async () => {
+          if (await db.papers.get(id)) {
+            await db.papers.delete(id);
+            await db.paperOverviews.delete(id);
+            await db.paperChecks.delete(id);
+            await db.paperRuns.where('paperId').equals(id).delete();
+            await db.auditEvents.add(makeAudit(id, 'delete_paper', 'human'));
+          }
+        },
+      );
     },
   };
   const paperRuns = {
@@ -545,6 +554,74 @@ export function createRepositories(
       });
     },
   };
+  const paperChecks = {
+    async get(paperId: string) {
+      const value = await db.paperChecks.get(paperId);
+      return value ? PaperChecksRecordSchema.parse(value) : undefined;
+    },
+    async save(input: PaperChecksRecord) {
+      return db.transaction('rw', db.papers, db.paperChecks, async () => {
+        const parsed = PaperChecksRecordSchema.parse(input);
+        const paper = await papers.get(parsed.paperId);
+        if (!paper) throw new Error('Paper not found');
+        const current = await paperChecks.get(parsed.paperId);
+        const decisions = new Map(parsed.decisions.map((d) => [d.findingId, d]));
+        for (const decision of current?.decisions ?? []) {
+          const incoming = decisions.get(decision.findingId);
+          if (!incoming || incoming.at < decision.at) decisions.set(decision.findingId, decision);
+        }
+        let dropped = 0;
+        const checks = parsed.report.checks.map((check) => {
+          const validated = validateLocations(paper, check.findings);
+          dropped += validated.dropped;
+          return { ...check, findings: validated.findings };
+        });
+        const value = PaperChecksRecordSchema.parse({
+          ...parsed,
+          report: { ...parsed.report, checks, droppedLocations: parsed.report.droppedLocations + dropped },
+          decisions: [...decisions.values()],
+        });
+        await db.paperChecks.put(value);
+        return value;
+      });
+    },
+    async review(
+      paperId: string,
+      findingId: string,
+      status: CheckDecision['status'] | 'candidate',
+      note = '',
+    ) {
+      return db.transaction('rw', db.paperChecks, db.auditEvents, async () => {
+        const current = await paperChecks.get(paperId);
+        if (!current?.report.checks.some((check) => check.findings.some((f) => f.id === findingId)))
+          throw new Error('Check finding not found');
+        const before = current.decisions.find((d) => d.findingId === findingId);
+        const at = new Date(
+          Math.max(
+            Date.parse(now()),
+            Date.parse(current.report.generatedAt) + 1,
+            Date.parse(current.reviewedAt ?? current.report.generatedAt) + 1,
+            ...current.decisions.map((d) => Date.parse(d.at) + 1),
+          ),
+        ).toISOString();
+        const decisions = current.decisions.filter((d) => d.findingId !== findingId);
+        if (status !== 'candidate') decisions.push({ findingId, status, note, at });
+        const value = PaperChecksRecordSchema.parse({ ...current, decisions, reviewedAt: at });
+        await db.paperChecks.put(value);
+        await db.auditEvents.add(
+          AuditEventSchema.parse({
+            ...makeAudit(paperId, 'review_check', 'human'),
+            issueId: findingId,
+            at,
+            before: before ?? null,
+            after: status === 'candidate' ? null : decisions[decisions.length - 1],
+            note,
+          }),
+        );
+        return value;
+      });
+    },
+  };
   const transfer = {
     async exportAll(appVersion: string) {
       const a = await readAnalyses();
@@ -563,6 +640,7 @@ export function createRepositories(
             (await db.paperOverviews.toCollection().primaryKeys()).map((id) => paperOverviews.get(id)),
           )
         ).filter((value): value is PaperOverviewRecord => value !== undefined),
+        (await db.paperChecks.toArray()).map((value) => PaperChecksRecordSchema.parse(value)),
       );
     },
     async previewImport(raw: unknown) {
@@ -601,7 +679,15 @@ export function createRepositories(
           throw new Error('Revision hash mismatch');
       await db.transaction(
         'rw',
-        [db.analyses, db.auditEvents, db.revisions, db.generations, db.papers, db.paperOverviews],
+        [
+          db.analyses,
+          db.auditEvents,
+          db.revisions,
+          db.generations,
+          db.papers,
+          db.paperOverviews,
+          db.paperChecks,
+        ],
         async () => {
           if (plan.suppressed.length) console.warn('Suppressed invalid imported spans', plan.suppressed);
           for (const value of [...plan.toInsert, ...plan.toUpdate]) {
@@ -690,6 +776,34 @@ export function createRepositories(
               );
             }
           }
+          for (const record of plan.paperChecks) {
+            const paper = await papers.get(record.paperId);
+            if (!paper) continue;
+            const existing = await paperChecks.get(record.paperId);
+            const changed = (value: PaperChecksRecord) =>
+              Math.max(
+                Date.parse(value.report.generatedAt),
+                Date.parse(value.reviewedAt ?? value.report.generatedAt),
+                ...value.decisions.map((decision) => Date.parse(decision.at)),
+              );
+            if (!existing || changed(record) > changed(existing)) {
+              let dropped = 0;
+              const checks = record.report.checks.map((check) => {
+                const valid = validateLocations(paper, check.findings);
+                dropped += valid.dropped;
+                return { ...check, findings: valid.findings };
+              });
+              const value = PaperChecksRecordSchema.parse({
+                ...record,
+                report: {
+                  ...record.report,
+                  checks,
+                  droppedLocations: record.report.droppedLocations + dropped,
+                },
+              });
+              await db.paperChecks.put(value);
+            }
+          }
           for (const event of plan.auditEvents)
             if (
               (event.action !== 'review_transition' ||
@@ -701,6 +815,16 @@ export function createRepositories(
       );
     },
   };
-  return { analyses, audit, revisions, generations, papers, paperRuns, paperOverviews, transfer };
+  return {
+    analyses,
+    audit,
+    revisions,
+    generations,
+    papers,
+    paperRuns,
+    paperOverviews,
+    paperChecks,
+    transfer,
+  };
 }
 export type Repositories = ReturnType<typeof createRepositories>;

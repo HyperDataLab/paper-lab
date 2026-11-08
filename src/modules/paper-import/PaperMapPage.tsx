@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { SectionSchema, type Paper, type Section } from '@/core/schemas';
+import {
+  SectionSchema,
+  type Paper,
+  type Section,
+  type Finding,
+  type PaperChecksRecord,
+} from '@/core/schemas';
+import { runPaperChecks } from '@/core/paperChecks';
 import { analyzeText } from '@/core/text';
 import { detectCandidates } from '@/core/detectors';
 import { useRepositories } from '@/shared/storage/StorageProvider';
@@ -15,6 +22,7 @@ import { BatchParagraphStatus } from './BatchParagraphStatus';
 import { useBatchRun } from './useBatchRun';
 import { SECTION_ROLE_LABELS } from './sectionRoles';
 import { PaperOverview } from './PaperOverview';
+import { PaperChecks } from './PaperChecks';
 import type { ReactNode } from 'react';
 
 function BatchWorkspace({
@@ -43,8 +51,31 @@ export default function PaperMapPage() {
   const [error, setError] = useState('');
   const [counts, setCounts] = useState<{ sentences: number; words: number } | null>(null);
   const [candidateCounts, setCandidateCounts] = useState<Record<string, number>>({});
-  const [tab, setTab] = useState<'map' | 'overview'>('map');
+  const [tab, setTab] = useState<'map' | 'overview' | 'checks'>('map');
   const [filter, setFilter] = useState<string[] | null>(null);
+  const [checks, setChecks] = useState<PaperChecksRecord>();
+  const [highlight, setHighlight] = useState<Finding['locations'][number] | null>(null);
+  useEffect(() => {
+    let active = true;
+    if (id)
+      void repo.paperChecks
+        .get(id)
+        .then((value) => {
+          if (active) setChecks(value);
+        })
+        .catch((cause: unknown) => {
+          if (active) setError(String(cause));
+        });
+    return () => {
+      active = false;
+    };
+  }, [id, repo]);
+  useEffect(() => {
+    if (tab === 'map' && highlight)
+      document
+        .getElementById(`paper-paragraph-${highlight.paragraphId}`)
+        ?.scrollIntoView?.({ block: 'center' });
+  }, [tab, selected, highlight]);
   useEffect(() => {
     let active = true;
     if (!id) return;
@@ -144,12 +175,17 @@ export default function PaperMapPage() {
               <Button role="tab" aria-selected={tab === 'overview'} onClick={() => setTab('overview')}>
                 Tổng quan
               </Button>
+              <Button role="tab" aria-selected={tab === 'checks'} onClick={() => setTab('checks')}>
+                Kiểm tra
+              </Button>
             </Tabs>
             {tab === 'overview' ? (
               <PaperOverview
                 paper={paper}
                 analyses={batch.analyses}
                 run={batch.run}
+                checks={checks}
+                onChecks={() => setTab('checks')}
                 onFilter={(ids) => {
                   setFilter(ids);
                   const first = paper.paragraphs.find((paragraph) => ids.includes(paragraph.id));
@@ -157,6 +193,47 @@ export default function PaperMapPage() {
                   setTab('map');
                 }}
               />
+            ) : tab === 'checks' ? (
+              <>
+                {error && (
+                  <div role="alert">
+                    Không thể xử lý kiểm tra.
+                    <details>
+                      <summary>Chi tiết kỹ thuật</summary>
+                      {error}
+                    </details>
+                  </div>
+                )}
+                <PaperChecks
+                  paper={paper}
+                  record={checks}
+                  onRun={() => {
+                    void repo.paperChecks
+                      .save({
+                        schemaVersion: 1,
+                        paperId: paper.id,
+                        report: runPaperChecks(paper),
+                        decisions: [],
+                      })
+                      .then(setChecks)
+                      .catch((cause: unknown) => setError(String(cause)));
+                  }}
+                  onReview={(findingId, status) => {
+                    void repo.paperChecks
+                      .review(paper.id, findingId, status)
+                      .then(setChecks)
+                      .catch((cause: unknown) => setError(String(cause)));
+                  }}
+                  onLocation={(location) => {
+                    const paragraph = paper.paragraphs.find((item) => item.id === location.paragraphId);
+                    if (!paragraph) return;
+                    setFilter(null);
+                    setSelected(paragraph.sectionId);
+                    setHighlight(location);
+                    setTab('map');
+                  }}
+                />
+              </>
             ) : (
               <>
                 <Button onClick={() => void runDetectors()}>Chạy bộ phát hiện cục bộ</Button>
@@ -219,11 +296,24 @@ export default function PaperMapPage() {
                           .map((item) => (
                             <div
                               key={item.id}
+                              id={`paper-paragraph-${item.id}`}
                               className={`${styles.paragraph} ${['caption', 'equation', 'reference', 'footnote'].includes(item.kind) ? styles.muted : ''}`}
                             >
                               <span>{item.id} </span>
                               <Badge>{item.kind}</Badge>
-                              <p className={styles.reading}>{item.text}</p>
+                              <p className={styles.reading}>
+                                {highlight?.paragraphId === item.id ? (
+                                  <>
+                                    {Array.from(item.text).slice(0, highlight.start).join('')}
+                                    <mark>
+                                      {Array.from(item.text).slice(highlight.start, highlight.end).join('')}
+                                    </mark>
+                                    {Array.from(item.text).slice(highlight.end).join('')}
+                                  </>
+                                ) : (
+                                  item.text
+                                )}
+                              </p>
                               {item.kind === 'body' && candidateCounts[item.id] !== undefined && (
                                 <p>{candidateCounts[item.id]} ứng viên cục bộ</p>
                               )}

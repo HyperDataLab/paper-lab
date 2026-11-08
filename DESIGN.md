@@ -144,3 +144,8 @@ The paper page also has Sơ đồ and Tổng quan tabs. Tổng quan presents sec
 numbered bars, per-dimension score distributions, recurring issue filters and paragraph transition chains.
 It identifies stale and unavailable transitions, offers audited human review and links each endpoint to its
 analysis. It never presents a paper-level total score.
+
+The Kiểm tra tab runs deterministic checks locally and always labels them experimental. Each check shows its
+status, false-positive risks and anchored findings; users can confirm, dismiss or undo a decision. Dismissed
+findings are collapsed, and selecting a quoted location opens the map at the highlighted passage. Tổng quan
+links to the checks and shows counts by status.

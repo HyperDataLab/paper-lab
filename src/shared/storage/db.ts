@@ -7,6 +7,7 @@ import type {
   Paper,
   PaperRun,
   PaperOverviewRecord,
+  PaperChecksRecord,
 } from '@/core/schemas';
 export class ParagraphDb extends Dexie {
   analyses!: Table<Analysis, string>;
@@ -16,6 +17,7 @@ export class ParagraphDb extends Dexie {
   papers!: Table<Paper, string>;
   paperRuns!: Table<PaperRun, string>;
   paperOverviews!: Table<PaperOverviewRecord, string>;
+  paperChecks!: Table<PaperChecksRecord, string>;
   constructor(name = 'paragraph-lab') {
     super(name);
     this.version(1).stores({
@@ -33,6 +35,7 @@ export class ParagraphDb extends Dexie {
     this.version(4).stores({ papers: 'id, updatedAt, title' });
     this.version(5).stores({ paperRuns: 'id, paperId, updatedAt' });
     this.version(6).stores({ paperOverviews: 'paperId' });
+    this.version(7).stores({ paperChecks: 'paperId' });
   }
 }
 export function createDb(name?: string) {
