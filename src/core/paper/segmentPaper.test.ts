@@ -118,3 +118,127 @@ it('keeps continuation candidates in the same column and rejects prose and citat
   ]);
   expect(paper.paragraphs.map((p) => p.text).join(' ')).toContain('(Jones et al., 2023)');
 });
+it('joins wrapped headings in either column and continues body across column and page breaks', async () => {
+  const left = { x: 20, end: 160, height: 14, pageStart: 1, column: 'left' as const };
+  const right = { ...left, x: 240, end: 380, column: 'right' as const };
+  const input = [
+    { ...left, text: '1 Methods for synthetic' },
+    { ...left, text: 'paired examples' },
+    { ...left, height: 10, text: 'A synthetic para-' },
+    { ...right, height: 10, text: 'graph continues', breakBefore: true },
+    { ...right, height: 10, pageStart: 2, text: 'across pages.' },
+    { ...right, pageStart: 2, text: '2 Results: Paired patterns', breakBefore: true },
+    { ...right, pageStart: 2, text: 'in synthetic samples' },
+    { ...right, height: 10, pageStart: 2, text: 'A complete sentence.' },
+  ];
+  const paper = await segmentPaper(input);
+  expect(paper.sections.map((s) => s.heading)).toEqual([
+    'Methods for synthetic paired examples',
+    'Results: Paired patterns in synthetic samples',
+  ]);
+  expect(paper.paragraphs.map((p) => p.text)).toEqual([
+    'A synthetic paragraph continues across pages.',
+    'A complete sentence.',
+  ]);
+  expect(await segmentPaper(input)).toEqual(paper);
+});
+it('groups hanging and numbered references and assigns appendix roles while rejecting prompt blocks', async () => {
+  const paper = await segmentPaper([
+    { text: 'References', height: 14 },
+    { text: 'Stone, A. A fictional entry.', x: 20 },
+    { text: 'More fictional details.', x: 35 },
+    { text: 'Vale, B. Another entry.', x: 20 },
+    { text: 'Continued details.', x: 35 },
+    { text: '[3] A numbered entry.', x: 20 },
+    { text: 'Its continuation.', x: 35 },
+    { text: 'A Limitations', height: 14 },
+    { text: 'A synthetic limitation.', height: 10 },
+    { text: 'B.1 Additional analysis', height: 14 },
+    { text: 'PAPER TITLE: {title}', height: 14 },
+    { text: 'OUTPUT FORMAT:', height: 14 },
+    { text: 'Results', height: 14, monospace: true },
+    { text: 'Methods', height: 14, boxed: true },
+  ]);
+  expect(paper.sections.map((s) => [s.heading, s.role])).toEqual([
+    ['References', 'references'],
+    ['Limitations', 'appendix'],
+    ['Additional analysis', 'appendix'],
+  ]);
+  expect(paper.paragraphs.filter((p) => p.kind === 'reference').map((p) => p.text)).toEqual([
+    'Stone, A. A fictional entry. More fictional details.',
+    'Vale, B. Another entry. Continued details.',
+    '[3] A numbered entry. Its continuation.',
+  ]);
+});
+it('treats PDF prompt text and reference continuations as text while joining indented heading wraps', async () => {
+  const base = { source: 'pdf' as const, height: 10, pageStart: 1, column: 'right' as const };
+  const paper = await segmentPaper([
+    { ...base, x: 200, text: '1 Introduction' },
+    { ...base, x: 200, text: '# SAMPLE PROMPT:' },
+    { ...base, x: 200, text: 'SYNTHETIC INSTRUCTION' },
+    { ...base, x: 200, text: '2 Results: Synthetic analysis is' },
+    { ...base, x: 220, text: 'useful' },
+    { ...base, x: 200, text: 'References' },
+    { ...base, x: 200, text: 'Stone, A. Synthetic title.' },
+    { ...base, x: 210, text: 'A. Fictional continuation. In Proceedings' },
+    { ...base, x: 210, text: 'of an invented event.' },
+    { ...base, x: 200, text: 'Vale, B. Another synthetic entry.' },
+    { ...base, x: 200, text: 'A Limitations', height: 14 },
+    { ...base, x: 200, text: 'B.1 Further analysis', height: 14 },
+  ]);
+  expect(paper.sections.map((s) => s.heading)).toEqual([
+    'Introduction',
+    'Results: Synthetic analysis is useful',
+    'References',
+    'Limitations',
+    'Further analysis',
+  ]);
+  expect(paper.paragraphs.filter((p) => p.kind === 'reference').map((p) => p.text)).toEqual([
+    'Stone, A. Synthetic title. A. Fictional continuation. In Proceedings of an invented event.',
+    'Vale, B. Another synthetic entry.',
+  ]);
+});
+it('recognizes numbered uppercase PDF section names while rejecting numbered prompts', async () => {
+  const pdf = { source: 'pdf' as const, height: 12, pageStart: 1 };
+  const result = await segmentPaper([
+    { ...pdf, text: '1 INTRODUCTION' },
+    { ...pdf, text: 'A synthetic sentence.' },
+    { ...pdf, text: '2 METHODS' },
+    { ...pdf, text: 'A method description.' },
+    { ...pdf, text: '3 OUTPUT FORMAT' },
+  ]);
+  expect(result.sections.map((section) => [section.heading, section.role])).toEqual([
+    ['INTRODUCTION', 'introduction'],
+    ['METHODS', 'methods'],
+  ]);
+});
+it('starts a named reference at a different x from the hanging-indent minimum', async () => {
+  const result = await segmentPaper([
+    { text: 'References', x: 20, pageStart: 1 },
+    { text: 'Oak, A. First fictional entry.', x: 20, pageStart: 1 },
+    { text: 'continued details.', x: 30, pageStart: 1 },
+    { text: 'Vale, B. Second fictional entry.', x: 35, pageStart: 1 },
+    { text: 'more details.', x: 45, pageStart: 1 },
+  ]);
+  expect(result.paragraphs.map((paragraph) => paragraph.text)).toEqual([
+    'Oak, A. First fictional entry. continued details.',
+    'Vale, B. Second fictional entry. more details.',
+  ]);
+});
+it('continues across page or column changes but respects an ordinary vertical gap', async () => {
+  const left = { pageStart: 1, column: 'left' as const };
+  const right = { pageStart: 1, column: 'right' as const };
+  const result = await segmentPaper([
+    { ...left, text: 'Introduction' },
+    { ...left, text: 'An unfinished passage' },
+    { ...left, text: 'separate paragraph.', breakBefore: true },
+    { ...left, text: 'An intercolumn para-', breakBefore: true },
+    { ...right, text: 'graph continues', breakBefore: true },
+    { ...right, pageStart: 2, text: 'across pages.' },
+  ]);
+  expect(result.paragraphs.map((paragraph) => paragraph.text)).toEqual([
+    'An unfinished passage',
+    'separate paragraph.',
+    'An intercolumn paragraph continues across pages.',
+  ]);
+});

@@ -79,6 +79,7 @@ it('removes stamps and page numbers while retaining line heights', () => {
     {
       text: 'Introduction',
       pageStart: 1,
+      source: 'pdf',
       breakBefore: false,
       height: 14,
       x: 0,
@@ -232,4 +233,114 @@ it('keeps same-baseline columns separate and reads each column from top to botto
   expect(itemsToLines([item('First', 20, 20), item('Second', 20, 35)], 100).map((line) => line.text)).toEqual(
     ['First', 'Second'],
   );
+});
+it('does not mistake isolated indents for a column and detects staggered columns', () => {
+  const item = (str: string, x: number, y: number) => ({
+    str,
+    width: 60,
+    height: 10,
+    transform: [1, 0, 0, 10, x, 200 - y],
+  });
+  const single = itemsToLines(
+    [
+      item('One', 20, 20),
+      item('Indented', 240, 35),
+      item('Two', 20, 50),
+      item('Three', 20, 65),
+      item('Four', 20, 80),
+      item('Five', 20, 95),
+    ],
+    200,
+  );
+  expect(single.map((line) => line.text)).toEqual(['One', 'Indented', 'Two', 'Three', 'Four', 'Five']);
+  expect(single.every((line) => line.column === undefined)).toBe(true);
+  const columns = itemsToLines(
+    [
+      item('Left one', 20, 20),
+      item('Right one', 240, 40),
+      item('Left two', 20, 70),
+      item('Right two', 240, 90),
+      item('Left three', 20, 120),
+      item('Right three', 240, 140),
+    ],
+    200,
+  );
+  expect(columns.map((line) => line.text)).toEqual([
+    'Left one',
+    'Left two',
+    'Left three',
+    'Right one',
+    'Right two',
+    'Right three',
+  ]);
+});
+it('splits large gaps before page-centre column ordering and joins superscripts with whitespace items', () => {
+  const item = (str: string, x: number, y: number, width: number, height = 10) => ({
+    str,
+    width,
+    height,
+    transform: [1, 0, 0, height, x, 200 - y],
+  });
+  const lines = itemsToLines(
+    [
+      item('Wide title', 20, 10, 360),
+      item('Left', 20, 40, 50),
+      item('Right', 240, 40, 50),
+      item('Left next', 20, 60, 50),
+      item('Right next', 240, 60, 50),
+      item('43', 20, 80, 12),
+      item(' ', 32, 80, 1),
+      item('rd', 33, 76, 5, 6),
+      item(' ', 38, 76, 3, 6),
+      item(' meeting', 41, 80, 50),
+      item('Right last', 240, 80, 50),
+    ],
+    200,
+    400,
+  );
+  expect(lines.map((line) => line.text)).toEqual([
+    'Wide title',
+    'Left',
+    'Left next',
+    '43rd meeting',
+    'Right',
+    'Right next',
+    'Right last',
+  ]);
+  expect(lines.map((line) => line.column)).toEqual([
+    'full',
+    'left',
+    'left',
+    'left',
+    'right',
+    'right',
+    'right',
+  ]);
+});
+it('requires vertical overlap for page-width column detection', () => {
+  const item = (str: string, x: number, y: number) => ({
+    str,
+    width: 60,
+    height: 10,
+    transform: [1, 0, 0, 10, x, 200 - y],
+  });
+  const separated = itemsToLines(
+    [item('First', 20, 20), item('Second', 20, 40), item('Third', 240, 110), item('Fourth', 240, 130)],
+    200,
+    400,
+  );
+  expect(separated.map((line) => line.text)).toEqual(['First', 'Second', 'Third', 'Fourth']);
+  expect(separated.every((line) => line.column === undefined)).toBe(true);
+  const overlapping = itemsToLines(
+    [
+      item('Left one', 20, 20),
+      item('Right one', 240, 35),
+      item('Left two', 20, 50),
+      item('Right two', 240, 65),
+    ],
+    200,
+    400,
+  );
+  expect(overlapping.map((line) => line.text)).toEqual(['Left one', 'Left two', 'Right one', 'Right two']);
+  expect(overlapping.map((line) => line.column)).toEqual(['left', 'left', 'right', 'right']);
 });
