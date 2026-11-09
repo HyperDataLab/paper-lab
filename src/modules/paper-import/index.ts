@@ -3,7 +3,7 @@ import { FileText } from 'lucide-react';
 import type { ModuleDefinition } from '@/app/moduleTypes';
 const module: ModuleDefinition = {
   id: 'paper-import',
-  label: 'Tải bài báo',
+  label: 'Bài báo',
   icon: FileText,
   path: '/papers',
   group: 'paper',

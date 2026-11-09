@@ -102,7 +102,7 @@ export function App() {
               <LlmProvider>
                 <Suspense fallback={<Skeleton />}>
                   <Routes>
-                    <Route path="/" element={<Navigate to="/evaluate" replace />} />
+                    <Route path="/" element={<Navigate to="/papers" replace />} />
                     {modules.map((item) => (
                       <Route key={item.id} path={item.path} element={<item.page />} />
                     ))}

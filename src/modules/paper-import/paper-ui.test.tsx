@@ -45,8 +45,6 @@ it('imports a paper, persists and audits role edits, then prefills Evaluate', as
   await importPaper();
   expect(await screen.findByText('0 ứng viên cục bộ')).toBeInTheDocument();
   expect(screen.getByRole('option', { name: 'Phương pháp' })).toHaveAttribute('title', 'methods');
-  fireEvent.click(screen.getByRole('button', { name: 'Chạy bộ phát hiện cục bộ' }));
-  expect(screen.getByText('sec1_p01')).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Vai trò của mục'), { target: { value: 'methods' } });
   await waitFor(async () => expect((await repo.papers.list())[0]?.sections[0]?.role).toBe('methods'));
   const paper = (await repo.papers.list())[0];
@@ -60,6 +58,7 @@ it('imports a paper, persists and audits role edits, then prefills Evaluate', as
 it('requires confirmation before deleting a paper', async () => {
   const repo = setup();
   await importPaper();
+  fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));
   fireEvent.click(screen.getByRole('link', { name: /Bài báo đã nhập/ }));
   await screen.findByRole('link', { name: 'study' });
   fireEvent.click(screen.getByRole('button', { name: 'Xoá' }));
@@ -98,6 +97,7 @@ it('P2 estimates selected calls, asks manuscript consent and opens a completed a
     </MemoryRouter>,
   );
   await importPaper();
+  fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));
   expect(screen.getByText('Ước tính ~0 lượt gọi AI (giới hạn 150)')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Phân tích câu' }));
@@ -105,12 +105,13 @@ it('P2 estimates selected calls, asks manuscript consent and opens a completed a
   fireEvent.change(screen.getByLabelText('Giới hạn lượt gọi'), { target: { value: '0' } });
   expect(screen.getByText('Ước tính vượt giới hạn lượt gọi.')).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Giới hạn lượt gọi'), { target: { value: '2' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu phân tích' }));
   expect(await screen.findByText(/Các đoạn được chọn của bản thảo/)).toBeInTheDocument();
   expect(completeJson).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Đồng ý và tiếp tục' }));
+  expect(await screen.findByText(/Tiến độ: 1\/1 đoạn/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('tab', { name: 'Đọc bài' }));
   expect(await screen.findByText('Hoàn tất')).toBeInTheDocument();
-  expect(screen.getByText(/Tiến độ: 1\/1 đoạn/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('link', { name: 'Mở trong Đánh giá' }));
   expect(await screen.findByRole('link', { name: 'Bài báo › Introduction' })).toBeInTheDocument();
 });
@@ -140,10 +141,12 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   );
   const view = render(tree('/papers'));
   await importPaper();
+  fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Phân tích câu' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu phân tích' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Đọc bài' }));
   expect(await screen.findByText('Thất bại')).toBeInTheDocument();
   expect(screen.getByText(/Đã có lỗi không xác định/)).toBeInTheDocument();
   fail = false;
@@ -157,6 +160,7 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   await repo.paperRuns.save({ ...run, status: 'running' });
   view.unmount();
   render(tree(`/papers/${paper.id}`));
+  fireEvent.click(await screen.findByRole('tab', { name: 'Chất lượng viết' }));
   expect(await screen.findByRole('button', { name: 'Tiếp tục' })).toBeInTheDocument();
   expect((await repo.paperRuns.get(run.id))?.status).toBe('paused');
 });
@@ -177,6 +181,7 @@ it('P2 increases a budget on the same run when resuming', async () => {
     </MemoryRouter>,
   );
   await importPaper();
+  fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));
   const paper = (await repo.papers.list())[0];
   if (!paper) throw new Error('missing paper');
   const { planRun } = await import('@/core/batch');
@@ -222,6 +227,7 @@ it('P2 increases a budget on the same run when resuming', async () => {
       </StorageProvider>
     </MemoryRouter>,
   );
+  fireEvent.click(await screen.findByRole('tab', { name: 'Chất lượng viết' }));
   fireEvent.change(await screen.findByLabelText('Giới hạn lượt gọi'), { target: { value: '10' } });
   fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục' }));
   expect(await screen.findByText(/Các đoạn được chọn của bản thảo/)).toBeInTheDocument();
@@ -259,15 +265,17 @@ it('P2 pauses after the current call and resumes the remaining step', async () =
     </MemoryRouter>,
   );
   await importPaper();
+  fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Phân tích câu' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Đánh giá ngữ cảnh' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu phân tích' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
   await waitFor(() => expect(release).toBeDefined());
   fireEvent.click(screen.getByRole('button', { name: 'Tạm dừng' }));
   release?.();
   fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục' }));
+  await waitFor(() => expect(completeJson).toHaveBeenCalledTimes(2));
+  fireEvent.click(screen.getByRole('tab', { name: 'Đọc bài' }));
   expect(await screen.findByText('Hoàn tất')).toBeInTheDocument();
-  expect(completeJson).toHaveBeenCalledTimes(2);
 });

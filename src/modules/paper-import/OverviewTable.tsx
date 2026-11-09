@@ -12,6 +12,9 @@ const categories = {
 } as const;
 const number = (value: number) => new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(value);
 export function OverviewTable({ paper, overview }: { paper: Paper; overview: PaperOverview }) {
+  const rows = overview.sections.filter((section) => section.analysed > 0);
+  if (!rows.length)
+    return <p>Chưa có đoạn nào được phân tích. Chọn mục ở phần trên rồi bấm Bắt đầu phân tích.</p>;
   return (
     <div className={styles.scroll}>
       <table className={styles.table}>
@@ -28,7 +31,7 @@ export function OverviewTable({ paper, overview }: { paper: Paper; overview: Pap
           </tr>
         </thead>
         <tbody>
-          {overview.sections.map((section) => {
+          {rows.map((section) => {
             const info = paper.sections.find((item) => item.id === section.sectionId);
             const max = Math.max(1, ...Object.values(section.issuesByCategory));
             return (
@@ -42,6 +45,7 @@ export function OverviewTable({ paper, overview }: { paper: Paper; overview: Pap
                 <td>
                   {Object.entries(categories).map(([id, label]) => {
                     const count = section.issuesByCategory[id] ?? 0;
+                    if (!count) return null;
                     return (
                       <div key={id} className={styles.issueRow}>
                         <span>

@@ -4,6 +4,8 @@ import { Card } from '@/shared/ui/Card';
 import { CHECK_STATUSES, type CheckHandlers } from './checkTypes';
 import { FindingRow } from './CheckFinding';
 import { CalibrationBadge } from '@/shared/calibration/CalibrationBadge';
+const FOLD_AFTER = 5;
+
 export function CheckCard({
   check,
   record,
@@ -54,7 +56,14 @@ export function CheckCard({
           ))}
         </ul>
       </details>
-      {rows(active)}
+      {active.length > FOLD_AFTER ? (
+        <details>
+          <summary>Xem {active.length} phát hiện</summary>
+          {rows(active)}
+        </details>
+      ) : (
+        rows(active)
+      )}
       {dismissed.length > 0 && (
         <details>
           <summary>Đã bỏ qua ({dismissed.length})</summary>

@@ -9,7 +9,7 @@ it('renders groups, entries, disabled upcoming items and the active page', () =>
       <Sidebar />
     </MemoryRouter>,
   );
-  for (const label of ['PHÂN TÍCH', 'DỮ LIỆU', 'SẮP CÓ']) expect(screen.getByText(label)).toBeInTheDocument();
+  for (const label of ['BÀI BÁO', 'ĐOẠN VĂN', 'DỮ LIỆU']) expect(screen.getByText(label)).toBeInTheDocument();
   for (const item of modules) {
     if (item.status === 'soon') {
       const node = screen.getByLabelText(item.label, { selector: '[aria-disabled]' });

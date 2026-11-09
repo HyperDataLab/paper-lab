@@ -76,7 +76,7 @@ it('P4 runs local checks, navigates to evidence, reviews and shows overview coun
   expect(screen.getByLabelText('Ẩn mục chưa đáng tin')).not.toBeChecked();
   expect(screen.getByText(/Lần chạy gần nhất/)).toBeInTheDocument();
   fireEvent.click(within(card).getByRole('button', { name: /p2:.*Figure 2/ }));
-  expect(screen.getByRole('tab', { name: 'Sơ đồ' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'Đọc bài' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
   expect(scroll).toHaveBeenCalled();
   fireEvent.click(screen.getByRole('tab', { name: 'Kiểm tra' }));
@@ -98,7 +98,7 @@ it('P4 runs local checks, navigates to evidence, reviews and shows overview coun
       (await repo.audit.listByAnalysis(paper.id)).items.filter((e) => e.action === 'review_check'),
     ).toHaveLength(4),
   );
-  fireEvent.click(screen.getByRole('tab', { name: 'Tổng quan' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));
   expect(await screen.findByText(/Cảnh báo: 1/)).toHaveTextContent('Không áp dụng:');
   fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra' }));
   expect(screen.getByRole('tab', { name: 'Kiểm tra' })).toHaveAttribute('aria-selected', 'true');

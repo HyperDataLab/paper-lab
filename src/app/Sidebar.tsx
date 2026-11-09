@@ -1,14 +1,13 @@
-import { PanelLeftClose, PanelLeftOpen, Pilcrow } from 'lucide-react';
+import { BookOpenText, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/shared/ui/Button';
 import { SidebarGroup } from './SidebarGroup';
 import styles from './shell.module.css';
 
 const groups = [
-  { id: 'analysis', label: 'PHÂN TÍCH' },
-  { id: 'paper', label: 'PHÂN TÍCH BÀI BÁO' },
+  { id: 'paper', label: 'BÀI BÁO' },
+  { id: 'analysis', label: 'ĐOẠN VĂN' },
   { id: 'data', label: 'DỮ LIỆU' },
-  { id: 'labs', label: 'SẮP CÓ' },
   { id: 'system', label: '' },
 ] as const;
 
@@ -35,7 +34,7 @@ export function Sidebar({ onNavigate, mobile = false }: { onNavigate?: () => voi
   return (
     <aside className={`${styles.sidebar} ${rail ? styles.collapsed : ''}`}>
       <div className={styles.brand}>
-        <Pilcrow className={styles.logo} size={26} aria-hidden="true" />
+        <BookOpenText className={styles.logo} size={26} aria-hidden="true" />
         {!rail && <span>PaperLab</span>}
       </div>
       <nav aria-label="Điều hướng chính" className={styles.navigation}>

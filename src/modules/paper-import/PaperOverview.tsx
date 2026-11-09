@@ -74,7 +74,7 @@ export function PaperOverview({
   return (
     <>
       <Card>
-        <h2>Tổng quan</h2>
+        <h2>Kết quả theo mục</h2>
         <p>
           <Button onClick={onChecks}>Kiểm tra</Button>
           {checks
