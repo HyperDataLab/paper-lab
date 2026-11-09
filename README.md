@@ -1,4 +1,4 @@
-# Paragraph Lab
+# PaperLab
 
 Evaluate and revise one English scientific paragraph at the paragraph and sentence level, based on
 Joshua Schimel, _Writing Science_ (2012), Ch. 11–16. Part of HyperDataLab's paper-understanding toolset.

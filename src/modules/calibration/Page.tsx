@@ -107,9 +107,7 @@ export default function Page() {
           Mẫu chứa các mục hiện có. Điền tên người đánh giá và label (correct/incorrect hoặc 0–4 cho điểm)
           trước khi nhập.
         </p>
-        <Button onClick={() => downloadJson('paragraph-lab-labels-template.json', template)}>
-          Tải mẫu nhãn
-        </Button>{' '}
+        <Button onClick={() => downloadJson('paperlab-labels-template.json', template)}>Tải mẫu nhãn</Button>{' '}
         <input
           ref={input}
           type="file"

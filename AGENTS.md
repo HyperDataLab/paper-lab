@@ -5,7 +5,7 @@ Claude-specific workflow is in `CLAUDE.md`; UI rules are in `DESIGN.md`; the spe
 
 ## What this is
 
-**Paragraph Lab**: a single-page React + TypeScript + Vite app that evaluates and revises **one English scientific
+**PaperLab**: a single-page React + TypeScript + Vite app that evaluates and revises **one English scientific
 paragraph** at the paragraph and sentence level, following Joshua Schimel, _Writing Science_ (2012), Ch. 11–16.
 
 Modules (see `docs/ROADMAP.md`):

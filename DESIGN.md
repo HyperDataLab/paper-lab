@@ -1,6 +1,6 @@
 # DESIGN.md
 
-UI and interaction rules for Paragraph Lab. Implements PRD §6 (Highlight and annotation UX) and §9 (Accessibility).
+UI and interaction rules for PaperLab. Implements PRD §6 (Highlight and annotation UX) and §9 (Accessibility).
 
 ## 1. Navigation: collapsible sidebar driven by a module registry
 
@@ -10,7 +10,7 @@ product will keep adding modules (Section/IMRaD, Citation, Figure captions, Batc
 
 ```
 ┌───────────────┬──────────────────────────────────────────────────────────┐
-│ ◧ Paragraph Lab│ Breadcrumb: Đánh giá › Phân tích #12        [⌘K] [⚙]   │
+│ ◧ PaperLab│ Breadcrumb: Đánh giá › Phân tích #12        [⌘K] [⚙]   │
 │───────────────│──────────────────────────────────────────────────────────│
 │ PHÂN TÍCH     │                                                          │
 │  ◉ Đánh giá   │                 module page                              │

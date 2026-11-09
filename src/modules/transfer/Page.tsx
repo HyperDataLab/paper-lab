@@ -38,7 +38,7 @@ export default function Page() {
       );
       const a = document.createElement('a');
       a.href = url;
-      a.download = `paragraph-lab-export-${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}-${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}.json`;
+      a.download = `paperlab-export-${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}-${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}.json`;
       a.click();
       toast('Đã xuất dữ liệu');
       setTimeout(() => URL.revokeObjectURL(url), 0);

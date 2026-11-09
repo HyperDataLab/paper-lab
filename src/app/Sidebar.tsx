@@ -36,7 +36,7 @@ export function Sidebar({ onNavigate, mobile = false }: { onNavigate?: () => voi
     <aside className={`${styles.sidebar} ${rail ? styles.collapsed : ''}`}>
       <div className={styles.brand}>
         <Pilcrow className={styles.logo} size={26} aria-hidden="true" />
-        {!rail && <span>Paragraph Lab</span>}
+        {!rail && <span>PaperLab</span>}
       </div>
       <nav aria-label="Điều hướng chính" className={styles.navigation}>
         {groups.map((group) => (
