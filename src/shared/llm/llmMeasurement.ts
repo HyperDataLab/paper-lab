@@ -1,3 +1,4 @@
+import type { z } from 'zod';
 import { BatchBudgetExceededError } from '@/core/batch/runBatch';
 import {
   applyFindings,
@@ -18,10 +19,7 @@ import {
   ExtractionOutputSchema,
   FindingsOutputSchema,
   LinkOutputSchema,
-  type ClassifyOutput,
-  type ExtractionOutput,
-  type FindingsOutput,
-  type LinkOutput,
+  type MeasurementCheckpointSchema,
   type Paper,
 } from '@/core/schemas';
 import type { LlmClient } from './client';
@@ -40,13 +38,7 @@ export const MEASUREMENT_PROMPT_VERSION = [
 ].join('+');
 
 /** Progress kept between runs, so a stopped analysis resumes without paying twice. */
-export interface MeasurementCheckpoint {
-  classification: ClassifyOutput | null;
-  units: Record<string, ExtractionOutput>;
-  link: LinkOutput | null;
-  findings: FindingsOutput | null;
-  model: string | null;
-}
+export type MeasurementCheckpoint = z.infer<typeof MeasurementCheckpointSchema>;
 export const emptyCheckpoint = (): MeasurementCheckpoint => ({
   classification: null,
   units: {},
@@ -198,6 +190,7 @@ export async function llmMeasurement(client: LlmClient, paper: Paper, options: M
             schemaName: 'measurement_links',
             promptVersion: PROMPT_VERSIONS.measurementLink,
             temperature: 0.1,
+            timeoutMs: EXTRACTION_TIMEOUT_MS,
             onRequest,
             signal: options.signal,
           })
@@ -220,6 +213,7 @@ export async function llmMeasurement(client: LlmClient, paper: Paper, options: M
             schemaName: 'measurement_findings',
             promptVersion: PROMPT_VERSIONS.measurementFindings,
             temperature: 0.2,
+            timeoutMs: EXTRACTION_TIMEOUT_MS,
             onRequest,
             signal: options.signal,
           })

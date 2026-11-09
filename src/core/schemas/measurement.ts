@@ -319,3 +319,47 @@ export type ReportedResult = z.infer<typeof ReportedResultSchema>;
 export type ResearchClaim = z.infer<typeof ResearchClaimSchema>;
 export type AnalysisFinding = z.infer<typeof AnalysisFindingSchema>;
 export type MeasurementProfile = z.infer<typeof MeasurementProfileSchema>;
+
+// Review and storage.
+export const MeasurementDecisionSchema = z.object({
+  run_id: z.uuid(),
+  item_id: z.string(),
+  field: z.string().nullable(),
+  decision: z.enum(['accept', 'edit', 'reject', 'reopen']),
+  reviewer: z.literal('local'),
+  timestamp: z.iso.datetime(),
+  previous_value: z.string().nullable(),
+  new_value: z.string().nullable(),
+  note: z.string().nullable(),
+});
+export const MeasurementCheckpointSchema = z.object({
+  classification: ClassifyOutputSchema.nullable(),
+  units: z.record(z.string(), ExtractionOutputSchema),
+  link: LinkOutputSchema.nullable(),
+  findings: FindingsOutputSchema.nullable(),
+  model: z.string().nullable(),
+});
+export const MeasurementPendingSchema = z.object({
+  sectionIds: z.array(z.string()),
+  callsUsed: z.number().int().nonnegative(),
+  checkpoint: MeasurementCheckpointSchema,
+});
+export const MeasurementRunSchema = z.object({
+  id: z.uuid(),
+  createdAt: z.iso.datetime(),
+  callsUsed: z.number().int().nonnegative(),
+  sectionIds: z.array(z.string()),
+  profile: MeasurementProfileSchema,
+});
+export const MeasurementsRecordSchema = z.object({
+  schemaVersion: z.literal(1),
+  paperId: z.uuid(),
+  updatedAt: z.iso.datetime(),
+  runs: z.array(MeasurementRunSchema),
+  decisions: z.array(MeasurementDecisionSchema),
+  pending: MeasurementPendingSchema.nullable(),
+});
+export type MeasurementDecision = z.infer<typeof MeasurementDecisionSchema>;
+export type MeasurementPending = z.infer<typeof MeasurementPendingSchema>;
+export type MeasurementRun = z.infer<typeof MeasurementRunSchema>;
+export type MeasurementsRecord = z.infer<typeof MeasurementsRecordSchema>;

@@ -10,6 +10,7 @@ import {
   type PaperReviewsRecord,
   type PaperProbesRecord,
   type CalibrationLabelSet,
+  type MeasurementsRecord,
 } from '../schemas';
 export function buildExportPackage(
   analyses: Analysis[],
@@ -24,6 +25,7 @@ export function buildExportPackage(
   paperReviews: PaperReviewsRecord[] = [],
   paperProbes: PaperProbesRecord[] = [],
   calibrationLabels: CalibrationLabelSet[] = [],
+  measurements: MeasurementsRecord[] = [],
 ) {
   return ExportPackageSchema.parse({
     format: 'paragraph-lab-export',
@@ -40,5 +42,6 @@ export function buildExportPackage(
     paperReviews,
     paperProbes,
     calibrationLabels,
+    measurements,
   });
 }
