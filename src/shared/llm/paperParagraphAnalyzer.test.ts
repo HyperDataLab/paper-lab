@@ -132,7 +132,7 @@ it('P2 applies paper syntax, judgement, structure and scoring to an existing ana
   }
   const analysis = await repositories.analyses.get(id);
   expect(analysis?.versions).toMatchObject({
-    syntaxProvider: 'sent-syntax-paper-1',
+    syntaxProvider: 'sent-syntax-paper-batch-1',
     judgePrompt: 'cand-judge-paper-1',
     structurePrompt: 'para-struct-paper-1',
     scoringPrompt: 'score-paper-1',
@@ -164,7 +164,7 @@ it('P2 applies paper syntax, judgement, structure and scoring to an existing ana
     plan,
     budget: 5,
     callsUsed: 0,
-    promptVersions: { syntax: 'sent-syntax-paper-1' },
+    promptVersions: { syntax: 'sent-syntax-paper-batch-1' },
     model: 'fake',
     items: [],
   };
@@ -177,7 +177,7 @@ it('P2 applies paper syntax, judgement, structure and scoring to an existing ana
   expect(await changed.findCached(paragraph, run)).toBeNull();
 });
 
-it('P2 uses one syntax request for a long paragraph and reports repair', async () => {
+it('P2 splits a paragraph over the sentence limit into several counted requests', async () => {
   vi.stubGlobal('crypto', webcrypto);
   const at = '2026-01-01T00:00:00.000Z';
   const text = Array(41).fill('This works.').join(' ');
@@ -222,6 +222,78 @@ it('P2 uses one syntax request for a long paragraph and reports repair', async (
     null,
     onRepair,
   );
+  expect(completeJson).toHaveBeenCalledTimes(2);
+  expect(onRepair).toHaveBeenCalledTimes(2);
+});
+
+it('P2 shares one syntax request across paragraphs and restores their own ids and tokens', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const at = '2026-01-01T00:00:00.000Z';
+  const texts = ['The first method works.', 'The second method fails.', 'The third method waits.'];
+  const paragraphs = await Promise.all(
+    texts.map(async (text, order) => ({
+      id: `p${order}`,
+      sectionId: 's',
+      order,
+      text,
+      textHash: await sourceHash(text),
+      kind: 'body' as const,
+      pageStart: null,
+    })),
+  );
+  const paper: Paper = {
+    schemaVersion: 1,
+    id: crypto.randomUUID(),
+    title: '',
+    createdAt: at,
+    updatedAt: at,
+    source: { kind: 'text', fileName: '', pageCount: null, sha256: '' },
+    sections: [{ id: 's', heading: 'Methods', role: 'methods', level: 1, pageStart: null }],
+    paragraphs,
+  };
+  const repositories = createRepositories(createDb(`p2-${crypto.randomUUID()}`));
+  const prompts: string[] = [];
+  const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => {
+    await options.onRequest?.();
+    prompts.push(options.user);
+    const entry = (sentenceId: string, base: number) => ({
+      sentenceId,
+      subject: { start: base, end: base + 3 },
+      subjectHead: base + 2,
+      mainVerb: { start: base + 3, end: base + 4 },
+      mainVerbHead: base + 3,
+      topic: { start: base, end: base + 3 },
+      action: { start: base + 3, end: base + 4 },
+      stress: { start: base + 3, end: base + 4 },
+      voice: 'active',
+      clauseCount: 1,
+      maxClauseDepth: 0,
+      confidence: 0.9,
+    });
+    return {
+      data: options.schema.parse({ sentences: [entry('P1.s1', 0), entry('P2.s1', 5)] }),
+      meta: { model: 'fake', promptVersion: options.promptVersion, latencyMs: 1, repaired: false },
+    };
+  }) as LlmClient['completeJson'];
+  const analyzer = createPaperParagraphAnalyzer({ completeJson }, repositories, paper);
+  const context = { role: 'methods' as const, heading: 'Methods', previousLast: null, nextFirst: null };
+  const members = await Promise.all(
+    paragraphs.map(async (paragraph) => ({
+      paragraph,
+      context,
+      analysisId: await analyzer.analyze(paragraph, context, 'detectors', null),
+    })),
+  );
+  const onRequest = vi.fn(async () => {});
+  expect(await analyzer.analyzeSyntaxBatch(members, onRequest)).toEqual(['p0', 'p1']);
   expect(completeJson).toHaveBeenCalledTimes(1);
-  expect(onRepair).toHaveBeenCalledOnce();
+  expect(onRequest).toHaveBeenCalledTimes(1);
+  expect(prompts[0]).toContain('P2.s1: [5]The');
+  const second = await repositories.analyses.get(members[1]?.analysisId ?? '');
+  expect(second?.sentenceAnnotations[0]?.sentenceId).toBe('s1');
+  expect(second?.versions.syntaxProvider).toBe('sent-syntax-paper-batch-1');
+  expect(second?.sentenceAnnotations[0]?.unresolved).toEqual([]);
+  const skipped = await repositories.analyses.get(members[2]?.analysisId ?? '');
+  expect(skipped?.versions.syntaxProvider ?? null).toBeNull();
+  expect(await analyzer.analyzeSyntaxBatch([], onRequest)).toEqual([]);
 });

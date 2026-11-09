@@ -218,3 +218,111 @@ describe('P2 runBatch', () => {
     expect(t.analyze.mock.calls.find(([p]) => p.id === 'p2')?.[1].nextFirst).toBe('Next section.');
   });
 });
+
+describe('P2 shared syntax requests', () => {
+  function syntaxSetup(budget = 20) {
+    const t = setup(budget);
+    t.run.plan = planRun(paper, { sectionIds: ['s'], steps: ['syntax'], budget });
+    t.analyze.mockImplementation(async (paragraph) => `analysis-${paragraph.id}`);
+    const analyzeSyntaxBatch = vi.fn<NonNullable<BatchDeps['analyzeSyntaxBatch']>>(
+      async (members, onRequest) => {
+        await onRequest();
+        return members.map((member) => member.paragraph.id);
+      },
+    );
+    return { ...t, analyzeSyntaxBatch, deps: { ...t.deps, analyzeSyntaxBatch } };
+  }
+  const failOnce = (t: ReturnType<typeof syntaxSetup>, message: string) =>
+    t.analyzeSyntaxBatch.mockImplementationOnce(async () => {
+      throw new Error(message);
+    });
+  const groupSizes = (t: ReturnType<typeof syntaxSetup>) =>
+    t.analyzeSyntaxBatch.mock.calls.map(([members]) => members.length);
+  it('sends a section in one counted request and marks every paragraph', async () => {
+    const t = syntaxSetup();
+    t.run.callsByStep = {};
+    const result = await runBatch(t.run, t.deps);
+    expect(groupSizes(t)).toEqual([3]);
+    expect(t.analyzeSyntaxBatch.mock.calls[0]?.[0][2]?.analysisId).toBe('analysis-p2');
+    expect(result.callsUsed).toBe(1);
+    expect(result.callsByStep).toEqual({ syntax: 1 });
+    expect(result.items.every((item) => item.status === 'done' && item.stepsDone[0] === 'syntax')).toBe(true);
+  });
+  it('retries the paragraph alone when the shared request fails, so others keep their turn', async () => {
+    const t = syntaxSetup();
+    failOnce(t, 'invalid output');
+    const result = await runBatch(t.run, t.deps);
+    expect(groupSizes(t)).toEqual([3, 1, 2]);
+    expect(result.items.every((item) => item.status === 'done')).toBe(true);
+  });
+  it('marks only the paragraph as failed when it also fails alone', async () => {
+    const t = syntaxSetup();
+    failOnce(t, 'invalid output');
+    failOnce(t, 'still invalid');
+    const result = await runBatch(t.run, t.deps);
+    expect(result.items.map((item) => item.status)).toEqual(['failed', 'done', 'done']);
+    expect(result.items[0]?.error).toBe('still invalid');
+  });
+  it('leaves a paragraph the model skipped for its own request', async () => {
+    const t = syntaxSetup();
+    t.analyzeSyntaxBatch.mockImplementationOnce(async () => ['p0', 'p1']);
+    const result = await runBatch(t.run, t.deps);
+    expect(groupSizes(t)).toEqual([3, 1]);
+    expect(result.items.every((item) => item.status === 'done')).toBe(true);
+  });
+  it('asks again alone when the model skipped the paragraph that started the request', async () => {
+    const t = syntaxSetup();
+    t.analyzeSyntaxBatch.mockImplementationOnce(async () => ['p1', 'p2']);
+    const result = await runBatch(t.run, t.deps);
+    expect(groupSizes(t)).toEqual([3, 1]);
+    expect(result.items[0]?.stepsDone).toEqual(['syntax']);
+  });
+  it('fails clearly if even a lone request completes nothing', async () => {
+    const t = syntaxSetup();
+    t.analyzeSyntaxBatch.mockImplementation(async () => []);
+    const result = await runBatch(t.run, t.deps);
+    expect(result.items[0]?.error).toBe('Model returned no syntax for this paragraph');
+  });
+  it('leaves out cached paragraphs and survives one that cannot be prepared', async () => {
+    const t = syntaxSetup();
+    const findCached = vi.fn<NonNullable<BatchDeps['findCached']>>(async (paragraph) =>
+      paragraph.id === 'p1' ? 'cached-p1' : null,
+    );
+    t.analyze.mockImplementation(async (paragraph) => {
+      if (paragraph.id === 'p2') throw new Error('no text');
+      return `analysis-${paragraph.id}`;
+    });
+    const result = await runBatch(t.run, { ...t.deps, findCached });
+    expect(groupSizes(t)[0]).toBe(1);
+    expect(result.items.map((item) => item.status)).toEqual(['done', 'cached', 'failed']);
+    expect(result.items[2]?.error).toBe('no text');
+  });
+  it('stops at the budget before the shared request and keeps paragraphs pending', async () => {
+    const t = syntaxSetup(0);
+    const result = await runBatch(t.run, t.deps);
+    expect(result.status).toBe('budget_exceeded');
+    expect(result.items.every((item) => item.status === 'pending')).toBe(true);
+  });
+  it('pauses while waiting to retry and resumes without losing the paragraph', async () => {
+    const t = syntaxSetup();
+    const signal: BatchSignal = {};
+    t.analyzeSyntaxBatch.mockImplementationOnce(async () => {
+      throw Object.assign(new Error('busy'), { status: 429 });
+    });
+    t.sleep.mockImplementationOnce(async () => {
+      signal.action = 'pause';
+    });
+    const paused = await runBatch(t.run, t.deps, signal);
+    expect(paused.status).toBe('paused');
+    expect(paused.items[0]?.status).toBe('pending');
+    expect((await runBatch(paused, t.deps)).status).toBe('done');
+  });
+  it('records calibration for each paragraph in the request', async () => {
+    const t = syntaxSetup();
+    t.run.calibrationSnapshots = {};
+    const recordCalibration = vi.fn<NonNullable<BatchDeps['recordCalibration']>>(async () => {});
+    const captureCalibration = vi.fn(async () => []);
+    await runBatch(t.run, { ...t.deps, captureCalibration, recordCalibration });
+    expect(recordCalibration.mock.calls.filter((call) => call[1] === 'syntax')).toHaveLength(3);
+  });
+});

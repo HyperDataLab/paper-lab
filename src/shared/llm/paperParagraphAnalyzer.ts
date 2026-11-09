@@ -7,12 +7,16 @@ import {
   buildCandidateJudgePrompt,
   buildParagraphStructurePrompt,
   buildScoringPrompt,
-  buildSentenceSyntaxPrompt,
+  buildSyntaxBatchPrompt,
   CandidateJudgeOutputSchema,
   ParagraphStructureOutputSchema,
   PROMPT_VERSIONS,
   ScoringOutputSchema,
   SentenceSyntaxOutputSchema,
+  splitSyntaxBatch,
+  SYNTAX_BATCH_SENTENCES,
+  type RawSentenceSyntax,
+  type SyntaxBatchPart,
   type PaperContext,
 } from '@/core/prompts';
 import type { Analysis, BatchStep, Paper, PaperParagraph, PaperRun } from '@/core/schemas';
@@ -26,12 +30,15 @@ import type { LlmClient } from './client';
 import { contextFor } from '@/core/batch';
 
 export const PAPER_PROMPT_VERSIONS = {
-  syntax: PROMPT_VERSIONS.sentenceSyntaxPaper,
+  syntax: PROMPT_VERSIONS.sentenceSyntaxPaperBatch,
   judge: PROMPT_VERSIONS.candidateJudgePaper,
   structure: PROMPT_VERSIONS.paragraphStructurePaper,
   score: PROMPT_VERSIONS.scoringPaper,
   transitions: PROMPT_VERSIONS.paragraphTransition,
 };
+
+/** A request of 40 sentences takes much longer than the default wait. */
+const SYNTAX_BATCH_TIMEOUT_MS = 180000;
 
 function refreshedCandidates(analysis: Analysis, annotations: Analysis['sentenceAnnotations']) {
   const detected = detectCandidates(analysis.text, annotations);
@@ -75,6 +82,70 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
     });
     return found?.id ?? null;
   }
+  async function analyzeSyntaxBatch(
+    members: { paragraph: PaperParagraph; context: PaperContext; analysisId: string }[],
+    onRequest?: () => Promise<void>,
+  ): Promise<string[]> {
+    const loaded = await Promise.all(
+      members.map(async (member) => {
+        const analysis = await repositories.analyses.get(member.analysisId);
+        if (!analysis) throw new Error('Analysis not found');
+        return { ...member, analysis };
+      }),
+    );
+    const [first] = loaded;
+    if (!first) return [];
+    const requests: SyntaxBatchPart[][] = [];
+    if (loaded.length > 1) requests.push(loaded.map(({ analysis }) => ({ text: analysis.text })));
+    else {
+      const { text } = first.analysis;
+      let start = 0;
+      do {
+        requests.push([{ text, sentences: text.sentences.slice(start, start + SYNTAX_BATCH_SENTENCES) }]);
+        start += SYNTAX_BATCH_SENTENCES;
+      } while (start < text.sentences.length);
+    }
+    const raw = loaded.map((): RawSentenceSyntax[] => []);
+    let model = '';
+    for (const parts of requests) {
+      const result = await client.completeJson({
+        ...buildSyntaxBatchPrompt(parts, first.context),
+        schema: SentenceSyntaxOutputSchema,
+        schemaName: 'sentence_syntax',
+        promptVersion: PAPER_PROMPT_VERSIONS.syntax,
+        temperature: 0,
+        timeoutMs: SYNTAX_BATCH_TIMEOUT_MS,
+        onRequest,
+      });
+      model = result.meta.model;
+      splitSyntaxBatch(result.data.sentences, parts).forEach((entries, position) =>
+        raw[position]?.push(...entries),
+      );
+    }
+    const completed: string[] = [];
+    for (const [position, { analysis, context, paragraph }] of loaded.entries()) {
+      // In a shared request, a paragraph the model skipped is left for its own request.
+      const entries = raw[position] ?? [];
+      if (loaded.length > 1 && entries.length === 0) continue;
+      const sentenceAnnotations = buildSentenceAnnotations(
+        analysis.text,
+        validateSyntaxOutput(entries, analysis.text),
+      );
+      await repositories.analyses.update(analysis.id, {
+        sentenceAnnotations,
+        issues: refreshedCandidates(analysis, sentenceAnnotations),
+        scores: analysis.scores,
+        versions: {
+          ...analysis.versions,
+          syntaxProvider: PAPER_PROMPT_VERSIONS.syntax,
+          model,
+          paperStepKeys: { ...analysis.versions.paperStepKeys, syntax: JSON.stringify([context, model]) },
+        },
+      });
+      completed.push(paragraph.id);
+    }
+    return completed;
+  }
   async function analyze(
     paragraph: PaperParagraph,
     context: PaperContext,
@@ -116,29 +187,7 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
         versions: { ...versions, detectors: DETECTOR_VERSION },
       });
     } else if (step === 'syntax') {
-      const result = await client.completeJson({
-        ...buildSentenceSyntaxPrompt(analysis.text, analysis.text.sentences, context),
-        schema: SentenceSyntaxOutputSchema,
-        schemaName: 'sentence_syntax',
-        promptVersion: PAPER_PROMPT_VERSIONS.syntax,
-        temperature: 0,
-        onRequest,
-      });
-      const sentenceAnnotations = buildSentenceAnnotations(
-        analysis.text,
-        validateSyntaxOutput(result.data.sentences, analysis.text),
-      );
-      await repositories.analyses.update(analysis.id, {
-        sentenceAnnotations,
-        issues: refreshedCandidates(analysis, sentenceAnnotations),
-        scores: analysis.scores,
-        versions: {
-          ...versions,
-          syntaxProvider: PAPER_PROMPT_VERSIONS.syntax,
-          model: result.meta.model,
-          paperStepKeys: stepVersions(result.meta.model),
-        },
-      });
+      await analyzeSyntaxBatch([{ paragraph, context, analysisId: analysis.id }], onRequest);
     } else if (step === 'judge') {
       const result = await client.completeJson({
         ...buildCandidateJudgePrompt(
@@ -251,5 +300,5 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
     }
     return analysis.id;
   }
-  return { analyze, findCached };
+  return { analyze, analyzeSyntaxBatch, findCached };
 }

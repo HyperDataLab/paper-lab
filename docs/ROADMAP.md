@@ -54,9 +54,6 @@ Status: ⬜ not started · 🟨 in progress · ✅ accepted.
 
 Measurement quality targets (PRD §12) are not measured yet: they need a gold standard of at least 30 papers labelled by two people.
 
-P2 follow-up: share syntax requests across paragraphs in the same section, in batches of at most 40
-sentences. Until then, syntax uses one request per selected paragraph and estimates use the same unit.
-
 ## Open decisions
 
 - Hosting: Firebase Hosting (ADR-0001) or an Oracle Cloud Always Free VM (ADR-0005, proposed). Keep the app

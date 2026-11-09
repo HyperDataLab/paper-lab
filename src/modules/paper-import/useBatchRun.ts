@@ -9,6 +9,16 @@ import { mergeTransitions, transitionPairs } from '@/core/paperOverview';
 import { createLlmParagraphTransition } from '@/shared/llm/llmParagraphTransition';
 import { captureCalibration } from '@/shared/calibration/data';
 
+/** A failed paragraph shows this message to the reader, so it must not be a raw technical error. */
+async function readableErrors<T>(call: () => Promise<T>): Promise<T> {
+  try {
+    return await call();
+  } catch (cause) {
+    if (cause instanceof Error) cause.message = describeLlmError(cause) ?? cause.message;
+    throw cause;
+  }
+}
+
 export function useBatchRun(paper: Paper) {
   const repo = useRepositories();
   const { client, config, ensureConsent } = useLlm();
@@ -87,14 +97,8 @@ export function useBatchRun(paper: Paper) {
               transitions: mergeTransitions(old, result, judgedAt),
             });
           },
-          analyze: async (...args) => {
-            try {
-              return await analyzer.analyze(...args);
-            } catch (cause) {
-              if (cause instanceof Error) cause.message = describeLlmError(cause) ?? cause.message;
-              throw cause;
-            }
-          },
+          analyze: (...args) => readableErrors(() => analyzer.analyze(...args)),
+          analyzeSyntaxBatch: (...args) => readableErrors(() => analyzer.analyzeSyntaxBatch(...args)),
           now: () => new Date().toISOString(),
           sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
           save: async (next) => {

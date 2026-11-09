@@ -7,6 +7,7 @@ export const PROMPT_VERSIONS = {
   revision: 'revise-1',
   generation: 'gen-2',
   sentenceSyntaxPaper: 'sent-syntax-paper-1',
+  sentenceSyntaxPaperBatch: 'sent-syntax-paper-batch-1',
   candidateJudgePaper: 'cand-judge-paper-1',
   paragraphStructurePaper: 'para-struct-paper-1',
   scoringPaper: 'score-paper-1',
