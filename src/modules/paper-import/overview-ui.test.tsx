@@ -200,7 +200,7 @@ it('P3 shows distributions, recurring filters, transition review and stale notic
   expect(screen.queryByText('Paragraph 4.')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ lọc' }));
   expect(screen.getByText('Paragraph 4.')).toBeInTheDocument();
-  expect(within(screen.getByRole('tablist', { name: 'Bài báo' })).getAllByRole('tab')).toHaveLength(5);
+  expect(within(screen.getByRole('tablist', { name: 'Bài báo' })).getAllByRole('tab')).toHaveLength(6);
 });
 it('P3 marks a transition unavailable when its annotations disappear', async () => {
   const { repo, paper } = await setup();

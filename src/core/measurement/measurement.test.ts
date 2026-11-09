@@ -522,3 +522,54 @@ it('merges repeated constructs, experiments and carries claims', () => {
   expect(profile.claims.map((c) => c.status)).toEqual(['REPORTED', 'INFERRED']);
   expect(profile.parser_version).toBe('paper-parser-2');
 });
+
+it('AC-05 lets code find a cell the model did not locate, only when it is unambiguous', () => {
+  const noPlace = build([
+    { sections: ['res'], output: { ...empty, results: [result({ quote: q('t1', '0.123 ± 0.004') })] } },
+  ]);
+  expect(noPlace.results[0]).toMatchObject({
+    status: 'REPORTED',
+    source_table_cell: { blockId: 't1', row: 1, column: 1 },
+  });
+  const wrongRow = build([
+    { sections: ['res'], output: { ...empty, results: [result({ quote: q('t1', '0.123 ± 0.004', 0, 2) })] } },
+  ]);
+  expect(wrongRow.results[0]?.source_table_cell).toEqual({ blockId: 't1', row: 1, column: 1 });
+  const twin: Paper = {
+    ...paper,
+    paragraphs: paper.paragraphs.map((p) =>
+      p.table
+        ? {
+            ...p,
+            table: {
+              ...p.table,
+              rows: [
+                ...p.table.rows,
+                {
+                  cells: [
+                    { text: 'Other', column: 0 },
+                    { text: '0.123 ± 0.004', column: 1 },
+                  ],
+                },
+              ],
+            },
+          }
+        : p,
+    ),
+  };
+  const twice = buildProfile({
+    paper: twin,
+    selectedSectionIds: ['res'],
+    classification: { paper_type: 'EMPIRICAL', rationale: '', quotes: [] },
+    units: [
+      {
+        unit: unitOf(twin, 'u', ['res']),
+        output: { ...empty, results: [result({ quote: q('t1', '0.123 ± 0.004', 0, 2) })] },
+      },
+    ],
+    model: 'm',
+    promptVersion: 'v',
+    generatedAt: '2026-01-02T00:00:00.000Z',
+  });
+  expect(twice.results[0]).toMatchObject({ status: 'INFERRED', source_table_cell: null });
+});

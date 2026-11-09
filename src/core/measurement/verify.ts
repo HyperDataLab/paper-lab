@@ -69,6 +69,19 @@ export function cellContext(paragraph: PaperParagraph, row: number, column: numb
   return [...above, label].join(' ');
 }
 
+/** The one cell whose whole text is the quote. Two such cells mean code cannot tell, so neither is chosen. */
+function uniqueCell(paragraph: PaperParagraph, quote: string) {
+  const target = quote.normalize('NFC').replace(/\s+/gu, ' ').trim();
+  const found = (paragraph.table?.rows ?? []).flatMap((row, rowIndex) =>
+    row.cells.flatMap((cell) =>
+      cell.column !== null && cell.text.normalize('NFC').replace(/\s+/gu, ' ').trim() === target
+        ? [{ row: rowIndex, column: cell.column }]
+        : [],
+    ),
+  );
+  return found.length === 1 ? found[0] : undefined;
+}
+
 export function createVerifier(paper: Paper, blockIds: Set<string>) {
   const blocks = new Map(paper.paragraphs.map((paragraph) => [paragraph.id, paragraph]));
   const evidence = new Map<string, Evidence>();
@@ -101,11 +114,26 @@ export function createVerifier(paper: Paper, blockIds: Set<string>) {
     const paragraph = blocks.get(ref.blockId);
     if (!paragraph || !blockIds.has(ref.blockId)) return miss();
     const low = paragraph.table?.confidence === 'low';
-    if (paragraph.table && ref.row !== null && ref.column !== null) {
-      const cell = paragraph.table.rows[ref.row]?.cells.find((item) => item.column === ref.column);
-      if (!cell || !locate(cell.text, ref.quote)) return miss();
-      const position = { row: ref.row, column: ref.column };
-      return remember(paragraph, cellSpan(paragraph, ref.row, ref.column), position, cell.text, low);
+    if (paragraph.table) {
+      const named =
+        ref.row !== null && ref.column !== null
+          ? paragraph.table.rows[ref.row]?.cells.find((item) => item.column === ref.column)
+          : undefined;
+      const place =
+        named && ref.row !== null && ref.column !== null && locate(named.text, ref.quote)
+          ? { row: ref.row, column: ref.column }
+          : uniqueCell(paragraph, ref.quote);
+      if (place) {
+        const cell = paragraph.table.rows[place.row]?.cells.find((item) => item.column === place.column);
+        return remember(
+          paragraph,
+          cellSpan(paragraph, place.row, place.column),
+          place,
+          cell?.text ?? '',
+          low,
+        );
+      }
+      if (ref.row !== null && ref.column !== null) return miss();
     }
     if (Array.from(ref.quote.trim()).length < MIN_TEXT_QUOTE) return miss();
     const span = locate(paragraph.text, ref.quote);

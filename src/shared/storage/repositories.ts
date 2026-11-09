@@ -24,6 +24,7 @@ import {
   type CheckDecision,
   PaperReviewsRecordSchema,
   PaperProbesRecordSchema,
+  MeasurementsRecordSchema,
   CalibrationLabelsSchema,
   CalibrationLabelSetSchema,
 } from '@/core/schemas';
@@ -37,6 +38,7 @@ import { z } from 'zod';
 import type { ParagraphDb } from './db';
 import { createPaperReviewsRepository, rebuildReviewRecord } from './paperReviews';
 import { createPaperProbesRepository } from './paperProbes';
+import { createMeasurementsRepository } from './measurements';
 export class SourceImmutableError extends Error {
   override name = 'SourceImmutableError';
 }
@@ -471,6 +473,7 @@ export function createRepositories(
           db.paperRuns,
           db.paperReviews,
           db.paperProbes,
+          db.measurements,
           db.reviewNgrams,
           db.auditEvents,
         ],
@@ -481,6 +484,7 @@ export function createRepositories(
             await db.paperChecks.delete(id);
             await db.paperReviews.delete(id);
             await db.paperProbes.delete(id);
+            await db.measurements.delete(id);
             await db.reviewNgrams.where('paperId').equals(id).delete();
             await db.paperRuns.where('paperId').equals(id).delete();
             await db.auditEvents.add(makeAudit(id, 'delete_paper', 'human'));
@@ -654,6 +658,7 @@ export function createRepositories(
   };
   const paperReviews = createPaperReviewsRepository(db, now, makeAudit);
   const paperProbes = createPaperProbesRepository(db, now, makeAudit);
+  const measurements = createMeasurementsRepository(db, now, makeAudit);
   const calibrationLabels = {
     async import(sourceFileName: string, data: unknown) {
       const parsed = CalibrationLabelsSchema.parse(data);
@@ -710,6 +715,7 @@ export function createRepositories(
         (await db.paperReviews.toArray()).map((value) => PaperReviewsRecordSchema.parse(value)),
         (await db.paperProbes.toArray()).map((value) => PaperProbesRecordSchema.parse(value)),
         await calibrationLabels.list(),
+        (await db.measurements.toArray()).map((value) => MeasurementsRecordSchema.parse(value)),
       );
     },
     async previewImport(raw: unknown) {
@@ -786,6 +792,7 @@ export function createRepositories(
           db.paperChecks,
           db.paperReviews,
           db.paperProbes,
+          db.measurements,
           db.reviewNgrams,
           db.calibrationLabels,
         ],
@@ -931,6 +938,12 @@ export function createRepositories(
             if (!existing || record.updatedAt > existing.updatedAt)
               await db.paperProbes.put(PaperProbesRecordSchema.parse(record));
           }
+          for (const record of plan.measurements) {
+            if (!(await db.papers.get(record.paperId))) continue;
+            const existing = await measurements.get(record.paperId);
+            if (!existing || record.updatedAt > existing.updatedAt)
+              await db.measurements.put(MeasurementsRecordSchema.parse(record));
+          }
           for (const event of plan.auditEvents)
             if (
               (event.action !== 'review_transition' ||
@@ -953,6 +966,7 @@ export function createRepositories(
     paperChecks,
     paperReviews,
     paperProbes,
+    measurements,
     calibrationLabels,
     transfer,
   };

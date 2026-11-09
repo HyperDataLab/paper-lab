@@ -18,6 +18,7 @@ import { Select } from '@/shared/ui/Select';
 import { Tabs } from '@/shared/ui/Tabs';
 import { PaperProbe } from './PaperProbe';
 import { PaperTableView } from './PaperTableView';
+import { PaperMeasurement } from './PaperMeasurement';
 import styles from './page.module.css';
 import { BatchPanel } from './BatchPanel';
 import { BatchParagraphStatus } from './BatchParagraphStatus';
@@ -56,7 +57,7 @@ export default function PaperMapPage() {
   const [error, setError] = useState('');
   const [counts, setCounts] = useState<{ sentences: number; words: number } | null>(null);
   const [candidateCounts, setCandidateCounts] = useState<Record<string, number>>({});
-  const [tab, setTab] = useState<'map' | 'overview' | 'checks' | 'review' | 'probe'>('map');
+  const [tab, setTab] = useState<'map' | 'overview' | 'checks' | 'review' | 'probe' | 'measure'>('map');
   const [filter, setFilter] = useState<string[] | null>(null);
   const [checks, setChecks] = useState<PaperChecksRecord>();
   const [highlight, setHighlight] = useState<Finding['locations'][number] | null>(null);
@@ -190,6 +191,9 @@ export default function PaperMapPage() {
               <Button role="tab" aria-selected={tab === 'probe'} onClick={() => setTab('probe')}>
                 Độ bền điểm
               </Button>
+              <Button role="tab" aria-selected={tab === 'measure'} onClick={() => setTab('measure')}>
+                Đo lường
+              </Button>
             </Tabs>
             {tab === 'overview' ? (
               <PaperOverview
@@ -249,6 +253,18 @@ export default function PaperMapPage() {
                   }}
                 />
               </>
+            ) : tab === 'measure' ? (
+              <PaperMeasurement
+                paper={paper}
+                onLocation={(location) => {
+                  const paragraph = paper.paragraphs.find((item) => item.id === location.paragraphId);
+                  if (!paragraph) return;
+                  setFilter(null);
+                  setSelected(paragraph.sectionId);
+                  setHighlight(location);
+                  setTab('map');
+                }}
+              />
             ) : tab === 'probe' ? (
               <PaperProbe paper={paper} analyses={batch.analyses} />
             ) : tab === 'review' ? (
@@ -337,7 +353,13 @@ export default function PaperMapPage() {
                                   caption={paper.paragraphs.find((p) => p.id === item.table?.captionId)}
                                 />
                               ) : null}
-                              <p className={item.table ? styles.hidden : styles.reading}>
+                              <p
+                                className={
+                                  item.table && highlight?.paragraphId !== item.id
+                                    ? styles.hidden
+                                    : styles.reading
+                                }
+                              >
                                 {highlight?.paragraphId === item.id ? (
                                   <>
                                     {Array.from(item.text).slice(0, highlight.start).join('')}

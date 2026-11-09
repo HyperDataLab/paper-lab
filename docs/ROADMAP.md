@@ -39,7 +39,7 @@ Status: ⬜ not started · 🟨 in progress · ✅ accepted.
 | M1  | Table and equation blocks in the PDF reader                           | ✅     |
 | M2  | Schema, paper classification, per-section extraction, evidence checks | ✅     |
 | M3  | Linking, same-name metrics, claims, six warnings, survey mode         | ✅     |
-| M4  | `Đo lường` tab, human review, audit, evidence navigation              | ⬜     |
+| M4  | `Đo lường` tab, human review, audit, evidence navigation              | ✅     |
 | M5  | JSON/Markdown/CSV export, transparency, gold-standard tool            | ⬜     |
 
 P2 follow-up: share syntax requests across paragraphs in the same section, in batches of at most 40
