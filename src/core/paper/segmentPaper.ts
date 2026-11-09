@@ -1,8 +1,12 @@
-import type { PaperParagraph, Section } from '../schemas/paper';
+import type { PaperParagraph, PaperTable, Section } from '../schemas/paper';
 import { sourceHash } from '../text/hash';
+
+/** Recorded on papers imported with table and equation blocks. */
+export const PAPER_PARSER_VERSION = 'paper-parser-2';
 
 export interface PaperLine {
   text: string;
+  table?: PaperTable;
   pageStart?: number | null;
   breakBefore?: boolean;
   height?: number;
@@ -86,6 +90,27 @@ function heading(
         : 1);
   return { heading: name, level, role, numbers };
 }
+function linkTableCaptions(paragraphs: PaperParagraph[]) {
+  const claimed = new Set<string>();
+  paragraphs.forEach((paragraph, index) => {
+    if (!paragraph.table) return;
+    // Reading order on a page can put a little text between a table and its caption.
+    const caption = [-1, 1, -2, 2, -3, 3]
+      .map((offset) => paragraphs[index + offset])
+      .find(
+        (other) =>
+          other &&
+          other.kind === 'caption' &&
+          other.sectionId === paragraph.sectionId &&
+          other.pageStart === paragraph.pageStart &&
+          /^table\b/i.test(other.text) &&
+          !claimed.has(other.id),
+      );
+    if (!caption) return;
+    claimed.add(caption.id);
+    paragraph.table.captionId = caption.id;
+  });
+}
 export async function segmentPaper(input: string | PaperLine[]) {
   const lines: PaperLine[] =
     typeof input === 'string'
@@ -119,17 +144,40 @@ export async function segmentPaper(input: string | PaperLine[]) {
     let text = buffer[0] ?? '';
     for (const line of buffer.slice(1))
       text = /-$/.test(text) && /^[a-z]/.test(line) ? text.slice(0, -1) + line : `${text} ${line}`;
+    const equationLabel =
+      kind === 'equation' ? (/\(\s*(\d+[a-z]?)\s*\)\s*$/.exec(text)?.[1] ?? null) : undefined;
+    await pushParagraph(text, kind, page, equationLabel === undefined ? {} : { equationLabel });
+    buffer = [];
+  }
+  async function pushParagraph(
+    text: string,
+    paragraphKind: PaperParagraph['kind'],
+    pageStart: number | null,
+    extra: Pick<PaperParagraph, 'table' | 'equationLabel'>,
+  ) {
+    if (!current) return;
     const order = paragraphs.filter((p) => p.sectionId === current?.id).length;
     paragraphs.push({
       id: `${current.id}_p${String(order + 1).padStart(2, '0')}`,
       sectionId: current.id,
       order,
       text,
-      pageStart: page,
-      kind,
+      pageStart,
+      kind: paragraphKind,
       textHash: await sourceHash(text),
+      ...extra,
     });
-    buffer = [];
+  }
+  function ensureSection(line: PaperLine) {
+    if (current) return;
+    current = {
+      id: 'sec1',
+      heading: 'Front matter',
+      role: 'other',
+      level: 1,
+      pageStart: line.pageStart ?? null,
+    };
+    sections.push(current);
   }
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
@@ -137,6 +185,22 @@ export async function segmentPaper(input: string | PaperLine[]) {
     const text = line.text.trim();
     if (!text) {
       await flush();
+      continue;
+    }
+    if (line.table) {
+      await flush();
+      ensureSection(line);
+      await pushParagraph(line.text, 'table', line.pageStart ?? null, { table: line.table });
+      continue;
+    }
+    if (
+      line.source === 'pdf' &&
+      /^\(\d+[a-z]?\)$/.test(text) &&
+      kind === 'equation' &&
+      buffer.length > 0 &&
+      (line.pageStart ?? null) === page
+    ) {
+      buffer.push(text);
       continue;
     }
     if (/^\d{1,4}$|^page\s+\d+(?:\s+of\s+\d+)?$|^arxiv:\s*\d/i.test(text)) continue;
@@ -251,22 +315,16 @@ export async function segmentPaper(input: string | PaperLine[]) {
       if (current.role === 'references') afterReferences = true;
       continue;
     }
-    if (!current) {
-      current = {
-        id: 'sec1',
-        heading: 'Front matter',
-        role: 'other',
-        level: 1,
-        pageStart: line.pageStart ?? null,
-      };
-      sections.push(current);
-    }
+    ensureSection(line);
+    const section = current as Section | undefined;
+    if (!section) continue;
     const nextKind: PaperParagraph['kind'] =
       footnote || continuation
         ? 'footnote'
-        : current.role === 'references'
+        : section.role === 'references'
           ? 'reference'
-          : /^(?:(?:figure|fig\.|table)\s+\d+[.:]|\\caption\{)/i.test(text)
+          : /^(?:(?:figure|fig\.|table)\s+\d+\s*[.:|]|\\caption\{)/i.test(text) ||
+              /^TABLE\s+[IVXL\d]+\b/.test(text)
             ? 'caption'
             : /^(?:\[math\]|\$\$|\\\[)|[=∑∫]/.test(text)
               ? 'equation'
@@ -314,5 +372,6 @@ export async function segmentPaper(input: string | PaperLine[]) {
     buffer.push(text.replace(/^\\caption\{(.*)\}$/, '$1'));
   }
   await flush();
+  linkTableCaptions(paragraphs);
   return { sections, paragraphs };
 }

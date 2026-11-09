@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { Paper } from '@/core/schemas';
-import { segmentPaper } from '@/core/paper';
+import { PAPER_PARSER_VERSION, segmentPaper } from '@/core/paper';
 import { guardPaperSize, PaperSizeError } from '@/shared/paper/sizeGuard';
 import { parseLatex } from '@/shared/paper/latexParser';
 import { parseMarkdown, parsePlainText } from '@/shared/paper/markdownParser';
@@ -77,6 +77,7 @@ export default function Page() {
           fileName: file.name,
           pageCount,
           sha256,
+          parserVersion: PAPER_PARSER_VERSION,
         },
         ...parsed,
       };
