@@ -12,6 +12,7 @@ import styles from './page.module.css';
 import { AnalysisResult } from './AnalysisResult';
 import { useSyntaxAnalysis } from './useSyntaxAnalysis';
 import { useCandidateJudge } from './useCandidateJudge';
+import { AnalysisStep } from './AnalysisStep';
 import { detectCandidates, DETECTOR_VERSION } from '@/core/detectors';
 import { ReviewWorkspace } from './ReviewWorkspace';
 import { Tabs } from '@/shared/ui/Tabs';
@@ -283,6 +284,17 @@ export default function Page() {
       setLoading(false);
     }
   }
+  const canJudge = candidates.length > 0 || !!syntax.annotations?.some((a) => a.voice === 'passive');
+  const judgeDone = canJudge && !!judge.versions && !judge.running;
+  const nextStep = !syntax.annotations
+    ? 'syntax'
+    : !paragraph.result
+      ? 'structure'
+      : canJudge && !judgeDone
+        ? 'judge'
+        : !scoring.result
+          ? 'score'
+          : 'save';
   return (
     <div className={styles.page}>
       <h1>Đánh giá</h1>
@@ -339,7 +351,7 @@ export default function Page() {
               Tạo bản phân tích mới
             </Button>
           ) : (
-            <Button type="button" disabled={loading} onClick={() => void run()}>
+            <Button variant="primary" type="button" disabled={loading} onClick={() => void run()}>
               Tách câu
             </Button>
           )}
@@ -419,6 +431,7 @@ export default function Page() {
             )}
             {!id && (
               <Button
+                variant={nextStep === 'save' ? 'primary' : 'secondary'}
                 disabled={
                   saved || saving || syntax.running || judge.running || paragraph.running || scoring.running
                 }
@@ -427,6 +440,8 @@ export default function Page() {
                 {saved ? 'Đã lưu' : 'Lưu vào lịch sử'}
               </Button>
             )}
+          </div>
+          {id && (
             <SyntaxControls
               syntax={syntax}
               readOnly={!!id}
@@ -440,117 +455,150 @@ export default function Page() {
                 void syntax.run(result);
               }}
             />
-            {!id && (
-              <section>
-                {paragraph.running ? (
-                  <>
-                    <span role="status">Đang phân tích cấu trúc…</span>{' '}
-                    <Button onClick={paragraph.cancel}>Huỷ</Button>
-                  </>
-                ) : (
-                  <Button
-                    disabled={
-                      saved || !syntax.annotations || syntax.running || judge.running || scoring.running
-                    }
-                    onClick={() => {
+          )}
+          {!id && (
+            <Card padding="md">
+              <h2>Các bước phân tích</h2>
+              <ol className={styles.steps}>
+                <AnalysisStep number={1} done={!!syntax.annotations}>
+                  <SyntaxControls
+                    syntax={syntax}
+                    readOnly={!!id}
+                    saved={saved}
+                    busy={judge.running || paragraph.running || scoring.running}
+                    onRun={() => {
+                      resetJudge();
+                      resetParagraph();
                       resetScoring();
-                      captureStep('structure');
-                      void paragraph.run(result, syntax.annotations, issues);
+                      captureStep('syntax');
+                      void syntax.run(result);
                     }}
-                  >
-                    Phân tích cấu trúc đoạn (AI)
-                  </Button>
+                  />
+                </AnalysisStep>
+                {!id && (
+                  <AnalysisStep number={2} done={!!paragraph.result}>
+                    {paragraph.running ? (
+                      <>
+                        <span role="status">Đang phân tích cấu trúc…</span>{' '}
+                        <Button onClick={paragraph.cancel}>Huỷ</Button>
+                      </>
+                    ) : (
+                      <Button
+                        variant={nextStep === 'structure' ? 'primary' : 'secondary'}
+                        disabled={
+                          saved || !syntax.annotations || syntax.running || judge.running || scoring.running
+                        }
+                        onClick={() => {
+                          resetScoring();
+                          captureStep('structure');
+                          void paragraph.run(result, syntax.annotations, issues);
+                        }}
+                      >
+                        Phân tích cấu trúc đoạn (AI)
+                      </Button>
+                    )}
+                    {saved ? (
+                      <small>Đã lưu — chọn Chỉnh sửa văn bản để phân tích lại</small>
+                    ) : (
+                      !syntax.annotations && <small>Cần phân tích câu trước</small>
+                    )}
+                    {paragraph.error && <p role="alert">Không phân tích được: {paragraph.error}</p>}
+                  </AnalysisStep>
                 )}
-                {saved ? (
-                  <small>Đã lưu — chọn Chỉnh sửa văn bản để phân tích lại</small>
-                ) : (
-                  !syntax.annotations && <small>Cần phân tích câu trước</small>
+                {!id && !canJudge && (
+                  <AnalysisStep number={3} done={false}>
+                    <small>Đánh giá theo ngữ cảnh: chưa có ứng viên để đánh giá.</small>
+                  </AnalysisStep>
                 )}
-                {paragraph.error && <p role="alert">Không phân tích được: {paragraph.error}</p>}
-              </section>
-            )}
-            {!id && (candidates.length > 0 || syntax.annotations?.some((a) => a.voice === 'passive')) && (
-              <section>
-                {judge.running ? (
-                  <>
-                    <span role="status">Đang đánh giá…</span> <Button onClick={judge.cancel}>Huỷ</Button>
-                  </>
-                ) : (
-                  <Button
-                    disabled={saved || syntax.running || paragraph.running || scoring.running}
-                    onClick={() => {
-                      captureStep('judge');
-                      void judge.run(
-                        result,
-                        syntax.annotations,
-                        candidates,
-                        { before: null, after: null, audience: null },
-                        issues,
-                      );
-                    }}
-                  >
-                    Đánh giá theo ngữ cảnh (AI)
-                  </Button>
-                )}
-                {saved && <small>Đã lưu — chọn Chỉnh sửa văn bản để phân tích lại</small>}
-                {judge.error && (
-                  <p role="alert">
-                    Không đánh giá được: {judge.error}{' '}
-                    {judge.error.includes('Chưa nhập khoá API') && <Link to="/settings">Cài đặt</Link>}
-                  </p>
-                )}
-              </section>
-            )}
-            {!id && (
-              <section>
-                {scoring.running ? (
-                  <>
-                    <span role="status">Đang chấm điểm…</span> <Button onClick={scoring.cancel}>Huỷ</Button>
-                  </>
-                ) : (
-                  <Button
-                    disabled={saved || saving || syntax.running || judge.running || paragraph.running}
-                    onClick={() => {
-                      const analysis = AnalysisSchema.parse({
-                        schemaVersion: 1,
-                        id: crypto.randomUUID(),
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString(),
-                        text: result,
-                        context: { before: null, after: null, audience: null },
-                        contextLimited: true,
-                        versions: { rubric: null, prompt: null, model: null, syntaxProvider: null },
-                        sentenceAnnotations: (syntax.annotations ?? []).map((annotation) => {
-                          const role = paragraph.result?.roles.find(
-                            (item) => item.sentenceId === annotation.sentenceId,
+                {!id && canJudge && (
+                  <AnalysisStep number={3} done={judgeDone}>
+                    {judge.running ? (
+                      <>
+                        <span role="status">Đang đánh giá…</span> <Button onClick={judge.cancel}>Huỷ</Button>
+                      </>
+                    ) : (
+                      <Button
+                        variant={nextStep === 'judge' ? 'primary' : 'secondary'}
+                        disabled={saved || syntax.running || paragraph.running || scoring.running}
+                        onClick={() => {
+                          captureStep('judge');
+                          void judge.run(
+                            result,
+                            syntax.annotations,
+                            candidates,
+                            { before: null, after: null, audience: null },
+                            issues,
                           );
-                          return role
-                            ? {
-                                ...annotation,
-                                role: role.role,
-                                roleConfidence: role.confidence,
-                                roleRationale: role.rationale,
-                              }
-                            : annotation;
-                        }),
-                        paragraph: paragraph.result?.paragraph ?? null,
-                        flowLinks: paragraph.result?.flowLinks ?? [],
-                        paragraphMetrics: paragraph.result?.metrics ?? null,
-                        issues,
-                        parentAnalysisId: null,
-                      });
-                      captureStep('score');
-                      void scoring.run(analysis);
-                    }}
-                  >
-                    Chấm điểm (AI)
-                  </Button>
+                        }}
+                      >
+                        Đánh giá theo ngữ cảnh (AI)
+                      </Button>
+                    )}
+                    {saved && <small>Đã lưu — chọn Chỉnh sửa văn bản để phân tích lại</small>}
+                    {judge.error && (
+                      <p role="alert">
+                        Không đánh giá được: {judge.error}{' '}
+                        {judge.error.includes('Chưa nhập khoá API') && <Link to="/settings">Cài đặt</Link>}
+                      </p>
+                    )}
+                  </AnalysisStep>
                 )}
-                {scoring.error && <p role="alert">Không chấm điểm được: {scoring.error}</p>}
-              </section>
-            )}
-          </div>
-          <p className={styles.meta}>Thiếu ngữ cảnh: chỉ phân tích đoạn văn này (context_limited)</p>
+                {!id && (
+                  <AnalysisStep number={4} done={!!scoring.result}>
+                    {scoring.running ? (
+                      <>
+                        <span role="status">Đang chấm điểm…</span>{' '}
+                        <Button onClick={scoring.cancel}>Huỷ</Button>
+                      </>
+                    ) : (
+                      <Button
+                        variant={nextStep === 'score' ? 'primary' : 'secondary'}
+                        disabled={saved || saving || syntax.running || judge.running || paragraph.running}
+                        onClick={() => {
+                          const analysis = AnalysisSchema.parse({
+                            schemaVersion: 1,
+                            id: crypto.randomUUID(),
+                            createdAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString(),
+                            text: result,
+                            context: { before: null, after: null, audience: null },
+                            contextLimited: true,
+                            versions: { rubric: null, prompt: null, model: null, syntaxProvider: null },
+                            sentenceAnnotations: (syntax.annotations ?? []).map((annotation) => {
+                              const role = paragraph.result?.roles.find(
+                                (item) => item.sentenceId === annotation.sentenceId,
+                              );
+                              return role
+                                ? {
+                                    ...annotation,
+                                    role: role.role,
+                                    roleConfidence: role.confidence,
+                                    roleRationale: role.rationale,
+                                  }
+                                : annotation;
+                            }),
+                            paragraph: paragraph.result?.paragraph ?? null,
+                            flowLinks: paragraph.result?.flowLinks ?? [],
+                            paragraphMetrics: paragraph.result?.metrics ?? null,
+                            issues,
+                            parentAnalysisId: null,
+                          });
+                          captureStep('score');
+                          void scoring.run(analysis);
+                        }}
+                      >
+                        Chấm điểm (AI)
+                      </Button>
+                    )}
+                    {scoring.error && <p role="alert">Không chấm điểm được: {scoring.error}</p>}
+                  </AnalysisStep>
+                )}
+              </ol>
+            </Card>
+          )}
+          <p className={styles.meta}>
+            Chỉ phân tích riêng đoạn này, không có ngữ cảnh của đoạn trước và sau.
+          </p>
           <Tabs label="Chế độ xem">
             <Button
               id="text-tab"

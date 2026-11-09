@@ -190,3 +190,9 @@ The Đo lường tab is one line of run status and actions above a master-detail
 Thí nghiệm → Metric → Kết quả, then Claim, Thuộc tính đo, Cảnh báo and Cần xem lại. A flag marks rows needing review, and search flattens the tree.
 The right pane shows one item in full. Overview carries clickable counts and a protocol matrix (experiments × fields, marks plus a text legend, never colour alone).
 Fields with no information fold into a single line listing their names.
+
+## 10. Paragraph workflow
+
+Evaluate presents its AI work as numbered steps in order (sentences, paragraph structure, contextual judgement, scoring). The next step is the only
+primary button, a finished step shows a tick and "Đã xong", and a step that cannot run says why. Saving becomes primary once scoring is done.
+The theme control is an icon button in the header, cycling Hệ thống, Sáng and Tối.

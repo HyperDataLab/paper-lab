@@ -275,7 +275,7 @@ export default function Page() {
             <Button onClick={invalidate}>Huỷ</Button>
           </>
         ) : (
-          <Button disabled={!selected.length} onClick={() => void generate()}>
+          <Button variant="primary" disabled={!selected.length} onClick={() => void generate()}>
             {revision ? 'Tạo lại' : 'Tạo bản sửa (AI)'}
           </Button>
         )}

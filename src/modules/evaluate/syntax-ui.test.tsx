@@ -95,9 +95,8 @@ it('EV-02 EV-03 asks consent, then shows markers, T/A/S and the review label for
   );
   expect(screen.getByText('T: The model')).toBeInTheDocument();
   expect(screen.getByText('Bị động')).toBeInTheDocument();
-  expect(screen.getAllByText(/context_limited/).length).toBeGreaterThanOrEqual(1);
   expect(screen.getByRole('button', { name: 'Đánh giá theo ngữ cảnh (AI)' })).toBeInTheDocument();
-  expect(screen.getByText(/Thiếu ngữ cảnh: chỉ phân tích đoạn văn này/)).toHaveTextContent('context_limited');
+  expect(screen.getByText(/Chỉ phân tích riêng đoạn này/)).toBeInTheDocument();
   expect(completeJson).toHaveBeenCalledTimes(1);
 });
 
