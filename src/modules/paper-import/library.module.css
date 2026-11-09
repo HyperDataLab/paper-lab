@@ -1,0 +1,59 @@
+.panel {
+  display: grid;
+  gap: var(--space-4);
+}
+.actions,
+.filters,
+.bulk,
+.pager,
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.actions {
+  margin-top: var(--space-2);
+}
+.filters {
+  align-items: flex-end;
+  margin-bottom: var(--space-3);
+}
+.bulk {
+  border-top: 1px solid var(--border);
+  padding: var(--space-3) 0;
+}
+.bulk > span:first-child {
+  margin-right: auto;
+  font-weight: 600;
+}
+.pager {
+  justify-content: center;
+  padding-top: var(--space-3);
+}
+.note {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.scroll {
+  overflow-x: auto;
+}
+.table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--text-sm);
+}
+.table th,
+.table td {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-2);
+  text-align: left;
+  vertical-align: top;
+}

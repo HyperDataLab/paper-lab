@@ -15,6 +15,7 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { TextField } from '@/shared/ui/TextField';
 import { useToast } from '@/shared/ui/toastContext';
+import { getScholarEmail, saveScholarEmail } from '@/shared/scholar/settings';
 import styles from './page.module.css';
 export default function Page() {
   const toast = useToast();
@@ -26,6 +27,8 @@ export default function Page() {
   const [message, setMessage] = useState('');
   const [detail, setDetail] = useState('');
   const [busy, setBusy] = useState(false);
+  const [scholarEmail, setScholarEmail] = useState(() => getScholarEmail() ?? '');
+  const [scholarMessage, setScholarMessage] = useState('');
   const save = () => {
     try {
       const next = { baseUrl: baseUrl.trim(), model: model.trim(), key };
@@ -153,6 +156,27 @@ export default function Page() {
             {detail}
           </details>
         )}
+      </Card>
+      <Card>
+        <h2>Tra cứu bài báo</h2>
+        <p>
+          Unpaywall yêu cầu một email trong mỗi lượt tra cứu. Email chỉ lưu trên trình duyệt này và chỉ gửi
+          tới Unpaywall. Để trống thì thư viện vẫn tra qua OpenAlex, Crossref và Europe PMC.
+        </p>
+        <TextField
+          label="Email cho Unpaywall"
+          type="email"
+          value={scholarEmail}
+          onChange={(event) => setScholarEmail(event.target.value)}
+        />
+        <Button
+          onClick={() =>
+            setScholarMessage(saveScholarEmail(scholarEmail) ? 'Đã lưu email.' : 'Email chưa hợp lệ.')
+          }
+        >
+          Lưu email
+        </Button>
+        {scholarMessage && <p role="status">{scholarMessage}</p>}
       </Card>
       <Card>
         <h2>Quyền riêng tư</h2>

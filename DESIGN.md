@@ -200,3 +200,7 @@ The theme control is an icon button in the header, cycling Hệ thống, Sáng a
 Atomic sentences are a branch of the Đo lường tree, grouped by role. Each opens on its own with its source, the items that use it and the action `Đã đối chiếu với nguồn`; the branch root shows progress and what code could and could not check.
 
 Paragraph work is one sidebar entry. The page opens on a choice between evaluating an existing paragraph and drafting a new one; the choice leaves once work begins. Revising opens from Evaluate or History, because it needs an analysis. All three keep their own routes.
+
+## 11. Paper library
+
+The Bài báo page has two tabs: Bài đã nhập and Thư viện DOI. The library adds papers from pasted DOIs or CSV and reports what it skipped. Status filters carry counts and hide when empty, and taxonomy filters narrow one another so a choice never leads to an empty list. The table pages at 50 rows; bulk actions act on the selection, or on the current filter when nothing is selected. "Chưa thấy bản mở" says only that no source listed an open copy; the app does not claim a paper is paywalled. A browser cannot fetch most publisher PDFs, so a row offers Mở bản mở and Gắn PDF, or a direct arXiv download.
