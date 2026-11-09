@@ -1,26 +1,92 @@
 .page {
   display: grid;
-  gap: var(--space-6);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
 }
-.page a {
-  color: var(--accent);
+.page h1 {
+  margin: 0;
+}
+.note {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+.compareBar {
+  background: var(--bg);
+  padding-block: var(--space-2);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.compareLink {
+  align-items: center;
+  background: var(--accent);
+  border-radius: var(--radius);
+  color: var(--surface);
+  display: inline-flex;
+  font-weight: 600;
+  height: var(--control-h-md);
+  padding: 0 var(--space-3);
 }
 .list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
   display: grid;
   gap: var(--space-3);
 }
+.group {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+}
+.group summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.section {
+  margin-top: var(--space-3);
+}
+.section h3 {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-1);
+}
+.rows {
+  display: grid;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
 .row {
-  display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+}
+.rowMain {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .row p {
   color: var(--text-muted);
-  margin-bottom: 0;
+  font-size: var(--text-sm);
+  margin: 0;
+}
+.revisions {
+  font-size: var(--text-sm);
+  list-style: none;
+  margin: var(--space-1) 0 0;
+  padding: 0;
+}
+.srOnly {
+  border: 0;
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
 }
 .actions {
   display: flex;

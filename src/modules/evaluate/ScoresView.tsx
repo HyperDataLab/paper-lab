@@ -1,8 +1,10 @@
 import type { Issue } from '@/core/schemas';
 import type { Scores } from '@/core/schemas/scores';
 import { issueSnapshot } from '@/core/scoring/computeScores';
+import { Stat, StatGrid } from '@/shared/ui/ActionBar';
 import { Card } from '@/shared/ui/Card';
 import { Chip } from '@/shared/ui/Chip';
+import { labels } from './issueLabels';
 
 const number = (value: number) => value.toLocaleString('vi-VN', { maximumFractionDigits: 1 });
 export function ScoresView({
@@ -11,17 +13,27 @@ export function ScoresView({
   onIssue,
   onSentence,
   styleWarning = null,
+  readOnly = false,
 }: {
   scores: Scores | null;
   issues: Issue[];
   onIssue: (id: string) => void;
   onSentence: (id: string) => void;
   styleWarning?: string | null;
+  readOnly?: boolean;
 }) {
+  const issueName = (id: string) => {
+    const issue = issues.find((item) => item.id === id);
+    return issue ? labels[issue.type] : 'Gợi ý';
+  };
   if (!scores)
     return (
       <Card>
-        <p>Chưa có điểm. Chọn Chấm điểm (AI) để đánh giá.</p>
+        <p>
+          {readOnly
+            ? 'Bản phân tích đã lưu này chưa được chấm điểm.'
+            : 'Chưa có điểm. Chọn Chấm điểm (AI) để đánh giá.'}
+        </p>
         <p>
           Điểm đo chất lượng diễn đạt theo rubric thử nghiệm, chưa hiệu chuẩn; không đánh giá tính đúng khoa
           học.
@@ -31,11 +43,22 @@ export function ScoresView({
   return (
     <Card>
       <h2>Điểm</h2>
+      <StatGrid>
+        <Stat
+          value={scores.overall === null ? 'Chưa tính' : `${number(scores.overall)} / 100`}
+          label="Điểm tổng"
+        />
+        <Stat
+          value={`${scores.coverage.applicable}/${scores.coverage.total}`}
+          label="Tiêu chí đánh giá được"
+        />
+        <Stat
+          value={scores.confidence === null ? '—' : `${number(scores.confidence * 100)} %`}
+          label="Độ tin cậy"
+        />
+      </StatGrid>
       <p>
-        {scores.overall === null ? 'Chưa tính điểm tổng' : `Tổng ${number(scores.overall)} / 100`} · Phủ{' '}
-        {scores.coverage.applicable}/{scores.coverage.total} tiêu chí · Tin cậy{' '}
-        {scores.confidence === null ? '—' : `${number(scores.confidence * 100)} %`} · Rubric{' '}
-        {scores.rubricVersion} · {scores.contextLimited ? 'context_limited' : 'đủ ngữ cảnh'}
+        Rubric {scores.rubricVersion} · {scores.contextLimited ? 'Chỉ xét riêng đoạn này' : 'Đủ ngữ cảnh'}
       </p>
       {scores.overallSuppressedReason && <p>{scores.overallSuppressedReason}</p>}
       {styleWarning && (
@@ -71,8 +94,8 @@ export function ScoresView({
           </summary>
           {dimension.rationale && <p>{dimension.rationale}</p>}
           {dimension.evidence.issueIds.map((id) => (
-            <Chip key={id} onClick={() => onIssue(id)}>
-              {id}
+            <Chip key={id} data-issue={id} onClick={() => onIssue(id)}>
+              {issueName(id)}
             </Chip>
           ))}
           {dimension.evidence.sentenceIds.map((id) => (

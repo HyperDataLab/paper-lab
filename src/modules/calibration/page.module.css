@@ -1,0 +1,51 @@
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+.page h1 {
+  margin: 0;
+}
+.page table {
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  width: 100%;
+}
+.page th,
+.page td {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-2);
+  text-align: left;
+  vertical-align: top;
+}
+.page thead th {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.tableWrap {
+  overflow-x: auto;
+}
+.note {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.sets {
+  display: grid;
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+}
+.sets li {
+  align-items: center;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  padding-block: var(--space-2);
+}

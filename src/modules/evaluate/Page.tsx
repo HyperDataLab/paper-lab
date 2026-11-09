@@ -376,18 +376,15 @@ export default function Page() {
       ) : result && result.sentences.length > 0 ? (
         <>
           <div className={styles.toolbar} id="evaluate-toolbar" ref={setToolbar}>
-            {(id || createdId) && (
-              <Button
-                disabled={!revisionSelection.length}
-                onClick={() =>
-                  navigate(
-                    `/revise?${new URLSearchParams({ analysis: id ?? createdId ?? '', issues: revisionSelection.join(',') })}`,
-                  )
-                }
-              >
-                Chỉnh sửa các gợi ý đã chọn
-              </Button>
-            )}
+            <div className={styles.toolbarStatus}>
+              {saved ? (
+                <p role="status">
+                  Đã lưu. <Link to="/history">Xem trong Lịch sử</Link>
+                </p>
+              ) : (
+                (id || createdId) && <span>Đã chọn {revisionSelection.length} gợi ý để chỉnh sửa</span>
+              )}
+            </div>
             {id && (
               <Button
                 onClick={() => {
@@ -422,24 +419,32 @@ export default function Page() {
                 Chỉnh sửa văn bản
               </Button>
             )}
-            {saved && (
-              <p role="status">
-                Đã lưu. <Link to="/history">Xem trong Lịch sử</Link>
-              </p>
-            )}
             {(id || (saved && createdId)) && <ReportMenu id={id ?? createdId ?? ''} />}
             {id && parent && (
               <Link to={`/compare?${new URLSearchParams({ a: parent.id, b: id })}`}>So sánh với bản gốc</Link>
             )}
             {!id && (
               <Button
-                variant={nextStep === 'save' ? 'primary' : 'secondary'}
+                variant={nextStep === 'save' && !createdId ? 'primary' : 'secondary'}
                 disabled={
                   saved || saving || syntax.running || judge.running || paragraph.running || scoring.running
                 }
                 onClick={() => void save()}
               >
                 {saved ? 'Đã lưu' : 'Lưu vào lịch sử'}
+              </Button>
+            )}
+            {(id || createdId) && (
+              <Button
+                variant="primary"
+                disabled={!revisionSelection.length}
+                onClick={() =>
+                  navigate(
+                    `/revise?${new URLSearchParams({ analysis: id ?? createdId ?? '', issues: revisionSelection.join(',') })}`,
+                  )
+                }
+              >
+                Chỉnh sửa các gợi ý đã chọn
               </Button>
             )}
           </div>
@@ -482,7 +487,9 @@ export default function Page() {
                     {paragraph.running ? (
                       <>
                         <span role="status">Đang phân tích cấu trúc…</span>{' '}
-                        <Button onClick={paragraph.cancel}>Huỷ</Button>
+                        <Button variant="danger" onClick={paragraph.cancel}>
+                          Huỷ
+                        </Button>
                       </>
                     ) : (
                       <Button
@@ -516,7 +523,10 @@ export default function Page() {
                   <AnalysisStep number={3} done={judgeDone}>
                     {judge.running ? (
                       <>
-                        <span role="status">Đang đánh giá…</span> <Button onClick={judge.cancel}>Huỷ</Button>
+                        <span role="status">Đang đánh giá…</span>{' '}
+                        <Button variant="danger" onClick={judge.cancel}>
+                          Huỷ
+                        </Button>
                       </>
                     ) : (
                       <Button
@@ -550,7 +560,9 @@ export default function Page() {
                     {scoring.running ? (
                       <>
                         <span role="status">Đang chấm điểm…</span>{' '}
-                        <Button onClick={scoring.cancel}>Huỷ</Button>
+                        <Button variant="danger" onClick={scoring.cancel}>
+                          Huỷ
+                        </Button>
                       </>
                     ) : (
                       <Button
@@ -657,6 +669,7 @@ export default function Page() {
           <div id="scores-panel" role="tabpanel" aria-labelledby="scores-tab" hidden={view !== 'scores'}>
             <ScoresView
               scores={scoring.result?.scores ?? null}
+              readOnly={!!id}
               issues={issues}
               styleWarning={styleWarning}
               onIssue={(issueId) => {

@@ -11,6 +11,7 @@ import { labels as issueLabels } from '@/modules/evaluate/issueLabels';
 import { LENSES } from '@/core/prompts';
 import { DIMENSIONS } from '@/core/scoring/rubric';
 import { MeasurementGoldCard } from './MeasurementGold';
+import styles from './page.module.css';
 const fmt = (value: number | null) => (value === null ? '—' : value.toFixed(2));
 export default function Page() {
   const repo = useRepositories();
@@ -97,26 +98,34 @@ export default function Page() {
     ],
   };
   return (
-    <div>
+    <div className={styles.page}>
       <h1>Hiệu chuẩn</h1>
-      <p>n nhỏ không phải là bằng chứng về độ tin cậy. Các ngưỡng là mặc định cần hiệu chuẩn.</p>
-      <p>Mâu thuẫn giữa các nhãn cùng người đánh giá và mục: {data.conflicts} (giữ nhãn mới nhất).</p>
+      <p className={styles.note}>
+        Cỡ mẫu (n) nhỏ chưa đủ để kết luận về độ tin cậy. Các ngưỡng hiện là mặc định, cần hiệu chuẩn thêm.
+      </p>
+      <p className={styles.note}>
+        Mâu thuẫn giữa các nhãn cùng người đánh giá và mục: {data.conflicts} (giữ nhãn mới nhất).
+      </p>
       <Card>
         <h2>Nhãn đánh giá</h2>
         <p>
           Mẫu chứa các mục hiện có. Điền tên người đánh giá và label (correct/incorrect hoặc 0–4 cho điểm)
           trước khi nhập.
         </p>
-        <Button onClick={() => downloadJson('paperlab-labels-template.json', template)}>Tải mẫu nhãn</Button>{' '}
-        <input
-          ref={input}
-          type="file"
-          accept=".json,application/json"
-          hidden
-          aria-label="Tệp nhãn"
-          onChange={(event) => void read(event)}
-        />
-        <Button onClick={() => input.current?.click()}>Chọn tệp nhãn</Button>
+        <div className={styles.actions}>
+          <Button onClick={() => downloadJson('paperlab-labels-template.json', template)}>
+            Tải mẫu nhãn
+          </Button>
+          <input
+            ref={input}
+            type="file"
+            accept=".json,application/json"
+            hidden
+            aria-label="Tệp nhãn"
+            onChange={(event) => void read(event)}
+          />
+          <Button onClick={() => input.current?.click()}>Chọn tệp nhãn</Button>
+        </div>
         {error && (
           <div role="alert">
             Không thể xử lý nhãn.
@@ -146,14 +155,21 @@ export default function Page() {
                 <pre>{JSON.stringify(matched.unmatched, null, 2)}</pre>
               </details>
             )}
-            <Button onClick={() => void save()}>Xác nhận nhập nhãn</Button>
+            <Button variant="primary" onClick={() => void save()}>
+              Xác nhận nhập nhãn
+            </Button>
           </div>
         )}
-        <ul>
+        <ul className={styles.sets}>
           {data.data.calibrationLabels.map((set) => (
             <li key={set.id}>
-              {set.sourceFileName} · {set.importedAt} · n={set.data.labels.length}{' '}
+              <span>
+                {set.sourceFileName} · {new Date(set.importedAt).toLocaleString('vi-VN')} ·{' '}
+                {set.data.labels.length} nhãn
+              </span>
               <Button
+                variant="ghost"
+                size="sm"
                 onClick={() =>
                   void repo.calibrationLabels
                     .delete(set.id)
@@ -161,7 +177,7 @@ export default function Page() {
                     .catch((cause: unknown) => setError(String(cause)))
                 }
               >
-                Xóa bộ nhãn
+                Xoá bộ nhãn
               </Button>
             </li>
           ))}
@@ -169,92 +185,98 @@ export default function Page() {
       </Card>
       <Card>
         <h2>Độ chính xác theo loại</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Loại</th>
-              <th>Đúng</th>
-              <th>Sai</th>
-              <th>n</th>
-              <th>Precision (KTC 95%)</th>
-              <th>Trạng thái</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.stats.map((row) => (
-              <tr key={`${row.kind}:${row.type}`}>
-                <td title={row.type}>
-                  {labelFor(row.kind, row.type).group}: {labelFor(row.kind, row.type).label}
-                </td>
-                <td>{row.correct}</td>
-                <td>{row.incorrect}</td>
-                <td>{row.n}</td>
-                <td>
-                  {fmt(row.precision)} ({fmt(row.wilsonLow)}–{fmt(row.wilsonHigh)})
-                </td>
-                <td>
-                  <CalibrationBadge stats={row} />
-                </td>
+        <div className={styles.tableWrap}>
+          <table>
+            <thead>
+              <tr>
+                <th>Loại</th>
+                <th>Đúng</th>
+                <th>Sai</th>
+                <th>n</th>
+                <th>Precision (KTC 95%)</th>
+                <th>Trạng thái</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {data.stats.map((row) => (
+                <tr key={`${row.kind}:${row.type}`}>
+                  <td title={row.type}>
+                    {labelFor(row.kind, row.type).group}: {labelFor(row.kind, row.type).label}
+                  </td>
+                  <td>{row.correct}</td>
+                  <td>{row.incorrect}</td>
+                  <td>{row.n}</td>
+                  <td>
+                    {fmt(row.precision)} ({fmt(row.wilsonLow)}–{fmt(row.wilsonHigh)})
+                  </td>
+                  <td>
+                    <CalibrationBadge stats={row} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Card>
       <Card>
         <h2>Đồng thuận giữa người đánh giá</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Người đánh giá</th>
-              <th>Loại</th>
-              <th>n</th>
-              <th>Kappa</th>
-            </tr>
-          </thead>
-          <tbody>
-            {agreement.map((row) => (
-              <tr key={`${row.a}:${row.b}:${row.kind}:${row.type}`}>
-                <td>
-                  {row.a} / {row.b}
-                </td>
-                <td title={row.type}>
-                  {labelFor(row.kind, row.type).group}: {labelFor(row.kind, row.type).label}
-                </td>
-                <td>{row.n}</td>
-                <td>{fmt(row.kappa)}</td>
+        <div className={styles.tableWrap}>
+          <table>
+            <thead>
+              <tr>
+                <th>Người đánh giá</th>
+                <th>Loại</th>
+                <th>n</th>
+                <th>Kappa</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {agreement.map((row) => (
+                <tr key={`${row.a}:${row.b}:${row.kind}:${row.type}`}>
+                  <td>
+                    {row.a} / {row.b}
+                  </td>
+                  <td title={row.type}>
+                    {labelFor(row.kind, row.type).group}: {labelFor(row.kind, row.type).label}
+                  </td>
+                  <td>{row.n}</td>
+                  <td>{fmt(row.kappa)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Card>
       <MeasurementGoldCard />
       <Card>
         <h2>Hiệu chuẩn điểm</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Chiều</th>
-              <th>n</th>
-              <th>MAE</th>
-              <th>Độ lệch có dấu</th>
-              <th>Kappa có trọng số</th>
-            </tr>
-          </thead>
-          <tbody>
-            {scores.map((row) => (
-              <tr key={row.dimension}>
-                <td title={row.dimension}>{labelFor('score', row.dimension).label}</td>
-                <td>{row.n}</td>
-                <td>{fmt(row.mae)}</td>
-                <td>
-                  {row.bias > 0 ? '+' : ''}
-                  {fmt(row.bias)}
-                </td>
-                <td>{fmt(row.weightedKappa)}</td>
+        <div className={styles.tableWrap}>
+          <table>
+            <thead>
+              <tr>
+                <th>Chiều</th>
+                <th>n</th>
+                <th>MAE</th>
+                <th>Độ lệch có dấu</th>
+                <th>Kappa có trọng số</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {scores.map((row) => (
+                <tr key={row.dimension}>
+                  <td title={row.dimension}>{labelFor('score', row.dimension).label}</td>
+                  <td>{row.n}</td>
+                  <td>{fmt(row.mae)}</td>
+                  <td>
+                    {row.bias > 0 ? '+' : ''}
+                    {fmt(row.bias)}
+                  </td>
+                  <td>{fmt(row.weightedKappa)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Card>
     </div>
   );

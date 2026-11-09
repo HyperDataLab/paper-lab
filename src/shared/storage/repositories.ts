@@ -224,6 +224,7 @@ export function createRepositories(
             sentenceCount: a.text.sentences.length,
             issueCount: a.issues.length,
             sourceHash: a.text.sourceHash,
+            paperId: a.origin?.kind === 'paper' ? a.origin.paperId : null,
           })),
         corrupt,
       };

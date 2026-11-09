@@ -9,11 +9,14 @@ import { createLlmRevisionProvider } from '@/shared/llm/llmRevisionProvider';
 import { describeLlmError } from '@/shared/llm/describeError';
 import { useLlm } from '@/shared/llm/LlmProvider';
 import { useRepositories } from '@/shared/storage/StorageProvider';
+import { ActionBar } from '@/shared/ui/ActionBar';
+import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Checkbox } from '@/shared/ui/Checkbox';
 import { Chip } from '@/shared/ui/Chip';
 import { Dialog } from '@/shared/ui/Dialog';
+import { FindingCard } from '@/shared/ui/FindingCard';
 import { TextField } from '@/shared/ui/TextField';
 import { useToast } from '@/shared/ui/toastContext';
 import { DiffView } from './DiffView';
@@ -152,9 +155,89 @@ export default function Page() {
       </Card>
     );
   const failed = revision?.checks.filter((check) => check.status === 'fail') ?? [];
+  const checkCard = (check: Revision['checks'][number]) => (
+    <FindingCard
+      key={check.id}
+      labels={
+        <Badge
+          icon={
+            check.status === 'pass' ? (
+              <CheckCircle2 size={14} />
+            ) : check.status === 'warn' ? (
+              <AlertTriangle size={14} />
+            ) : (
+              <XCircle size={14} />
+            )
+          }
+          tone={check.status === 'pass' ? 'success' : check.status === 'warn' ? 'warning' : 'danger'}
+        >
+          {check.status === 'pass' ? 'Đạt' : check.status === 'warn' ? 'Cảnh báo' : 'Không đạt'}
+        </Badge>
+      }
+      source={{
+        label: 'Xem trong so sánh',
+        onOpen: () => setSelectedCheck(check.id),
+      }}
+    >
+      <p>
+        <strong title={check.id}>{checkLabels[check.id] ?? check.id}:</strong> {check.detail}
+      </p>
+    </FindingCard>
+  );
+  const issueName = (id: string) => {
+    const issue = source?.issues.find((item) => item.id === id);
+    return issue ? labels[issue.type] : 'Gợi ý';
+  };
   return (
     <div className={styles.page}>
       <h1>Chỉnh sửa</h1>
+      <ActionBar
+        status={
+          running ? (
+            <span role="status">Đang tạo bản sửa…</span>
+          ) : selected.length ? (
+            <span>Đã chọn {selected.length} gợi ý</span>
+          ) : undefined
+        }
+      >
+        <Button variant="ghost" onClick={() => navigate(`/evaluate?id=${source.id}`)}>
+          Quay lại bản phân tích
+        </Button>
+        {running ? (
+          <Button variant="danger" onClick={invalidate}>
+            Huỷ
+          </Button>
+        ) : (
+          <Button
+            variant={revision ? 'secondary' : 'primary'}
+            disabled={!selected.length}
+            onClick={() => void generate()}
+          >
+            {revision ? 'Tạo lại' : 'Tạo bản sửa (AI)'}
+          </Button>
+        )}
+        {revision && (
+          <>
+            <Button
+              onClick={() =>
+                void navigator.clipboard
+                  .writeText(revision.revisedText)
+                  .then(() => toast('Đã sao chép bản sửa'))
+                  .catch(() => setError('Không thể sao chép bản sửa.'))
+              }
+            >
+              Sao chép bản sửa
+            </Button>
+            <Button
+              variant="primary"
+              disabled={applying}
+              onClick={() => (failed.length ? setConfirm(true) : void apply())}
+            >
+              Áp dụng bản sửa
+            </Button>
+          </>
+        )}
+      </ActionBar>
       <div className={styles.grid}>
         <Card>
           <h2>Gợi ý đã chọn</h2>
@@ -224,7 +307,12 @@ export default function Page() {
         <Card>
           <h2>So sánh bản sửa</h2>
           {revision ? (
-            <DiffView source={source.text.sourceText} revision={revision} selectedCheck={selectedCheck} />
+            <DiffView
+              source={source.text.sourceText}
+              revision={revision}
+              selectedCheck={selectedCheck}
+              issueName={issueName}
+            />
           ) : (
             <p>Tạo bản sửa để xem so sánh.</p>
           )}
@@ -233,29 +321,25 @@ export default function Page() {
           <h2>Kiểm tra ý nghĩa</h2>
           {revision ? (
             <>
-              <ul>
-                {revision.checks.map((check) => (
-                  <li key={check.id}>
-                    <Button variant="ghost" title={check.id} onClick={() => setSelectedCheck(check.id)}>
-                      {check.status === 'pass' ? (
-                        <CheckCircle2 size={16} />
-                      ) : check.status === 'warn' ? (
-                        <AlertTriangle size={16} />
-                      ) : (
-                        <XCircle size={16} />
-                      )}{' '}
-                      {check.status === 'pass' ? 'Đạt' : check.status === 'warn' ? 'Cảnh báo' : 'Không đạt'} ·{' '}
-                      {checkLabels[check.id] ?? check.id}: {check.detail}
-                    </Button>
-                  </li>
-                ))}
-              </ul>
+              <div className={styles.findings}>
+                {revision.checks.filter((check) => check.status !== 'pass').map(checkCard)}
+                {revision.checks.some((check) => check.status === 'pass') && (
+                  <details>
+                    <summary>
+                      Đạt: {revision.checks.filter((check) => check.status === 'pass').length} kiểm tra
+                    </summary>
+                    <div className={styles.findings}>
+                      {revision.checks.filter((check) => check.status === 'pass').map(checkCard)}
+                    </div>
+                  </details>
+                )}
+              </div>
               <h3>Cần bằng chứng từ bạn</h3>
               {revision.needsEvidence.length ? (
                 <ul>
                   {revision.needsEvidence.map((item, index) => (
                     <li key={index}>
-                      {item.issueId}: {item.note}
+                      {issueName(item.issueId)}: {item.note}
                     </li>
                   ))}
                 </ul>
@@ -267,40 +351,6 @@ export default function Page() {
             <p>Chưa có kết quả.</p>
           )}
         </Card>
-      </div>
-      <div className={styles.actions}>
-        {running ? (
-          <>
-            <span role="status">Đang tạo bản sửa…</span>
-            <Button onClick={invalidate}>Huỷ</Button>
-          </>
-        ) : (
-          <Button variant="primary" disabled={!selected.length} onClick={() => void generate()}>
-            {revision ? 'Tạo lại' : 'Tạo bản sửa (AI)'}
-          </Button>
-        )}
-        {revision && (
-          <>
-            <Button
-              onClick={() =>
-                void navigator.clipboard
-                  .writeText(revision.revisedText)
-                  .then(() => toast('Đã sao chép bản sửa'))
-                  .catch(() => setError('Không thể sao chép bản sửa.'))
-              }
-            >
-              Sao chép bản sửa
-            </Button>
-            <Button
-              variant="primary"
-              disabled={applying}
-              onClick={() => (failed.length ? setConfirm(true) : void apply())}
-            >
-              Áp dụng bản sửa
-            </Button>
-          </>
-        )}
-        <Button onClick={() => navigate(`/evaluate?id=${source.id}`)}>Huỷ</Button>
       </div>
       {error && (
         <div role="alert">

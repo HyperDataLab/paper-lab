@@ -8,6 +8,7 @@ import { describeLlmError } from '@/shared/llm/describeError';
 import { createLlmGenerator } from '@/shared/llm/llmGenerator';
 import { useLlm } from '@/shared/llm/LlmProvider';
 import { useRepositories } from '@/shared/storage/StorageProvider';
+import { ActionBar } from '@/shared/ui/ActionBar';
 import { Button } from '@/shared/ui/Button';
 import { Dialog } from '@/shared/ui/Dialog';
 import { useToast } from '@/shared/ui/toastContext';
@@ -35,6 +36,7 @@ export default function Page() {
   const [input, setInput] = useState<GenerationInput>(initial);
   const [generation, setGeneration] = useState<Generation | null>(null);
   const [attempted, setAttempted] = useState(false);
+  const [restored, setRestored] = useState(0);
   const [highlighted, setHighlighted] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [accepting, setAccepting] = useState(false);
@@ -53,6 +55,7 @@ export default function Page() {
         if (!item) throw new Error('Generation not found');
         setInput(item.input);
         setGeneration(item);
+        setRestored((value) => value + 1);
       })
       .catch((cause: unknown) => {
         if (active) {
@@ -126,15 +129,11 @@ export default function Page() {
     <div className={styles.page}>
       <h1>Soạn đoạn</h1>
       {!id && !generation && <ParagraphModes current="/generate" />}
-      <div className={styles.grid}>
-        <GenerationForm input={input} onChange={change} attempted={attempted} highlighted={highlighted} />
-        <GenerationResult generation={generation} highlight={setHighlighted} />
-      </div>
-      <div className={styles.actions}>
-        {running ? (
-          <>
-            <span role="status">Đang soạn đoạn…</span>
+      {(running || generation) && (
+        <ActionBar status={running ? <span role="status">Đang soạn đoạn…</span> : undefined}>
+          {running && (
             <Button
+              variant="danger"
               onClick={() => {
                 controller.current?.abort();
                 controller.current = null;
@@ -143,34 +142,47 @@ export default function Page() {
             >
               Huỷ
             </Button>
-          </>
-        ) : (
-          <Button onClick={() => void generate()}>{generation ? 'Soạn lại' : 'Soạn đoạn (AI)'}</Button>
-        )}
-        {generation && (
-          <>
-            <Button
-              onClick={() =>
-                void navigator.clipboard
-                  .writeText(generation.paragraph)
-                  .then(() => toast('Đã sao chép đoạn văn'))
-                  .catch((cause: unknown) => {
-                    setError('Không thể sao chép đoạn văn.');
-                    setTechnical(String(cause));
-                  })
-              }
-            >
-              Sao chép
-            </Button>
-            <Button
-              variant="primary"
-              disabled={accepting || running}
-              onClick={() => (failed.length ? setConfirm(true) : void accept())}
-            >
-              Dùng đoạn này
-            </Button>
-          </>
-        )}
+          )}
+          {generation && (
+            <>
+              <Button
+                onClick={() =>
+                  void navigator.clipboard
+                    .writeText(generation.paragraph)
+                    .then(() => toast('Đã sao chép đoạn văn'))
+                    .catch((cause: unknown) => {
+                      setError('Không thể sao chép đoạn văn.');
+                      setTechnical(String(cause));
+                    })
+                }
+              >
+                Sao chép
+              </Button>
+              <Button
+                variant="primary"
+                disabled={accepting || running}
+                onClick={() => (failed.length ? setConfirm(true) : void accept())}
+              >
+                Dùng đoạn này
+              </Button>
+            </>
+          )}
+        </ActionBar>
+      )}
+      <div className={styles.grid}>
+        <GenerationForm
+          key={restored}
+          input={input}
+          onChange={change}
+          attempted={attempted}
+          highlighted={highlighted}
+          initialStep={restored ? 2 : 0}
+          finishLabel={generation ? 'Soạn lại' : 'Soạn đoạn (AI)'}
+          finishDisabled={running}
+          finishVariant={generation ? 'secondary' : 'primary'}
+          onFinish={() => void generate()}
+        />
+        <GenerationResult generation={generation} highlight={setHighlighted} />
       </div>
       {error && (
         <div role="alert">

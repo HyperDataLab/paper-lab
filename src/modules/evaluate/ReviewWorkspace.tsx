@@ -5,6 +5,7 @@ import { createOffsetIndex } from '@/core/text';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Drawer } from '@/shared/ui/Drawer';
+import { ReviewActions } from '@/shared/ui/FindingCard';
 import { Tabs } from '@/shared/ui/Tabs';
 import { IconButton } from '@/shared/ui/IconButton';
 import { Checkbox } from '@/shared/ui/Checkbox';
@@ -198,22 +199,24 @@ export function ReviewWorkspace({
             ),
         )}
       </div>
-      <SegmentedControl
-        label="Lọc trạng thái"
-        value={filter}
-        onChange={setFilter}
-        options={[
-          { value: 'all', label: 'Tất cả' },
-          { value: 'confirmed', label: 'Đã xác nhận' },
-          { value: 'candidate', label: 'Ứng viên' },
-        ]}
-      />
-      <Checkbox checked={low} onChange={(e) => setLow(e.target.checked)}>
-        Ẩn độ tin cậy thấp
-      </Checkbox>
-      <Checkbox checked={hideUnreliable} onChange={(event) => setHideUnreliable(event.target.checked)}>
-        Ẩn mục chưa đáng tin
-      </Checkbox>
+      <div className={styles.filters}>
+        <SegmentedControl
+          label="Lọc trạng thái"
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: 'all', label: 'Tất cả' },
+            { value: 'confirmed', label: 'Đã xác nhận' },
+            { value: 'candidate', label: 'Ứng viên' },
+          ]}
+        />
+        <Checkbox checked={low} onChange={(e) => setLow(e.target.checked)}>
+          Ẩn độ tin cậy thấp
+        </Checkbox>
+        <Checkbox checked={hideUnreliable} onChange={(event) => setHideUnreliable(event.target.checked)}>
+          Ẩn mục chưa đáng tin
+        </Checkbox>
+      </div>
       {visible.filter((i) => handled(i) === done).length === 0 && (
         <p>{issues.length ? 'Đã xem hết gợi ý' : 'Chưa có gợi ý'}</p>
       )}
@@ -258,16 +261,6 @@ export function ReviewWorkspace({
                 id={`card-${i.id}`}
                 className={`${styles.cardItem} ${styles[`color_${i.category}`]} ${selected === i.id ? styles.expanded : ''} ${hovered === i.id ? styles.hovered : ''} ${i.severity === 'info' ? styles.acceptable : ''} ${i.status === 'dismissed_by_human' ? styles.dismissed : ''}`}
               >
-                <CalibrationBadge stats={statsFor(i.type)} />
-                {revisionSelection && onRevisionSelection && (
-                  <Checkbox
-                    disabled={i.status === 'dismissed_by_human'}
-                    checked={i.status !== 'dismissed_by_human' && revisionSelection.includes(i.id)}
-                    onChange={(event) => onRevisionSelection(i.id, event.target.checked)}
-                  >
-                    Chọn để chỉnh sửa
-                  </Checkbox>
-                )}
                 <Button
                   data-card
                   className={styles.cardButton}
@@ -296,6 +289,18 @@ export function ReviewWorkspace({
                     )}
                   </span>
                 </Button>
+                <div className={styles.cardFoot}>
+                  <CalibrationBadge stats={statsFor(i.type)} />
+                  {revisionSelection && onRevisionSelection && (
+                    <Checkbox
+                      disabled={i.status === 'dismissed_by_human'}
+                      checked={i.status !== 'dismissed_by_human' && revisionSelection.includes(i.id)}
+                      onChange={(event) => onRevisionSelection(i.id, event.target.checked)}
+                    >
+                      Chọn để chỉnh sửa
+                    </Checkbox>
+                  )}
+                </div>
                 {selected === i.id && (
                   <div>
                     <strong>{labels[i.type]}</strong>
@@ -330,7 +335,7 @@ export function ReviewWorkspace({
                         )}
                       </p>
                     )}
-                    <p title={i.metric.name}>
+                    <p className={styles.metric} title={i.metric.name}>
                       {i.type === 'SUBJECT_VERB_GAP'
                         ? `Khoảng cách chủ–vị: ${i.metric.value} token (ngưỡng thử nghiệm ≥ ${SV_GAP_REVIEW})`
                         : i.type === 'CLAUSE_DEPTH'
@@ -359,26 +364,12 @@ export function ReviewWorkspace({
                       )}
                     </Select>
                     <div className={styles.controls}>
-                      {done ? (
-                        <Button onClick={() => onChange(i, { status: 'candidate' })}>Hoàn tác</Button>
-                      ) : (
-                        <>
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => onChange(i, { status: 'confirmed_by_human' })}
-                          >
-                            Xác nhận
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onChange(i, { status: 'dismissed_by_human' })}
-                          >
-                            Bỏ qua
-                          </Button>
-                        </>
-                      )}
+                      <ReviewActions
+                        decided={done}
+                        onConfirm={() => onChange(i, { status: 'confirmed_by_human' })}
+                        onDismiss={() => onChange(i, { status: 'dismissed_by_human' })}
+                        onUndo={() => onChange(i, { status: 'candidate' })}
+                      />
                       {suggestion && (
                         <IconButton
                           label="Sao chép gợi ý"
@@ -393,7 +384,6 @@ export function ReviewWorkspace({
                         </IconButton>
                       )}
                     </div>
-                    <small>Áp dụng sửa đổi sẽ có ở module Chỉnh sửa</small>
                   </div>
                 )}
               </li>

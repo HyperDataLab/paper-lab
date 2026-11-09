@@ -24,7 +24,9 @@ export function SyntaxControls({
           {syntax.running ? (
             <>
               <span role="status">Đang phân tích câu…</span>
-              <Button onClick={syntax.cancel}>Huỷ</Button>
+              <Button variant="danger" onClick={syntax.cancel}>
+                Huỷ
+              </Button>
             </>
           ) : (
             <Button

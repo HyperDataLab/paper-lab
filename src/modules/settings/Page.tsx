@@ -90,10 +90,11 @@ export default function Page() {
           /llm = proxy của máy chủ (khoá nằm ở máy chủ). URL đầy đủ = gọi trực tiếp, cần khoá và endpoint cho
           phép CORS.
         </p>
-        <p>
+        <details>
+          <summary>Chi tiết kỹ thuật</summary>
           Content-Security-Policy khi triển khai chỉ cho phép các host 9router/Worker được liệt kê trong
           firebase.json.
-        </p>
+        </details>
         <TextField label="Model" value={model} onChange={(e) => setModel(e.target.value)} />
         <TextField
           label="API key"
@@ -124,7 +125,9 @@ export default function Page() {
           </Button>
         </div>
         <div className={styles.actions}>
-          <Button onClick={save}>Lưu</Button>
+          <Button variant="primary" onClick={save}>
+            Lưu
+          </Button>
           <Button
             onClick={() => {
               try {
