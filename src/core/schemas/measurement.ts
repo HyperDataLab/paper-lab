@@ -44,7 +44,9 @@ export const ModelFieldSchema = z.object({
   value: z.string().nullable(),
   status: ModelStatusSchema,
   quotes: z.array(QuoteRefSchema),
+  atom_keys: z.array(z.string()).optional(),
 });
+export const AtomicRoleSchema = z.enum(['background', 'method', 'finding', 'limitation']);
 export const ClassifyOutputSchema = z.object({
   paper_type: PaperTypeSchema,
   rationale: z.string(),
@@ -57,6 +59,9 @@ const ModelProtocolSchema = z.object(
   >,
 );
 export const ExtractionOutputSchema = z.object({
+  atomic_sentences: z
+    .array(z.object({ key: z.string(), text: z.string(), role: AtomicRoleSchema, quote: QuoteRefSchema }))
+    .optional(),
   constructs: z.array(
     z.object({ key: z.string(), name: z.string(), description: z.string(), quotes: z.array(QuoteRefSchema) }),
   ),
@@ -92,6 +97,7 @@ export const ExtractionOutputSchema = z.object({
       uncertainty: z.string().nullable(),
       condition: z.string().nullable(),
       quote: QuoteRefSchema,
+      atom_keys: z.array(z.string()).optional(),
     }),
   ),
   claims: z.array(
@@ -99,6 +105,7 @@ export const ExtractionOutputSchema = z.object({
       key: z.string(),
       text: z.string(),
       quote: QuoteRefSchema,
+      atom_keys: z.array(z.string()).optional(),
     }),
   ),
   taxonomy: z.array(
@@ -183,6 +190,18 @@ export const ProfileFieldSchema = z.object({
   evidence_ids: z.array(z.string()),
   needs_review: z.boolean(),
   search_scope: z.array(z.string()).optional(),
+  atomic_ids: z.array(z.string()).optional(),
+});
+export const AtomicSentenceSchema = z.object({
+  id: z.string(),
+  text: z.string(),
+  role: AtomicRoleSchema,
+  word_count: z.number().int().positive(),
+  evidence_id: z.string(),
+  page: z.number().int().positive().nullable(),
+  section_id: z.string(),
+  needs_review: z.boolean(),
+  human_checked: z.boolean(),
 });
 export const ConstructSchema = z.object({
   id: z.string(),
@@ -239,6 +258,7 @@ export const ReportedResultSchema = z.object({
   needs_review: z.boolean(),
   review_reasons: z.array(z.string()),
   evidence_ids: z.array(z.string()),
+  atomic_ids: z.array(z.string()).optional(),
 });
 export const ResearchClaimSchema = z.object({
   id: z.string(),
@@ -250,6 +270,7 @@ export const ResearchClaimSchema = z.object({
   linked_result_ids: z.array(z.string()),
   linked_metric_ids: z.array(z.string()),
   evidence_ids: z.array(z.string()),
+  atomic_ids: z.array(z.string()).optional(),
 });
 export const AnalysisFindingSchema = z.object({
   id: z.string(),
@@ -305,7 +326,11 @@ export const MeasurementProfileSchema = z.object({
     })
     .nullable(),
   evidence: z.array(EvidenceSchema),
+  atomic_sentences: z.array(AtomicSentenceSchema).default([]),
   discarded: z.object({
+    atomic_too_long: z.number().int().nonnegative().default(0),
+    atomic_quote_not_found: z.number().int().nonnegative().default(0),
+    atomic_number_not_in_source: z.number().int().nonnegative().default(0),
     unverified_quotes: z.number().int().nonnegative(),
     invented_experiments: z.number().int().nonnegative(),
     unsupported_findings: z.number().int().nonnegative(),
@@ -313,6 +338,8 @@ export const MeasurementProfileSchema = z.object({
   }),
 });
 export type Evidence = z.infer<typeof EvidenceSchema>;
+export type AtomicSentence = z.infer<typeof AtomicSentenceSchema>;
+export type AtomicRole = z.infer<typeof AtomicRoleSchema>;
 export type ProfileField = z.infer<typeof ProfileFieldSchema>;
 export type MetricUsage = z.infer<typeof MetricUsageSchema>;
 export type Experiment = z.infer<typeof ExperimentSchema>;

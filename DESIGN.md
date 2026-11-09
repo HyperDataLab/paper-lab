@@ -196,3 +196,5 @@ Fields with no information fold into a single line listing their names.
 Evaluate presents its AI work as numbered steps in order (sentences, paragraph structure, contextual judgement, scoring). The next step is the only
 primary button, a finished step shows a tick and "Đã xong", and a step that cannot run says why. Saving becomes primary once scoring is done.
 The theme control is an icon button in the header, cycling Hệ thống, Sáng and Tối.
+
+Atomic sentences are a branch of the Đo lường tree, grouped by role. Each opens on its own with its source, the items that use it and the action `Đã đối chiếu với nguồn`; the branch root shows progress and what code could and could not check.

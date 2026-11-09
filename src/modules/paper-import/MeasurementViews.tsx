@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { evidenceRate, reviewQueueSize, type MeasurementRef } from '@/core/measurement';
+import { ATOMIC_ROLE_LABELS, evidenceRate, reviewQueueSize, type MeasurementRef } from '@/core/measurement';
 import {
   PROTOCOL_FIELDS,
   type MeasurementProfile,
@@ -8,11 +8,19 @@ import {
   type ProfileField,
   type ProtocolField,
   type ReportedResult,
+  type AtomicRole,
 } from '@/core/schemas';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
-import { EvidenceLinks, FieldRow, ItemActions, StatusBadges, type ItemContext } from './MeasurementItems';
+import {
+  AtomicLinks,
+  EvidenceLinks,
+  FieldRow,
+  ItemActions,
+  StatusBadges,
+  type ItemContext,
+} from './MeasurementItems';
 import styles from './measurement.module.css';
 
 const PAPER_TYPE: Record<MeasurementProfile['paper_type'], string> = {
@@ -202,6 +210,8 @@ function OverviewDetail({ profile, paper, open }: Pick<ViewProps, 'profile' | 'o
         {stat(profile.metrics.length, 'metric', { kind: 'experiments' })}
         {stat(profile.results.length, 'kết quả', { kind: 'experiments' })}
         {stat(profile.claims.length, 'claim', { kind: 'claims' })}
+        {profile.atomic_sentences.length > 0 &&
+          stat(profile.atomic_sentences.length, 'câu nguyên tử', { kind: 'atomics' })}
         {stat(profile.findings.length, 'cảnh báo', { kind: 'findings' })}
         {stat(reviewQueueSize(profile), 'cần xem lại', { kind: 'review' })}
       </div>
@@ -480,6 +490,7 @@ export function MeasurementDetail({
         <div className={styles.meta}>
           <StatusBadges status={result.status} needsReview={result.needs_review} />
           <EvidenceLinks ids={result.evidence_ids} context={context} />
+          <AtomicLinks ids={result.atomic_ids} context={context} />
         </div>
         {result.condition && <p>Điều kiện: {result.condition}</p>}
         <div className={styles.meta}>
@@ -521,6 +532,7 @@ export function MeasurementDetail({
         <div className={styles.meta}>
           <StatusBadges status={claim.status} needsReview={claim.needs_review} />
           <EvidenceLinks ids={claim.evidence_ids} context={context} />
+          <AtomicLinks ids={claim.atomic_ids} context={context} />
           <ItemActions itemId={claim.id} context={context} value={claim.text} />
         </div>
         {claim.evidence_scope ? (
@@ -555,6 +567,105 @@ export function MeasurementDetail({
           {metrics.map((metric) => (
             <Button key={metric.id} size="sm" onClick={() => open({ kind: 'metric', id: metric.id })}>
               {metric.reported_name}
+            </Button>
+          ))}
+        </div>
+      </Card>
+    );
+  }
+  if (target.kind === 'atomics') {
+    const checked = profile.atomic_sentences.filter((sentence) => sentence.human_checked).length;
+    return (
+      <Card>
+        <h2>Câu nguyên tử</h2>
+        <p>
+          Đã đối chiếu {checked}/{profile.atomic_sentences.length}
+        </p>
+        <p className={styles.note}>
+          Code đã kiểm tra câu trích, độ dài và con số. Chỉ người đọc mới biết câu có nói đúng điều nguồn nói
+          hay không, nên hãy đối chiếu từng câu trước khi dùng lại.
+        </p>
+        <p className={styles.note}>
+          Đã bỏ {profile.discarded.atomic_too_long} câu quá 25 từ, {profile.discarded.atomic_quote_not_found}{' '}
+          câu không tìm thấy câu trích, {profile.discarded.atomic_number_not_in_source} câu có số không có
+          trong nguồn.
+        </p>
+      </Card>
+    );
+  }
+  if (target.kind === 'atomicRole')
+    return (
+      <ListCard
+        title={ATOMIC_ROLE_LABELS[target.id as AtomicRole]}
+        empty="Không có câu nào."
+        items={profile.atomic_sentences
+          .filter((sentence) => sentence.role === target.id)
+          .map((sentence) => ({
+            key: sentence.id,
+            label: sentence.text,
+            onOpen: () => open({ kind: 'atomic', id: sentence.id }),
+            extra: sentence.human_checked ? <Badge tone="success">Đã đối chiếu</Badge> : undefined,
+          }))}
+      />
+    );
+  if (target.kind === 'atomic') {
+    const atom = profile.atomic_sentences.find((item) => item.id === target.id);
+    if (!atom) return null;
+    const uses = (ids: string[] | undefined) => ids?.includes(atom.id) ?? false;
+    const metrics = profile.metrics.filter((metric) =>
+      [
+        metric.definition,
+        metric.formula_text,
+        metric.unit,
+        metric.direction,
+        metric.range,
+        ...Object.values(metric.method),
+      ].some((field) => uses(field.atomic_ids)),
+    );
+    const experiments = profile.experiments.filter((experiment) =>
+      PROTOCOL_FIELDS.some((key) => uses(experiment.protocol[key].atomic_ids)),
+    );
+    const results = profile.results.filter((item) => uses(item.atomic_ids));
+    const claims = profile.claims.filter((item) => uses(item.atomic_ids));
+    return (
+      <Card>
+        <h2>Câu nguyên tử</h2>
+        <p className={styles.bigValue}>{atom.text}</p>
+        <div className={styles.meta}>
+          <Badge>{ATOMIC_ROLE_LABELS[atom.role]}</Badge>
+          <span>{atom.word_count} từ</span>
+          {atom.needs_review && <Badge tone="warning">Cần xem lại</Badge>}
+          <EvidenceLinks ids={[atom.evidence_id]} context={context} />
+        </div>
+        <div className={styles.detailHead}>
+          <ItemActions
+            itemId={atom.id}
+            context={context}
+            value={atom.text}
+            acceptLabel="Đã đối chiếu với nguồn"
+            acceptedLabel="Đã đối chiếu"
+          />
+        </div>
+        {metrics.length + experiments.length + results.length + claims.length > 0 && <h3>Được dùng ở</h3>}
+        <div className={styles.meta}>
+          {metrics.map((item) => (
+            <Button key={item.id} size="sm" onClick={() => open({ kind: 'metric', id: item.id })}>
+              Metric: {item.reported_name}
+            </Button>
+          ))}
+          {experiments.map((item) => (
+            <Button key={item.id} size="sm" onClick={() => open({ kind: 'experiment', id: item.id })}>
+              Thí nghiệm: {item.name}
+            </Button>
+          ))}
+          {results.map((item) => (
+            <Button key={item.id} size="sm" onClick={() => open({ kind: 'result', id: item.id })}>
+              Kết quả: {item.system_or_baseline}
+            </Button>
+          ))}
+          {claims.map((item) => (
+            <Button key={item.id} size="sm" onClick={() => open({ kind: 'claim', id: item.id })}>
+              Claim: {item.text.slice(0, 40)}
             </Button>
           ))}
         </div>

@@ -41,6 +41,7 @@ Status: ⬜ not started · 🟨 in progress · ✅ accepted.
 | M3  | Linking, same-name metrics, claims, six warnings, survey mode         | ✅     |
 | M4  | `Đo lường` tab, human review, audit, evidence navigation              | ✅     |
 | M5  | JSON/Markdown/CSV export, transparency, gold-standard tool            | ✅     |
+| M6  | Atomic sentences: short verified statements linked to the profile     | ✅     |
 
 Measurement quality targets (PRD §12) are not measured yet: they need a gold standard of at least 30 papers labelled by two people.
 

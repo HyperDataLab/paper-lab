@@ -167,6 +167,12 @@ precision trường protocol `REPORTED` ≥ 0,90; ghi nhầm thành `REPORTED` �
 | M4  | Tab Đo lường, duyệt, chỉnh sửa, audit, điều hướng bằng chứng                   | M3        |
 | M5  | Xuất JSON/Markdown/CSV, Minh bạch, công cụ đo trên gold-standard               | M4        |
 
+## 13a. Lớp câu nguyên tử (M6)
+
+Dựa trên phương pháp Atomic Sentence (Liu và cộng sự, JMIR Formative Research 2026;10:e98343). Bài đó là nghiên cứu khả thi về giảng dạy; tác động lên độ chính xác trích dẫn chưa được kiểm chứng.
+
+Cùng lượt gọi trích xuất, AI trả về các câu tối đa 25 từ, một mệnh đề, tự hiểu được, kèm vai trò và câu trích nguyên văn. Trang và mục do code gắn. Code **bỏ hẳn, không sửa** câu quá dài, câu có câu trích không tìm thấy, câu chứa con số không có trong nguồn, và đếm số câu đã bỏ. Quy tắc này chỉ áp dụng cho câu nguyên tử: các trường dữ liệu vẫn theo §5. Code không biết câu có nói đúng ý nguồn hay không, nên người duyệt đối chiếu từng câu. Không dùng điểm do AI tự chấm.
+
 ## 14. Việc cần chủ dự án quyết định
 
 1. Ai gán nhãn bộ gold-standard 30 bài (không có thì §12 luôn ở trạng thái "chưa đo").

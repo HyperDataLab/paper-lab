@@ -28,7 +28,7 @@ import { requirePaperConsent } from './consent';
 import { ConsentRequiredError } from './errors';
 
 /** A whole section with the full output schema can take the model well over a minute. */
-const EXTRACTION_TIMEOUT_MS = 180000;
+const EXTRACTION_TIMEOUT_MS = 240000;
 
 export const MEASUREMENT_PROMPT_VERSION = [
   PROMPT_VERSIONS.measurementClassify,

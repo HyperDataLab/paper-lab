@@ -36,6 +36,14 @@ export function splitUncertainty(value: string, uncertainty: string | null) {
   return { value: value.trim(), uncertainty: clean(uncertainty) };
 }
 
+export const MAX_ATOMIC_WORDS = 25;
+
+/** Quantities in a sentence. Names such as GPT-4 or F1 and citation markers such as [12] are not quantities. */
+export function atomicNumbers(text: string) {
+  const plain = text.replace(/\[\s*\d+(?:\s*[,–-]\s*\d+)*\s*\]/gu, ' ');
+  return plain.match(/(?<![\p{L}\p{N}.,][-–]?)[-+−]?\d(?:[\d.,]*\d)?/gu) ?? [];
+}
+
 function evidenceKind(paragraph: PaperParagraph): Evidence['kind'] {
   if (paragraph.kind === 'table') return 'table';
   if (paragraph.kind === 'equation') return 'equation';

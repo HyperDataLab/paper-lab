@@ -1,12 +1,15 @@
 import type { Paper } from '../schemas/paper';
+import { MAX_ATOMIC_WORDS, atomicNumbers } from './verify';
 import {
   MeasurementProfileSchema,
   PROTOCOL_FIELDS,
   type ClassifyOutput,
   type Experiment,
   type ExtractionOutput,
+  type AtomicSentence,
   type MeasurementProfile,
   type MetricUsage,
+  type ModelField,
   type ProfileField,
   type ProtocolField,
   type ReportedResult,
@@ -50,10 +53,14 @@ export function mergeFields(a: ProfileField, b: ProfileField): ProfileField {
     first.value !== null && second.value !== null && normalize(first.value) === normalize(second.value);
   const conflict =
     first.status === 'REPORTED' && second.status === 'REPORTED' && first.value !== null && !same;
+  const atoms = same
+    ? [...new Set([...(first.atomic_ids ?? []), ...(second.atomic_ids ?? [])])]
+    : first.atomic_ids;
   return {
     ...first,
     evidence_ids: same ? [...new Set([...first.evidence_ids, ...second.evidence_ids])] : first.evidence_ids,
     needs_review: first.needs_review || conflict,
+    ...(atoms?.length ? { atomic_ids: atoms } : {}),
   };
 }
 
@@ -153,6 +160,8 @@ export function buildProfile(input: ProfileInput): MeasurementProfile {
     .map((section) => section.id);
   const blockIds = new Set(units.flatMap((item) => item.unit.blocks.map((block) => block.id)));
   const verifier = createVerifier(paper, blockIds);
+  const atomicSentences = new Map<string, AtomicSentence>();
+  const atomicDiscards = { atomic_too_long: 0, atomic_quote_not_found: 0, atomic_number_not_in_source: 0 };
   const survey = classification.paper_type === 'SURVEY_SLR';
   const typeEvidence = classification.quotes.flatMap((quote) => verifier.resolve(quote) ?? []);
 
@@ -167,6 +176,51 @@ export function buildProfile(input: ProfileInput): MeasurementProfile {
 
   for (const { output } of units) {
     if (!output) continue;
+    const atomIds = new Map<string, string>();
+    for (const raw of output.atomic_sentences ?? []) {
+      const text = raw.text.trim();
+      const words = text.split(/\s+/u).filter(Boolean).length;
+      if (!words || words > MAX_ATOMIC_WORDS) {
+        atomicDiscards.atomic_too_long++;
+        continue;
+      }
+      const evidence = verifier.resolve(raw.quote);
+      if (!evidence) {
+        atomicDiscards.atomic_quote_not_found++;
+        continue;
+      }
+      const block = verifier.block(evidence.blockId);
+      const source = evidence.cell
+        ? `${block?.table?.rows[evidence.cell.row]?.cells.map((cell) => cell.text).join(' ') ?? ''} ${block ? cellContext(block, evidence.cell.row, evidence.cell.column) : ''}`
+        : evidence.source_excerpt;
+      if (atomicNumbers(text).some((number) => !containsExact(source, number))) {
+        atomicDiscards.atomic_number_not_in_source++;
+        continue;
+      }
+      const key = normalize(text);
+      const existing = atomicSentences.get(key);
+      const atom = existing ?? {
+        id: `as-${String(atomicSentences.size + 1).padStart(4, '0')}`,
+        text,
+        role: raw.role,
+        word_count: words,
+        evidence_id: evidence.id,
+        page: evidence.page,
+        section_id: evidence.sectionId,
+        needs_review: evidence.needs_review,
+        human_checked: false,
+      };
+      atomicSentences.set(key, atom);
+      atomIds.set(raw.key, atom.id);
+    }
+    const atomsFor = (keys: string[] | undefined) => [
+      ...new Set((keys ?? []).flatMap((key) => atomIds.get(key) ?? [])),
+    ];
+    const toField = (raw: ModelField): ProfileField => {
+      const field = verifier.field(raw);
+      const atomic_ids = field.value === null ? [] : atomsFor(raw.atom_keys);
+      return atomic_ids.length ? { ...field, atomic_ids } : field;
+    };
     const constructIds = new Map<string, string>();
     for (const raw of output.constructs) {
       const key = normalize(raw.name);
@@ -188,7 +242,7 @@ export function buildProfile(input: ProfileInput): MeasurementProfile {
     else
       for (const raw of output.experiments) {
         const protocol = Object.fromEntries(
-          PROTOCOL_FIELDS.map((key) => [key, verifier.field(raw.protocol[key])]),
+          PROTOCOL_FIELDS.map((key) => [key, toField(raw.protocol[key])]),
         ) as Record<ProtocolField, ProfileField>;
         const existing = experiments.find((item) => normalize(item.name) === normalize(raw.name));
         if (existing) {
@@ -210,16 +264,16 @@ export function buildProfile(input: ProfileInput): MeasurementProfile {
         aliases: raw.aliases,
         construct_ids: raw.construct_keys.flatMap((key) => constructIds.get(key) ?? []),
         experiment_ids: raw.experiment_keys.flatMap((key) => experimentIds.get(key) ?? []),
-        definition: verifier.field(raw.definition),
-        formula_text: verifier.field(raw.formula),
-        unit: verifier.field(raw.unit),
-        direction: verifier.field(raw.direction),
-        range: verifier.field(raw.range),
+        definition: toField(raw.definition),
+        formula_text: toField(raw.formula),
+        unit: toField(raw.unit),
+        direction: toField(raw.direction),
+        range: toField(raw.range),
         method: {
-          input_data: verifier.field(raw.method.input_data),
-          procedure: verifier.field(raw.method.procedure),
-          data_source: verifier.field(raw.method.data_source),
-          aggregation: verifier.field(raw.method.aggregation),
+          input_data: toField(raw.method.input_data),
+          procedure: toField(raw.method.procedure),
+          data_source: toField(raw.method.data_source),
+          aggregation: toField(raw.method.aggregation),
         },
         name_collision: false,
         evidence_ids: [],
@@ -246,13 +300,14 @@ export function buildProfile(input: ProfileInput): MeasurementProfile {
     }
     if (!survey)
       for (const raw of output.results)
-        results.push(
-          verifyResult(raw, verifier, {
+        results.push({
+          ...verifyResult(raw, verifier, {
             result: `r-${results.length + 1}`,
             experiment: raw.experiment_key ? (experimentIds.get(raw.experiment_key) ?? null) : null,
             metric: raw.metric_key ? (metricIds.get(raw.metric_key) ?? null) : null,
           }),
-        );
+          ...(atomsFor(raw.atom_keys).length ? { atomic_ids: atomsFor(raw.atom_keys) } : {}),
+        });
     for (const raw of output.claims) {
       const evidence = verifier.resolve(raw.quote);
       claims.push({
@@ -264,6 +319,7 @@ export function buildProfile(input: ProfileInput): MeasurementProfile {
         linked_result_ids: [],
         linked_metric_ids: [],
         evidence_ids: evidence ? [evidence.id] : [],
+        ...(atomsFor(raw.atom_keys).length ? { atomic_ids: atomsFor(raw.atom_keys) } : {}),
       });
     }
     if (survey) {
@@ -272,15 +328,15 @@ export function buildProfile(input: ProfileInput): MeasurementProfile {
           id: `tx-${taxonomy.length + 1}`,
           construct: raw.construct,
           metric: raw.metric,
-          how_measured: verifier.field(raw.how_measured),
-          domain: verifier.field(raw.domain),
+          how_measured: toField(raw.how_measured),
+          domain: toField(raw.domain),
           evidence_ids: [...new Set(raw.quotes.flatMap((quote) => verifier.resolve(quote)?.id ?? []))],
         });
       if (output.review_method) {
         const next = {
-          search_strategy: verifier.field(output.review_method.search_strategy),
-          inclusion_criteria: verifier.field(output.review_method.inclusion_criteria),
-          synthesis: verifier.field(output.review_method.synthesis),
+          search_strategy: toField(output.review_method.search_strategy),
+          inclusion_criteria: toField(output.review_method.inclusion_criteria),
+          synthesis: toField(output.review_method.synthesis),
         };
         reviewMethod = reviewMethod
           ? {
@@ -333,7 +389,9 @@ export function buildProfile(input: ProfileInput): MeasurementProfile {
     taxonomy,
     review_method: reviewMethod,
     evidence: verifier.evidence(),
+    atomic_sentences: [...atomicSentences.values()],
     discarded: {
+      ...atomicDiscards,
       unverified_quotes: verifier.unverified(),
       invented_experiments: inventedExperiments,
       unsupported_findings: 0,
