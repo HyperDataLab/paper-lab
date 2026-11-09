@@ -55,3 +55,41 @@
   background: var(--soft);
   outline: 2px solid var(--accent);
 }
+
+.steps {
+  display: grid;
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.stepNumber {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
+  margin-top: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.stepNumber[data-done='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.stepBody {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}

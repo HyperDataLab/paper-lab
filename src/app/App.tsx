@@ -1,10 +1,9 @@
-import { Menu, Search } from 'lucide-react';
+import { Menu, Monitor, Moon, Search, Sun } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Drawer } from '@/shared/ui/Drawer';
 import { IconButton } from '@/shared/ui/IconButton';
 import { Button } from '@/shared/ui/Button';
-import { Select } from '@/shared/ui/Select';
 import { ToastProvider } from '@/shared/ui/ToastProvider';
 import { Kbd } from '@/shared/ui/Kbd';
 import { Skeleton } from '@/shared/ui/Skeleton';
@@ -18,6 +17,8 @@ import ComparePage from '@/modules/report/ComparePage';
 import PaperMapPage from '@/modules/paper-import/PaperMapPage';
 import styles from './shell.module.css';
 type Theme = 'light' | 'dark' | 'system';
+const THEME_LABELS: Record<Theme, string> = { system: 'Hệ thống', light: 'Sáng', dark: 'Tối' };
+const NEXT_THEME: Record<Theme, Theme> = { system: 'light', light: 'dark', dark: 'system' };
 function readTheme(): Theme {
   try {
     const value = localStorage.getItem('theme');
@@ -83,16 +84,19 @@ export function App() {
                 <span>Tìm chức năng</span>
                 <Kbd>Ctrl K</Kbd>
               </Button>
-              <Select
-                label="Giao diện"
-                aria-label="Giao diện"
-                value={theme}
-                onChange={(event) => setTheme(event.target.value as Theme)}
+              <IconButton
+                variant="ghost"
+                label={`Giao diện: ${THEME_LABELS[theme]}. Bấm để đổi`}
+                onClick={() => setTheme(NEXT_THEME[theme])}
               >
-                <option value="system">Hệ thống</option>
-                <option value="light">Sáng</option>
-                <option value="dark">Tối</option>
-              </Select>
+                {theme === 'dark' ? (
+                  <Moon size={18} />
+                ) : theme === 'light' ? (
+                  <Sun size={18} />
+                ) : (
+                  <Monitor size={18} />
+                )}
+              </IconButton>
             </div>
           </header>
           <main

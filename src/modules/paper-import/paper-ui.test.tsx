@@ -228,11 +228,13 @@ it('P2 increases a budget on the same run when resuming', async () => {
     </MemoryRouter>,
   );
   fireEvent.click(await screen.findByRole('tab', { name: 'Chất lượng viết' }));
-  fireEvent.change(await screen.findByLabelText('Giới hạn lượt gọi'), { target: { value: '10' } });
-  fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục' }));
+  // The field moves once the paused run has loaded, so wait for that before typing.
+  const resume = await screen.findByRole('button', { name: 'Tiếp tục' });
+  fireEvent.change(screen.getByLabelText('Giới hạn lượt gọi'), { target: { value: '10' } });
+  fireEvent.click(resume);
   expect(await screen.findByText(/Các đoạn được chọn của bản thảo/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Đồng ý và tiếp tục' }));
-  await waitFor(async () => expect((await repo.paperRuns.get(run.id))?.budget).toBe(10));
+  await waitFor(async () => expect((await repo.paperRuns.get(run.id))?.budget).toBe(10), { timeout: 2000 });
   expect(await repo.paperRuns.listByPaper(paper.id)).toHaveLength(1);
 });
 

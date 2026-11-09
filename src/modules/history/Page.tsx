@@ -173,7 +173,9 @@ export default function Page() {
             <Button data-dialog-initial-focus onClick={() => setDeleting(null)}>
               Huỷ
             </Button>
-            <Button onClick={() => void remove()}>Xoá bản phân tích</Button>
+            <Button variant="danger" onClick={() => void remove()}>
+              Xoá bản phân tích
+            </Button>
           </div>
         </Dialog>
       )}
