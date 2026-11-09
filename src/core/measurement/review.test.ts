@@ -27,19 +27,40 @@ it('AC-07 applies an edit and leaves the AI original untouched', () => {
   );
   expect(edited.metrics[0]?.method.procedure).toMatchObject({
     value: 'Đếm số dự đoán đúng',
-    status: 'INFERRED',
+    status: 'HUMAN_EDITED',
     needs_review: false,
   });
   expect(original).toEqual(snapshot);
 });
 
-it('AC-07 keeps a reported status when a person corrects its value', () => {
+it('AC-07 removes unsupported evidence and recomputes metric evidence after an edit', () => {
   const edited = reviewedProfile(
     fixtureProfile(),
     [decision({ decision: 'edit', field: 'unit', new_value: 'percent' })],
     RUN,
   );
-  expect(edited.metrics[0]?.unit).toMatchObject({ value: 'percent', status: 'REPORTED' });
+  expect(edited.metrics[0]?.unit).toMatchObject({
+    value: 'percent',
+    status: 'HUMAN_EDITED',
+    evidence_ids: [],
+  });
+  expect(edited.metrics[0]?.evidence_ids).toEqual(edited.metrics[0]?.definition.evidence_ids);
+});
+
+it('AC-07 keeps only evidence supporting a reported edit', () => {
+  const original = fixtureProfile();
+  const metric = original.metrics[0]!;
+  metric.definition.evidence_ids.push(...metric.unit.evidence_ids);
+  const edited = reviewedProfile(
+    original,
+    [decision({ decision: 'edit', field: 'definition', new_value: 'correct predictions' })],
+    RUN,
+  );
+  expect(edited.metrics[0]?.definition).toMatchObject({
+    status: 'REPORTED',
+    evidence_ids: [metric.definition.evidence_ids[0]],
+    needs_review: false,
+  });
 });
 
 it('AC-07 edits protocol fields and result values', () => {
@@ -54,6 +75,12 @@ it('AC-07 edits protocol fields and result values', () => {
   );
   expect(edited.experiments[0]?.protocol.seeds.value).toBe('7');
   expect(edited.results[0]?.value).toBe('0.5');
+  expect(edited.results[0]).toMatchObject({
+    status: 'HUMAN_EDITED',
+    evidence_ids: [],
+    source_table_cell: null,
+    needs_review: false,
+  });
 });
 
 it('FR-15 removes a rejected item and every link to it', () => {

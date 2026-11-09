@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { buildClassifyPrompt, buildExtractionPrompt } from '../prompts/measurement';
 import type { ExtractionOutput, ModelField, QuoteRef } from '../schemas/measurement';
-import { PROTOCOL_FIELDS } from '../schemas/measurement';
+import { ExtractionOutputSchema, PROTOCOL_FIELDS } from '../schemas/measurement';
 import type { Paper, PaperParagraph } from '../schemas/paper';
 import {
   buildProfile,
@@ -319,6 +319,31 @@ it('AC-02 keeps two definitions of one metric name apart', () => {
   ]);
   expect(profile.metrics).toHaveLength(2);
   expect(profile.metrics.every((m) => m.name_collision)).toBe(true);
+});
+
+it('AC-02 keeps same-name metrics with different reported formulas apart', () => {
+  const profile = build([
+    {
+      sections: ['met'],
+      output: {
+        ...empty,
+        metrics: [
+          metric({ formula: reported(definition, q('m1', definition)) }),
+          metric({ formula: reported(seedless, q('m2', seedless)) }),
+        ],
+      },
+    },
+  ]);
+  expect(profile.metrics).toHaveLength(2);
+  expect(profile.metrics.every((item) => item.name_collision)).toBe(true);
+});
+
+it('AC-07 rejects HUMAN_EDITED in model output', () => {
+  const output = {
+    ...empty,
+    metrics: [metric({ unit: { value: 'x', status: 'HUMAN_EDITED', quotes: [] } as unknown as ModelField })],
+  };
+  expect(ExtractionOutputSchema.safeParse(output).success).toBe(false);
 });
 
 it('AC-03 and AC-11 distinguish not reported from not checked', () => {

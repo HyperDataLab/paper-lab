@@ -83,6 +83,7 @@ export function PaperMeasurement({
     setProgress('');
     const sectionIds = resume?.sectionIds ?? sections;
     let callsUsed = resume?.callsUsed ?? 0;
+    const checkpoint = resume?.checkpoint ?? emptyCheckpoint();
     setUsed(callsUsed);
     try {
       if (!(await llm.ensureConsent('paper')) || abort.signal.aborted) return;
@@ -91,11 +92,12 @@ export function PaperMeasurement({
         config: llm.config,
         budget,
         callsUsed,
-        checkpoint: resume?.checkpoint ?? emptyCheckpoint(),
+        checkpoint,
         signal: abort.signal,
         onRequest: async (count) => {
           callsUsed = count;
           setUsed(count);
+          await repo.measurements.savePending(paper.id, { sectionIds, callsUsed, checkpoint });
         },
         onUnit: (done, total) => setProgress(`Đã xử lý ${done}/${total} phần`),
         onCheckpoint: async (checkpoint) => {
@@ -110,7 +112,7 @@ export function PaperMeasurement({
         sectionIds,
         profile: result.profile,
       });
-      if (result.failedUnits.length)
+      if (result.profile.status === 'partial')
         saved = await repo.measurements.savePending(paper.id, {
           sectionIds,
           callsUsed: result.callsUsed,

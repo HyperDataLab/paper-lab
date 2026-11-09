@@ -97,6 +97,7 @@ export function protocolCsv(profile: MeasurementProfile) {
 
 const LABEL: Record<ProfileField['status'], string> = {
   REPORTED: 'Tác giả nêu',
+  HUMAN_EDITED: 'Người duyệt sửa',
   INFERRED: 'AI diễn giải',
   DERIVED: 'AI tính từ số liệu',
   NOT_REPORTED: 'Không thấy trong phần đã phân tích',

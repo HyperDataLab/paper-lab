@@ -1,8 +1,11 @@
 import {
   MeasurementProfileSchema,
+  type Evidence,
   type MeasurementDecision,
   type MeasurementProfile,
 } from '../schemas/measurement';
+import { fieldEvidence } from './build';
+import { containsExact } from './verify';
 
 type AnyItem = Record<string, unknown>;
 
@@ -14,7 +17,12 @@ export function latestDecisions(decisions: MeasurementDecision[], runId: string)
   return [...latest.values()].filter((decision) => decision.decision !== 'reopen');
 }
 
-function isField(value: unknown): value is { value: string | null; status: string; needs_review: boolean } {
+function isField(value: unknown): value is {
+  value: string | null;
+  status: string;
+  needs_review: boolean;
+  evidence_ids: string[];
+} {
   return typeof value === 'object' && value !== null && 'status' in value && 'evidence_ids' in value;
 }
 
@@ -28,19 +36,43 @@ function holderOf(item: AnyItem, path: string) {
     : null;
 }
 
-function edit(item: AnyItem, path: string, value: string | null) {
+function edit(item: AnyItem, path: string, value: string | null, evidence: Evidence[], isResult: boolean) {
   const found = holderOf(item, path);
   if (!found || !(found.key in found.holder)) return;
   const current = found.holder[found.key];
-  if (isField(current))
+  if (isField(current)) {
+    if (current.value === value) return;
+    const supporting =
+      current.status === 'REPORTED' && value !== null
+        ? evidence
+            .filter(
+              (entry) =>
+                current.evidence_ids.includes(entry.id) && containsExact(entry.source_excerpt, value),
+            )
+            .map((entry) => entry.id)
+        : [];
     found.holder[found.key] = {
       ...current,
       value,
-      status: current.status === 'REPORTED' ? 'REPORTED' : 'INFERRED',
+      status: supporting.length ? 'REPORTED' : 'HUMAN_EDITED',
+      evidence_ids: supporting,
       needs_review: false,
     };
-  else {
+  } else {
+    if (current === value) return;
     found.holder[found.key] = value;
+    if (isResult && ['value', 'unit', 'uncertainty'].includes(path)) {
+      const ids = item.evidence_ids as string[];
+      const supporting =
+        item.status === 'REPORTED' && value !== null
+          ? evidence
+              .filter((entry) => ids.includes(entry.id) && containsExact(entry.source_excerpt, value))
+              .map((entry) => entry.id)
+          : [];
+      item.status = supporting.length ? 'REPORTED' : 'HUMAN_EDITED';
+      item.evidence_ids = supporting;
+      if (!supporting.length) item.source_table_cell = null;
+    }
     if ('needs_review' in item) item.needs_review = false;
   }
 }
@@ -89,8 +121,16 @@ export function reviewedProfile(
     const item = items.get(decision.item_id);
     if (!item) continue;
     if (decision.decision === 'accept') accept(item, decision.field);
-    if (decision.decision === 'edit' && decision.field) edit(item, decision.field, decision.new_value);
+    if (decision.decision === 'edit' && decision.field)
+      edit(
+        item,
+        decision.field,
+        decision.new_value,
+        profile.evidence,
+        profile.results.some((result) => result.id === item.id),
+      );
   }
+  for (const metric of profile.metrics) metric.evidence_ids = fieldEvidence(metric);
   if (options.keepRejected) return MeasurementProfileSchema.parse(profile);
   const rejected = new Set(
     latest.filter((item) => item.decision === 'reject' && item.field === null).map((item) => item.item_id),

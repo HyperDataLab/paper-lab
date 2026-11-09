@@ -198,6 +198,7 @@ export async function llmMeasurement(client: LlmClient, paper: Paper, options: M
       ),
     (value) => {
       checkpoint.link = value;
+      checkpoint.findings = null;
     },
     (value) => applyLinks(profile, value),
     'link',
