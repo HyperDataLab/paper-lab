@@ -173,7 +173,7 @@ prompt versions accompany the advisory banner.
 ## 9. Paper workspace
 
 The header (title, page, section and word counts) and the tabs come first on the page, and the tabs stay visible while scrolling.
-Setup never sits above them. Tabs follow what a researcher does, in two groups: **Hiểu bài** (Đọc bài, Đo lường) and **Đánh giá bản thảo**
+Setup never sits above them. Tabs follow what a researcher does, in two groups: **Hiểu bài** (Đọc bài, Đo lường) and **Đánh giá**
 (Chất lượng viết, Kiểm tra, Phản biện AI, Độ bền điểm). One muted line under the tabs says what the current tab is for.
 
 Anything with more than a screenful of items is a tree or folds:
@@ -185,3 +185,8 @@ Anything with more than a screenful of items is a tree or folds:
 - `SectionPicker` is the one way to choose sections for AI work: an outline with tri-state parents, a live count and the presets
   Chọn tất cả, Phần chính, Bỏ chọn.
 - Each screen has one primary button, named for what it does. Once a run exists its setup folds behind "Chạy với lựa chọn khác".
+
+The Đo lường tab is one line of run status and actions above a master-detail view. The left tree follows the chain the module exists to explain:
+Thí nghiệm → Metric → Kết quả, then Claim, Thuộc tính đo, Cảnh báo and Cần xem lại. A flag marks rows needing review, and search flattens the tree.
+The right pane shows one item in full. Overview carries clickable counts and a protocol matrix (experiments × fields, marks plus a text legend, never colour alone).
+Fields with no information fold into a single line listing their names.

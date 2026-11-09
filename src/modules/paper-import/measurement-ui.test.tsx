@@ -31,34 +31,61 @@ async function setup(seed = true, client?: LlmClient) {
   );
   return { repo, run, onLocation };
 }
-const open = (name: string) => fireEvent.click(screen.getByRole('radio', { name }));
+const pick = (name: RegExp) => fireEvent.click(screen.getByRole('treeitem', { name }));
+const expand = (name: RegExp) =>
+  fireEvent.keyDown(screen.getByRole('treeitem', { name }), { key: 'ArrowRight' });
 
 it('M4 shows an overview with counts and no overall score', async () => {
   await setup();
   expect(await screen.findByText('Thực nghiệm')).toBeInTheDocument();
-  expect(screen.getByText('1 metric')).toBeInTheDocument();
-  expect(screen.getByText('1 kết quả')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /1\s*metric/ })).toBeInTheDocument();
   expect(screen.getByText(/không có điểm tổng/)).toBeInTheDocument();
+  expect(screen.getByRole('table')).toHaveTextContent('Seed ngẫu nhiên');
 });
 
-it('AC-03 FR-14 shows who said what, and missing seeds as not found', async () => {
+it('AC-03 FR-14 shows who said what, and folds fields the paper does not give', async () => {
   await setup();
   await screen.findByText('Thực nghiệm');
-  open('Protocol');
-  expect(screen.getByText('Seed ngẫu nhiên')).toBeInTheDocument();
-  expect(screen.getAllByText('Không thấy trong phần đã phân tích')).toHaveLength(9);
-  open('Vấn đề & duyệt');
+  expand(/Thí nghiệm/);
+  pick(/Main/);
+  expect(screen.getByText(/Không có thông tin \(9\):.*Seed ngẫu nhiên/)).toBeInTheDocument();
+  expand(/Cảnh báo của AI/);
+  pick(/Chưa thấy nêu seed/);
   expect(screen.getByText('AI lưu ý')).toBeInTheDocument();
-  expect(screen.getByText('Protocol chưa đủ')).toBeInTheDocument();
-  open('Kết quả & truy vết');
+  expect(screen.getByRole('heading', { name: 'Protocol chưa đủ' })).toBeInTheDocument();
+  expand(/Claim của tác giả/);
+  pick(/Robust under dropout/);
   expect(screen.getAllByText('Tác giả nêu').length).toBeGreaterThan(0);
   expect(screen.getByText(/Chỉ trong kịch bản đã đo/)).toBeInTheDocument();
+});
+
+it('M4 walks the tree from experiment through metric to result', async () => {
+  await setup();
+  await screen.findByText('Thực nghiệm');
+  expand(/Thí nghiệm/);
+  expand(/Main/);
+  pick(/Accuracy/);
+  expect(screen.getByRole('heading', { name: 'Accuracy' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Baseline' }));
+  expect(screen.getByText('0.123 ± 0.004 %')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Thí nghiệm: Main/ }));
+  expect(screen.getByRole('heading', { name: 'Main' })).toBeInTheDocument();
+});
+
+it('M4 filters the tree by search', async () => {
+  await setup();
+  await screen.findByText('Thực nghiệm');
+  fireEvent.change(screen.getByLabelText('Tìm trong hồ sơ'), { target: { value: 'baseline' } });
+  expect(screen.getAllByRole('treeitem')).toHaveLength(1);
+  fireEvent.change(screen.getByLabelText('Tìm trong hồ sơ'), { target: { value: 'zzz' } });
+  expect(screen.getByText('Không có mục nào khớp.')).toBeInTheDocument();
 });
 
 it('AC-05 AC-08 shows the exact value and opens its source with the page', async () => {
   const { onLocation } = await setup();
   await screen.findByText('Thực nghiệm');
-  open('Kết quả & truy vết');
+  expand(/Thí nghiệm/);
+  pick(/Main/);
   expect(screen.getByRole('cell', { name: '0.123' })).toBeInTheDocument();
   expect(screen.getByRole('cell', { name: '0.004' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Tr. 3 · hàng 2, cột 2' }));
@@ -68,13 +95,15 @@ it('AC-05 AC-08 shows the exact value and opens its source with the page', async
 it('AC-07 edits a field in the metric detail and keeps the original', async () => {
   const { repo, run } = await setup();
   await screen.findByText('Thực nghiệm');
-  open('Metric');
-  fireEvent.click(screen.getByRole('button', { name: 'Chi tiết' }));
+  expand(/Thí nghiệm/);
+  expand(/Main/);
+  pick(/Accuracy/);
   fireEvent.click(screen.getAllByRole('button', { name: 'Sửa' })[0] as HTMLElement);
   fireEvent.change(screen.getByLabelText('Sửa: Định nghĩa'), { target: { value: 'Định nghĩa đã sửa' } });
   fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
   expect(await screen.findByText('Định nghĩa đã sửa')).toBeInTheDocument();
   expect(screen.getByText('Đã sửa')).toBeInTheDocument();
+  expect(screen.getByText('Người duyệt sửa')).toBeInTheDocument();
   const record = await repo.measurements.get(PAPER_ID);
   expect(record?.runs.find((item) => item.id === run.id)?.profile).toEqual(run.profile);
   expect(record?.decisions).toHaveLength(1);
@@ -83,8 +112,9 @@ it('AC-07 edits a field in the metric detail and keeps the original', async () =
 it('FR-15 rejects and undoes an item', async () => {
   await setup();
   await screen.findByText('Thực nghiệm');
-  open('Vấn đề & duyệt');
-  fireEvent.click(screen.getByRole('button', { name: 'Loại' }));
+  expand(/Cảnh báo của AI/);
+  pick(/Chưa thấy nêu seed/);
+  fireEvent.click(screen.getByRole('button', { name: 'Loại bỏ' }));
   expect(await screen.findByText('Đã loại')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }));
   await waitFor(() => expect(screen.queryByText('Đã loại')).toBeNull());

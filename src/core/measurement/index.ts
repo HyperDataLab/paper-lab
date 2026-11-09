@@ -5,3 +5,4 @@ export * from './link';
 export * from './review';
 export * from './export';
 export * from './gold';
+export * from './tree';

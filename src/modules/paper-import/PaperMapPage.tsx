@@ -188,7 +188,7 @@ export default function PaperMapPage() {
                 {tabButton('measure', 'Đo lường')}
                 <span className={styles.tabDivider} aria-hidden="true" />
                 <span className={styles.tabGroup} aria-hidden="true">
-                  Đánh giá bản thảo
+                  Đánh giá
                 </span>
                 {tabButton('overview', 'Chất lượng viết')}
                 {tabButton('checks', 'Kiểm tra')}
