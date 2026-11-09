@@ -74,7 +74,12 @@ export default function Page() {
     <div className={styles.page}>
       <h1>Xuất/Nhập</h1>
       <Card>
+        <h2>Xuất</h2>
+        <p>Tải về toàn bộ dữ liệu trong trình duyệt này để sao lưu hoặc chuyển máy.</p>
         <Button onClick={() => void download()}>Xuất toàn bộ (JSON)</Button>
+      </Card>
+      <Card>
+        <h2>Nhập</h2>
         <div className={styles.file}>
           <input
             className={styles.hidden}
@@ -135,7 +140,9 @@ export default function Page() {
                 </tr>
               </tbody>
             </table>
-            <Button onClick={() => void apply()}>Nhập</Button>
+            <Button variant="primary" onClick={() => void apply()}>
+              Nhập
+            </Button>
           </>
         )}
         {done && <p role="status">Đã nhập dữ liệu.</p>}

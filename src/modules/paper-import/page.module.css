@@ -265,3 +265,8 @@
 .paperHead .paperMeta {
   margin: 0;
 }
+
+.paperTabs [role='tablist'] {
+  flex-wrap: wrap;
+  overflow-x: visible;
+}

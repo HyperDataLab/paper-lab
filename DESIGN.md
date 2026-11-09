@@ -217,4 +217,6 @@ These are checked on each screen, by looking at it, before a change is accepted.
 - **Every finding is a `FindingCard`,** in a fixed order: labels, quote, explanation, source, then actions. A message repeated on many findings is said once above them.
 - **Readers see places, not ids:** `Tr. 3 · Results`, never `sec3_p09`. Dates are formatted for Vietnamese readers, never ISO. Internal codes appear only in folded technical detail or exports.
 - **Filters are `Chip`s with counts** when the options are few. Labels on items are `Badge`s. Key numbers are `Stat`s.
+- **Long lists are trees:** group by paper, then section, with counts. A flat list of parsed items is not acceptable.
+- **Never promise a control the screen does not have.** Empty states name an action only where that action exists.
 - **Provenance is not page content.** Minh bạch opens from the header in a drawer, grouped by run.

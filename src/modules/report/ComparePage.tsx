@@ -11,6 +11,7 @@ import { checkLabels } from '../revise/checkLabels';
 
 const arrow = (value: number | null) =>
   value === null ? '—' : `${value > 0 ? '↑' : value < 0 ? '↓' : '→'} ${Math.abs(value).toFixed(2)}`;
+const percent = (value: number) => `${Math.round(value * 100)} %`;
 export default function ComparePage() {
   const [params] = useSearchParams();
   const a = params.get('a') ?? '';
@@ -75,7 +76,7 @@ export default function ComparePage() {
     });
   const scoreContext = (analysis: Analysis) =>
     analysis.scores
-      ? `Rubric ${analysis.scores.rubricVersion}; độ bao phủ ${analysis.scores.coverage.value}; độ tin cậy ${analysis.scores.confidence ?? '—'}; ${analysis.scores.contextLimited ? 'thiếu ngữ cảnh' : 'có ngữ cảnh'}`
+      ? `Rubric ${analysis.scores.rubricVersion}; độ bao phủ ${percent(analysis.scores.coverage.value)}; độ tin cậy ${analysis.scores.confidence === null ? '—' : percent(analysis.scores.confidence)}; ${analysis.scores.contextLimited ? 'thiếu ngữ cảnh' : 'có ngữ cảnh'}`
       : 'Chưa chấm điểm';
   return (
     <article className={styles.report}>
@@ -122,6 +123,7 @@ export default function ComparePage() {
             ))}
           </tbody>
         </table>
+        {comparison.metricDeltas.length === 0 && <p>Không có số liệu để so sánh.</p>}
       </section>
       <section>
         <h2>Thay đổi điểm</h2>

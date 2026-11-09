@@ -6,10 +6,12 @@ export function DiffView({
   source,
   revision,
   selectedCheck,
+  issueName,
 }: {
   source: string;
   revision: Revision;
   selectedCheck: string | null;
+  issueName: (id: string) => string;
 }) {
   const render = (side: 'source' | 'revised') => {
     const text = side === 'source' ? source : revision.revisedText;
@@ -70,7 +72,7 @@ export function DiffView({
                     const change = revision.changes[changeIndex];
                     return change ? (
                       <span key={changeIndex}>
-                        {change.rationale} · {change.issueIds.join(', ')}
+                        {change.rationale} · {[...new Set(change.issueIds.map(issueName))].join(', ')}
                       </span>
                     ) : null;
                   })}

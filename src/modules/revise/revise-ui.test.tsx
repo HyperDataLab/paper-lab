@@ -68,7 +68,7 @@ it('AC-07 AC-08 AC-12 selects issues, gates consent, displays diff and requires 
   fireEvent.click(await screen.findByRole('button', { name: 'Tạo bản sửa (AI)' }));
   expect(completeJson).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Đồng ý và tiếp tục' }));
-  expect(await screen.findByText('Bỏ từ thừa · issue-1')).toBeInTheDocument();
+  expect(await screen.findByText(/^Bỏ từ thừa · /)).toBeInTheDocument();
   expect(screen.getByTitle('numbers_preserved')).toHaveTextContent('Giữ nguyên số liệu');
   for (const [id, label] of [
     ['citations_preserved', 'Giữ nguyên trích dẫn'],

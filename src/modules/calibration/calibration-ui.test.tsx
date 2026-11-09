@@ -77,7 +77,7 @@ it('P7 previews matched and unmatched labels, imports, downloads a template and 
     (await import('@/shared/calibration/data')).calibrationData(await repo.transfer.exportAll('test'))
       .stats[0]?.n,
   ).toBe(1);
-  fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ nhãn' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Xoá bộ nhãn' }));
   await waitFor(() => expect(screen.queryByText(/labels.json/)).not.toBeInTheDocument());
   const conflict = new File([], 'conflict.json', { type: 'application/json' });
   Object.defineProperty(conflict, 'text', {

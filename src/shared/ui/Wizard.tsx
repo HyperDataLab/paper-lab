@@ -21,6 +21,8 @@ export function Wizard({
   finishDisabled = false,
   note,
   onCancel,
+  initialStep = 0,
+  finishVariant = 'primary',
 }: {
   label: string;
   steps: WizardStep[];
@@ -30,8 +32,12 @@ export function Wizard({
   /** A short line that stays visible on every step, such as the cost estimate. */
   note?: ReactNode;
   onCancel?: () => void;
+  /** Opens on a later step, for work that is already filled in. */
+  initialStep?: number;
+  /** Secondary when another action on the page is now the main one. */
+  finishVariant?: 'primary' | 'secondary';
 }) {
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(initialStep);
   const current = steps[Math.min(index, steps.length - 1)];
   if (!current) return null;
   const last = index >= steps.length - 1;
@@ -71,7 +77,7 @@ export function Wizard({
         )}
         {index > 0 && <Button onClick={() => setIndex(index - 1)}>Quay lại</Button>}
         {last ? (
-          <Button variant="primary" disabled={finishDisabled} onClick={onFinish}>
+          <Button variant={finishVariant} disabled={finishDisabled} onClick={onFinish}>
             {finishLabel}
           </Button>
         ) : (

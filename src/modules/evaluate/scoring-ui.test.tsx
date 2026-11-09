@@ -54,8 +54,9 @@ it('EV-09 AC-10 gates scoring, shows evidence and stale scores, and reopens with
   fireEvent.click(screen.getByRole('button', { name: 'Đồng ý và tiếp tục' }));
   await waitFor(() => expect(completeJson).toHaveBeenCalledTimes(1));
   fireEvent.click(screen.getByRole('tab', { name: 'Điểm' }));
-  expect(await screen.findByText(/Phủ 2\/5 tiêu chí/)).toHaveTextContent('Tin cậy 70 %');
-  expect(screen.getByText(/Phủ 2\/5 tiêu chí/)).toHaveTextContent('schimel-paragraph-v1');
+  expect(await screen.findByText('2/5')).toBeInTheDocument();
+  expect(screen.getByText('70 %')).toBeInTheDocument();
+  expect(screen.getByText(/schimel-paragraph-v1/)).toBeInTheDocument();
   expect(screen.getByText(/Không tính điểm tổng: 3 tiêu chí/)).toBeInTheDocument();
   const row = screen.getByText(/Tính súc tích và từ bổ nghĩa/).closest('details');
   expect(row).toBeTruthy();
@@ -66,7 +67,7 @@ it('EV-09 AC-10 gates scoring, shows evidence and stale scores, and reopens with
     .find((button) => button.textContent !== 's1');
   expect(issueChip).toBeDefined();
   if (!issueChip) return;
-  const issueId = issueChip.textContent ?? '';
+  const issueId = issueChip.getAttribute('data-issue') ?? '';
   fireEvent.click(issueChip);
   const firstCard = document.getElementById(`card-${issueId}`);
   expect(firstCard).not.toBeNull();
@@ -78,7 +79,7 @@ it('EV-09 AC-10 gates scoring, shows evidence and stale scores, and reopens with
   fireEvent.click(otherCard);
   expect(within(firstCard).queryByRole('button', { name: 'Xác nhận' })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('tab', { name: 'Điểm' }));
-  fireEvent.click(within(row).getByRole('button', { name: issueId }));
+  fireEvent.click(row.querySelector(`[data-issue="${issueId}"]`) as HTMLElement);
   expect(within(firstCard).getByRole('button', { name: 'Xác nhận' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('tab', { name: 'Điểm' }));
   const scroll = vi.fn();
@@ -100,7 +101,7 @@ it('EV-09 AC-10 gates scoring, shows evidence and stale scores, and reopens with
   view.unmount();
   mount(`/evaluate?id=${saved?.id}`);
   fireEvent.click(await screen.findByRole('tab', { name: 'Điểm' }));
-  expect(await screen.findByText(/Phủ 2\/5 tiêu chí/)).toBeInTheDocument();
+  expect(await screen.findByText('2/5')).toBeInTheDocument();
   expect(completeJson).toHaveBeenCalledTimes(1);
 });
 

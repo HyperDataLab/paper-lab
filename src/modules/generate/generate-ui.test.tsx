@@ -47,22 +47,23 @@ it('WR-01 WR-08 validates, asks consent, displays provenance and confirms before
       </StorageProvider>
     </MemoryRouter>,
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Soạn đoạn (AI)' }));
-  expect(screen.getByLabelText('Luận điểm chính')).toHaveAccessibleDescription('Hãy nhập luận điểm.');
-  expect(screen.getByLabelText('Nội dung e1')).toHaveAccessibleDescription('Hãy nhập bằng chứng.');
+  expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled();
+  expect(screen.getByText(/Cần có luận điểm/)).toBeInTheDocument();
   expect(completeJson).not.toHaveBeenCalled();
   fireEvent.change(screen.getByLabelText('Luận điểm chính'), { target: { value: 'Growth improved' } });
   fireEvent.change(screen.getByLabelText('Nội dung e1'), { target: { value: 'Growth improved' } });
   fireEvent.click(screen.getByRole('button', { name: 'Thêm bằng chứng' }));
   fireEvent.change(screen.getByLabelText('Nội dung e2'), { target: { value: 'Other evidence' } });
   fireEvent.click(screen.getByRole('button', { name: 'Lên e2' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
   fireEvent.click(screen.getByRole('button', { name: 'Soạn đoạn (AI)' }));
   expect(completeJson).not.toHaveBeenCalled();
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
   expect(await screen.findByText('Câu chủ đề')).toBeInTheDocument();
   const chip = screen.getByRole('button', { name: 'Bằng chứng e1' });
   fireEvent.mouseEnter(chip);
-  expect(screen.getByLabelText('Nội dung e1').closest('div[class*="evidence"]')).toHaveAttribute(
+  expect(screen.getByText('e1', { selector: 'strong' }).closest('div[class*="evidence"]')).toHaveAttribute(
     'class',
     expect.stringContaining('highlighted'),
   );
