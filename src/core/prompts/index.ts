@@ -13,6 +13,8 @@ export const PROMPT_VERSIONS = {
   paragraphTransition: 'para-flow-1',
   paperReview: 'paper-review-1',
   styleProbe: 'style-probe-1',
+  measurementClassify: 'measure-classify-1',
+  measurementExtract: 'measure-extract-1',
 } as const;
 export const CONNECTION_TEST_SYSTEM = 'You are a connection test. Return the requested JSON object.';
 export const CONNECTION_TEST_USER =
@@ -27,3 +29,4 @@ export * from './paperContext';
 export * from './paragraphTransition';
 export * from './paperReview';
 export * from './styleProbe';
+export * from './measurement';

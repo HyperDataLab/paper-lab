@@ -17,6 +17,8 @@ type Options<T> = {
   temperature?: number;
   signal?: AbortSignal;
   onRequest?: () => Promise<void>;
+  /** Per-request limit; defaults to 60 s. */
+  timeoutMs?: number;
 };
 export type LlmClient = {
   completeJson<T>(options: Options<T>): Promise<{
@@ -84,7 +86,7 @@ export function createLlmClient(config: LlmConfig, deps: Deps = defaults): LlmCl
           const timer = setTimeout(() => {
             timedOut = true;
             controller.abort();
-          }, 60000);
+          }, options.timeoutMs ?? 60000);
           const abort = () => controller.abort();
           options.signal?.addEventListener('abort', abort, { once: true });
           if (options.signal?.aborted) controller.abort();
