@@ -38,6 +38,7 @@ function markdown() {
 }
 async function importPaper() {
   fireEvent.change(screen.getByLabelText('Chọn tệp bài báo'), { target: { files: [markdown()] } });
+  fireEvent.click(await screen.findByRole('tab', { name: 'Đọc bài' }));
   await screen.findByText('The first paragraph.');
 }
 it('imports a paper, persists and audits role edits, then prefills Evaluate', async () => {
@@ -58,7 +59,7 @@ it('imports a paper, persists and audits role edits, then prefills Evaluate', as
 it('requires confirmation before deleting a paper', async () => {
   const repo = setup();
   await importPaper();
-  fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'D. Viết học thuật' }));
   fireEvent.click(screen.getByRole('link', { name: /Bài báo đã nhập/ }));
   await screen.findByRole('link', { name: 'study' });
   fireEvent.click(screen.getByRole('button', { name: 'Xoá' }));
@@ -97,7 +98,7 @@ it('P2 estimates selected calls, asks manuscript consent and opens a completed a
     </MemoryRouter>,
   );
   await importPaper();
-  fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'D. Viết học thuật' }));
   expect(screen.getByText('Ước tính ~0 lượt gọi AI (giới hạn 150)')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
@@ -143,7 +144,7 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   );
   const view = render(tree('/papers'));
   await importPaper();
-  fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'D. Viết học thuật' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Phân tích câu' }));
@@ -164,7 +165,7 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   await repo.paperRuns.save({ ...run, status: 'running' });
   view.unmount();
   render(tree(`/papers/${paper.id}`));
-  fireEvent.click(await screen.findByRole('tab', { name: 'Chất lượng viết' }));
+  fireEvent.click(await screen.findByRole('tab', { name: 'D. Viết học thuật' }));
   expect(await screen.findByRole('button', { name: 'Tiếp tục chạy' })).toBeInTheDocument();
   expect((await repo.paperRuns.get(run.id))?.status).toBe('paused');
 });
@@ -185,7 +186,7 @@ it('P2 increases a budget on the same run when resuming', async () => {
     </MemoryRouter>,
   );
   await importPaper();
-  fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'D. Viết học thuật' }));
   const paper = (await repo.papers.list())[0];
   if (!paper) throw new Error('missing paper');
   const { planRun } = await import('@/core/batch');
@@ -231,7 +232,7 @@ it('P2 increases a budget on the same run when resuming', async () => {
       </StorageProvider>
     </MemoryRouter>,
   );
-  fireEvent.click(await screen.findByRole('tab', { name: 'Chất lượng viết' }));
+  fireEvent.click(await screen.findByRole('tab', { name: 'D. Viết học thuật' }));
   // The field moves once the paused run has loaded, so wait for that before typing.
   const resume = await screen.findByRole('button', { name: 'Tiếp tục chạy' });
   fireEvent.change(screen.getByLabelText('Giới hạn lượt gọi'), { target: { value: '10' } });
@@ -271,7 +272,7 @@ it('P2 pauses after the current call and resumes the remaining step', async () =
     </MemoryRouter>,
   );
   await importPaper();
-  fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'D. Viết học thuật' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Phân tích câu' }));

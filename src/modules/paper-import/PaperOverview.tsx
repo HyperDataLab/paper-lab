@@ -1,29 +1,26 @@
 import { latestStyleWarning } from '@/core/probe';
 import { useEffect, useState } from 'react';
-import type { Analysis, Paper, PaperOverviewRecord, PaperRun, PaperChecksRecord } from '@/core/schemas';
+import type { Analysis, Paper, PaperOverviewRecord, PaperRun } from '@/core/schemas';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { labels } from '@/modules/evaluate/issueLabels';
 import { SECTION_ROLE_LABELS } from './sectionRoles';
-import { OverviewTable } from './OverviewTable';
+import { OverviewTable, type OverviewFocus } from './OverviewTable';
 import { OverviewTransitions } from './OverviewTransitions';
-import { CHECK_STATUSES } from './checkTypes';
 
 export function PaperOverview({
   paper,
   analyses,
   run,
   onFilter,
-  checks,
-  onChecks,
+  focus,
 }: {
   paper: Paper;
   analyses: Analysis[];
   run: PaperRun | null;
   onFilter: (ids: string[]) => void;
-  checks?: PaperChecksRecord;
-  onChecks: () => void;
+  focus: OverviewFocus;
 }) {
   const repo = useRepositories();
   const [record, setRecord] = useState<PaperOverviewRecord>();
@@ -76,15 +73,6 @@ export function PaperOverview({
       <Card>
         <h2>Kết quả theo mục</h2>
         <p>
-          <Button onClick={onChecks}>Kiểm tra</Button>
-          {checks
-            ? Object.entries(CHECK_STATUSES).map(
-                ([status, config]) =>
-                  ` · ${config.label}: ${checks.report.checks.filter((check) => check.status === status).length}`,
-              )
-            : ' · Chưa chạy'}
-        </p>
-        <p>
           Đã phân tích {overview.analysed}/{overview.bodyParagraphs} đoạn (
           {new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(overview.coverage * 100)} %)
         </p>
@@ -101,35 +89,39 @@ export function PaperOverview({
             {new Date(styleWarning).toLocaleDateString('vi-VN')}).
           </p>
         )}
-        <OverviewTable paper={paper} overview={overview} />
+        <OverviewTable paper={paper} overview={overview} focus={focus} />
       </Card>
-      <Card>
-        <h2>Vấn đề lặp lại</h2>
-        {!overview.recurringIssues.length && <p>Chưa có vấn đề lặp lại.</p>}
-        {overview.recurringIssues.map((item) => (
-          <div key={item.type}>
-            <Button onClick={() => onFilter(item.paragraphIds)}>
-              {labels[item.type as keyof typeof labels] ?? item.type} · {item.count} lần
-            </Button>
-            <p>
-              {item.sectionIds
-                .map((id) => {
-                  const section = paper.sections.find((s) => s.id === id);
-                  return section ? `${SECTION_ROLE_LABELS[section.role]}: ${section.heading}` : id;
-                })
-                .join(', ')}
-            </p>
-            {item.examples.map((quote) => (
-              <blockquote key={quote}>{quote}</blockquote>
-            ))}
-          </div>
-        ))}
-      </Card>
-      <OverviewTransitions
-        paper={paper}
-        transitions={record.transitions}
-        onReview={(id, status) => void review(id, status)}
-      />
+      {focus === 'writing' && (
+        <Card>
+          <h2>Vấn đề lặp lại</h2>
+          {!overview.recurringIssues.length && <p>Chưa có vấn đề lặp lại.</p>}
+          {overview.recurringIssues.map((item) => (
+            <div key={item.type}>
+              <Button onClick={() => onFilter(item.paragraphIds)}>
+                {labels[item.type as keyof typeof labels] ?? item.type} · {item.count} lần
+              </Button>
+              <p>
+                {item.sectionIds
+                  .map((id) => {
+                    const section = paper.sections.find((s) => s.id === id);
+                    return section ? `${SECTION_ROLE_LABELS[section.role]}: ${section.heading}` : id;
+                  })
+                  .join(', ')}
+              </p>
+              {item.examples.map((quote) => (
+                <blockquote key={quote}>{quote}</blockquote>
+              ))}
+            </div>
+          ))}
+        </Card>
+      )}
+      {focus === 'discourse' && (
+        <OverviewTransitions
+          paper={paper}
+          transitions={record.transitions}
+          onReview={(id, status) => void review(id, status)}
+        />
+      )}
     </>
   );
 }

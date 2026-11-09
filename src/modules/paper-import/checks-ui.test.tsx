@@ -63,25 +63,32 @@ it('P4 runs local checks, navigates to evidence, reviews and shows overview coun
       </StorageProvider>
     </MemoryRouter>,
   );
-  await screen.findByText('An introduction.');
+  const openChecks = () => {
+    fireEvent.click(screen.getByRole('tab', { name: 'C. Diễn ngôn' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Hình và bảng' }));
+  };
+  await screen.findByRole('tab', { name: 'Đọc bài' });
   expect(screen.getByText('Minh bạch')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('tab', { name: 'Kiểm tra' }));
+  openChecks();
   expect(screen.getByText(/Các kiểm tra tự động là thử nghiệm/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Chạy kiểm tra' }));
   const heading = await screen.findByRole('heading', { name: 'Hình và bảng' });
   const card = heading.closest('section') ?? heading.parentElement;
   if (!card) throw new Error('Missing card');
   expect(within(card).getByText('Cảnh báo')).toBeInTheDocument();
-  expect(screen.getAllByText(/Chưa hiệu chuẩn/)).toHaveLength(6);
+  expect(screen.getAllByText(/Chưa hiệu chuẩn/)).toHaveLength(1);
   expect(screen.getByLabelText('Ẩn mục chưa đáng tin')).not.toBeChecked();
   expect(screen.getByText(/Lần chạy gần nhất/)).toBeInTheDocument();
   fireEvent.click(
     within(card).getByText('“Figure 2”').closest('article')?.querySelector('button') as HTMLElement,
   );
+  expect(screen.getByRole('tab', { name: 'C. Diễn ngôn' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Mở trong Đọc bài' }));
   expect(screen.getByRole('tab', { name: 'Đọc bài' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
   expect(scroll).toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('tab', { name: 'Kiểm tra' }));
+  openChecks();
   const cardAgain =
     screen.getByRole('heading', { name: 'Hình và bảng' }).closest('section') ??
     screen.getByRole('heading', { name: 'Hình và bảng' }).parentElement;
@@ -100,9 +107,11 @@ it('P4 runs local checks, navigates to evidence, reviews and shows overview coun
       (await repo.audit.listByAnalysis(paper.id)).items.filter((e) => e.action === 'review_check'),
     ).toHaveLength(4),
   );
-  fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));
-  expect(await screen.findByText(/Cảnh báo: 1/)).toHaveTextContent('Không áp dụng:');
-  fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra' }));
-  expect(screen.getByRole('tab', { name: 'Kiểm tra' })).toHaveAttribute('aria-selected', 'true');
+  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
+  expect(await screen.findByText('Hình và bảng cần kiểm tra')).toBeInTheDocument();
+  expect(screen.getByRole('tab', { name: 'B. Lập luận' })).toBeDisabled();
+  const context = screen.getByRole('article', { name: 'Bối cảnh học thuật và Nguồn gốc' });
+  fireEvent.click(within(context).getByRole('button', { name: 'Xem chi tiết' }));
+  expect(screen.getByRole('tab', { name: 'E. Bối cảnh' })).toHaveAttribute('aria-selected', 'true');
   expect(completeJson).not.toHaveBeenCalled();
 });

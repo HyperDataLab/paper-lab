@@ -2,11 +2,15 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { type Paper, type Section, type Finding, type PaperChecksRecord } from '@/core/schemas';
 import { runPaperChecks } from '@/core/paperChecks';
+import type { ProfileView } from '@/core/paperProfile';
 import { analyzeText } from '@/core/text';
 import { detectCandidates } from '@/core/detectors';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
+import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { Tabs } from '@/shared/ui/Tabs';
+import { EvidencePanel } from './EvidencePanel';
+import { PaperProfile } from './PaperProfile';
 import { PaperProbe } from './PaperProbe';
 import { PaperReader } from './PaperReader';
 import { PaperMeasurement } from './PaperMeasurement';
@@ -21,16 +25,57 @@ import type { ReactNode } from 'react';
 import { Transparency } from '@/shared/report/Transparency';
 import { captureCalibration } from '@/shared/calibration/data';
 
-type TabId = 'map' | 'measure' | 'overview' | 'stance' | 'checks' | 'review' | 'probe';
-const TAB_HELP: Record<TabId, string> = {
+type ViewId = 'profile' | 'map' | 'review' | ProfileView;
+const GROUPS: { id: string; label: string; views: { id: ProfileView; label: string }[] }[] = [
+  {
+    id: 'science',
+    label: 'A. Khoa học',
+    views: [
+      { id: 'measure', label: 'Đo lường' },
+      { id: 'science-checks', label: 'Kiểm tra số liệu' },
+    ],
+  },
+  {
+    id: 'discourse',
+    label: 'C. Diễn ngôn',
+    views: [
+      { id: 'organization', label: 'Cấu trúc và mạch' },
+      { id: 'discourse-checks', label: 'Hình và bảng' },
+    ],
+  },
+  {
+    id: 'writing',
+    label: 'D. Viết học thuật',
+    views: [
+      { id: 'language', label: 'Câu và từ' },
+      { id: 'stance', label: 'Giọng văn' },
+      { id: 'writing-checks', label: 'Viết tắt và khẳng định' },
+      { id: 'probe', label: 'Độ bền điểm' },
+    ],
+  },
+  { id: 'context', label: 'E. Bối cảnh', views: [{ id: 'context-checks', label: 'Trích dẫn' }] },
+];
+const CHECKS_OF: Partial<Record<ViewId, string[]>> = {
+  'science-checks': ['numbers_consistency', 'unsupported_claims'],
+  'discourse-checks': ['figures_tables'],
+  'writing-checks': ['acronyms', 'claim_strength_drift'],
+  'context-checks': ['citations_references'],
+};
+const VIEW_HELP: Record<ViewId, string> = {
+  profile:
+    'Mỗi chiều trả lời một câu hỏi riêng nên không có điểm tổng. Số có ghi “AI” là ứng viên từ mô hình, bạn có thể bác bỏ khi xem chi tiết.',
   map: 'Đọc bài theo mục lục, xem bảng và đoạn gốc.',
   measure: 'Bài báo đo gì, bằng metric nào, dưới protocol nào, và kết quả ra sao.',
-  overview: 'Chạy phân tích từng đoạn rồi xem thống kê theo mục. Không phải điểm của bài báo.',
+  'science-checks': 'Đối chiếu tự động số liệu và khẳng định trong bài. Không dùng AI.',
+  organization: 'Cách đoạn văn được tổ chức và nối với nhau. Không phải điểm của bài báo.',
+  'discourse-checks': 'Hình và bảng có được nhắc đến và đánh số đúng không. Không dùng AI.',
+  language: 'Cấu trúc câu và lựa chọn từ theo từng mục. Không phải điểm của bài báo.',
   stance:
     'Cách tác giả thể hiện lập trường và tương tác với người đọc. Đây là số liệu mô tả, không phải điểm.',
-  checks: 'Kiểm tra tự động trích dẫn, số liệu, hình/bảng và viết tắt. Không dùng AI.',
-  review: 'Các góc nhìn phản biện của AI, kèm câu trích trong bài.',
+  'writing-checks': 'Kiểm tra tự động chữ viết tắt và mức độ khẳng định. Không dùng AI.',
   probe: 'Đo xem điểm của AI có đổi khi chỉ đổi văn phong hay không.',
+  'context-checks': 'Trích dẫn trong bài có tài liệu tham khảo tương ứng không. Không dùng AI.',
+  review: 'Các góc nhìn phản biện của AI, kèm câu trích trong bài. Xuyên suốt các chiều.',
 };
 
 function BatchWorkspace({
@@ -53,7 +98,8 @@ export default function PaperMapPage() {
   const [error, setError] = useState('');
   const [counts, setCounts] = useState<{ sentences: number; words: number } | null>(null);
   const [candidateCounts, setCandidateCounts] = useState<Record<string, number>>({});
-  const [tab, setTab] = useState<TabId>('map');
+  const [tab, setTab] = useState<ViewId>('profile');
+  const [evidence, setEvidence] = useState<Finding['locations'][number] | null>(null);
   const [filter, setFilter] = useState<string[] | null>(null);
   const [checks, setChecks] = useState<PaperChecksRecord>();
   const [highlight, setHighlight] = useState<Finding['locations'][number] | null>(null);
@@ -145,19 +191,23 @@ export default function PaperMapPage() {
       </div>
     );
   const bodyCount = paper.paragraphs.filter((item) => item.kind === 'body').length;
-  const openLocation = (location: Finding['locations'][number]) => {
+  const openInReader = (location: Finding['locations'][number]) => {
     const paragraph = paper.paragraphs.find((item) => item.id === location.paragraphId);
     if (!paragraph) return;
     setFilter(null);
     setSelected(paragraph.sectionId);
     setHighlight(location);
+    setEvidence(null);
     setTab('map');
   };
-  const tabButton = (id: TabId, label: string) => (
+  const openLocation = setEvidence;
+  const tabButton = (id: ViewId, label: string) => (
     <Button role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>
       {label}
     </Button>
   );
+  const activeGroup = GROUPS.find((group) => group.views.some((view) => view.id === tab));
+  const checkIds = CHECKS_OF[tab];
   const errorBox = (title: string) =>
     error && (
       <div role="alert">
@@ -187,32 +237,62 @@ export default function PaperMapPage() {
           <>
             <div className={styles.paperTabs}>
               <Tabs label="Bài báo">
-                <span className={styles.tabGroup} aria-hidden="true">
-                  Hiểu bài
-                </span>
+                {tabButton('profile', 'Hồ sơ')}
                 {tabButton('map', 'Đọc bài')}
-                {tabButton('measure', 'Đo lường')}
                 <span className={styles.tabDivider} aria-hidden="true" />
-                <span className={styles.tabGroup} aria-hidden="true">
-                  Đánh giá
-                </span>
-                {tabButton('overview', 'Chất lượng viết')}
-                {tabButton('stance', 'Giọng văn')}
-                {tabButton('checks', 'Kiểm tra')}
+                {GROUPS.slice(0, 1).map((group) => (
+                  <Button
+                    key={group.id}
+                    role="tab"
+                    aria-selected={activeGroup?.id === group.id}
+                    onClick={() => setTab(group.views[0]?.id ?? 'profile')}
+                  >
+                    {group.label}
+                  </Button>
+                ))}
+                <Button role="tab" aria-selected={false} disabled title="Sắp có">
+                  B. Lập luận
+                </Button>
+                {GROUPS.slice(1).map((group) => (
+                  <Button
+                    key={group.id}
+                    role="tab"
+                    aria-selected={activeGroup?.id === group.id}
+                    onClick={() => setTab(group.views[0]?.id ?? 'profile')}
+                  >
+                    {group.label}
+                  </Button>
+                ))}
                 {tabButton('review', 'Phản biện AI')}
-                {tabButton('probe', 'Độ bền điểm')}
               </Tabs>
             </div>
-            <p className={styles.tabHelp}>{TAB_HELP[tab]}</p>
-            {tab === 'overview' ? (
+            {activeGroup && activeGroup.views.length > 1 && (
+              <div className={styles.subViews}>
+                <SegmentedControl
+                  label={`Nội dung của ${activeGroup.label}`}
+                  value={tab}
+                  options={activeGroup.views.map((view) => ({ value: view.id, label: view.label }))}
+                  onChange={(value) => setTab(value as ViewId)}
+                />
+              </div>
+            )}
+            <p className={styles.tabHelp}>{VIEW_HELP[tab]}</p>
+            <EvidencePanel
+              paper={paper}
+              location={evidence}
+              onClose={() => setEvidence(null)}
+              onOpenReader={openInReader}
+            />
+            {tab === 'profile' ? (
+              <PaperProfile paper={paper} analyses={batch.analyses} checks={checks} onOpen={setTab} />
+            ) : tab === 'organization' || tab === 'language' ? (
               <>
                 <BatchPanel paper={paper} batch={batch} />
                 <PaperOverview
                   paper={paper}
                   analyses={batch.analyses}
                   run={batch.run}
-                  checks={checks}
-                  onChecks={() => setTab('checks')}
+                  focus={tab === 'organization' ? 'discourse' : 'writing'}
                   onFilter={(ids) => {
                     setFilter(ids);
                     const first = paper.paragraphs.find((paragraph) => ids.includes(paragraph.id));
@@ -221,10 +301,11 @@ export default function PaperMapPage() {
                   }}
                 />
               </>
-            ) : tab === 'checks' ? (
+            ) : checkIds ? (
               <>
                 {errorBox('Không thể xử lý kiểm tra.')}
                 <PaperChecks
+                  only={checkIds}
                   paper={paper}
                   record={checks}
                   onRun={() => {

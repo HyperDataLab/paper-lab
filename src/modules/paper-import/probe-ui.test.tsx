@@ -172,7 +172,7 @@ it('P6 asks consent, shows the verdict and table, offers no copy or apply, and w
   wrap(
     repo,
     client,
-    <PaperOverview paper={paper} analyses={[]} run={null} onFilter={vi.fn()} onChecks={vi.fn()} />,
+    <PaperOverview paper={paper} analyses={[]} run={null} onFilter={vi.fn()} focus="writing" />,
   );
   expect(await screen.findByText(/có thể bị ảnh hưởng bởi văn phong/)).toBeInTheDocument();
 });

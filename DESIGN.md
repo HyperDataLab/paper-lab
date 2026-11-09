@@ -220,3 +220,12 @@ These are checked on each screen, by looking at it, before a change is accepted.
 - **Long lists are trees:** group by paper, then section, with counts. A flat list of parsed items is not acceptable.
 - **Never promise a control the screen does not have.** Empty states name an action only where that action exists.
 - **Provenance is not page content.** Minh bạch opens from the header in a drawer, grouped by run.
+
+## 13. Paper page is organised by question
+
+The page opens on **Hồ sơ**: five dimensions (Khoa học, Lập luận, Diễn ngôn, Viết học thuật, Bối cảnh), each stating its question, coverage and indicators. Indicators are computed in `core/paperProfile`.
+
+- No total score and no radar chart: the dimensions do not share a scale.
+- An indicator that has not been measured shows `—`, never zero.
+- Every AI-derived number says so.
+- A finding's source opens beside the current screen in the evidence drawer; reading it does not lose the reader's place.
