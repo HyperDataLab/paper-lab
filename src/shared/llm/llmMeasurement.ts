@@ -1,11 +1,27 @@
 import { BatchBudgetExceededError } from '@/core/batch/runBatch';
-import { buildProfile, planExtraction, type ExtractionUnit } from '@/core/measurement';
-import { buildClassifyPrompt, buildExtractionPrompt, PROMPT_VERSIONS } from '@/core/prompts';
+import {
+  applyFindings,
+  applyLinks,
+  buildProfile,
+  planExtraction,
+  type ExtractionUnit,
+} from '@/core/measurement';
+import {
+  buildClassifyPrompt,
+  buildExtractionPrompt,
+  buildFindingsPrompt,
+  buildLinkPrompt,
+  PROMPT_VERSIONS,
+} from '@/core/prompts';
 import {
   ClassifyOutputSchema,
   ExtractionOutputSchema,
+  FindingsOutputSchema,
+  LinkOutputSchema,
   type ClassifyOutput,
   type ExtractionOutput,
+  type FindingsOutput,
+  type LinkOutput,
   type Paper,
 } from '@/core/schemas';
 import type { LlmClient } from './client';
@@ -19,17 +35,23 @@ const EXTRACTION_TIMEOUT_MS = 180000;
 export const MEASUREMENT_PROMPT_VERSION = [
   PROMPT_VERSIONS.measurementClassify,
   PROMPT_VERSIONS.measurementExtract,
+  PROMPT_VERSIONS.measurementLink,
+  PROMPT_VERSIONS.measurementFindings,
 ].join('+');
 
 /** Progress kept between runs, so a stopped analysis resumes without paying twice. */
 export interface MeasurementCheckpoint {
   classification: ClassifyOutput | null;
   units: Record<string, ExtractionOutput>;
+  link: LinkOutput | null;
+  findings: FindingsOutput | null;
   model: string | null;
 }
 export const emptyCheckpoint = (): MeasurementCheckpoint => ({
   classification: null,
   units: {},
+  link: null,
+  findings: null,
   model: null,
 });
 
@@ -118,6 +140,9 @@ export async function llmMeasurement(client: LlmClient, paper: Paper, options: M
       checkpoint.units[unit.id] = ExtractionOutputSchema.parse(result.data);
       checkpoint.model = result.meta.model;
       failed.delete(unit.id);
+      // New sections change what can be linked, so these two steps are redone on resume.
+      checkpoint.link = null;
+      checkpoint.findings = null;
       await options.onCheckpoint?.(checkpoint);
     } catch (cause) {
       if (isFatal(cause)) throw cause;
@@ -130,7 +155,7 @@ export async function llmMeasurement(client: LlmClient, paper: Paper, options: M
   }
   // A failure is usually a slow or dropped response, so each failed part gets one more attempt.
   for (const unit of units) if (failed.has(unit.id)) await extract(unit);
-  const profile = buildProfile({
+  let profile = buildProfile({
     paper,
     selectedSectionIds: options.sectionIds,
     classification,
@@ -142,5 +167,69 @@ export async function llmMeasurement(client: LlmClient, paper: Paper, options: M
     promptVersion: MEASUREMENT_PROMPT_VERSION,
     generatedAt: options.now?.() ?? new Date().toISOString(),
   });
+  const step = async <T>(
+    current: T | null,
+    run: () => Promise<T>,
+    save: (value: T) => void,
+    apply: (value: T) => typeof profile,
+    mark: 'link' | 'findings',
+  ) => {
+    let value = current;
+    try {
+      if (value === null) {
+        value = await run();
+        save(value);
+        await options.onCheckpoint?.(checkpoint);
+      }
+      profile = { ...apply(value), steps: { ...profile.steps, [mark]: 'done' } };
+    } catch (cause) {
+      if (isFatal(cause)) throw cause;
+      profile = { ...profile, status: 'partial', steps: { ...profile.steps, [mark]: 'failed' } };
+    }
+  };
+  await step(
+    checkpoint.link,
+    async () =>
+      LinkOutputSchema.parse(
+        (
+          await client.completeJson({
+            ...buildLinkPrompt(profile),
+            schema: LinkOutputSchema,
+            schemaName: 'measurement_links',
+            promptVersion: PROMPT_VERSIONS.measurementLink,
+            temperature: 0.1,
+            onRequest,
+            signal: options.signal,
+          })
+        ).data,
+      ),
+    (value) => {
+      checkpoint.link = value;
+    },
+    (value) => applyLinks(profile, value),
+    'link',
+  );
+  await step(
+    checkpoint.findings,
+    async () =>
+      FindingsOutputSchema.parse(
+        (
+          await client.completeJson({
+            ...buildFindingsPrompt(profile),
+            schema: FindingsOutputSchema,
+            schemaName: 'measurement_findings',
+            promptVersion: PROMPT_VERSIONS.measurementFindings,
+            temperature: 0.2,
+            onRequest,
+            signal: options.signal,
+          })
+        ).data,
+      ),
+    (value) => {
+      checkpoint.findings = value;
+    },
+    (value) => applyFindings(profile, value),
+    'findings',
+  );
   return { profile, callsUsed, failedUnits: [...failed], checkpoint };
 }

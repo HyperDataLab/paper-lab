@@ -15,6 +15,8 @@ export const PROMPT_VERSIONS = {
   styleProbe: 'style-probe-1',
   measurementClassify: 'measure-classify-1',
   measurementExtract: 'measure-extract-1',
+  measurementLink: 'measure-link-1',
+  measurementFindings: 'measure-findings-1',
 } as const;
 export const CONNECTION_TEST_SYSTEM = 'You are a connection test. Return the requested JSON object.';
 export const CONNECTION_TEST_USER =

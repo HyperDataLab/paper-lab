@@ -96,7 +96,7 @@ function verifyResult(
   };
 }
 
-function compatible(a: ProfileField, b: ProfileField) {
+export function compatibleFields(a: ProfileField, b: ProfileField) {
   return !(
     a.status === 'REPORTED' &&
     b.status === 'REPORTED' &&
@@ -106,7 +106,7 @@ function compatible(a: ProfileField, b: ProfileField) {
   );
 }
 
-function mergeMetric(target: MetricUsage, next: MetricUsage) {
+export function mergeMetric(target: MetricUsage, next: MetricUsage) {
   target.aliases = [...new Set([...target.aliases, ...next.aliases])];
   target.construct_ids = [...new Set([...target.construct_ids, ...next.construct_ids])];
   target.experiment_ids = [...new Set([...target.experiment_ids, ...next.experiment_ids])];
@@ -226,7 +226,8 @@ export function buildProfile(input: ProfileInput): MeasurementProfile {
       usage.evidence_ids = fieldEvidence(usage);
       const sameName = metrics.filter((item) => item.normalized_label === usage.normalized_label);
       const match = sameName.find(
-        (item) => compatible(item.definition, usage.definition) && compatible(item.unit, usage.unit),
+        (item) =>
+          compatibleFields(item.definition, usage.definition) && compatibleFields(item.unit, usage.unit),
       );
       if (match) {
         mergeMetric(match, usage);
@@ -319,6 +320,7 @@ export function buildProfile(input: ProfileInput): MeasurementProfile {
     prompt_version: input.promptVersion,
     parser_version: paper.source.parserVersion ?? null,
     coverage: { analysed, failed, not_selected: notSelected },
+    steps: { link: 'not_run', findings: 'not_run' },
     constructs: [...constructs.values()],
     metrics,
     experiments,
