@@ -13,6 +13,7 @@ import { AnalysisResult } from './AnalysisResult';
 import { useSyntaxAnalysis } from './useSyntaxAnalysis';
 import { useCandidateJudge } from './useCandidateJudge';
 import { AnalysisStep } from './AnalysisStep';
+import { ParagraphModes } from './ParagraphModes';
 import { detectCandidates, DETECTOR_VERSION } from '@/core/detectors';
 import { ReviewWorkspace } from './ReviewWorkspace';
 import { Tabs } from '@/shared/ui/Tabs';
@@ -298,6 +299,7 @@ export default function Page() {
   return (
     <div className={styles.page}>
       <h1>Đánh giá</h1>
+      {!id && !result && <ParagraphModes current="/evaluate" />}
       {paperBreadcrumb && (
         <p>
           <Link to={`/papers/${paperBreadcrumb.id}`}>Bài báo › {paperBreadcrumb.heading}</Link>

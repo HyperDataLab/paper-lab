@@ -6,7 +6,7 @@ import styles from './shell.module.css';
 
 const groups = [
   { id: 'paper', label: 'BÀI BÁO' },
-  { id: 'analysis', label: 'ĐOẠN VĂN' },
+  { id: 'analysis', label: '' },
   { id: 'data', label: 'DỮ LIỆU' },
   { id: 'system', label: '' },
 ] as const;

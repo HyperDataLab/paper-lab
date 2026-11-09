@@ -9,8 +9,8 @@ it('renders groups, entries, disabled upcoming items and the active page', () =>
       <Sidebar />
     </MemoryRouter>,
   );
-  for (const label of ['BÀI BÁO', 'ĐOẠN VĂN', 'DỮ LIỆU']) expect(screen.getByText(label)).toBeInTheDocument();
-  for (const item of modules) {
+  for (const label of ['BÀI BÁO', 'DỮ LIỆU']) expect(screen.getByText(label)).toBeInTheDocument();
+  for (const item of modules.filter((entry) => !entry.partOf)) {
     if (item.status === 'soon') {
       const node = screen.getByLabelText(item.label, { selector: '[aria-disabled]' });
       expect(node).toHaveAttribute('aria-disabled', 'true');
@@ -24,7 +24,7 @@ it('marks the active link and persists collapse', () => {
       <Sidebar />
     </MemoryRouter>,
   );
-  expect(screen.getByRole('link', { name: 'Đánh giá' })).toHaveAttribute('aria-current', 'page');
+  expect(screen.getByRole('link', { name: 'Đoạn văn' })).toHaveAttribute('aria-current', 'page');
   fireEvent.click(screen.getByRole('button', { name: 'Thu gọn thanh bên' }));
   expect(localStorage.getItem('sidebar-collapsed')).toBe('true');
   view.unmount();
@@ -51,4 +51,14 @@ it('continues when storage throws', () => {
   expect(screen.getByRole('button', { name: 'Mở rộng thanh bên' })).toBeInTheDocument();
   get.mockRestore();
   set.mockRestore();
+});
+it('shows paragraph work as one entry that stays active on its related screens', () => {
+  render(
+    <MemoryRouter initialEntries={['/generate']}>
+      <Sidebar />
+    </MemoryRouter>,
+  );
+  expect(screen.queryByRole('link', { name: /Chỉnh sửa/ })).toBeNull();
+  expect(screen.queryByRole('link', { name: /Soạn đoạn/ })).toBeNull();
+  expect(screen.getByRole('link', { name: 'Đoạn văn' }).className).toMatch(/active/);
 });

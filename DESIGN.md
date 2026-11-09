@@ -29,7 +29,7 @@ product will keep adding modules (Section/IMRaD, Citation, Figure captions, Batc
 
 - Items come from `src/app/modules.ts`. Each `ModuleDefinition` has `id`, `label` (vi), `icon`, `path`,
   `group: 'analysis' | 'paper' | 'data' | 'labs' | 'system'`, `order`, `status: 'ready' | 'beta' | 'soon'`, `page` (lazy).
-- Groups run **BÀI BÁO**, **ĐOẠN VĂN**, **DỮ LIỆU**, then system. The app opens on the paper list. Paper work comes first because
+- Groups run **BÀI BÁO**, one **Đoạn văn** entry, **DỮ LIỆU**, then system. The app opens on the paper list. Paper work comes first because
   it is the product's main job; single-paragraph tools are secondary.
 - `soon` modules render disabled with a badge; `beta` shows a small "Beta" pill.
 - Collapsed state is remembered in `localStorage` (try/catch). Widths: 240 px expanded, 64 px rail.
@@ -198,3 +198,5 @@ primary button, a finished step shows a tick and "Đã xong", and a step that ca
 The theme control is an icon button in the header, cycling Hệ thống, Sáng and Tối.
 
 Atomic sentences are a branch of the Đo lường tree, grouped by role. Each opens on its own with its source, the items that use it and the action `Đã đối chiếu với nguồn`; the branch root shows progress and what code could and could not check.
+
+Paragraph work is one sidebar entry. The page opens on a choice between evaluating an existing paragraph and drafting a new one; the choice leaves once work begins. Revising opens from Evaluate or History, because it needs an analysis. All three keep their own routes.

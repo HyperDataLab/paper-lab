@@ -10,5 +10,7 @@ const module: ModuleDefinition = {
   order: 1,
   status: 'beta',
   page: lazy(() => import('./Page')),
+  partOf: 'evaluate',
+  hiddenFromSearch: true,
 };
 export default module;
