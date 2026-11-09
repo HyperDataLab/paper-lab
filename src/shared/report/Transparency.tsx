@@ -8,6 +8,7 @@ import type {
   PaperProbesRecord,
   PaperChecksRecord,
   MeasurementsRecord,
+  StanceRecord,
 } from '@/core/schemas';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { downloadJson } from '@/shared/calibration/download';
@@ -52,6 +53,7 @@ function paperSteps(
   probes?: PaperProbesRecord,
   checks?: PaperChecksRecord,
   measurements?: MeasurementsRecord,
+  stance?: StanceRecord,
 ): Step[] {
   const sections = (ids: string[]) => ids.map((id) => paper.sections.find((s) => s.id === id)?.heading ?? id);
   return [
@@ -115,6 +117,17 @@ function paperSteps(
       sections: sections(run.sectionIds),
       calibration: run.calibrationSnapshot ?? null,
     })),
+    ...(stance?.runs ?? []).map((run): Step => ({
+      step: 'Giọng văn',
+      model: run.model,
+      prompt: run.promptVersion,
+      rubric: null,
+      detectors: null,
+      date: run.createdAt,
+      calls: run.callsUsed,
+      sections: sections(run.sectionIds),
+      calibration: null,
+    })),
     ...(measurements?.runs ?? []).map((run): Step => ({
       step: 'Đo lường',
       model: run.profile.model_id,
@@ -154,9 +167,10 @@ export function Transparency({ paper, report }: { paper?: Paper; report?: Analys
       repo.paperProbes.get(paper.id),
       repo.paperChecks.get(paper.id),
       repo.measurements.get(paper.id),
+      repo.stance.get(paper.id),
     ])
-      .then(([runs, reviews, probes, checks, measurements]) => {
-        if (active) setSteps(paperSteps(paper, runs, reviews, probes, checks, measurements));
+      .then(([runs, reviews, probes, checks, measurements, stance]) => {
+        if (active) setSteps(paperSteps(paper, runs, reviews, probes, checks, measurements, stance));
       })
       .catch((cause: unknown) => {
         if (active) setError(String(cause));

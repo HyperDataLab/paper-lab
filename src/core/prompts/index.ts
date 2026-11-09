@@ -17,6 +17,7 @@ export const PROMPT_VERSIONS = {
   measurementExtract: 'measure-extract-2',
   measurementLink: 'measure-link-1',
   measurementFindings: 'measure-findings-1',
+  stanceEngagement: 'stance-engagement-1',
 } as const;
 export const CONNECTION_TEST_SYSTEM = 'You are a connection test. Return the requested JSON object.';
 export const CONNECTION_TEST_USER =
@@ -32,3 +33,4 @@ export * from './paragraphTransition';
 export * from './paperReview';
 export * from './styleProbe';
 export * from './measurement';
+export * from './stance';

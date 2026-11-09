@@ -12,6 +12,7 @@ import {
   type CalibrationLabelSet,
   type MeasurementsRecord,
   type LibraryItem,
+  type StanceRecord,
 } from '../schemas';
 export function buildExportPackage(
   analyses: Analysis[],
@@ -28,6 +29,7 @@ export function buildExportPackage(
   calibrationLabels: CalibrationLabelSet[] = [],
   measurements: MeasurementsRecord[] = [],
   library: LibraryItem[] = [],
+  stance: StanceRecord[] = [],
 ) {
   return ExportPackageSchema.parse({
     format: 'paragraph-lab-export',
@@ -46,5 +48,6 @@ export function buildExportPackage(
     calibrationLabels,
     measurements,
     library,
+    stance,
   });
 }

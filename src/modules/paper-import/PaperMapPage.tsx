@@ -10,6 +10,7 @@ import { Tabs } from '@/shared/ui/Tabs';
 import { PaperProbe } from './PaperProbe';
 import { PaperReader } from './PaperReader';
 import { PaperMeasurement } from './PaperMeasurement';
+import { PaperStance } from './PaperStance';
 import styles from './page.module.css';
 import { BatchPanel } from './BatchPanel';
 import { useBatchRun } from './useBatchRun';
@@ -20,11 +21,13 @@ import type { ReactNode } from 'react';
 import { Transparency } from '@/shared/report/Transparency';
 import { captureCalibration } from '@/shared/calibration/data';
 
-type TabId = 'map' | 'measure' | 'overview' | 'checks' | 'review' | 'probe';
+type TabId = 'map' | 'measure' | 'overview' | 'stance' | 'checks' | 'review' | 'probe';
 const TAB_HELP: Record<TabId, string> = {
   map: 'Đọc bài theo mục lục, xem bảng và đoạn gốc.',
   measure: 'Bài báo đo gì, bằng metric nào, dưới protocol nào, và kết quả ra sao.',
   overview: 'Chạy phân tích từng đoạn rồi xem thống kê theo mục. Không phải điểm của bài báo.',
+  stance:
+    'Cách tác giả thể hiện lập trường và tương tác với người đọc. Đây là số liệu mô tả, không phải điểm.',
   checks: 'Kiểm tra tự động trích dẫn, số liệu, hình/bảng và viết tắt. Không dùng AI.',
   review: 'Các góc nhìn phản biện của AI, kèm câu trích trong bài.',
   probe: 'Đo xem điểm của AI có đổi khi chỉ đổi văn phong hay không.',
@@ -50,7 +53,7 @@ export default function PaperMapPage() {
   const [error, setError] = useState('');
   const [counts, setCounts] = useState<{ sentences: number; words: number } | null>(null);
   const [candidateCounts, setCandidateCounts] = useState<Record<string, number>>({});
-  const [tab, setTab] = useState<'map' | 'overview' | 'checks' | 'review' | 'probe' | 'measure'>('map');
+  const [tab, setTab] = useState<TabId>('map');
   const [filter, setFilter] = useState<string[] | null>(null);
   const [checks, setChecks] = useState<PaperChecksRecord>();
   const [highlight, setHighlight] = useState<Finding['locations'][number] | null>(null);
@@ -191,6 +194,7 @@ export default function PaperMapPage() {
                   Đánh giá
                 </span>
                 {tabButton('overview', 'Chất lượng viết')}
+                {tabButton('stance', 'Giọng văn')}
                 {tabButton('checks', 'Kiểm tra')}
                 {tabButton('review', 'Phản biện AI')}
                 {tabButton('probe', 'Độ bền điểm')}
@@ -243,6 +247,8 @@ export default function PaperMapPage() {
                   onLocation={openLocation}
                 />
               </>
+            ) : tab === 'stance' ? (
+              <PaperStance paper={paper} onLocation={openLocation} />
             ) : tab === 'measure' ? (
               <PaperMeasurement paper={paper} onLocation={openLocation} />
             ) : tab === 'probe' ? (
