@@ -10,5 +10,6 @@ const module: ModuleDefinition = {
   order: 2,
   status: 'beta',
   page: lazy(() => import('./Page')),
+  partOf: 'evaluate',
 };
 export default module;

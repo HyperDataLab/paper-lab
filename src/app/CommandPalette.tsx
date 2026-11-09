@@ -22,8 +22,9 @@ export function CommandPalette() {
   useEffect(() => {
     if (open) input.current?.focus();
   }, [open]);
-  const items = modules.filter((item) =>
-    item.label.toLocaleLowerCase('vi').includes(query.toLocaleLowerCase('vi')),
+  const items = modules.filter(
+    (item) =>
+      !item.hiddenFromSearch && item.label.toLocaleLowerCase('vi').includes(query.toLocaleLowerCase('vi')),
   );
   function go(path: string) {
     navigate(path);

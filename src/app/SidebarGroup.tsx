@@ -20,7 +20,7 @@ export function SidebarGroup({
         </div>
       )}
       {modules
-        .filter((item) => item.group === group.id)
+        .filter((item) => item.group === group.id && !item.partOf)
         .map((item) => (
           <SidebarItem key={item.id} item={item} rail={rail} onNavigate={onNavigate} />
         ))}

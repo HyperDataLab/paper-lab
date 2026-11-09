@@ -1,7 +1,8 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { Badge } from '@/shared/ui/Badge';
 import { Tooltip } from '@/shared/ui/Tooltip';
 import type { ModuleDefinition } from './moduleTypes';
+import { modules } from './modules';
 import styles from './shell.module.css';
 
 export function SidebarItem({
@@ -14,6 +15,8 @@ export function SidebarItem({
   onNavigate?: () => void;
 }) {
   const Icon = item.icon;
+  const { pathname } = useLocation();
+  const childActive = modules.some((other) => other.partOf === item.id && pathname.startsWith(other.path));
   const content = (
     <>
       <Icon size={19} aria-hidden="true" />
@@ -35,7 +38,7 @@ export function SidebarItem({
       <NavLink
         to={item.path}
         onClick={onNavigate}
-        className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
+        className={({ isActive }) => `${styles.navItem} ${isActive || childActive ? styles.active : ''}`}
         aria-label={rail ? item.label : undefined}
       >
         {content}

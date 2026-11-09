@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ParagraphModes } from '@/modules/evaluate/ParagraphModes';
 import { buildGeneration } from '@/core/generation';
 import { GenerationInputSchema, type GenerationInput } from '@/core/prompts/generation';
 import type { Generation } from '@/core/schemas';
@@ -124,6 +125,7 @@ export default function Page() {
   return (
     <div className={styles.page}>
       <h1>Soạn đoạn</h1>
+      {!id && !generation && <ParagraphModes current="/generate" />}
       <div className={styles.grid}>
         <GenerationForm input={input} onChange={change} attempted={attempted} highlighted={highlighted} />
         <GenerationResult generation={generation} highlight={setHighlighted} />
