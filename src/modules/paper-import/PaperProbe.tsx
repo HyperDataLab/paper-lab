@@ -7,6 +7,7 @@ import { describeLlmError } from '@/shared/llm';
 import { useLlm } from '@/shared/llm/LlmProvider';
 import { createStyleProbeRun, llmStyleProbe } from '@/shared/llm/llmStyleProbe';
 import { useRepositories } from '@/shared/storage/StorageProvider';
+import { ActionBar } from '@/shared/ui/ActionBar';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
@@ -148,17 +149,23 @@ export function PaperProbe({ paper, analyses }: { paper: Paper; analyses: Analys
             value={budget}
             onChange={(event) => setBudget(Number(event.target.value))}
           />
-          {running ? (
-            <Button onClick={() => controller.current?.abort()}>Huỷ</Button>
-          ) : (
-            <Button
-              variant="primary"
-              disabled={Boolean(plan.refusal) || overBudget || budget < 1}
-              onClick={start}
-            >
-              Chạy kiểm tra độ bền (AI)
-            </Button>
-          )}
+        </div>
+        <ActionBar
+          status={
+            running ? (
+              <span role="status">
+                Đang kiểm tra độ bền… {latest?.items.length ?? 0}/{latest?.n ?? plan.paragraphs} đoạn
+              </span>
+            ) : plan.refusal ? (
+              <span role="alert">{plan.refusal}</span>
+            ) : (
+              <span>
+                Ước tính ~{plan.calls} lượt gọi AI cho {plan.paragraphs} đoạn (giới hạn {budget})
+                {overBudget && ' · Vượt giới hạn, hãy giảm số đoạn hoặc tăng giới hạn.'}
+              </span>
+            )
+          }
+        >
           {resumable && (
             <Button
               onClick={() =>
@@ -168,20 +175,20 @@ export function PaperProbe({ paper, analyses }: { paper: Paper; analyses: Analys
               Tiếp tục lượt trước
             </Button>
           )}
-        </div>
-        {plan.refusal ? (
-          <p role="alert">{plan.refusal}</p>
-        ) : (
-          <p className={styles.muted}>
-            Ước tính ~{plan.calls} lượt gọi AI cho {plan.paragraphs} đoạn (giới hạn {budget})
-            {overBudget && ' · Vượt giới hạn, hãy giảm số đoạn hoặc tăng giới hạn.'}
-          </p>
-        )}
-        {running && (
-          <p role="status">
-            Đang kiểm tra độ bền… {latest?.items.length ?? 0}/{latest?.n ?? plan.paragraphs} đoạn
-          </p>
-        )}
+          {running ? (
+            <Button variant="danger" onClick={() => controller.current?.abort()}>
+              Huỷ
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              disabled={Boolean(plan.refusal) || overBudget || budget < 1}
+              onClick={start}
+            >
+              Chạy kiểm tra độ bền (AI)
+            </Button>
+          )}
+        </ActionBar>
         {resumable && (
           <p className={styles.muted}>
             Lượt trước chưa hoàn tất ({resumable.items.length}/{resumable.n} đoạn).

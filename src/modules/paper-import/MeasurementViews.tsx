@@ -12,7 +12,9 @@ import {
 } from '@/core/schemas';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
+import { Stat, StatGrid } from '@/shared/ui/ActionBar';
 import { Card } from '@/shared/ui/Card';
+import { FindingCard } from '@/shared/ui/FindingCard';
 import {
   AtomicLinks,
   EvidenceLinks,
@@ -193,10 +195,7 @@ function OverviewDetail({ profile, paper, open }: Pick<ViewProps, 'profile' | 'o
   const heading = (id: string) => paper.sections.find((section) => section.id === id)?.heading ?? id;
   const notRead = [...profile.coverage.failed, ...profile.coverage.not_selected];
   const stat = (value: number, label: string, ref: MeasurementRef) => (
-    <Button className={styles.stat} onClick={() => open(ref)}>
-      <strong>{value}</strong>
-      <span>{label}</span>
-    </Button>
+    <Stat value={value} label={label} onClick={() => open(ref)} />
   );
   return (
     <Card>
@@ -205,7 +204,7 @@ function OverviewDetail({ profile, paper, open }: Pick<ViewProps, 'profile' | 'o
         Loại bài: <Badge tone="accent">{PAPER_TYPE[profile.paper_type]}</Badge>
       </p>
       <p>{profile.paper_type_rationale}</p>
-      <div className={styles.stats}>
+      <StatGrid>
         {stat(profile.experiments.length, 'thí nghiệm', { kind: 'experiments' })}
         {stat(profile.metrics.length, 'metric', { kind: 'experiments' })}
         {stat(profile.results.length, 'kết quả', { kind: 'experiments' })}
@@ -214,7 +213,7 @@ function OverviewDetail({ profile, paper, open }: Pick<ViewProps, 'profile' | 'o
           stat(profile.atomic_sentences.length, 'câu nguyên tử', { kind: 'atomics' })}
         {stat(profile.findings.length, 'cảnh báo', { kind: 'findings' })}
         {stat(reviewQueueSize(profile), 'cần xem lại', { kind: 'review' })}
-      </div>
+      </StatGrid>
       <p>
         Có bằng chứng: {evidence.withEvidence}/{evidence.total}
         {evidence.rate !== null && ` (${Math.round(evidence.rate * 100)} %)`}
@@ -676,13 +675,17 @@ export function MeasurementDetail({
   const finding = profile.findings.find((item) => item.id === target.id);
   if (!finding) return null;
   return (
-    <Card>
+    <FindingCard
+      labels={
+        <>
+          <Badge tone="warning">AI lưu ý</Badge>
+          <Badge>{FINDING_LABELS[finding.type]}</Badge>
+          <Badge>Mức: {SEVERITY[finding.severity]}</Badge>
+        </>
+      }
+      actions={<ItemActions itemId={finding.id} context={context} value={finding.explanation} />}
+    >
       <h2>{FINDING_LABELS[finding.type]}</h2>
-      <div className={styles.meta}>
-        <Badge tone="warning">AI lưu ý</Badge>
-        <Badge>Mức: {SEVERITY[finding.severity]}</Badge>
-        <EvidenceLinks ids={finding.evidence_ids} context={context} />
-      </div>
       <p>{finding.explanation}</p>
       <p>
         <strong>Câu hỏi cho tác giả: </strong>
@@ -690,7 +693,9 @@ export function MeasurementDetail({
       </p>
       <p className={styles.note}>Giới hạn: {finding.limitation_of_assessment}</p>
       <p className={styles.note}>Đây là câu hỏi để kiểm tra lại, không phải kết luận về lỗi phương pháp.</p>
-      <ItemActions itemId={finding.id} context={context} value={finding.explanation} />
-    </Card>
+      <div className={styles.meta}>
+        <EvidenceLinks ids={finding.evidence_ids} context={context} />
+      </div>
+    </FindingCard>
   );
 }

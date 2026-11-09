@@ -19,6 +19,7 @@ import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Checkbox } from '@/shared/ui/Checkbox';
+import { Chip } from '@/shared/ui/Chip';
 import { Dialog } from '@/shared/ui/Dialog';
 import { Select } from '@/shared/ui/Select';
 import { TextField } from '@/shared/ui/TextField';
@@ -181,15 +182,14 @@ export function LibraryPanel() {
               const count = status === 'all' ? items.length : (counts[status] ?? 0);
               if (status !== 'all' && !count) return null;
               return (
-                <Button
+                <Chip
                   key={status}
-                  size="sm"
+                  count={count}
                   aria-pressed={filter.status === status}
-                  variant={filter.status === status ? 'primary' : 'secondary'}
                   onClick={() => update({ status })}
                 >
-                  {status === 'all' ? 'Tất cả' : STATUS[status].label} ({count})
-                </Button>
+                  {status === 'all' ? 'Tất cả' : STATUS[status].label}
+                </Chip>
               );
             })}
           </div>

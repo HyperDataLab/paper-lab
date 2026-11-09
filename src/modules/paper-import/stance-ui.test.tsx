@@ -120,6 +120,7 @@ it('F4 runs an analysis with an estimate', async () => {
   });
   await setup(false, { completeJson } as unknown as LlmClient);
   expect(await screen.findByText(/Ước tính 1 lượt gọi/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu phân tích' }));
   expect(await screen.findByText('Tổng quan giọng văn')).toBeInTheDocument();
   expect(completeJson).toHaveBeenCalledTimes(1);

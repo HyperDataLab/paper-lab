@@ -3,6 +3,7 @@ import { planRun } from '@/core/batch';
 import type { BatchStep, Paper } from '@/core/schemas';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
+import { Wizard } from '@/shared/ui/Wizard';
 import { Checkbox } from '@/shared/ui/Checkbox';
 import { TextField } from '@/shared/ui/TextField';
 import type { useBatchRun } from './useBatchRun';
@@ -25,7 +26,7 @@ export function BatchPanel({ paper, batch }: { paper: Paper; batch: ReturnType<t
   const done = run?.items.filter((item) => ['done', 'cached', 'skipped'].includes(item.status)).length ?? 0;
   const running = run?.status === 'running';
   const [editing, setEditing] = useState(false);
-  const showSetup = !run || running || editing;
+  const showSetup = (!run || editing) && !running;
   return (
     <Card>
       <div className={styles.sectionHead}>
@@ -37,59 +38,82 @@ export function BatchPanel({ paper, batch }: { paper: Paper; batch: ReturnType<t
         )}
       </div>
       {showSetup && (
-        <div className={styles.setup}>
-          <SectionPicker
-            paper={paper}
-            value={sections}
-            onChange={setSections}
-            disabled={running}
-            legend="1. Chọn mục cần phân tích"
-            count={(section) =>
-              paper.paragraphs.filter((p) => p.sectionId === section.id && p.kind === 'body').length
-            }
-          />
-          <div className={styles.setupSide}>
-            <fieldset disabled={running}>
-              <legend>2. Chọn các bước AI</legend>
-              {steps.map((step) => (
-                <Checkbox
-                  key={step.id}
-                  checked={selectedSteps.includes(step.id)}
-                  onChange={(e) =>
-                    setSteps((old) =>
-                      e.target.checked ? [...old, step.id] : old.filter((id) => id !== step.id),
-                    )
+        <Wizard
+          label="Các bước thiết lập phân tích"
+          finishLabel="Bắt đầu phân tích"
+          finishDisabled={running || !plan.withinBudget || !plan.paragraphs.length || !selectedSteps.length}
+          onFinish={() => void batch.start(plan)}
+          note={`Ước tính ~${plan.total} lượt gọi AI (giới hạn ${budget})`}
+          steps={[
+            {
+              id: 'sections',
+              title: 'Chọn mục',
+              summary: `${sections.length} mục`,
+              ready: sections.length > 0,
+              content: (
+                <SectionPicker
+                  paper={paper}
+                  value={sections}
+                  onChange={setSections}
+                  disabled={running}
+                  legend="Mục cần phân tích"
+                  count={(section) =>
+                    paper.paragraphs.filter((p) => p.sectionId === section.id && p.kind === 'body').length
                   }
-                >
-                  {step.label}
-                </Checkbox>
-              ))}
-            </fieldset>
-            <TextField
-              label="Giới hạn lượt gọi"
-              type="number"
-              min={0}
-              step={1}
-              value={budget}
-              disabled={running}
-              onChange={(e) => setBudget(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
-            />
-            <p>
-              Ước tính ~{plan.total} lượt gọi AI (giới hạn {budget})
-            </p>
-            {selectedSteps.includes('transitions') && (
-              <p>Chuyển đoạn: ~{plan.calls.transitions ?? 0} lượt gọi AI</p>
-            )}
-            {!plan.withinBudget && <p role="alert">Ước tính vượt giới hạn lượt gọi.</p>}
-            <Button
-              variant="primary"
-              disabled={running || !plan.withinBudget || !plan.paragraphs.length || !selectedSteps.length}
-              onClick={() => void batch.start(plan)}
-            >
-              Bắt đầu phân tích
-            </Button>
-          </div>
-        </div>
+                />
+              ),
+            },
+            {
+              id: 'steps',
+              title: 'Chọn bước AI',
+              summary: `${selectedSteps.length} bước`,
+              ready: selectedSteps.length > 0,
+              content: (
+                <div className={styles.setupSide}>
+                  <fieldset disabled={running}>
+                    <legend>Các bước AI</legend>
+                    {steps.map((step) => (
+                      <Checkbox
+                        key={step.id}
+                        checked={selectedSteps.includes(step.id)}
+                        onChange={(e) =>
+                          setSteps((old) =>
+                            e.target.checked ? [...old, step.id] : old.filter((id) => id !== step.id),
+                          )
+                        }
+                      >
+                        {step.label}
+                      </Checkbox>
+                    ))}
+                  </fieldset>
+                  <TextField
+                    label="Giới hạn lượt gọi"
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={budget}
+                    disabled={running}
+                    onChange={(e) => setBudget(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+                  />
+                  {selectedSteps.includes('transitions') && (
+                    <p>Chuyển đoạn: ~{plan.calls.transitions ?? 0} lượt gọi AI</p>
+                  )}
+                  {!plan.withinBudget && <p role="alert">Ước tính vượt giới hạn lượt gọi.</p>}
+                </div>
+              ),
+            },
+            {
+              id: 'confirm',
+              title: 'Xác nhận và chạy',
+              content: (
+                <p>
+                  Sẽ gửi {plan.paragraphs.length} đoạn trong {sections.length} mục cho AI, qua{' '}
+                  {selectedSteps.length} bước.
+                </p>
+              ),
+            },
+          ]}
+        />
       )}
       <div className={styles.filterBar}>
         {running && (
@@ -110,7 +134,7 @@ export function BatchPanel({ paper, batch }: { paper: Paper; batch: ReturnType<t
               />
             )}
             <Button variant="primary" onClick={() => batch.resume(budget)}>
-              Tiếp tục
+              Tiếp tục chạy
             </Button>{' '}
             <Button onClick={batch.cancel}>Huỷ</Button>
           </>

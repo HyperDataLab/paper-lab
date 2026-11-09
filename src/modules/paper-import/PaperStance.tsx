@@ -15,7 +15,10 @@ import { useLlm } from '@/shared/llm/LlmProvider';
 import { llmStance } from '@/shared/llm/llmStance';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Badge } from '@/shared/ui/Badge';
+import { ActionBar } from '@/shared/ui/ActionBar';
 import { Button } from '@/shared/ui/Button';
+import { FindingCard, ReviewActions } from '@/shared/ui/FindingCard';
+import { Wizard } from '@/shared/ui/Wizard';
 import { Card } from '@/shared/ui/Card';
 import { Select } from '@/shared/ui/Select';
 import { TextField } from '@/shared/ui/TextField';
@@ -213,32 +216,47 @@ export function PaperStance({
   const pages = Math.max(1, Math.ceil(listed.length / PAGE_SIZE));
   const visible = listed.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const setup = (
-    <>
-      <SectionPicker
-        paper={paper}
-        value={sections}
-        onChange={setSections}
-        disabled={running}
-        legend="Mục được gửi cho AI"
-        count={(section) =>
-          paper.paragraphs.filter((p) => p.sectionId === section.id && p.kind === 'body').length
-        }
-      />
-      <p>Ước tính {estimate} lượt gọi AI (chưa tính thử lại).</p>
-      <TextField
-        label="Trần số lượt gọi"
-        type="number"
-        min={1}
-        value={String(budget)}
-        disabled={running}
-        onChange={(event) => setBudget(Number(event.target.value))}
-      />
-      <div className={styles.meta}>
-        <Button variant="primary" disabled={running || !estimate} onClick={() => void start(false)}>
-          Bắt đầu phân tích
-        </Button>
-      </div>
-    </>
+    <Wizard
+      label="Các bước thiết lập phân tích giọng văn"
+      finishLabel="Bắt đầu phân tích"
+      finishDisabled={running || !estimate}
+      onFinish={() => void start(false)}
+      note={`Ước tính ${estimate} lượt gọi AI (chưa tính thử lại).`}
+      steps={[
+        {
+          id: 'sections',
+          title: 'Chọn mục',
+          summary: `${sections.length} mục`,
+          ready: estimate > 0,
+          content: (
+            <SectionPicker
+              paper={paper}
+              value={sections}
+              onChange={setSections}
+              disabled={running}
+              legend="Mục được gửi cho AI"
+              count={(section) =>
+                paper.paragraphs.filter((p) => p.sectionId === section.id && p.kind === 'body').length
+              }
+            />
+          ),
+        },
+        {
+          id: 'confirm',
+          title: 'Xác nhận và chạy',
+          content: (
+            <TextField
+              label="Trần số lượt gọi"
+              type="number"
+              min={1}
+              value={String(budget)}
+              disabled={running}
+              onChange={(event) => setBudget(Number(event.target.value))}
+            />
+          ),
+        },
+      ]}
+    />
   );
   return (
     <div className={styles.panel}>
@@ -250,31 +268,27 @@ export function PaperStance({
             (2005). AI đề xuất, code kiểm tra từng dấu hiệu có thật trong bài, bạn xác nhận.
           </p>
         )}
-        <div className={styles.runBar}>
-          <span>
-            {run
-              ? `Phân tích lúc ${new Date(run.createdAt).toLocaleString('vi-VN')} · ${run.callsUsed} lượt gọi`
-              : 'Chưa phân tích bài này.'}
-          </span>
+        <ActionBar
+          status={
+            running || used > 0 ? (
+              <span role="status">
+                {used}/{budget} lượt {progress && `· ${progress}`}
+              </span>
+            ) : run ? (
+              `Phân tích lúc ${new Date(run.createdAt).toLocaleString('vi-VN')} · ${run.callsUsed} lượt gọi`
+            ) : (
+              'Chưa phân tích bài này.'
+            )
+          }
+        >
           {running ? (
             <Button variant="danger" onClick={() => controller.current?.abort()}>
               Dừng
             </Button>
           ) : (
             <>
-              {record?.pending && (
-                <Button variant="primary" onClick={() => void start(true)}>
-                  Tiếp tục phần còn lại
-                </Button>
-              )}
-              {run && (
-                <Button onClick={() => setShowSetup(!showSetup)}>
-                  {showSetup ? 'Ẩn thiết lập' : 'Phân tích lại'}
-                </Button>
-              )}
               {run && (
                 <Button
-                  size="sm"
                   variant="ghost"
                   onClick={() =>
                     downloadText(
@@ -287,14 +301,19 @@ export function PaperStance({
                   Xuất CSV
                 </Button>
               )}
+              {run && (
+                <Button onClick={() => setShowSetup(!showSetup)}>
+                  {showSetup ? 'Ẩn thiết lập' : 'Phân tích lại'}
+                </Button>
+              )}
+              {record?.pending && (
+                <Button variant="primary" onClick={() => void start(true)}>
+                  Tiếp tục phần còn lại
+                </Button>
+              )}
             </>
           )}
-          {(running || used > 0) && (
-            <span role="status">
-              {used}/{budget} lượt {progress && `· ${progress}`}
-            </span>
-          )}
-        </div>
+        </ActionBar>
         {(!run || showSetup) && !running && setup}
         {error && <div role="alert">{error}</div>}
       </Card>
@@ -392,56 +411,55 @@ export function PaperStance({
                   ))}
                 </Select>
                 {visible.length === 0 && <p>Không có dấu hiệu nào.</p>}
-                {visible.map((item) => {
-                  const state = states.get(item.id);
-                  const position = item.excerpt.toLowerCase().indexOf(item.marker.toLowerCase());
-                  return (
-                    <div key={item.id} className={styles.item}>
-                      <p className={styles.value}>
-                        {position < 0 ? (
-                          item.excerpt
-                        ) : (
+                <div className={styles.findings}>
+                  {visible.map((item) => {
+                    const state = states.get(item.id);
+                    const position = item.excerpt.toLowerCase().indexOf(item.marker.toLowerCase());
+                    return (
+                      <FindingCard
+                        key={item.id}
+                        state={state ?? 'open'}
+                        labels={
                           <>
-                            {item.excerpt.slice(0, position)}
-                            <mark>{item.excerpt.slice(position, position + item.marker.length)}</mark>
-                            {item.excerpt.slice(position + item.marker.length)}
+                            <Badge tone="accent">{LABELS[category].name}</Badge>
+                            {state && (
+                              <Badge tone={state === 'confirmed' ? 'success' : 'danger'}>
+                                {state === 'confirmed' ? 'Đã xác nhận' : 'Đã loại'}
+                              </Badge>
+                            )}
                           </>
-                        )}
-                      </p>
-                      <p className={styles.note}>{item.rationale}</p>
-                      <div className={styles.meta}>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() =>
-                            onLocation({ paragraphId: item.paragraphId, start: item.start, end: item.end })
-                          }
-                        >
-                          {item.page ? `Tr. ${item.page}` : 'Không rõ trang'} · {heading(item.sectionId)}
-                        </Button>
-                        {state ? (
-                          <>
-                            <Badge tone={state === 'confirmed' ? 'success' : 'danger'}>
-                              {state === 'confirmed' ? 'Đã xác nhận' : 'Đã loại'}
-                            </Badge>
-                            <Button size="sm" variant="ghost" onClick={() => decide(item, 'reopen')}>
-                              Hoàn tác
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button size="sm" onClick={() => decide(item, 'confirm')}>
-                              Xác nhận
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => decide(item, 'dismiss')}>
-                              Loại bỏ
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                        }
+                        quote={
+                          position < 0 ? (
+                            item.excerpt
+                          ) : (
+                            <>
+                              {item.excerpt.slice(0, position)}
+                              <mark>{item.excerpt.slice(position, position + item.marker.length)}</mark>
+                              {item.excerpt.slice(position + item.marker.length)}
+                            </>
+                          )
+                        }
+                        source={{
+                          label: `${item.page ? `Tr. ${item.page}` : 'Không rõ trang'} · ${heading(item.sectionId)}`,
+                          onOpen: () =>
+                            onLocation({ paragraphId: item.paragraphId, start: item.start, end: item.end }),
+                        }}
+                        actions={
+                          <ReviewActions
+                            decided={Boolean(state)}
+                            dismissLabel="Loại bỏ"
+                            onConfirm={() => decide(item, 'confirm')}
+                            onDismiss={() => decide(item, 'dismiss')}
+                            onUndo={() => decide(item, 'reopen')}
+                          />
+                        }
+                      >
+                        <p>{item.rationale}</p>
+                      </FindingCard>
+                    );
+                  })}
+                </div>
                 {pages > 1 && (
                   <div className={styles.meta}>
                     <Button size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>

@@ -1,4 +1,5 @@
 import type { Paper, PaperChecksRecord } from '@/core/schemas';
+import { ActionBar } from '@/shared/ui/ActionBar';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { CheckCard } from './CheckCard';
@@ -19,17 +20,20 @@ export function PaperChecks({ paper, record, onRun, onReview, onLocation }: Prop
       <Card>
         <h2>Kiểm tra</h2>
         <p>Các kiểm tra tự động là thử nghiệm, có thể báo nhầm; hãy xác nhận hoặc bỏ qua từng mục.</p>
-        <Button variant="primary" onClick={onRun}>
-          Chạy kiểm tra
-        </Button>
-        <Checkbox checked={hide} onChange={(event) => setHide(event.target.checked)}>
-          Ẩn mục chưa đáng tin
-        </Checkbox>
-        <p>
-          {record
-            ? `Lần chạy gần nhất: ${new Date(record.report.generatedAt).toLocaleString('vi-VN')}`
-            : 'Chưa chạy kiểm tra.'}
-        </p>
+        <ActionBar
+          status={
+            record
+              ? `Lần chạy gần nhất: ${new Date(record.report.generatedAt).toLocaleString('vi-VN')}`
+              : 'Chưa chạy kiểm tra.'
+          }
+        >
+          <Checkbox checked={hide} onChange={(event) => setHide(event.target.checked)}>
+            Ẩn mục chưa đáng tin
+          </Checkbox>
+          <Button variant="primary" onClick={onRun}>
+            Chạy kiểm tra
+          </Button>
+        </ActionBar>
       </Card>
       {record?.report.checks
         .filter(

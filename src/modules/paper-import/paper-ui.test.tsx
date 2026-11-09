@@ -100,11 +100,13 @@ it('P2 estimates selected calls, asks manuscript consent and opens a completed a
   fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));
   expect(screen.getByText('Ước tính ~0 lượt gọi AI (giới hạn 150)')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Phân tích câu' }));
   expect(screen.getByText('Ước tính ~1 lượt gọi AI (giới hạn 150)')).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Giới hạn lượt gọi'), { target: { value: '0' } });
   expect(screen.getByText('Ước tính vượt giới hạn lượt gọi.')).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Giới hạn lượt gọi'), { target: { value: '2' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu phân tích' }));
   expect(await screen.findByText(/Các đoạn được chọn của bản thảo/)).toBeInTheDocument();
   expect(completeJson).not.toHaveBeenCalled();
@@ -143,7 +145,9 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   await importPaper();
   fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Phân tích câu' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu phân tích' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
   fireEvent.click(screen.getByRole('tab', { name: 'Đọc bài' }));
@@ -161,7 +165,7 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   view.unmount();
   render(tree(`/papers/${paper.id}`));
   fireEvent.click(await screen.findByRole('tab', { name: 'Chất lượng viết' }));
-  expect(await screen.findByRole('button', { name: 'Tiếp tục' })).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: 'Tiếp tục chạy' })).toBeInTheDocument();
   expect((await repo.paperRuns.get(run.id))?.status).toBe('paused');
 });
 
@@ -229,7 +233,7 @@ it('P2 increases a budget on the same run when resuming', async () => {
   );
   fireEvent.click(await screen.findByRole('tab', { name: 'Chất lượng viết' }));
   // The field moves once the paused run has loaded, so wait for that before typing.
-  const resume = await screen.findByRole('button', { name: 'Tiếp tục' });
+  const resume = await screen.findByRole('button', { name: 'Tiếp tục chạy' });
   fireEvent.change(screen.getByLabelText('Giới hạn lượt gọi'), { target: { value: '10' } });
   fireEvent.click(resume);
   expect(await screen.findByText(/Các đoạn được chọn của bản thảo/)).toBeInTheDocument();
@@ -269,14 +273,16 @@ it('P2 pauses after the current call and resumes the remaining step', async () =
   await importPaper();
   fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Phân tích câu' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Đánh giá ngữ cảnh' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu phân tích' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
   await waitFor(() => expect(release).toBeDefined());
   fireEvent.click(screen.getByRole('button', { name: 'Tạm dừng' }));
   release?.();
-  fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục chạy' }));
   await waitFor(() => expect(completeJson).toHaveBeenCalledTimes(2));
   fireEvent.click(screen.getByRole('tab', { name: 'Đọc bài' }));
   expect(await screen.findByText('Hoàn tất')).toBeInTheDocument();

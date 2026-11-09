@@ -5,7 +5,9 @@ import type { Paper, PaperChecksRecord, PaperReviewsRecord, ReviewDecision } fro
 import { useLlm } from '@/shared/llm/LlmProvider';
 import { llmPaperReviewer } from '@/shared/llm/llmPaperReviewer';
 import { useRepositories } from '@/shared/storage/StorageProvider';
+import { ActionBar } from '@/shared/ui/ActionBar';
 import { Button } from '@/shared/ui/Button';
+import { Wizard } from '@/shared/ui/Wizard';
 import { Card } from '@/shared/ui/Card';
 import { Checkbox } from '@/shared/ui/Checkbox';
 import { TextField } from '@/shared/ui/TextField';
@@ -168,59 +170,89 @@ export function PaperReview({
       {!revealed && notesPanel}
       <Card>
         <h2>Thiết lập phản biện AI</h2>
-        <fieldset disabled={running}>
-          <legend>Góc nhìn</legend>
-          {LensSchema.options.map((lens) => (
-            <Checkbox
-              key={lens}
-              checked={lenses.includes(lens)}
-              onChange={(e) =>
-                setLenses((old) => (e.target.checked ? [...old, lens] : old.filter((item) => item !== lens)))
-              }
-            >
-              {LENSES[lens].label} — {LENS_DESCRIPTIONS[lens]}
-            </Checkbox>
-          ))}
-        </fieldset>
-        <SectionPicker
-          paper={paper}
-          value={sections}
-          onChange={setSections}
-          disabled={running}
-          legend="Mục được gửi"
-          count={(section) =>
-            paper.paragraphs.filter((p) => p.sectionId === section.id && p.kind === 'body').length
-          }
-        />
-        <p>
-          Ước tính: {characters.toLocaleString('vi-VN')} ký tự · {lenses.length} lượt gọi AI (có thể phát sinh
-          khi thử lại hoặc sửa kết quả).
-        </p>
-        {tooLarge && <p role="alert">Vui lòng chọn ít phần hơn (tối đa 60.000 ký tự).</p>}
-        <TextField
-          label="Giới hạn lượt gọi phản biện"
-          type="number"
-          min={0}
-          step={1}
-          value={budget}
-          disabled={running}
-          onChange={(e) => setBudget(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
-        />
-        {lenses.length > budget && <p role="alert">Ước tính vượt giới hạn lượt gọi.</p>}
-        <Button
-          variant="primary"
-          disabled={running || tooLarge || !lenses.length || !hasBody || lenses.length > budget}
-          onClick={() => void start()}
-        >
-          Chạy phản biện (AI)
-        </Button>{' '}
-        {running && (
-          <>
-            <Button onClick={() => controller.current?.abort()}>Huỷ</Button>
-            <p>
-              Đã dùng {used}/{budget} lượt gọi.
-            </p>
-          </>
+        {running ? (
+          <ActionBar
+            status={
+              <span role="status">
+                Đã dùng {used}/{budget} lượt gọi.
+              </span>
+            }
+          >
+            <Button variant="danger" onClick={() => controller.current?.abort()}>
+              Huỷ
+            </Button>
+          </ActionBar>
+        ) : (
+          <Wizard
+            label="Các bước thiết lập phản biện"
+            finishLabel="Chạy phản biện (AI)"
+            finishDisabled={tooLarge || !lenses.length || !hasBody || lenses.length > budget}
+            onFinish={() => void start()}
+            note={`Ước tính: ${characters.toLocaleString('vi-VN')} ký tự · ${lenses.length} lượt gọi AI (có thể phát sinh khi thử lại hoặc sửa kết quả).`}
+            steps={[
+              {
+                id: 'lenses',
+                title: 'Chọn góc nhìn',
+                summary: `${lenses.length} góc nhìn`,
+                ready: lenses.length > 0,
+                content: (
+                  <fieldset>
+                    <legend>Góc nhìn</legend>
+                    {LensSchema.options.map((lens) => (
+                      <Checkbox
+                        key={lens}
+                        checked={lenses.includes(lens)}
+                        onChange={(e) =>
+                          setLenses((old) =>
+                            e.target.checked ? [...old, lens] : old.filter((item) => item !== lens),
+                          )
+                        }
+                      >
+                        {LENSES[lens].label} — {LENS_DESCRIPTIONS[lens]}
+                      </Checkbox>
+                    ))}
+                  </fieldset>
+                ),
+              },
+              {
+                id: 'sections',
+                title: 'Chọn mục',
+                summary: `${sections.length} mục`,
+                ready: hasBody && !tooLarge,
+                content: (
+                  <>
+                    <SectionPicker
+                      paper={paper}
+                      value={sections}
+                      onChange={setSections}
+                      legend="Mục được gửi"
+                      count={(section) =>
+                        paper.paragraphs.filter((p) => p.sectionId === section.id && p.kind === 'body').length
+                      }
+                    />
+                    {tooLarge && <p role="alert">Vui lòng chọn ít phần hơn (tối đa 60.000 ký tự).</p>}
+                  </>
+                ),
+              },
+              {
+                id: 'confirm',
+                title: 'Xác nhận và chạy',
+                content: (
+                  <>
+                    <TextField
+                      label="Giới hạn lượt gọi phản biện"
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={budget}
+                      onChange={(e) => setBudget(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+                    />
+                    {lenses.length > budget && <p role="alert">Ước tính vượt giới hạn lượt gọi.</p>}
+                  </>
+                ),
+              },
+            ]}
+          />
         )}
       </Card>
       {error && (
@@ -237,6 +269,7 @@ export function PaperReview({
           {notesPanel}
           {run && (
             <ReviewResults
+              paper={paper}
               run={run}
               decisions={record?.decisions ?? []}
               onLocation={onLocation}

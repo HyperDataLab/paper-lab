@@ -75,7 +75,9 @@ it('P4 runs local checks, navigates to evidence, reviews and shows overview coun
   expect(screen.getAllByText(/Chưa hiệu chuẩn/)).toHaveLength(6);
   expect(screen.getByLabelText('Ẩn mục chưa đáng tin')).not.toBeChecked();
   expect(screen.getByText(/Lần chạy gần nhất/)).toBeInTheDocument();
-  fireEvent.click(within(card).getByRole('button', { name: /p2:.*Figure 2/ }));
+  fireEvent.click(
+    within(card).getByText('“Figure 2”').closest('article')?.querySelector('button') as HTMLElement,
+  );
   expect(screen.getByRole('tab', { name: 'Đọc bài' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
   expect(scroll).toHaveBeenCalled();

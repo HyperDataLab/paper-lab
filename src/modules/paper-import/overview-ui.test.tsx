@@ -171,6 +171,7 @@ it('P3 shows distributions, recurring filters, transition review and stale notic
   const { repo, paper } = await setup();
   fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chuyển đoạn' }));
   expect(screen.getByText('Chuyển đoạn: ~1 lượt gọi AI')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));

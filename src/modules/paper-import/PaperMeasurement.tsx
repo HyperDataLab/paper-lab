@@ -24,7 +24,9 @@ import { BatchBudgetExceededError } from '@/core/batch/runBatch';
 import { downloadJson, downloadText } from '@/shared/calibration/download';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
+import { ActionBar, ActionMenu } from '@/shared/ui/ActionBar';
 import { Card } from '@/shared/ui/Card';
+import { Wizard } from '@/shared/ui/Wizard';
 import { TextField } from '@/shared/ui/TextField';
 import { Tree, type TreeNode } from '@/shared/ui/Tree';
 import type { Decide, ItemContext, Location } from './MeasurementItems';
@@ -176,32 +178,47 @@ export function PaperMeasurement({
   if (loading) return <p>Đang tải hồ sơ đo lường…</p>;
   const pending = record?.pending ?? null;
   const setup = (
-    <>
-      <SectionPicker
-        paper={paper}
-        value={sections}
-        onChange={setSections}
-        disabled={running}
-        legend="Mục được gửi cho AI"
-        count={(section) =>
-          paper.paragraphs.filter((p) => p.sectionId === section.id && isMeasurementBlock(p)).length
-        }
-      />
-      <p>Ước tính {estimate} lượt gọi AI (chưa tính thử lại).</p>
-      <TextField
-        label="Trần số lượt gọi"
-        type="number"
-        min={1}
-        value={String(budget)}
-        disabled={running}
-        onChange={(e) => setBudget(Number(e.target.value))}
-      />
-      <div className={styles.meta}>
-        <Button variant="primary" disabled={running || !sections.length} onClick={() => void start(null)}>
-          Bắt đầu phân tích
-        </Button>
-      </div>
-    </>
+    <Wizard
+      label="Các bước thiết lập phân tích đo lường"
+      finishLabel="Bắt đầu phân tích"
+      finishDisabled={running || !sections.length}
+      onFinish={() => void start(null)}
+      note={`Ước tính ${estimate} lượt gọi AI (chưa tính thử lại).`}
+      steps={[
+        {
+          id: 'sections',
+          title: 'Chọn mục',
+          summary: `${sections.length} mục`,
+          ready: sections.length > 0,
+          content: (
+            <SectionPicker
+              paper={paper}
+              value={sections}
+              onChange={setSections}
+              disabled={running}
+              legend="Mục được gửi cho AI"
+              count={(section) =>
+                paper.paragraphs.filter((p) => p.sectionId === section.id && isMeasurementBlock(p)).length
+              }
+            />
+          ),
+        },
+        {
+          id: 'confirm',
+          title: 'Xác nhận và chạy',
+          content: (
+            <TextField
+              label="Trần số lượt gọi"
+              type="number"
+              min={1}
+              value={String(budget)}
+              disabled={running}
+              onChange={(e) => setBudget(Number(e.target.value))}
+            />
+          ),
+        },
+      ]}
+    />
   );
   const nodes = profile ? buildMeasurementTree(profile) : [];
   const flat = flattenMeasurementTree(nodes);
@@ -233,90 +250,78 @@ export function PaperMeasurement({
             với bài bằng code; bạn là người quyết định cuối.
           </p>
         )}
-        <div className={styles.runBar}>
-          <span>
-            {run
-              ? `Phân tích lúc ${new Date(run.createdAt).toLocaleString('vi-VN')} · ${run.callsUsed} lượt gọi`
-              : 'Chưa phân tích bài này.'}
-          </span>
+        <ActionBar
+          status={
+            running || used > 0 ? (
+              <span role="status">
+                {used}/{budget} lượt {progress && `· ${progress}`}
+              </span>
+            ) : run ? (
+              `Phân tích lúc ${new Date(run.createdAt).toLocaleString('vi-VN')} · ${run.callsUsed} lượt gọi`
+            ) : (
+              'Chưa phân tích bài này.'
+            )
+          }
+        >
           {running ? (
             <Button variant="danger" onClick={() => controller.current?.abort()}>
               Dừng
             </Button>
           ) : (
             <>
-              {pending && (
-                <Button variant="primary" onClick={() => void start(pending)}>
-                  Tiếp tục phần còn lại ({Object.keys(pending.checkpoint.units).length} phần đã xong)
-                </Button>
+              {run && (
+                <ActionMenu
+                  label="Xuất"
+                  items={[
+                    {
+                      label: 'JSON',
+                      onSelect: () =>
+                        downloadJson(`${exportName}.json`, measurementJson(run, record?.decisions ?? [])),
+                    },
+                    {
+                      label: 'Markdown',
+                      onSelect: () =>
+                        downloadText(
+                          `${exportName}.md`,
+                          measurementMarkdown(exported(run)),
+                          'text/markdown;charset=utf-8',
+                        ),
+                    },
+                    {
+                      label: 'CSV metric',
+                      onSelect: () =>
+                        downloadText(`${exportName}-metrics.csv`, `\uFEFF${metricsCsv(exported(run))}`, CSV),
+                    },
+                    {
+                      label: 'CSV protocol',
+                      onSelect: () =>
+                        downloadText(
+                          `${exportName}-protocol.csv`,
+                          `\uFEFF${protocolCsv(exported(run))}`,
+                          CSV,
+                        ),
+                    },
+                    {
+                      label: 'CSV câu nguyên tử',
+                      onSelect: () =>
+                        downloadText(`${exportName}-atomic.csv`, `\uFEFF${atomicCsv(exported(run))}`, CSV),
+                    },
+                  ]}
+                />
               )}
               {run && (
                 <Button onClick={() => setShowSetup(!showSetup)}>
                   {showSetup ? 'Ẩn thiết lập' : 'Phân tích lại'}
                 </Button>
               )}
+              {pending && (
+                <Button variant="primary" onClick={() => void start(pending)}>
+                  Tiếp tục phần còn lại ({Object.keys(pending.checkpoint.units).length} phần đã xong)
+                </Button>
+              )}
             </>
           )}
-          {(running || used > 0) && (
-            <span role="status">
-              {used}/{budget} lượt {progress && `· ${progress}`}
-            </span>
-          )}
-        </div>
-        {run && (
-          <div className={styles.meta}>
-            <span>Xuất hồ sơ đã duyệt:</span>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() =>
-                downloadJson(`${exportName}.json`, measurementJson(run, record?.decisions ?? []))
-              }
-            >
-              JSON
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() =>
-                downloadText(
-                  `${exportName}.md`,
-                  measurementMarkdown(exported(run)),
-                  'text/markdown;charset=utf-8',
-                )
-              }
-            >
-              Markdown
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() =>
-                downloadText(`${exportName}-metrics.csv`, `\uFEFF${metricsCsv(exported(run))}`, CSV)
-              }
-            >
-              CSV metric
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() =>
-                downloadText(`${exportName}-protocol.csv`, `\uFEFF${protocolCsv(exported(run))}`, CSV)
-              }
-            >
-              CSV protocol
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() =>
-                downloadText(`${exportName}-atomic.csv`, `\uFEFF${atomicCsv(exported(run))}`, CSV)
-              }
-            >
-              CSV câu nguyên tử
-            </Button>
-          </div>
-        )}
+        </ActionBar>
         {(!run || showSetup) && !running && setup}
         {error && <div role="alert">{error}</div>}
       </Card>

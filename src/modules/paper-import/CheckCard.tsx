@@ -4,6 +4,7 @@ import { Card } from '@/shared/ui/Card';
 import { CHECK_STATUSES, type CheckHandlers } from './checkTypes';
 import { FindingRow } from './CheckFinding';
 import { CalibrationBadge } from '@/shared/calibration/CalibrationBadge';
+import styles from './page.module.css';
 const FOLD_AFTER = 5;
 
 export function CheckCard({
@@ -26,20 +27,34 @@ export function CheckCard({
   const decision = (id: string) => record.decisions.find((d) => d.findingId === id);
   const active = check.findings.filter((f) => decision(f.id)?.status !== 'dismissed_by_human');
   const dismissed = check.findings.filter((f) => decision(f.id)?.status === 'dismissed_by_human');
-  const rows = (findings: Finding[]) => (
-    <ul>
-      {findings.map((finding) => (
-        <FindingRow
-          key={finding.id}
-          finding={finding}
-          paper={paper}
-          decision={decision(finding.id)}
-          onReview={onReview}
-          onLocation={onLocation}
-        />
-      ))}
-    </ul>
-  );
+  // The same message on many findings is said once, above the places it applies to.
+  const rows = (findings: Finding[]) =>
+    [...new Set(findings.map((finding) => finding.message))].map((message) => {
+      const group = findings.filter((finding) => finding.message === message);
+      return (
+        <div key={message} className={styles.findingGroup}>
+          {group.length > 1 && (
+            <p className={styles.findingMessage}>
+              {message} ({group.length})
+            </p>
+          )}
+          <ul className={styles.findingList}>
+            {group.map((finding) => (
+              <FindingRow
+                key={finding.id}
+                finding={finding}
+                label={check.label}
+                hideMessage={group.length > 1}
+                paper={paper}
+                decision={decision(finding.id)}
+                onReview={onReview}
+                onLocation={onLocation}
+              />
+            ))}
+          </ul>
+        </div>
+      );
+    });
   return (
     <Card>
       <h2>{check.label}</h2>

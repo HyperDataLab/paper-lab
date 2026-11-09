@@ -1,5 +1,6 @@
 .page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
 }
 .drop {
@@ -217,4 +218,50 @@
     position: static;
     max-height: calc(var(--space-10) * 8);
   }
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.findingList {
+  display: grid;
+  gap: var(--space-3);
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+}
+
+.findingGroup {
+  margin-top: var(--space-3);
+}
+.findingMessage {
+  font-weight: 600;
+  margin: 0;
+}
+.locations {
+  display: grid;
+  gap: var(--space-1);
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+}
+.locations button {
+  height: auto;
+  text-align: left;
+  white-space: normal;
+}
+
+.paperTitle {
+  font-weight: 600;
+}
+.paperMeta {
+  margin: var(--space-1) 0 0;
+}
+.paperHead .paperMeta {
+  margin: 0;
 }

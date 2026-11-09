@@ -146,6 +146,7 @@ it('FR-01 runs an analysis with an estimate and budget', async () => {
   });
   await setup(false, { completeJson } as unknown as LlmClient);
   expect(await screen.findByText(/Ước tính 5 lượt gọi/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu phân tích' }));
   expect(await screen.findByText('Nghiên cứu trường hợp')).toBeInTheDocument();
   expect(completeJson).toHaveBeenCalledTimes(5);
@@ -162,6 +163,7 @@ it('FR-01 saves the call count before a classification request fails', async () 
     throw new Error('synthetic failure');
   });
   const context = await setup(false, { completeJson } as unknown as LlmClient);
+  fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu phân tích' }));
   expect(await screen.findByRole('button', { name: /Tiếp tục phần còn lại/ })).toBeInTheDocument();
   expect(completeJson).toHaveBeenCalledTimes(1);
@@ -191,6 +193,7 @@ it('FR-01 offers resume when linking fails after extraction', async () => {
     };
   });
   const { repo } = await setup(false, { completeJson } as unknown as LlmClient);
+  fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu phân tích' }));
   expect(await screen.findByRole('button', { name: /Tiếp tục phần còn lại/ })).toBeInTheDocument();
   expect((await repo.measurements.get(PAPER_ID))?.runs[0]?.profile.steps.link).toBe('failed');
@@ -202,8 +205,10 @@ it('FR-16 offers the four exports and downloads the reviewed profile', async () 
   const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
   await setup();
   await screen.findByText('Thực nghiệm');
-  for (const name of ['JSON', 'Markdown', 'CSV metric', 'CSV protocol'])
-    fireEvent.click(screen.getByRole('button', { name }));
+  for (const name of ['JSON', 'Markdown', 'CSV metric', 'CSV protocol']) {
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất' }));
+    fireEvent.click(screen.getByRole('menuitem', { name }));
+  }
   expect(click).toHaveBeenCalledTimes(4);
   expect(await create.mock.calls[2]?.[0].text()).toContain('reported_name');
   click.mockRestore();

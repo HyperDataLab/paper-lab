@@ -129,8 +129,10 @@ export default function Page() {
                   <Card>
                     <div className={styles.row}>
                       <div>
-                        <Link to={`/papers/${paper.id}`}>{paper.title}</Link>
-                        <p>
+                        <Link className={styles.paperTitle} to={`/papers/${paper.id}`}>
+                          {paper.title}
+                        </Link>
+                        <p className={styles.paperMeta}>
                           {paper.source.pageCount ?? 'Không rõ'} trang · {paper.sections.length} mục ·{' '}
                           {paper.paragraphs.length} đoạn ·{' '}
                           {new Date(paper.createdAt).toLocaleDateString('vi')}
@@ -165,7 +167,9 @@ export default function Page() {
             <Button data-dialog-initial-focus onClick={() => setDeleting(null)}>
               Huỷ
             </Button>
-            <Button onClick={() => void remove()}>Xoá bài báo</Button>
+            <Button variant="danger" onClick={() => void remove()}>
+              Xoá bài báo
+            </Button>
           </div>
         </Dialog>
       )}
