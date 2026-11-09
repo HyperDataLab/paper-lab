@@ -29,8 +29,8 @@ product will keep adding modules (Section/IMRaD, Citation, Figure captions, Batc
 
 - Items come from `src/app/modules.ts`. Each `ModuleDefinition` has `id`, `label` (vi), `icon`, `path`,
   `group: 'analysis' | 'paper' | 'data' | 'labs' | 'system'`, `order`, `status: 'ready' | 'beta' | 'soon'`, `page` (lazy).
-- The **PHÂN TÍCH BÀI BÁO** group contains the beta **Tải bài báo** module. Its paper map shows a section outline,
-  the selected section and a summary; these columns stack on smaller screens.
+- Groups run **BÀI BÁO**, **ĐOẠN VĂN**, **DỮ LIỆU**, then system. The app opens on the paper list. Paper work comes first because
+  it is the product's main job; single-paragraph tools are secondary.
 - `soon` modules render disabled with a badge; `beta` shows a small "Beta" pill.
 - Collapsed state is remembered in `localStorage` (try/catch). Widths: 240 px expanded, 64 px rail.
 - Active item: left accent bar + bold label + `aria-current="page"`. Keyboard: Tab order follows the list,
@@ -169,3 +169,19 @@ sections, reviewer lenses, character and call estimates, budget and manuscript c
 similarity, template and human-agreement counts, with filters and audited decisions on anchored points. Quotes
 open the paper map at the highlighted span; unanchored points remain separate and cannot be confirmed. Model and
 prompt versions accompany the advisory banner.
+
+## 9. Paper workspace
+
+The header (title, page, section and word counts) and the tabs come first on the page, and the tabs stay visible while scrolling.
+Setup never sits above them. Tabs follow what a researcher does, in two groups: **Hiểu bài** (Đọc bài, Đo lường) and **Đánh giá bản thảo**
+(Chất lượng viết, Kiểm tra, Phản biện AI, Độ bền điểm). One muted line under the tabs says what the current tab is for.
+
+Anything with more than a screenful of items is a tree or folds:
+
+- Đọc bài has a sticky outline tree (`shared/ui/Tree`, ARIA tree keyboard pattern) built from section levels, with a filter and body-paragraph
+  counts that include children. The reading column shows one section at a time with previous and next.
+- Four or more consecutive list, equation or footnote blocks fold into one row, and open when a highlight lands inside.
+- Internal ids and the `body` kind are not shown; other kinds carry a Vietnamese label.
+- `SectionPicker` is the one way to choose sections for AI work: an outline with tri-state parents, a live count and the presets
+  Chọn tất cả, Phần chính, Bỏ chọn.
+- Each screen has one primary button, named for what it does. Once a run exists its setup folds behind "Chạy với lựa chọn khác".

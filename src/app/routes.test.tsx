@@ -1,13 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from './App';
-it('redirects / to the evaluate page', async () => {
+it('redirects / to the papers page', async () => {
   render(
     <MemoryRouter initialEntries={['/']}>
       <App />
     </MemoryRouter>,
   );
-  expect(await screen.findByRole('heading', { name: 'Đánh giá' }, { timeout: 5000 })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Bài báo' }, { timeout: 5000 })).toBeInTheDocument();
 });
 it('shows a 404 for unknown paths', () => {
   render(

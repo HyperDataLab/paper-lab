@@ -169,10 +169,11 @@ async function setup() {
 }
 it('P3 shows distributions, recurring filters, transition review and stale notice', async () => {
   const { repo, paper } = await setup();
+  fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chuyển đoạn' }));
   expect(screen.getByText('Chuyển đoạn: ~1 lượt gọi AI')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('tab', { name: 'Tổng quan' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));
   expect(await screen.findByText('Đã phân tích 3/4 đoạn (75 %)')).toBeInTheDocument();
   expect(screen.getByText(/Kết quả chuyển đoạn đã cũ/)).toBeInTheDocument();
   expect(screen.getByText('62,5 (56,25–68,75, n = 2)')).toBeInTheDocument();
@@ -193,9 +194,9 @@ it('P3 shows distributions, recurring filters, transition review and stale notic
     (await repo.audit.listByAnalysis(paper.id)).items.filter((e) => e.action === 'review_transition'),
   ).toHaveLength(3);
   fireEvent.click(screen.getByRole('button', { name: /Động từ chưa cụ thể · 3 lần/ }));
-  expect(screen.getByRole('tab', { name: 'Sơ đồ' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'Đọc bài' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByText('Paragraph 1.')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: /Results/ }));
+  fireEvent.click(screen.getByRole('treeitem', { name: /Results/ }));
   expect(screen.getByText('Paragraph 3.')).toBeInTheDocument();
   expect(screen.queryByText('Paragraph 4.')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ lọc' }));
@@ -208,7 +209,7 @@ it('P3 marks a transition unavailable when its annotations disappear', async () 
   const first = analyses.find((item) => item.origin?.kind === 'paper' && item.origin.paragraphId === 'p1');
   if (!first) throw new Error('Missing analysis');
   await repo.analyses.update(first.id, { sentenceAnnotations: [] });
-  fireEvent.click(screen.getByRole('tab', { name: 'Tổng quan' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Chất lượng viết' }));
   expect(await screen.findByText('Không còn hợp lệ')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeDisabled();
 });

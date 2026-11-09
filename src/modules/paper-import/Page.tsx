@@ -106,7 +106,7 @@ export default function Page() {
   }
   return (
     <div className={styles.page}>
-      <h1>Tải bài báo</h1>
+      <h1>Bài báo</h1>
       <Card>
         <div
           className={styles.drop}
@@ -129,7 +129,7 @@ export default function Page() {
               if (file) void read(file);
             }}
           />
-          <Button disabled={busy} onClick={() => input.current?.click()}>
+          <Button variant="primary" disabled={busy} onClick={() => input.current?.click()}>
             Chọn tệp
           </Button>
           <p>Tệp được xử lý trên máy của bạn, không tải lên máy chủ</p>
@@ -164,6 +164,8 @@ export default function Page() {
                     </p>
                   </div>
                   <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={(event) => {
                       setTrigger(event.currentTarget);
                       setDeleting(paper);

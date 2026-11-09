@@ -11,6 +11,7 @@ import { Checkbox } from '@/shared/ui/Checkbox';
 import { TextField } from '@/shared/ui/TextField';
 import { LENS_DESCRIPTIONS } from './reviewLabels';
 import { ReviewResults } from './ReviewResults';
+import { SectionPicker } from './SectionPicker';
 import styles from './review.module.css';
 import { captureCalibration } from '@/shared/calibration/data';
 
@@ -181,23 +182,16 @@ export function PaperReview({
             </Checkbox>
           ))}
         </fieldset>
-        <fieldset disabled={running}>
-          <legend>Mục được gửi</legend>
-          {paper.sections.map((section) => (
-            <Checkbox
-              key={section.id}
-              checked={sections.includes(section.id)}
-              onChange={(e) =>
-                setSections((old) =>
-                  e.target.checked ? [...old, section.id] : old.filter((item) => item !== section.id),
-                )
-              }
-            >
-              {section.heading} (
-              {paper.paragraphs.filter((p) => p.sectionId === section.id && p.kind === 'body').length} đoạn)
-            </Checkbox>
-          ))}
-        </fieldset>
+        <SectionPicker
+          paper={paper}
+          value={sections}
+          onChange={setSections}
+          disabled={running}
+          legend="Mục được gửi"
+          count={(section) =>
+            paper.paragraphs.filter((p) => p.sectionId === section.id && p.kind === 'body').length
+          }
+        />
         <p>
           Ước tính: {characters.toLocaleString('vi-VN')} ký tự · {lenses.length} lượt gọi AI (có thể phát sinh
           khi thử lại hoặc sửa kết quả).

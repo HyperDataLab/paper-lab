@@ -6,7 +6,7 @@ const module: ModuleDefinition = {
   label: 'Hiệu chuẩn',
   icon: SlidersHorizontal,
   path: '/calibration',
-  group: 'labs',
+  group: 'data',
   order: 5,
   status: 'beta',
   page: lazy(() => import('./Page')),

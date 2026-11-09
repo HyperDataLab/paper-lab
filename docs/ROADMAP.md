@@ -47,11 +47,6 @@ Measurement quality targets (PRD §12) are not measured yet: they need a gold st
 P2 follow-up: share syntax requests across paragraphs in the same section, in batches of at most 40
 sentences. Until then, syntax uses one request per selected paragraph and estimates use the same unit.
 
-## Later modules (sidebar group "Sắp có")
-
-Calibration set & inter-rater agreement (PRD §12 caveat), batch mode for a whole section, link with
-paper-understanding (import paragraphs from its export package).
-
 ## Open decisions
 
 - Hosting: Firebase Hosting (ADR-0001) or an Oracle Cloud Always Free VM (ADR-0005, proposed). Keep the app
