@@ -37,7 +37,7 @@ Status: ⬜ not started · 🟨 in progress · ✅ accepted.
 | #   | Slice                                                                 | Status |
 | --- | --------------------------------------------------------------------- | ------ |
 | M1  | Table and equation blocks in the PDF reader                           | ✅     |
-| M2  | Schema, paper classification, per-section extraction, evidence checks | ⬜     |
+| M2  | Schema, paper classification, per-section extraction, evidence checks | ✅     |
 | M3  | Linking, same-name metrics, claims, six warnings, survey mode         | ⬜     |
 | M4  | `Đo lường` tab, human review, audit, evidence navigation              | ⬜     |
 | M5  | JSON/Markdown/CSV export, transparency, gold-standard tool            | ⬜     |

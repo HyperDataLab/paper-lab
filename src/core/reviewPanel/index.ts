@@ -22,7 +22,7 @@ function normalized(text: string, insensitive: boolean) {
   });
   return { text: chars.join(''), positions };
 }
-function locate(text: string, quote: string) {
+export function locate(text: string, quote: string) {
   if (!quote) return null;
   const exact = text.indexOf(quote);
   if (exact >= 0)
