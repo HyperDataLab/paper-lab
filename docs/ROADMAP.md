@@ -32,6 +32,16 @@ Status: ⬜ not started · 🟨 in progress · ✅ accepted.
 | P6   | Score robustness probe (style-only rewrite → score sensitivity)                         | ✅     |
 | P7   | Calibration and transparency                                                            | ✅     |
 
+## Paper library (adapted from SLR Paper Fetcher)
+
+| #   | Slice                                                                   | Status |
+| --- | ----------------------------------------------------------------------- | ------ |
+| F1  | DOI library: paste or CSV, metadata, status table, RIS export           | ✅     |
+| F2  | Open full text: find open copies, arXiv download, attach a PDF to a row | ✅     |
+| F3  | OpenAlex classification and filters                                     | ✅     |
+| F4  | Hyland stance and engagement                                            | ⬜     |
+| F5  | Relationships between papers from checked atomic sentences              | ⬜     |
+
 ## Paper measurement extraction (`docs/PRD_Measurement.md`)
 
 | #   | Slice                                                                 | Status |

@@ -1,0 +1,112 @@
+import { beforeEach, expect, it, vi } from 'vitest';
+import { createScholarClient, ScholarHttpError } from './client';
+import { getScholarEmail, isValidEmail, saveScholarEmail } from './settings';
+
+const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
+  new Response(JSON.stringify(body), { status, headers });
+const work = { title: 'T', open_access: { is_oa: false } };
+const doi = '10.1000/alpha';
+
+function setup(routes: Record<string, () => Response>) {
+  const calls: string[] = [];
+  const fetch = vi.fn<typeof globalThis.fetch>().mockImplementation(async (input) => {
+    const url = String(input);
+    calls.push(url);
+    const route = Object.keys(routes).find((key) => url.includes(key));
+    return route ? (routes[route] as () => Response)() : json({}, 404);
+  });
+  return { fetch, calls, sleep: vi.fn(async () => {}) };
+}
+const client = (s: ReturnType<typeof setup>, email: string | null = null) =>
+  createScholarClient({ email }, { fetch: s.fetch, sleep: s.sleep });
+
+it('F1 uses OpenAlex and sends the email only to Unpaywall', async () => {
+  const s = setup({
+    openalex: () => json(work),
+    unpaywall: () => json({ is_oa: true, best_oa_location: { url_for_pdf: 'https://u.org/p.pdf' } }),
+    ebi: () => json({}),
+  });
+  const outcome = await client(s, 'a@b.org').lookupDoi(doi);
+  expect(outcome).toMatchObject({ found: true, patch: { title: 'T', access: 'open' } });
+  expect(s.calls.filter((url) => url.includes('a%40b.org')).every((url) => url.includes('unpaywall'))).toBe(
+    true,
+  );
+  expect(s.calls.some((url) => url.includes('a%40b.org'))).toBe(true);
+  expect(s.calls.some((url) => url.includes('ebi'))).toBe(false);
+});
+
+it('F1 skips Unpaywall without an email and asks Europe PMC', async () => {
+  const s = setup({ openalex: () => json(work), ebi: () => json({ resultList: { result: [] } }) });
+  const outcome = await client(s).lookupDoi(doi);
+  expect(s.calls.some((url) => url.includes('unpaywall'))).toBe(false);
+  expect(outcome).toMatchObject({ patch: { access: 'none_found' } });
+});
+
+it('F1 falls back to Crossref, then reports a DOI that does not exist', async () => {
+  const fallback = setup({
+    crossref: () => json({ message: { title: ['From Crossref'] } }),
+    ebi: () => json({}),
+  });
+  expect(await client(fallback).lookupDoi(doi)).toMatchObject({
+    found: true,
+    patch: { title: 'From Crossref' },
+  });
+  expect(await client(setup({})).lookupDoi(doi)).toEqual({ found: false });
+});
+
+it('F1 retries throttling, honouring Retry-After, then gives up', async () => {
+  let count = 0;
+  const s = setup({
+    openalex: () => (++count === 1 ? json({}, 429, { 'Retry-After': '3' }) : json(work)),
+    ebi: () => json({}),
+  });
+  await client(s).lookupDoi(doi);
+  expect(s.sleep).toHaveBeenCalledWith(3000);
+  const down = setup({ openalex: () => json({}, 503) });
+  await expect(client(down).lookupDoi(doi)).rejects.toBeInstanceOf(ScholarHttpError);
+  expect(down.calls).toHaveLength(3);
+  const bad = setup({ openalex: () => json({}, 400) });
+  await expect(client(bad).lookupDoi(doi)).rejects.toBeInstanceOf(ScholarHttpError);
+  expect(bad.calls).toHaveLength(1);
+});
+
+it('F2 keeps the metadata and says unknown when an open-access source fails', async () => {
+  const s = setup({ openalex: () => json(work), ebi: () => json({}, 400) });
+  expect(await client(s).lookupDoi(doi)).toMatchObject({
+    found: true,
+    patch: { title: 'T', access: 'unknown' },
+  });
+});
+
+it('F2 stops when cancelled during an open-access lookup', async () => {
+  const s = setup({ openalex: () => json(work) });
+  s.fetch.mockImplementation(async (input) => {
+    if (String(input).includes('openalex')) return json(work);
+    throw new DOMException('Aborted', 'AbortError');
+  });
+  await expect(client(s).lookupDoi(doi)).rejects.toMatchObject({ name: 'AbortError' });
+});
+
+it('F2 downloads a real PDF from arXiv and refuses anything else', async () => {
+  const pdf = () => new Response(new TextEncoder().encode('%PDF-1.4 body'), { status: 200 });
+  const ok = setup({ 'arxiv.org/pdf': pdf });
+  const file = await client(ok).downloadArxivPdf('2605.03202', 'x.pdf');
+  expect(file.name).toBe('x.pdf');
+  expect(ok.calls[0]).toBe('https://arxiv.org/pdf/2605.03202');
+  const html = setup({ 'arxiv.org/pdf': () => new Response('<html>', { status: 200 }) });
+  await expect(client(html).downloadArxivPdf('1', 'x.pdf')).rejects.toThrow('arXiv');
+  const gone = setup({ 'arxiv.org/pdf': () => new Response('', { status: 404 }) });
+  await expect(client(gone).downloadArxivPdf('1', 'x.pdf')).rejects.toBeInstanceOf(ScholarHttpError);
+});
+
+beforeEach(() => localStorage.clear());
+
+it('F2 stores the Unpaywall email only when valid and clears it when empty', () => {
+  expect(getScholarEmail()).toBeNull();
+  expect(isValidEmail('a@b')).toBe(false);
+  expect(saveScholarEmail('bad')).toBe(false);
+  expect(saveScholarEmail(' a@b.org ')).toBe(true);
+  expect(getScholarEmail()).toBe('a@b.org');
+  expect(saveScholarEmail('')).toBe(true);
+  expect(getScholarEmail()).toBeNull();
+});

@@ -10,6 +10,7 @@ import type {
   PaperChecksRecord,
   PaperReviewsRecord,
   MeasurementsRecord,
+  LibraryItem,
   PaperProbesRecord,
   CalibrationLabelSet,
 } from '@/core/schemas';
@@ -26,6 +27,7 @@ export class ParagraphDb extends Dexie {
   paperReviews!: Table<PaperReviewsRecord, string>;
   paperProbes!: Table<PaperProbesRecord, string>;
   measurements!: Table<MeasurementsRecord, string>;
+  library!: Table<LibraryItem, string>;
   reviewNgrams!: Table<ReviewNgram, [string, string]>;
   calibrationLabels!: Table<CalibrationLabelSet, string>;
   constructor(name = 'paragraph-lab') {
@@ -50,6 +52,7 @@ export class ParagraphDb extends Dexie {
     this.version(9).stores({ paperProbes: 'paperId' });
     this.version(10).stores({ calibrationLabels: 'id, importedAt' });
     this.version(11).stores({ measurements: 'paperId' });
+    this.version(12).stores({ library: 'id, &doi, paper_id' });
   }
 }
 export function createDb(name?: string) {
