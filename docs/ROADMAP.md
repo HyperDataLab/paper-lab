@@ -40,7 +40,6 @@ Status: ⬜ not started · 🟨 in progress · ✅ accepted.
 | F2  | Open full text: find open copies, arXiv download, attach a PDF to a row | ✅     |
 | F3  | OpenAlex classification and filters                                     | ✅     |
 | F4  | Hyland stance and engagement                                            | ✅     |
-| F5  | Relationships between papers from checked atomic sentences              | ⬜     |
 
 ## Paper measurement extraction (`docs/PRD_Measurement.md`)
 
