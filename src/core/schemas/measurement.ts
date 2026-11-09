@@ -117,6 +117,48 @@ export const ExtractionOutputSchema = z.object({
     })
     .nullable(),
 });
+export const LinkOutputSchema = z.object({
+  metric_merges: z.array(z.object({ ids: z.array(z.string()), reason: z.string() })),
+  result_links: z.array(
+    z.object({
+      result_id: z.string(),
+      metric_id: z.string().nullable(),
+      experiment_id: z.string().nullable(),
+    }),
+  ),
+  metric_experiments: z.array(z.object({ metric_id: z.string(), experiment_id: z.string() })),
+  claim_links: z.array(
+    z.object({
+      claim_id: z.string(),
+      result_ids: z.array(z.string()),
+      metric_ids: z.array(z.string()),
+      evidence_scope: z.string(),
+    }),
+  ),
+});
+export const FindingTypeSchema = z.enum([
+  'definition_ambiguity',
+  'unit_scale_mismatch',
+  'protocol_incompleteness',
+  'aggregation_ambiguity',
+  'comparability_risk',
+  'claim_evidence_gap',
+]);
+export const FindingsOutputSchema = z.object({
+  findings: z.array(
+    z.object({
+      type: FindingTypeSchema,
+      severity: z.enum(['low', 'medium', 'high']),
+      explanation: z.string(),
+      limitation_of_assessment: z.string(),
+      suggested_question_to_author: z.string(),
+      related_item_ids: z.array(z.string()),
+      evidence_ids: z.array(z.string()),
+    }),
+  ),
+});
+export type LinkOutput = z.infer<typeof LinkOutputSchema>;
+export type FindingsOutput = z.infer<typeof FindingsOutputSchema>;
 export type QuoteRef = z.infer<typeof QuoteRefSchema>;
 export type ModelField = z.infer<typeof ModelFieldSchema>;
 export type ClassifyOutput = z.infer<typeof ClassifyOutputSchema>;
@@ -208,14 +250,6 @@ export const ResearchClaimSchema = z.object({
   linked_metric_ids: z.array(z.string()),
   evidence_ids: z.array(z.string()),
 });
-export const FindingTypeSchema = z.enum([
-  'definition_ambiguity',
-  'unit_scale_mismatch',
-  'protocol_incompleteness',
-  'aggregation_ambiguity',
-  'comparability_risk',
-  'claim_evidence_gap',
-]);
 export const AnalysisFindingSchema = z.object({
   id: z.string(),
   type: FindingTypeSchema,
@@ -250,6 +284,10 @@ export const MeasurementProfileSchema = z.object({
     analysed: z.array(z.string()),
     failed: z.array(z.string()),
     not_selected: z.array(z.string()),
+  }),
+  steps: z.object({
+    link: z.enum(['done', 'failed', 'not_run']),
+    findings: z.enum(['done', 'failed', 'not_run']),
   }),
   constructs: z.array(ConstructSchema),
   metrics: z.array(MetricUsageSchema),

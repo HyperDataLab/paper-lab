@@ -45,10 +45,20 @@ const extraction = JSON.stringify(
 );
 const reply = (content: string) =>
   new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
-function setup(contents: string[]) {
-  const fetch = vi
-    .fn<typeof globalThis.fetch>()
-    .mockImplementation(async () => reply(contents.shift() ?? extraction));
+const links = JSON.stringify({
+  metric_merges: [],
+  result_links: [],
+  metric_experiments: [],
+  claim_links: [],
+});
+const findings = JSON.stringify({ findings: [] });
+function setup(contents: string[], later = { link: links, findings }) {
+  const fetch = vi.fn<typeof globalThis.fetch>().mockImplementation(async (_url, init) => {
+    const body = String(init?.body);
+    if (body.includes('"name":"measurement_links"')) return reply(later.link);
+    if (body.includes('"name":"measurement_findings"')) return reply(later.findings);
+    return reply(contents.shift() ?? extraction);
+  });
   return { fetch, client: createLlmClient(config, { fetch, sleep: async () => {}, now: () => 0 }) };
 }
 const options = (over = {}) => ({
@@ -68,9 +78,10 @@ it('M2 classifies then extracts each unit and counts requests', async () => {
   const { client, fetch } = setup([classify, extraction, extraction]);
   const onUnit = vi.fn();
   const run = await llmMeasurement(client, paper, options({ onUnit }));
-  expect(fetch).toHaveBeenCalledTimes(3);
-  expect(run.callsUsed).toBe(3);
+  expect(fetch).toHaveBeenCalledTimes(5);
+  expect(run.callsUsed).toBe(5);
   expect(run.profile.status).toBe('complete');
+  expect(run.profile.steps).toEqual({ link: 'done', findings: 'done' });
   expect(run.profile.coverage.analysed).toEqual(['a', 'm']);
   expect(onUnit).toHaveBeenLastCalledWith(2, 2);
 });
@@ -95,8 +106,8 @@ it('M2 stops at the budget and resumes from the checkpoint without repeating wor
   expect(Object.keys(saved.units)).toEqual(['unit-1']);
   const second = setup([extraction]);
   const run = await llmMeasurement(second.client, paper, options({ checkpoint: saved, callsUsed: 2 }));
-  expect(second.fetch).toHaveBeenCalledTimes(1);
-  expect(run.callsUsed).toBe(3);
+  expect(second.fetch).toHaveBeenCalledTimes(3);
+  expect(run.callsUsed).toBe(5);
   expect(run.profile.status).toBe('complete');
 });
 
@@ -114,7 +125,32 @@ it('M2 retries a failed unit once and recovers', async () => {
   const run = await llmMeasurement(client, paper, options());
   expect(run.failedUnits).toEqual([]);
   expect(run.profile.status).toBe('complete');
-  expect(fetch).toHaveBeenCalledTimes(5);
+  expect(fetch).toHaveBeenCalledTimes(7);
+});
+
+it('M3 marks the profile partial when linking fails and still runs findings', async () => {
+  const { client } = setup([classify, extraction, extraction], { link: 'bad', findings });
+  const run = await llmMeasurement(client, paper, options());
+  expect(run.profile.status).toBe('partial');
+  expect(run.profile.steps).toEqual({ link: 'failed', findings: 'done' });
+});
+
+it('M3 does not repeat finished steps and redoes them after new sections', async () => {
+  const done: MeasurementCheckpoint = {
+    classification: JSON.parse(classify),
+    units: { 'unit-1': JSON.parse(extraction), 'unit-2': JSON.parse(extraction) },
+    link: JSON.parse(links),
+    findings: JSON.parse(findings),
+    model: 'm',
+  };
+  const repeat = setup([]);
+  await llmMeasurement(repeat.client, paper, options({ checkpoint: structuredClone(done) }));
+  expect(repeat.fetch).not.toHaveBeenCalled();
+  const partial = structuredClone(done);
+  delete partial.units['unit-2'];
+  const resumed = setup([extraction]);
+  await llmMeasurement(resumed.client, paper, options({ checkpoint: partial }));
+  expect(resumed.fetch).toHaveBeenCalledTimes(3);
 });
 
 it('M2 rejects an empty selection', async () => {

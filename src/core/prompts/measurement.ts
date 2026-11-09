@@ -1,4 +1,5 @@
 import type { Paper, PaperParagraph } from '../schemas/paper';
+import type { MeasurementProfile, ProfileField } from '../schemas/measurement';
 import type { ExtractionUnit } from '../measurement/plan';
 import { PROTOCOL_FIELDS } from '../schemas/measurement';
 
@@ -80,5 +81,101 @@ A part that says nothing about measurement returns empty arrays.
 
 ${FIELD_RULES}`,
     user: renderDocument(paper, unit.blocks, unit.sectionIds),
+  };
+}
+
+const MAX_RESULTS_IN_PROMPT = 200;
+const short = (text: string | null) => (text && text.length > 300 ? `${text.slice(0, 300)}…` : text);
+const field = (item: ProfileField) => ({
+  value: short(item.value),
+  status: item.status,
+  evidence_ids: item.evidence_ids,
+});
+
+function profileDocument(profile: MeasurementProfile) {
+  const compact = {
+    paper_type: profile.paper_type,
+    sections_analysed: profile.coverage.analysed,
+    sections_not_analysed: [...profile.coverage.failed, ...profile.coverage.not_selected],
+    metrics: profile.metrics.map((metric) => ({
+      id: metric.id,
+      name: metric.reported_name,
+      aliases: metric.aliases,
+      definition: field(metric.definition),
+      unit: field(metric.unit),
+      direction: field(metric.direction),
+      aggregation: field(metric.method.aggregation),
+      experiment_ids: metric.experiment_ids,
+    })),
+    experiments: profile.experiments.map((experiment) => ({
+      id: experiment.id,
+      name: experiment.name,
+      protocol: Object.fromEntries(
+        Object.entries(experiment.protocol).map(([key, item]) => [key, field(item)]),
+      ),
+    })),
+    results: profile.results.slice(0, MAX_RESULTS_IN_PROMPT).map((result) => ({
+      id: result.id,
+      experiment_id: result.experiment_id,
+      metric_id: result.metric_usage_id,
+      system: result.system_or_baseline,
+      value: result.value,
+      unit: result.unit,
+      uncertainty: result.uncertainty,
+      condition: result.condition,
+      status: result.status,
+      evidence_ids: result.evidence_ids,
+    })),
+    claims: profile.claims.map((claim) => ({
+      id: claim.id,
+      text: claim.text,
+      evidence_ids: claim.evidence_ids,
+    })),
+    taxonomy: profile.taxonomy.map((entry) => ({
+      id: entry.id,
+      construct: entry.construct,
+      metric: entry.metric,
+    })),
+  };
+  return `<document>\n${escapeDocument(JSON.stringify(compact))}\n</document>`;
+}
+
+export function buildLinkPrompt(profile: MeasurementProfile) {
+  return {
+    system: `You link items already extracted from one scientific paper. Use only the ids given.
+${UNTRUSTED_DOCUMENT}
+
+Return:
+- metric_merges: groups of metric ids that are the same metric under different names. Never merge metrics computed differently, even if they share a name.
+- result_links: for a result with no metric or experiment, the ones it belongs to. Use null when the data does not settle it.
+- metric_experiments: which experiments use which metric.
+- claim_links: for each claim, the results and metrics that bear on it. Leave a claim out when no result bears on it; do not create a link without grounds.
+  "evidence_scope" states in Vietnamese exactly what those results cover (conditions, datasets, scenarios measured), and does not say the claim is proven. For example, a claim of robustness tested on a finite set of scenarios covers those scenarios only.`,
+    user: profileDocument(profile),
+  };
+}
+
+export function buildFindingsPrompt(profile: MeasurementProfile) {
+  const survey = profile.paper_type === 'SURVEY_SLR';
+  return {
+    system: `You note possible measurement concerns in one scientific paper, from a profile of what it reports.
+${UNTRUSTED_DOCUMENT}
+
+Types:
+- definition_ambiguity: the metric name is not enough to know how it is computed.
+- unit_scale_mismatch: a comparison where unit or direction is unclear or differs.
+- protocol_incompleteness: conditions needed to reproduce are not reported.${survey ? ' Do not use this type: the paper is a survey.' : ''}
+- aggregation_ambiguity: mean across clients, epochs or runs is not distinguished.
+- comparability_risk: results from different splits, partitions, conditions or horizons are compared as equivalent.
+- claim_evidence_gap: a conclusion seems broader than the situations measured.
+
+Rules:
+- Every finding cites existing evidence_ids and/or related_item_ids from the profile. Do not invent ids.
+- You raise questions; you do not declare a methodological error. Write "có thể", "chưa thấy nêu".
+- A field NOT_REPORTED means it was not found in the analysed sections, not that the authors did not do it. A section listed as not analysed cannot support a finding.
+- "limitation_of_assessment" says what this check could not see.
+- Write explanation, limitation_of_assessment and suggested_question_to_author in Vietnamese.
+- Fewer, consequential findings are better than many minor ones. Return an empty list if nothing stands out.`,
+    user: profileDocument(profile),
   };
 }
