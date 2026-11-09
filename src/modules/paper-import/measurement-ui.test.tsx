@@ -120,3 +120,16 @@ it('FR-01 runs an analysis with an estimate and budget', async () => {
   expect(await screen.findByText('Nghiên cứu trường hợp')).toBeInTheDocument();
   expect(completeJson).toHaveBeenCalledTimes(5);
 });
+
+it('FR-16 offers the four exports and downloads the reviewed profile', async () => {
+  const create = vi.fn((_blob: Blob) => 'blob:x');
+  vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: create, revokeObjectURL: vi.fn() }));
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  await setup();
+  await screen.findByText('Thực nghiệm');
+  for (const name of ['JSON', 'Markdown', 'CSV metric', 'CSV protocol'])
+    fireEvent.click(screen.getByRole('button', { name }));
+  expect(click).toHaveBeenCalledTimes(4);
+  expect(await create.mock.calls[2]?.[0].text()).toContain('reported_name');
+  click.mockRestore();
+});

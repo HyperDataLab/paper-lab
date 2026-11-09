@@ -40,7 +40,9 @@ Status: ⬜ not started · 🟨 in progress · ✅ accepted.
 | M2  | Schema, paper classification, per-section extraction, evidence checks | ✅     |
 | M3  | Linking, same-name metrics, claims, six warnings, survey mode         | ✅     |
 | M4  | `Đo lường` tab, human review, audit, evidence navigation              | ✅     |
-| M5  | JSON/Markdown/CSV export, transparency, gold-standard tool            | ⬜     |
+| M5  | JSON/Markdown/CSV export, transparency, gold-standard tool            | ✅     |
+
+Measurement quality targets (PRD §12) are not measured yet: they need a gold standard of at least 30 papers labelled by two people.
 
 P2 follow-up: share syntax requests across paragraphs in the same section, in batches of at most 40
 sentences. Until then, syntax uses one request per selected paragraph and estimates use the same unit.

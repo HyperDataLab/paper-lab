@@ -10,6 +10,7 @@ import { Card } from '@/shared/ui/Card';
 import { labels as issueLabels } from '@/modules/evaluate/issueLabels';
 import { LENSES } from '@/core/prompts';
 import { DIMENSIONS } from '@/core/scoring/rubric';
+import { MeasurementGoldCard } from './MeasurementGold';
 const fmt = (value: number | null) => (value === null ? '—' : value.toFixed(2));
 export default function Page() {
   const repo = useRepositories();
@@ -228,6 +229,7 @@ export default function Page() {
           </tbody>
         </table>
       </Card>
+      <MeasurementGoldCard />
       <Card>
         <h2>Hiệu chuẩn điểm</h2>
         <table>
