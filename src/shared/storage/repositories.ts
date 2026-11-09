@@ -488,7 +488,10 @@ export function createRepositories(
             await db.paperReviews.delete(id);
             await db.paperProbes.delete(id);
             await db.measurements.delete(id);
-            await db.library.where('paper_id').equals(id).modify({ paper_id: null, file_matches_title: null });
+            await db.library
+              .where('paper_id')
+              .equals(id)
+              .modify({ paper_id: null, file_matches_title: null });
             await db.reviewNgrams.where('paperId').equals(id).delete();
             await db.paperRuns.where('paperId').equals(id).delete();
             await db.auditEvents.add(makeAudit(id, 'delete_paper', 'human'));
