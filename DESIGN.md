@@ -206,3 +206,15 @@ Paragraph work is one sidebar entry. The page opens on a choice between evaluati
 The Bài báo page has two tabs: Bài đã nhập and Thư viện DOI. The library adds papers from pasted DOIs or CSV and reports what it skipped. Status filters carry counts and hide when empty, and taxonomy filters narrow one another so a choice never leads to an empty list. The table pages at 50 rows; bulk actions act on the selection, or on the current filter when nothing is selected. "Chưa thấy bản mở" says only that no source listed an open copy; the app does not claim a paper is paywalled. A browser cannot fetch most publisher PDFs, so a row offers Mở bản mở and Gắn PDF, or a direct arXiv download.
 
 The Giọng văn tab reports Hyland's stance and engagement markers as a tree of nine categories beside one detail pane. Counts are per 1,000 words the model actually read, always with the word count, and are labelled descriptive. Each marker shows its clause with the marker highlighted, a link to its place in the paper, and Xác nhận or Loại bỏ; dismissed markers leave the counts but stay in the CSV.
+
+## 12. Rules every screen must meet
+
+These are checked on each screen, by looking at it, before a change is accepted.
+
+- **Setup is a wizard** when AI work needs more than one kind of choice: choose, configure, confirm. The cost estimate stays visible on every step, and only the last step has the action that runs. A setup with only a few numbers stays on one screen, with the estimate and the action in an `ActionBar`.
+- **One primary button per view,** named for what it does. `Dừng` and permanent deletion use danger. Undo, dismiss and links to sources are ghost.
+- **Status left, actions right** in `ActionBar`. Several actions of one kind, such as exports, go in one `ActionMenu`.
+- **Every finding is a `FindingCard`,** in a fixed order: labels, quote, explanation, source, then actions. A message repeated on many findings is said once above them.
+- **Readers see places, not ids:** `Tr. 3 · Results`, never `sec3_p09`. Dates are formatted for Vietnamese readers, never ISO. Internal codes appear only in folded technical detail or exports.
+- **Filters are `Chip`s with counts** when the options are few. Labels on items are `Badge`s. Key numbers are `Stat`s.
+- **Provenance is not page content.** Minh bạch opens from the header in a drawer, grouped by run.

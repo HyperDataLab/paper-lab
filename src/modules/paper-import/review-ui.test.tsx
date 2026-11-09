@@ -107,7 +107,9 @@ it('P5 reveals reviews after skip, filters and audits decisions, and navigates t
   const setupCard = screen.getByRole('heading', { name: 'Thiết lập phản biện AI' }).closest('section');
   if (!setupCard) throw new Error('missing setup');
   expect(within(setupCard).getByRole('checkbox', { name: /Phương pháp/ })).toBeChecked();
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
   expect(within(setupCard).getByRole('checkbox', { name: /References/ })).not.toBeChecked();
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
   fireEvent.click(screen.getByRole('button', { name: 'Chạy phản biện (AI)' }));
   expect(await screen.findByRole('alertdialog')).toHaveTextContent('bản thảo');
   expect(completeJson).not.toHaveBeenCalled();
@@ -116,7 +118,7 @@ it('P5 reveals reviews after skip, filters and audits decisions, and navigates t
   await waitFor(async () => expect((await repo.paperReviews.get(paper.id))?.runs).toHaveLength(1));
   expect(screen.queryByText(/Tỷ lệ neo trích dẫn/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ qua bước này' }));
-  expect(await screen.findByText(/Tỷ lệ neo trích dẫn: 5\/10/)).toBeInTheDocument();
+  expect(await screen.findByText('5/10')).toBeInTheDocument();
   expect(
     screen.getByText(
       'Phản biện AI chỉ mang tính tham khảo: không chấm điểm, không đề xuất chấp nhận hay từ chối.',
@@ -124,8 +126,8 @@ it('P5 reveals reviews after skip, filters and audits decisions, and navigates t
   ).toBeInTheDocument();
   expect(screen.getByText(/Độ trùng ý giữa các góc nhìn/)).toBeInTheDocument();
   expect(screen.getAllByText(/Trùng ý:/).length).toBeGreaterThan(0);
-  expect(screen.getByText(/Cụm khuôn mẫu:/)).toBeInTheDocument();
-  expect(screen.getByText(/Đồng thuận với nhận xét của bạn:/)).toBeInTheDocument();
+  expect(screen.getByText('Cụm khuôn mẫu')).toBeInTheDocument();
+  expect(screen.getByText('Đồng thuận với nhận xét của bạn')).toBeInTheDocument();
   expect(screen.getByText(/Model: fake/)).toHaveTextContent('paper-review-1');
   const results = screen.getByRole('region', { name: 'Kết quả phản biện' });
   expect(within(results).queryByText(/rating/i)).not.toBeInTheDocument();
@@ -134,9 +136,9 @@ it('P5 reveals reviews after skip, filters and audits decisions, and navigates t
   if (!unanchored) throw new Error('missing section');
   expect(within(unanchored).getAllByText(/Không có vị trí/)).toHaveLength(5);
   expect(within(unanchored).queryByRole('button', { name: 'Xác nhận' })).not.toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText('Loại nhận xét'), { target: { value: 'strength' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Điểm mạnh' }));
   expect(screen.getByText('Không có nhận xét phù hợp.')).toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText('Loại nhận xét'), { target: { value: 'weakness' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Điểm yếu' }));
   fireEvent.change(screen.getByLabelText('Khía cạnh'), { target: { value: 'clarity' } });
   expect(screen.getByText('Không có nhận xét phù hợp.')).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Khía cạnh'), { target: { value: 'soundness' } });
@@ -152,7 +154,7 @@ it('P5 reveals reviews after skip, filters and audits decisions, and navigates t
       (await repo.audit.listByAnalysis(paper.id)).items.filter((event) => event.action === 'review_point'),
     ).toHaveLength(4),
   );
-  fireEvent.click(screen.getByRole('button', { name: /p:.*The method/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Methods' }));
   expect(
     screen.getByText('The method was described for all readers', { selector: 'mark' }),
   ).toBeInTheDocument();
@@ -160,17 +162,20 @@ it('P5 reveals reviews after skip, filters and audits decisions, and navigates t
 });
 it('P5 cancels an in-flight review without saving a run', async () => {
   const { repo, paper, completeJson } = await setup(false, true);
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
   fireEvent.click(screen.getByRole('button', { name: 'Chạy phản biện (AI)' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
   await waitFor(() => expect(completeJson).toHaveBeenCalledTimes(1));
   fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Chạy phản biện (AI)' })).toBeEnabled());
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeEnabled());
   expect(await repo.paperReviews.get(paper.id)).toBeUndefined();
 });
 it('P5 guards large selected sections and retains notes after save', async () => {
   const { completeJson } = await setup(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
   expect(screen.getByRole('alert')).toHaveTextContent('Vui lòng chọn ít phần hơn');
-  expect(screen.getByRole('button', { name: 'Chạy phản biện (AI)' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled();
   fireEvent.change(screen.getByLabelText('Nhận xét của bạn trước khi xem AI'), {
     target: { value: 'Nhận xét riêng' },
   });

@@ -172,7 +172,10 @@ export default function PaperMapPage() {
     <div className={styles.page}>
       <header className={styles.paperHead}>
         <Link to="/papers">← Bài báo đã nhập</Link>
-        <h1>{paper.title}</h1>
+        <div className={styles.titleRow}>
+          <h1>{paper.title}</h1>
+          <Transparency paper={paper} />
+        </div>
         <p className={styles.paperMeta}>
           {paper.source.pageCount ?? 'Không rõ'} trang · {paper.sections.length} mục · {bodyCount} đoạn nội
           dung
@@ -274,7 +277,6 @@ export default function PaperMapPage() {
           </>
         )}
       </BatchWorkspace>
-      <Transparency paper={paper} />
     </div>
   );
 }

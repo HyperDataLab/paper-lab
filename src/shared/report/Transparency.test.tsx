@@ -73,10 +73,10 @@ it('P7 transparency uses planned sections, excludes skipped items, identifies ca
     </StorageProvider>,
   );
   fireEvent.click(screen.getByText('Minh bạch'));
-  expect(await screen.findByText(/Mục gửi đến model: s1, s2/)).toHaveTextContent(
-    'Mục có đoạn dùng bộ nhớ đệm: s2',
-  );
-  expect(screen.getByText(/Hiệu chuẩn tại thời điểm chạy/)).toHaveTextContent('Đáng tin (n=30)');
+  expect(await screen.findByText('s1, s2')).toBeInTheDocument();
+  expect(screen.getByText('s2')).toBeInTheDocument();
+  expect(screen.getByText('Đáng tin: 1 loại')).toBeInTheDocument();
+  expect(screen.queryByText(/\d{4}-\d{2}-\d{2}T/)).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Tải bản ghi minh bạch JSON' }));
   expect(downloadJson).toHaveBeenCalledWith(
     'paperlab-transparency.json',

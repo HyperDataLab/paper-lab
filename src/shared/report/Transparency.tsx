@@ -12,7 +12,10 @@ import type {
 } from '@/core/schemas';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { downloadJson } from '@/shared/calibration/download';
+import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
+import { Drawer } from '@/shared/ui/Drawer';
+import styles from './transparency.module.css';
 
 type Step = {
   step: string;
@@ -154,6 +157,68 @@ function paperSteps(
     })),
   ];
 }
+const CALIBRATION = {
+  reliable: 'Đáng tin',
+  unreliable: 'Chưa đáng tin',
+  uncalibrated: 'Chưa hiệu chuẩn',
+} as const;
+const STEP_NAMES: Record<string, string> = {
+  syntax: 'Phân tích câu',
+  judge: 'Đánh giá ngữ cảnh',
+  structure: 'Cấu trúc đoạn',
+  score: 'Chấm điểm',
+  transitions: 'Chuyển đoạn',
+};
+const BATCH_PREFIX = 'Phân tích bài báo: ';
+
+function formatDate(value: string | null) {
+  if (!value) return 'Không rõ ngày';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('vi-VN');
+}
+
+function calibrationSummary(snapshot: CalibrationSnapshot | null) {
+  if (snapshot === null) return 'Không được ghi nhận';
+  if (snapshot.length === 0) return 'Chưa có dữ liệu';
+  const counts = new Map<string, number>();
+  for (const item of snapshot) counts.set(item.status, (counts.get(item.status) ?? 0) + 1);
+  return (Object.keys(CALIBRATION) as (keyof typeof CALIBRATION)[])
+    .filter((status) => counts.has(status))
+    .map((status) => `${CALIBRATION[status]}: ${counts.get(status)} loại`)
+    .join(' · ');
+}
+
+/** The steps of one batch run share everything but their name, so they read as one entry. */
+function groupSteps(steps: Step[]) {
+  const groups: { title: string; parts: string[]; first: Step; key: string }[] = [];
+  for (const step of steps) {
+    const batch = step.step.startsWith(BATCH_PREFIX);
+    const key = batch ? `${step.model}|${step.prompt}|${step.date}|${step.sections?.join()}` : '';
+    const name = step.step.slice(BATCH_PREFIX.length);
+    const existing = batch ? groups.find((group) => group.key === key) : undefined;
+    if (existing) existing.parts.push(STEP_NAMES[name] ?? name);
+    else
+      groups.push(
+        batch
+          ? { title: 'Phân tích bài báo', parts: [STEP_NAMES[name] ?? name], first: step, key }
+          : { title: step.step, parts: [], first: step, key: '' },
+      );
+  }
+  return groups;
+}
+
+/** A long list of section names is folded so the facts around it stay readable. */
+function SectionNames({ names }: { names: string[] | null }) {
+  if (names === null) return <>Không rõ</>;
+  if (names.length <= 4) return <>{names.join(', ') || 'Không có'}</>;
+  return (
+    <details>
+      <summary>{names.length} mục</summary>
+      {names.join(', ')}
+    </details>
+  );
+}
+
 export function Transparency({ paper, report }: { paper?: Paper; report?: AnalysisReport }) {
   const repo = useRepositories();
   const [paperEntries, setSteps] = useState<Step[]>([]);
@@ -179,6 +244,7 @@ export function Transparency({ paper, report }: { paper?: Paper; report?: Analys
       active = false;
     };
   }, [repo, paper, report]);
+  const [open, setOpen] = useState(false);
   const steps = report ? analysisSteps(report) : paperEntries;
   const record = {
     format: 'paragraph-lab-transparency',
@@ -186,53 +252,116 @@ export function Transparency({ paper, report }: { paper?: Paper; report?: Analys
     sourceId: paper?.id ?? report?.analysis.id,
     steps,
   };
-  return (
-    <section>
-      <details>
-        <summary>Minh bạch</summary>
-        <p>
-          Thông tin chưa được lưu tại thời điểm chạy được ghi là không rõ; trạng thái hiệu chuẩn lịch sử không
-          được suy đoán.
-        </p>
-        {error && (
-          <div role="alert">
-            Không thể tải thông tin.
-            <details>
-              <summary>Chi tiết kỹ thuật</summary>
-              {error}
-            </details>
-          </div>
-        )}
-        {steps.length === 0 && <p>Chưa có bước được ghi nhận.</p>}
-        {steps.map((step, index) => (
-          <div key={`${step.step}-${index}`}>
-            <h3>{step.step}</h3>
-            <p>
-              Model: {step.model ?? 'Không rõ'} · Prompt: {step.prompt ?? 'Không rõ'} · Rubric:{' '}
-              {step.rubric ?? 'Không rõ'} · Detector: {step.detectors ?? 'Không rõ'}
-            </p>
-            <p>
-              Ngày: {step.date ?? 'Không rõ'} · Số lần gọi: {step.calls ?? 'Không rõ'} · Mục gửi đến model:{' '}
-              {step.sections === null ? 'Không rõ' : step.sections.join(', ') || 'Không có'} · Mục có đoạn
-              dùng bộ nhớ đệm: {step.cachedSections?.join(', ') || 'Không có'} · Hiệu chuẩn tại thời điểm
-              chạy:{' '}
-              {step.calibration === null
-                ? 'Không được ghi nhận'
-                : step.calibration.length === 0
-                  ? 'Chưa có dữ liệu'
-                  : step.calibration
-                      .map(
-                        (item) =>
-                          `${item.kind}/${item.type}: ${item.status === 'reliable' ? 'Đáng tin' : item.status === 'unreliable' ? 'Chưa đáng tin' : 'Chưa hiệu chuẩn'} (n=${item.n})`,
-                      )
-                      .join('; ')}
-            </p>
-          </div>
-        ))}
+  const body = (
+    <>
+      <p className={styles.note}>
+        Thông tin không được lưu lúc chạy sẽ ghi là Không rõ, hệ thống không suy đoán.
+      </p>
+      {error && (
+        <div role="alert">
+          Không thể tải thông tin.
+          <details>
+            <summary>Chi tiết kỹ thuật</summary>
+            {error}
+          </details>
+        </div>
+      )}
+      {steps.length === 0 && <p>Chưa có bước nào được ghi nhận.</p>}
+      {groupSteps(steps).map((group, index) => {
+        const step = group.first;
+        const known = (value: string | null) => value ?? 'Không rõ';
+        return (
+          <section key={`${step.step}-${index}`} className={styles.step}>
+            <div className={styles.stepHead}>
+              <h3>{group.title}</h3>
+              <span className={styles.note}>{formatDate(step.date)}</span>
+            </div>
+            {group.parts.length > 0 && (
+              <div className={styles.badges}>
+                {group.parts.map((part) => (
+                  <Badge key={part}>{part}</Badge>
+                ))}
+              </div>
+            )}
+            <dl className={styles.facts}>
+              <dt>Model</dt>
+              <dd>{known(step.model)}</dd>
+              <dt>Prompt</dt>
+              <dd>{known(step.prompt)}</dd>
+              {step.rubric && (
+                <>
+                  <dt>Rubric</dt>
+                  <dd>{step.rubric}</dd>
+                </>
+              )}
+              {step.detectors && (
+                <>
+                  <dt>Detector</dt>
+                  <dd>{step.detectors}</dd>
+                </>
+              )}
+              <dt>Số lượt gọi</dt>
+              <dd>{step.calls ?? 'Không rõ'}</dd>
+              <dt>Mục gửi cho AI</dt>
+              <dd>
+                <SectionNames names={step.sections} />
+              </dd>
+              {Boolean(step.cachedSections?.length) && (
+                <>
+                  <dt>Dùng bộ nhớ đệm</dt>
+                  <dd>{step.cachedSections?.join(', ')}</dd>
+                </>
+              )}
+              <dt>Hiệu chuẩn</dt>
+              <dd>{calibrationSummary(step.calibration)}</dd>
+            </dl>
+            {Boolean(step.calibration?.length) && (
+              <details className={styles.more}>
+                <summary>Chi tiết hiệu chuẩn</summary>
+                <ul>
+                  {step.calibration?.map((item) => (
+                    <li key={`${item.kind}/${item.type}`}>
+                      {item.kind}/{item.type}: {CALIBRATION[item.status]} (n={item.n})
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </section>
+        );
+      })}
+      <div>
         <Button onClick={() => downloadJson('paperlab-transparency.json', record)}>
           Tải bản ghi minh bạch JSON
         </Button>
-      </details>
-    </section>
+      </div>
+    </>
+  );
+  if (report)
+    return (
+      <section>
+        <details>
+          <summary>Minh bạch</summary>
+          <div className={styles.drawer}>{body}</div>
+        </details>
+      </section>
+    );
+  return (
+    <>
+      <Button size="sm" variant="ghost" onClick={() => setOpen(true)}>
+        Minh bạch
+      </Button>
+      <Drawer open={open} onClose={() => setOpen(false)} side="right" label="Thông tin minh bạch">
+        <div className={styles.drawer}>
+          <div className={styles.head}>
+            <h2>Thông tin minh bạch</h2>
+            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+              Đóng
+            </Button>
+          </div>
+          {body}
+        </div>
+      </Drawer>
+    </>
   );
 }
