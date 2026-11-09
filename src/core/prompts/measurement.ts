@@ -74,6 +74,7 @@ Extract from this part of the paper only:
 - experiments: each evaluation and its protocol. Protocol fields: ${PROTOCOL_FIELDS.join(', ')}. "seeds" is the random seeds used; "repetitions" is the number of runs and their variability.
 - results: one per reported number. Copy "value", "unit" and "uncertainty" exactly as printed, without rounding: for "0.123 ± 0.004" the value is "0.123" and the uncertainty is "0.004". Prefer a table cell quote when the number is in a table.
 - claims: the authors' conclusions about what the evaluation shows.
+- atomic_sentences: at most 30 short statements of what is measured, how, and with what result or limit. Each is at most 25 words and one proposition, and is understandable alone: name the subject, never "this" or "it" pointing outside the sentence. Keep the key numbers and units exactly. Write no citation markers and do not name a table or figure number. Give a role (background, method, finding, limitation) and a verbatim quote. Fields, results and claims list in "atom_keys" the atomic sentences they rest on.
 
 Reference constructs, metrics and experiments by short "key" strings that you invent, unique within this response.
 Keep names, values and quotes in the paper's language; write nothing else.

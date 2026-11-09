@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Evidence, MeasurementDecision, ProfileField } from '@/core/schemas';
+import type { AtomicSentence, Evidence, MeasurementDecision, ProfileField } from '@/core/schemas';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { TextField } from '@/shared/ui/TextField';
@@ -18,6 +18,30 @@ export interface ItemContext {
   decisions: Map<string, MeasurementDecision>;
   onLocation: (location: Location) => void;
   decide: Decide;
+  atomics?: Map<string, AtomicSentence>;
+  openAtomic?: (id: string) => void;
+}
+
+export function AtomicLinks({ ids, context }: { ids: string[] | undefined; context: ItemContext }) {
+  return (
+    <>
+      {(ids ?? []).flatMap((id) => {
+        const atom = context.atomics?.get(id);
+        if (!atom) return [];
+        return [
+          <Button
+            key={id}
+            size="sm"
+            variant="ghost"
+            title={atom.text}
+            onClick={() => context.openAtomic?.(id)}
+          >
+            Câu nguyên tử {Number(id.replace('as-', ''))}
+          </Button>,
+        ];
+      })}
+    </>
+  );
 }
 
 const STATUS: Record<ProfileField['status'], { label: string; tone: 'accent' | 'neutral' | 'warning' }> = {
@@ -89,10 +113,14 @@ export function ItemActions({
   itemId,
   context,
   value = null,
+  acceptLabel = 'Chấp nhận',
+  acceptedLabel = 'Đã chấp nhận',
 }: {
   itemId: string;
   context: ItemContext;
   value?: string | null;
+  acceptLabel?: string;
+  acceptedLabel?: string;
 }) {
   const decision = context.decisions.get(`${itemId}|`);
   const send = (next: MeasurementDecision['decision']) =>
@@ -101,7 +129,7 @@ export function ItemActions({
     return (
       <span className={styles.actions}>
         <Badge tone={decision.decision === 'accept' ? 'success' : 'danger'}>
-          {decision.decision === 'accept' ? 'Đã chấp nhận' : 'Đã loại'}
+          {decision.decision === 'accept' ? acceptedLabel : 'Đã loại'}
         </Badge>
         <Button size="sm" variant="ghost" onClick={() => send('reopen')}>
           Hoàn tác
@@ -111,7 +139,7 @@ export function ItemActions({
   return (
     <span className={styles.actions}>
       <Button size="sm" onClick={() => send('accept')}>
-        Chấp nhận
+        {acceptLabel}
       </Button>
       <Button size="sm" variant="ghost" onClick={() => send('reject')}>
         Loại bỏ
@@ -174,6 +202,7 @@ export function FieldRow({
           <StatusBadges status={field.status} needsReview={field.needs_review} />
           {edited && <Badge tone="success">Đã sửa</Badge>}
           <EvidenceLinks ids={field.evidence_ids} context={context} />
+          <AtomicLinks ids={field.atomic_ids} context={context} />
           {field.search_scope && (
             <span title={field.search_scope.join(', ')}>Đã tìm trong {field.search_scope.length} mục</span>
           )}

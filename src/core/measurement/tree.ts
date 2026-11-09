@@ -1,4 +1,10 @@
-import type { MeasurementProfile, MetricUsage, ProfileField, ReportedResult } from '../schemas/measurement';
+import type {
+  AtomicRole,
+  MeasurementProfile,
+  MetricUsage,
+  ProfileField,
+  ReportedResult,
+} from '../schemas/measurement';
 import { PROTOCOL_FIELDS } from '../schemas/measurement';
 
 export type MeasurementRef =
@@ -11,10 +17,20 @@ export type MeasurementRef =
         | 'constructs'
         | 'findings'
         | 'review'
-        | 'taxonomy';
+        | 'taxonomy'
+        | 'atomics';
     }
   | {
-      kind: 'experiment' | 'metric' | 'result' | 'claim' | 'construct' | 'finding' | 'taxonomyEntry';
+      kind:
+        | 'experiment'
+        | 'metric'
+        | 'result'
+        | 'claim'
+        | 'construct'
+        | 'finding'
+        | 'taxonomyEntry'
+        | 'atomicRole'
+        | 'atomic';
       id: string;
     };
 
@@ -41,6 +57,44 @@ export const metricFlagged = (metric: MetricUsage) =>
 const short = (text: string, max = 70) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
 const resultLabel = (result: ReportedResult) =>
   `${result.system_or_baseline}: ${result.value}${result.uncertainty ? ` ± ${result.uncertainty}` : ''}${result.unit ? ` ${result.unit}` : ''}`;
+
+export const ATOMIC_ROLE_LABELS: Record<AtomicRole, string> = {
+  background: 'Bối cảnh',
+  method: 'Phương pháp',
+  finding: 'Kết quả',
+  limitation: 'Hạn chế',
+};
+
+function atomicRoot(profile: MeasurementProfile): MeasurementNode {
+  const roles = (Object.keys(ATOMIC_ROLE_LABELS) as AtomicRole[]).flatMap((role) => {
+    const sentences = profile.atomic_sentences.filter((sentence) => sentence.role === role);
+    return sentences.length
+      ? [
+          {
+            id: `atomics/${role}`,
+            label: ATOMIC_ROLE_LABELS[role],
+            count: sentences.length,
+            flagged: false,
+            ref: { kind: 'atomicRole' as const, id: role },
+            children: sentences.map((sentence) => ({
+              id: `atomics/${role}/a:${sentence.id}`,
+              label: short(sentence.text),
+              flagged: sentence.needs_review,
+              ref: { kind: 'atomic' as const, id: sentence.id },
+            })),
+          },
+        ]
+      : [];
+  });
+  return {
+    id: 'atomics',
+    label: 'Câu nguyên tử',
+    count: profile.atomic_sentences.length,
+    flagged: false,
+    ref: { kind: 'atomics' },
+    children: roles,
+  };
+}
 
 /** The profile as a tree: experiment → metric → result, plus claims, constructs, concerns and the review queue. */
 export function buildMeasurementTree(profile: MeasurementProfile): MeasurementNode[] {
@@ -151,7 +205,8 @@ export function buildMeasurementTree(profile: MeasurementProfile): MeasurementNo
   const root = (
     id: string,
     label: string,
-    kind: 'experiments' | 'unlinked' | 'claims' | 'constructs' | 'findings' | 'review' | 'taxonomy',
+    kind:
+      'experiments' | 'unlinked' | 'claims' | 'constructs' | 'findings' | 'review' | 'taxonomy' | 'atomics',
     children: MeasurementNode[],
   ): MeasurementNode => ({ id, label, count: children.length, flagged: false, ref: { kind }, children });
   const survey = profile.paper_type === 'SURVEY_SLR';
@@ -174,6 +229,7 @@ export function buildMeasurementTree(profile: MeasurementProfile): MeasurementNo
       : [root('exp', 'Thí nghiệm', 'experiments', experimentNodes)]),
     ...(unlinked.length ? [root('loose', 'Chưa gắn thí nghiệm', 'unlinked', unlinked)] : []),
     root('claims', 'Claim của tác giả', 'claims', claimNodes),
+    ...(profile.atomic_sentences.length ? [atomicRoot(profile)] : []),
     root('constructs', 'Thuộc tính đo', 'constructs', constructNodes),
     root(
       'findings',

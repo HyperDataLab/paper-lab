@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  atomicCsv,
   buildMeasurementTree,
   defaultMeasurementSections,
   estimateMeasurementCalls,
@@ -305,6 +306,15 @@ export function PaperMeasurement({
             >
               CSV protocol
             </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() =>
+                downloadText(`${exportName}-atomic.csv`, `\uFEFF${atomicCsv(exported(run))}`, CSV)
+              }
+            >
+              CSV câu nguyên tử
+            </Button>
           </div>
         )}
         {(!run || showSetup) && !running && setup}
@@ -337,7 +347,11 @@ export function PaperMeasurement({
               target={selected.ref}
               paper={paper}
               profile={profile}
-              context={context}
+              context={{
+                ...context,
+                atomics: new Map(profile.atomic_sentences.map((item) => [item.id, item])),
+                openAtomic: (id) => open({ kind: 'atomic', id }),
+              }}
               open={open}
             />
           </div>

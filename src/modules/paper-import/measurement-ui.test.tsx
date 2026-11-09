@@ -208,3 +208,48 @@ it('FR-16 offers the four exports and downloads the reviewed profile', async () 
   expect(await create.mock.calls[2]?.[0].text()).toContain('reported_name');
   click.mockRestore();
 });
+
+it('AS-10 opens an atomic sentence, marks it checked, undoes it and tracks progress', async () => {
+  const repo: Repositories = createRepositories(createDb(`measure-ui-${crypto.randomUUID()}`));
+  await repo.papers.create(fixturePaper);
+  const run = fixtureRun();
+  run.profile.atomic_sentences = [
+    {
+      id: 'as-0001',
+      text: 'Accuracy is the share of correct predictions.',
+      role: 'method',
+      word_count: 7,
+      evidence_id: run.profile.evidence[0]?.id ?? '',
+      page: 3,
+      section_id: 'met',
+      needs_review: false,
+      human_checked: false,
+    },
+  ];
+  run.profile.claims[0]!.atomic_ids = ['as-0001'];
+  await repo.measurements.saveRun(PAPER_ID, run);
+  render(
+    <StorageProvider repositories={repo}>
+      <LlmProvider>
+        <PaperMeasurement paper={fixturePaper} onLocation={vi.fn()} />
+      </LlmProvider>
+    </StorageProvider>,
+  );
+  await screen.findByText('Thực nghiệm');
+  fireEvent.click(screen.getByRole('button', { name: /1\s*câu nguyên tử/ }));
+  expect(screen.getByText('Đã đối chiếu 0/1')).toBeInTheDocument();
+  expand(/Câu nguyên tử/);
+  expand(/Phương pháp/);
+  pick(/Accuracy is the share/);
+  expect(screen.getByText('7 từ')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Đã đối chiếu với nguồn' }));
+  expect(await screen.findByText('Đã đối chiếu')).toBeInTheDocument();
+  pick(/Câu nguyên tử/);
+  expect(await screen.findByText('Đã đối chiếu 1/1')).toBeInTheDocument();
+  pick(/Accuracy is the share/);
+  fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }));
+  expect(await screen.findByRole('button', { name: 'Đã đối chiếu với nguồn' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Claim: Robust/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Câu nguyên tử 1' }));
+  expect(screen.getByText('7 từ')).toBeInTheDocument();
+});

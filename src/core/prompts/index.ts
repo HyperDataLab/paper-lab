@@ -14,7 +14,7 @@ export const PROMPT_VERSIONS = {
   paperReview: 'paper-review-1',
   styleProbe: 'style-probe-1',
   measurementClassify: 'measure-classify-1',
-  measurementExtract: 'measure-extract-1',
+  measurementExtract: 'measure-extract-2',
   measurementLink: 'measure-link-1',
   measurementFindings: 'measure-findings-1',
 } as const;

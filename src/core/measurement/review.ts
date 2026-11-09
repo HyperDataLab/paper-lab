@@ -22,6 +22,7 @@ function isField(value: unknown): value is {
   status: string;
   needs_review: boolean;
   evidence_ids: string[];
+  atomic_ids?: string[];
 } {
   return typeof value === 'object' && value !== null && 'status' in value && 'evidence_ids' in value;
 }
@@ -57,6 +58,7 @@ function edit(item: AnyItem, path: string, value: string | null, evidence: Evide
       status: supporting.length ? 'REPORTED' : 'HUMAN_EDITED',
       evidence_ids: supporting,
       needs_review: false,
+      atomic_ids: supporting.length ? current.atomic_ids : [],
     };
   } else {
     if (current === value) return;
@@ -92,6 +94,16 @@ function accept(item: AnyItem, path: string | null) {
   if ('needs_review' in item) item.needs_review = false;
 }
 
+function dropAtomicIds(value: unknown, rejected: Set<string>) {
+  if (Array.isArray(value)) value.forEach((entry) => dropAtomicIds(entry, rejected));
+  else if (typeof value === 'object' && value !== null) {
+    const record = value as AnyItem;
+    if (Array.isArray(record.atomic_ids))
+      record.atomic_ids = (record.atomic_ids as string[]).filter((id) => !rejected.has(id));
+    Object.values(record).forEach((entry) => dropAtomicIds(entry, rejected));
+  }
+}
+
 function allItems(profile: MeasurementProfile): AnyItem[] {
   return [
     ...profile.constructs,
@@ -101,6 +113,7 @@ function allItems(profile: MeasurementProfile): AnyItem[] {
     ...profile.claims,
     ...profile.findings,
     ...profile.taxonomy,
+    ...profile.atomic_sentences,
   ];
 }
 
@@ -120,7 +133,10 @@ export function reviewedProfile(
   for (const decision of latest) {
     const item = items.get(decision.item_id);
     if (!item) continue;
-    if (decision.decision === 'accept') accept(item, decision.field);
+    if (decision.decision === 'accept') {
+      accept(item, decision.field);
+      if ('human_checked' in item) item.human_checked = true;
+    }
     if (decision.decision === 'edit' && decision.field)
       edit(
         item,
@@ -143,6 +159,8 @@ export function reviewedProfile(
   profile.claims = keep(profile.claims);
   profile.findings = keep(profile.findings);
   profile.taxonomy = keep(profile.taxonomy);
+  profile.atomic_sentences = keep(profile.atomic_sentences);
+  dropAtomicIds(profile, rejected);
   for (const result of profile.results) {
     if (result.metric_usage_id && rejected.has(result.metric_usage_id)) result.metric_usage_id = null;
     if (result.experiment_id && rejected.has(result.experiment_id)) result.experiment_id = null;

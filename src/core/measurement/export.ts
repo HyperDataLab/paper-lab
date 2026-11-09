@@ -6,6 +6,7 @@ import {
   type ProfileField,
 } from '../schemas/measurement';
 import { reviewedProfile } from './review';
+import { ATOMIC_ROLE_LABELS } from './tree';
 
 export const MEASUREMENT_EXPORT_FORMAT = 'paragraph-lab-measurement';
 
@@ -95,6 +96,23 @@ export function protocolCsv(profile: MeasurementProfile) {
   ]);
 }
 
+export function atomicCsv(profile: MeasurementProfile) {
+  return csv([
+    ['id', 'role', 'text', 'word_count', 'page', 'section', 'human_checked', 'needs_review', 'evidence'],
+    ...profile.atomic_sentences.map((sentence) => [
+      sentence.id,
+      sentence.role,
+      sentence.text,
+      String(sentence.word_count),
+      sentence.page === null ? '' : String(sentence.page),
+      sentence.section_id,
+      sentence.human_checked ? 'yes' : 'no',
+      sentence.needs_review ? 'yes' : 'no',
+      excerpts(profile, [sentence.evidence_id]),
+    ]),
+  ]);
+}
+
 const LABEL: Record<ProfileField['status'], string> = {
   REPORTED: 'Tác giả nêu',
   HUMAN_EDITED: 'Người duyệt sửa',
@@ -142,6 +160,18 @@ export function measurementMarkdown(profile: MeasurementProfile) {
     out.push(
       `- ${result.system_or_baseline}: ${result.value}${uncertainty} ${result.unit ?? ''} [${excerpts(profile, result.evidence_ids) || 'không có nguồn'}]${flag}${review}`,
     );
+  }
+  if (profile.atomic_sentences.length) {
+    out.push('', '## Câu nguyên tử');
+    for (const role of ['background', 'method', 'finding', 'limitation'] as const) {
+      const sentences = profile.atomic_sentences.filter((sentence) => sentence.role === role);
+      if (!sentences.length) continue;
+      out.push('', `### ${ATOMIC_ROLE_LABELS[role]}`, '');
+      for (const sentence of sentences)
+        out.push(
+          `- ${sentence.text} _(tr. ${sentence.page ?? '?'}, ${sentence.human_checked ? 'đã đối chiếu' : 'chưa đối chiếu'}${sentence.needs_review ? ', cần xem lại' : ''})_`,
+        );
+    }
   }
   out.push('', '## Claim', '');
   for (const claim of profile.claims)
