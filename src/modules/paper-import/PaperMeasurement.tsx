@@ -3,14 +3,19 @@ import {
   defaultMeasurementSections,
   estimateMeasurementCalls,
   latestDecisions,
+  measurementJson,
+  measurementMarkdown,
+  metricsCsv,
   planExtraction,
+  protocolCsv,
   reviewedProfile,
 } from '@/core/measurement';
-import type { MeasurementPending, MeasurementsRecord, Paper } from '@/core/schemas';
+import type { MeasurementPending, MeasurementRun, MeasurementsRecord, Paper } from '@/core/schemas';
 import { useLlm } from '@/shared/llm/LlmProvider';
 import { emptyCheckpoint, llmMeasurement } from '@/shared/llm/llmMeasurement';
 import { describeLlmError } from '@/shared/llm/describeError';
 import { BatchBudgetExceededError } from '@/core/batch/runBatch';
+import { downloadJson, downloadText } from '@/shared/calibration/download';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
@@ -21,6 +26,7 @@ import type { Decide, ItemContext, Location } from './MeasurementItems';
 import { IssuesView, MetricsView, OverviewView, ProtocolView, ResultsView } from './MeasurementViews';
 import styles from './measurement.module.css';
 
+const CSV = 'text/csv;charset=utf-8';
 const VIEWS = [
   { value: 'overview', label: 'Tổng quan' },
   { value: 'metrics', label: 'Metric' },
@@ -158,6 +164,9 @@ export function PaperMeasurement({
         }
       : undefined;
 
+  const exportName = `measurement-${paper.id.slice(0, 8)}`;
+  const exported = (current: MeasurementRun) =>
+    reviewedProfile(current.profile, record?.decisions ?? [], current.id);
   if (loading) return <p>Đang tải hồ sơ đo lường…</p>;
   return (
     <div className={styles.panel}>
@@ -220,6 +229,45 @@ export function PaperMeasurement({
       {profile && context && run && (
         <>
           <SegmentedControl label="Xem hồ sơ" value={view} options={VIEWS} onChange={setView} />
+          <div className={styles.meta}>
+            <span>Xuất bản đã duyệt:</span>
+            <Button
+              size="sm"
+              onClick={() =>
+                downloadJson(`${exportName}.json`, measurementJson(run, record?.decisions ?? []))
+              }
+            >
+              JSON
+            </Button>
+            <Button
+              size="sm"
+              onClick={() =>
+                downloadText(
+                  `${exportName}.md`,
+                  measurementMarkdown(exported(run)),
+                  'text/markdown;charset=utf-8',
+                )
+              }
+            >
+              Markdown
+            </Button>
+            <Button
+              size="sm"
+              onClick={() =>
+                downloadText(`${exportName}-metrics.csv`, `\uFEFF${metricsCsv(exported(run))}`, CSV)
+              }
+            >
+              CSV metric
+            </Button>
+            <Button
+              size="sm"
+              onClick={() =>
+                downloadText(`${exportName}-protocol.csv`, `\uFEFF${protocolCsv(exported(run))}`, CSV)
+              }
+            >
+              CSV protocol
+            </Button>
+          </div>
           {view === 'overview' && <OverviewView profile={profile} paper={paper} />}
           {view === 'metrics' && <MetricsView profile={profile} context={context} />}
           {view === 'protocol' && <ProtocolView profile={profile} context={context} />}
