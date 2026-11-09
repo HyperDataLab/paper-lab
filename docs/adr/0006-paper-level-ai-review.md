@@ -12,7 +12,7 @@ rewrites (paper laundering), and recommend robustness testing, validated precisi
 
 ## Decision (proposed)
 
-1. Add a module group "Phân tích bài báo" to Paragraph Lab (P1–P7 in `docs/plans/AI-REVIEW.md`), reusing the
+1. Add a module group "Phân tích bài báo" to PaperLab (P1–P7 in `docs/plans/AI-REVIEW.md`), reusing the
    paper-understanding PDF parser and segmenter code; add `pdfjs-dist` as a dependency.
 2. The AI review is advisory: no rating, no acceptance prediction, no paper-level total score; every point is
    anchored to a verbatim quote; deterministic checks precede LLM judgement; checks are gated by calibration.

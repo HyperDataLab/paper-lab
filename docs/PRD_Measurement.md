@@ -1,4 +1,4 @@
-# PRD — Đo lường & Đánh giá trong bài báo (PMEU), bản cho Paragraph Lab
+# PRD — Đo lường & Đánh giá trong bài báo (PMEU), bản cho PaperLab
 
 **Phiên bản:** 1.1 (viết lại từ `PRD_Paper_Measurement_Understanding_AI_Direct.md` v1.0, 08/11/2026)
 **Trạng thái:** Đề xuất triển khai. **Nằm trong:** nhóm module "Phân tích bài báo" (ADR-0006).
@@ -17,9 +17,9 @@ nghiệm, cùng tên có thể khác định nghĩa, nên hệ thống lưu **me
 
 ## 2. Thay đổi so với PRD gốc
 
-PRD gốc viết cho Paper Understanding (có backend API, PDF viewer, Document Store). Paragraph Lab không có các phần đó.
+PRD gốc viết cho Paper Understanding (có backend API, PDF viewer, Document Store). PaperLab không có các phần đó.
 
-| PRD gốc                                           | Trong Paragraph Lab                                                                       | Lý do                                  |
+| PRD gốc                                           | Trong PaperLab                                                                            | Lý do                                  |
 | ------------------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------- |
 | Module của Paper Understanding                    | Tab **"Đo lường"** trên `/papers/:id`                                                     | Dùng lại P1–P7                         |
 | REST API (§10), job phía server                   | Hàm trong trình duyệt + repository Dexie; job chạy bằng hàng đợi P2                       | Không có backend (AGENTS.md)           |
@@ -170,4 +170,4 @@ precision trường protocol `REPORTED` ≥ 0,90; ghi nhầm thành `REPORTED` �
 ## 14. Việc cần chủ dự án quyết định
 
 1. Ai gán nhãn bộ gold-standard 30 bài (không có thì §12 luôn ở trạng thái "chưa đo").
-2. Có cần module này trong **Paper Understanding** nữa không. Bản này đặt ở Paragraph Lab; `MeasurementProfile` xuất JSON nên có thể dùng ở app kia về sau.
+2. Có cần module này trong **Paper Understanding** nữa không. Bản này đặt ở PaperLab; `MeasurementProfile` xuất JSON nên có thể dùng ở app kia về sau.

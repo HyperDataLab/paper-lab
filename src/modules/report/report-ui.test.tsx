@@ -73,7 +73,7 @@ it('EV-12 downloads a report JSON with the expected filename', async () => {
     this: HTMLAnchorElement,
   ) {
     expect(this.download).toBe(
-      `paragraph-lab-report-${a.id.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.json`,
+      `paperlab-report-${a.id.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.json`,
     );
   });
   render(

@@ -215,7 +215,7 @@ export function Transparency({ paper, report }: { paper?: Paper; report?: Analys
             </p>
           </div>
         ))}
-        <Button onClick={() => downloadJson('paragraph-lab-transparency.json', record)}>
+        <Button onClick={() => downloadJson('paperlab-transparency.json', record)}>
           Tải bản ghi minh bạch JSON
         </Button>
       </details>

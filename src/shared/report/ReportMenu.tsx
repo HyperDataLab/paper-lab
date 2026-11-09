@@ -15,7 +15,7 @@ export function ReportMenu({ id }: { id: string }) {
       const url = URL.createObjectURL(new Blob([toJsonReport(report)], { type: 'application/json' }));
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `paragraph-lab-report-${id.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.json`;
+      anchor.download = `paperlab-report-${id.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.json`;
       anchor.click();
       URL.revokeObjectURL(url);
       setError('');

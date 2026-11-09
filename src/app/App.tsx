@@ -61,7 +61,7 @@ export function App() {
               </IconButton>
             </div>
             <nav aria-label="Đường dẫn" className={styles.breadcrumb}>
-              <span>Paragraph Lab</span>
+              <span>PaperLab</span>
               <span aria-hidden="true">/</span>
               <strong>
                 {current?.label ??

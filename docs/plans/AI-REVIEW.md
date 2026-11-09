@@ -79,13 +79,13 @@ PDF / LaTeX / Markdown (stays in the browser)
 ## 7. Decisions (defaults taken 2026-11-07, owner may change)
 
 1. **Where it lives.** PRD §11 puts manuscript-level OCAR–IMRaD assessment out of scope ("handled by PSSU") and
-   paper-understanding already parses PDFs. Recommended: a new module group "Phân tích bài báo" in Paragraph Lab
+   paper-understanding already parses PDFs. Recommended: a new module group "Phân tích bài báo" in PaperLab
    that reuses the paper-understanding parser code; record it as ADR-0006 and a PRD v1.2 addendum.
 2. **Cost ceiling** per paper for 9router calls (P2 default: local detectors on everything, LLM steps on chosen
    sections).
 3. **Calibration data**: who labels the first benchmark set (P7).
 
-Defaults in use until the owner decides otherwise: (1) the group lives in Paragraph Lab and reuses the
+Defaults in use until the owner decides otherwise: (1) the group lives in PaperLab and reuses the
 parser code; (2) LLM steps run only on sections the user selects, with a visible per-run call estimate and a
 configurable ceiling (default 150 calls per paper); (3) P7 starts with an import format for human labels and no
 check is shown by default until it has labelled data.

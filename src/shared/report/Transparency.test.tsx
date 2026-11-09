@@ -79,7 +79,7 @@ it('P7 transparency uses planned sections, excludes skipped items, identifies ca
   expect(screen.getByText(/Hiệu chuẩn tại thời điểm chạy/)).toHaveTextContent('Đáng tin (n=30)');
   fireEvent.click(screen.getByRole('button', { name: 'Tải bản ghi minh bạch JSON' }));
   expect(downloadJson).toHaveBeenCalledWith(
-    'paragraph-lab-transparency.json',
+    'paperlab-transparency.json',
     expect.objectContaining({
       steps: [
         expect.objectContaining({
