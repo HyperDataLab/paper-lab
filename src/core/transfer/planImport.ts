@@ -165,6 +165,7 @@ export function planImport(
     measurements: parsed.data.measurements.filter((record) => eligiblePapers.has(record.paperId)),
     calibrationLabels,
     library: parsed.data.library,
+    stance: parsed.data.stance.filter((record) => eligiblePapers.has(record.paperId)),
     skipped,
     suppressed,
     auditEvents,

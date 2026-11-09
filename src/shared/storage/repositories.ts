@@ -26,6 +26,7 @@ import {
   PaperProbesRecordSchema,
   MeasurementsRecordSchema,
   LibraryItemSchema,
+  StanceRecordSchema,
   CalibrationLabelsSchema,
   CalibrationLabelSetSchema,
 } from '@/core/schemas';
@@ -41,6 +42,7 @@ import { createPaperReviewsRepository, rebuildReviewRecord } from './paperReview
 import { createPaperProbesRepository } from './paperProbes';
 import { createMeasurementsRepository } from './measurements';
 import { createLibraryRepository } from './library';
+import { createStanceRepository } from './stance';
 export class SourceImmutableError extends Error {
   override name = 'SourceImmutableError';
 }
@@ -477,6 +479,7 @@ export function createRepositories(
           db.paperProbes,
           db.measurements,
           db.library,
+          db.stance,
           db.reviewNgrams,
           db.auditEvents,
         ],
@@ -488,6 +491,7 @@ export function createRepositories(
             await db.paperReviews.delete(id);
             await db.paperProbes.delete(id);
             await db.measurements.delete(id);
+            await db.stance.delete(id);
             await db.library
               .where('paper_id')
               .equals(id)
@@ -667,6 +671,7 @@ export function createRepositories(
   const paperProbes = createPaperProbesRepository(db, now, makeAudit);
   const measurements = createMeasurementsRepository(db, now, makeAudit);
   const library = createLibraryRepository(db, now, ids);
+  const stance = createStanceRepository(db, now, makeAudit);
   const calibrationLabels = {
     async import(sourceFileName: string, data: unknown) {
       const parsed = CalibrationLabelsSchema.parse(data);
@@ -725,6 +730,7 @@ export function createRepositories(
         await calibrationLabels.list(),
         (await db.measurements.toArray()).map((value) => MeasurementsRecordSchema.parse(value)),
         await library.list(),
+        (await db.stance.toArray()).map((value) => StanceRecordSchema.parse(value)),
       );
     },
     async previewImport(raw: unknown) {
@@ -803,6 +809,7 @@ export function createRepositories(
           db.paperProbes,
           db.measurements,
           db.library,
+          db.stance,
           db.reviewNgrams,
           db.calibrationLabels,
         ],
@@ -954,6 +961,12 @@ export function createRepositories(
             if (!existing || record.updatedAt > existing.updatedAt)
               await db.measurements.put(MeasurementsRecordSchema.parse(record));
           }
+          for (const record of plan.stance) {
+            if (!(await db.papers.get(record.paperId))) continue;
+            const existing = await stance.get(record.paperId);
+            if (!existing || record.updatedAt > existing.updatedAt)
+              await db.stance.put(StanceRecordSchema.parse(record));
+          }
           for (const record of plan.library) {
             const existing = await db.library.where('doi').equals(record.doi).first();
             if (existing && record.updatedAt <= existing.updatedAt) continue;
@@ -991,6 +1004,7 @@ export function createRepositories(
     paperProbes,
     measurements,
     library,
+    stance,
     calibrationLabels,
     transfer,
   };

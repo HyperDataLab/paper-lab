@@ -203,6 +203,11 @@
   font-size: var(--text-sm);
   margin: var(--space-2) 0;
 }
+@media (max-width: 1200px) {
+  .tabGroup {
+    display: none;
+  }
+}
 @media (max-width: 900px) {
   .reader,
   .setup {
