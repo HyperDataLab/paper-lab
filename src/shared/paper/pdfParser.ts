@@ -1,6 +1,7 @@
 import * as pdfjs from 'pdfjs-dist';
 import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker';
-import type { PaperLine } from '@/core/paper';
+import type { PaperLine, PaperTable } from '@/core/paper';
+import { detectTables, tableText, type DetectablePart } from './tableDetect';
 import { guardPaperSize } from './sizeGuard';
 
 export interface TextItemLike {
@@ -22,6 +23,7 @@ export interface PdfLine {
   columnStart?: number;
   columnEnd?: number;
   monospace?: boolean;
+  table?: PaperTable;
 }
 export interface PdfPage {
   page: number;
@@ -44,7 +46,14 @@ export function itemsToLines(items: TextItemLike[], pageHeight: number, pageWidt
       };
     })
     .sort((a, b) => a.y - b.y || a.x - b.x);
-  const lines: { parts: typeof positioned; x: number; end: number; y: number; height: number }[] = [];
+  const lines: {
+    parts: typeof positioned;
+    x: number;
+    end: number;
+    y: number;
+    height: number;
+    table?: PaperTable;
+  }[] = [];
   for (const part of positioned) {
     const line = lines.find(
       (candidate) =>
@@ -85,8 +94,27 @@ export function itemsToLines(items: TextItemLike[], pageHeight: number, pageWidt
     base.end = Math.max(base.end, fragment.end);
     lines.splice(lines.indexOf(fragment), 1);
   }
-  const ordered = orderColumns(lines, pageWidth);
+  const tables = detectTables<(typeof lines)[number] & { parts: DetectablePart[] }>(lines, pageWidth);
+  const inTable = new Set(tables.flatMap((found) => found.lines));
+  const blocks: typeof lines = [
+    ...lines.filter((line) => !inTable.has(line)),
+    ...tables.map(({ table, x, end, y, height }) => ({ parts: [], table, x, end, y, height })),
+  ];
+  const ordered = orderColumns(blocks, pageWidth);
   return ordered.map((line) => {
+    const position = line.column
+      ? { column: line.column, columnStart: line.columnStart, columnEnd: line.columnEnd }
+      : {};
+    if (line.table)
+      return {
+        text: tableText(line.table),
+        x: line.x,
+        end: line.end,
+        y: line.y,
+        height: line.height,
+        table: line.table,
+        ...position,
+      };
     const parts = line.parts.sort((a, b) => a.x - b.x);
     let text = '';
     let previous: (typeof parts)[number] | undefined;
@@ -117,9 +145,7 @@ export function itemsToLines(items: TextItemLike[], pageHeight: number, pageWidt
       y: line.y,
       height: line.height,
       monospace: line.parts.some((part) => part.item.monospace),
-      ...(line.column
-        ? { column: line.column, columnStart: line.columnStart, columnEnd: line.columnEnd }
-        : {}),
+      ...position,
     };
   });
 }
@@ -234,6 +260,7 @@ export function removeRunningHeaders(pages: PdfPage[]): PaperLine[] {
           columnEnd: line.columnEnd,
           source: 'pdf' as const,
           ...(line.monospace ? { monospace: true } : {}),
+          ...(line.table ? { table: line.table } : {}),
         },
       ];
     });

@@ -53,6 +53,24 @@
   border-bottom: 1px solid var(--border);
   padding: var(--space-4) 0;
 }
+.tableWrap {
+  overflow-x: auto;
+  margin-top: var(--space-2);
+}
+.table {
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.table td {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-1) var(--space-3);
+  white-space: nowrap;
+}
+.tableCaption {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  margin: var(--space-2) 0;
+}
 @media (max-width: 900px) {
   .map {
     grid-template-columns: 1fr;

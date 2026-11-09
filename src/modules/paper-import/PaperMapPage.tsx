@@ -17,6 +17,7 @@ import { Card } from '@/shared/ui/Card';
 import { Select } from '@/shared/ui/Select';
 import { Tabs } from '@/shared/ui/Tabs';
 import { PaperProbe } from './PaperProbe';
+import { PaperTableView } from './PaperTableView';
 import styles from './page.module.css';
 import { BatchPanel } from './BatchPanel';
 import { BatchParagraphStatus } from './BatchParagraphStatus';
@@ -330,7 +331,13 @@ export default function PaperMapPage() {
                             >
                               <span>{item.id} </span>
                               <Badge>{item.kind}</Badge>
-                              <p className={styles.reading}>
+                              {item.table ? (
+                                <PaperTableView
+                                  table={item.table}
+                                  caption={paper.paragraphs.find((p) => p.id === item.table?.captionId)}
+                                />
+                              ) : null}
+                              <p className={item.table ? styles.hidden : styles.reading}>
                                 {highlight?.paragraphId === item.id ? (
                                   <>
                                     {Array.from(item.text).slice(0, highlight.start).join('')}

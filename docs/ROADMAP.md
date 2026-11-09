@@ -32,6 +32,16 @@ Status: ⬜ not started · 🟨 in progress · ✅ accepted.
 | P6   | Score robustness probe (style-only rewrite → score sensitivity)                         | ✅     |
 | P7   | Calibration and transparency                                                            | ✅     |
 
+## Paper measurement extraction (`docs/PRD_Measurement.md`)
+
+| #   | Slice                                                                 | Status |
+| --- | --------------------------------------------------------------------- | ------ |
+| M1  | Table and equation blocks in the PDF reader                           | ✅     |
+| M2  | Schema, paper classification, per-section extraction, evidence checks | ⬜     |
+| M3  | Linking, same-name metrics, claims, six warnings, survey mode         | ⬜     |
+| M4  | `Đo lường` tab, human review, audit, evidence navigation              | ⬜     |
+| M5  | JSON/Markdown/CSV export, transparency, gold-standard tool            | ⬜     |
+
 P2 follow-up: share syntax requests across paragraphs in the same section, in batches of at most 40
 sentences. Until then, syntax uses one request per selected paragraph and estimates use the same unit.
 
