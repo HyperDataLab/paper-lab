@@ -35,6 +35,7 @@ const normalize = (text: string) => text.normalize('NFC').toLowerCase().replace(
 const RANK: Record<ProfileField['status'], number> = {
   CONTRADICTORY: 6,
   REPORTED: 5,
+  HUMAN_EDITED: 5,
   DERIVED: 4,
   INFERRED: 3,
   NOT_APPLICABLE: 2,
@@ -120,7 +121,7 @@ export function mergeMetric(target: MetricUsage, next: MetricUsage) {
   target.evidence_ids = fieldEvidence(target);
 }
 
-function fieldEvidence(metric: MetricUsage) {
+export function fieldEvidence(metric: MetricUsage) {
   return [
     ...new Set(
       [
@@ -227,7 +228,9 @@ export function buildProfile(input: ProfileInput): MeasurementProfile {
       const sameName = metrics.filter((item) => item.normalized_label === usage.normalized_label);
       const match = sameName.find(
         (item) =>
-          compatibleFields(item.definition, usage.definition) && compatibleFields(item.unit, usage.unit),
+          compatibleFields(item.definition, usage.definition) &&
+          compatibleFields(item.unit, usage.unit) &&
+          compatibleFields(item.formula_text, usage.formula_text),
       );
       if (match) {
         mergeMetric(match, usage);

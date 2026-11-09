@@ -121,6 +121,51 @@ it('FR-01 runs an analysis with an estimate and budget', async () => {
   expect(completeJson).toHaveBeenCalledTimes(5);
 });
 
+it('FR-01 saves the call count before a classification request fails', async () => {
+  acceptConsent(getConfig(), true);
+  const completeJson = vi.fn(async (options: { onRequest: () => Promise<void> }) => {
+    await options.onRequest();
+    expect((await context.repo.measurements.get(PAPER_ID))?.pending).toMatchObject({
+      callsUsed: 1,
+      checkpoint: { classification: null },
+    });
+    throw new Error('synthetic failure');
+  });
+  const context = await setup(false, { completeJson } as unknown as LlmClient);
+  fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu phân tích' }));
+  expect(await screen.findByRole('button', { name: /Tiếp tục phần còn lại/ })).toBeInTheDocument();
+  expect(completeJson).toHaveBeenCalledTimes(1);
+});
+
+it('FR-01 offers resume when linking fails after extraction', async () => {
+  acceptConsent(getConfig(), true);
+  const replies: Record<string, unknown> = {
+    measurement_classification: { paper_type: 'EMPIRICAL', rationale: 'r', quotes: [] },
+    measurement_extraction: {
+      constructs: [],
+      metrics: [],
+      experiments: [],
+      results: [],
+      claims: [],
+      taxonomy: [],
+      review_method: null,
+    },
+    measurement_findings: { findings: [] },
+  };
+  const completeJson = vi.fn(async (options: { schemaName: string; onRequest: () => Promise<void> }) => {
+    await options.onRequest();
+    if (options.schemaName === 'measurement_links') throw new Error('synthetic failure');
+    return {
+      data: replies[options.schemaName],
+      meta: { model: 'm', promptVersion: 'p', latencyMs: 1, repaired: false },
+    };
+  });
+  const { repo } = await setup(false, { completeJson } as unknown as LlmClient);
+  fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu phân tích' }));
+  expect(await screen.findByRole('button', { name: /Tiếp tục phần còn lại/ })).toBeInTheDocument();
+  expect((await repo.measurements.get(PAPER_ID))?.runs[0]?.profile.steps.link).toBe('failed');
+});
+
 it('FR-16 offers the four exports and downloads the reviewed profile', async () => {
   const create = vi.fn((_blob: Blob) => 'blob:x');
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: create, revokeObjectURL: vi.fn() }));

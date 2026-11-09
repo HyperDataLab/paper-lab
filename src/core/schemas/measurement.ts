@@ -9,6 +9,7 @@ export const FieldStatusSchema = z.enum([
   'NOT_APPLICABLE',
   'CONTRADICTORY',
   'NOT_CHECKED',
+  'HUMAN_EDITED',
 ]);
 export const PaperTypeSchema = z.enum([
   'EMPIRICAL',
@@ -32,7 +33,7 @@ export const PROTOCOL_FIELDS = [
 export type ProtocolField = (typeof PROTOCOL_FIELDS)[number];
 
 // Model output. Offsets never come from the model: it gives a quote, code finds it.
-const ModelStatusSchema = FieldStatusSchema.exclude(['NOT_CHECKED']);
+const ModelStatusSchema = FieldStatusSchema.exclude(['NOT_CHECKED', 'HUMAN_EDITED']);
 export const QuoteRefSchema = z.object({
   blockId: z.string(),
   quote: z.string(),

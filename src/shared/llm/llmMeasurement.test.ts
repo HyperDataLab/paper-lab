@@ -153,6 +153,29 @@ it('M3 does not repeat finished steps and redoes them after new sections', async
   expect(resumed.fetch).toHaveBeenCalledTimes(3);
 });
 
+it('M3 clears stale findings when a fresh link is saved', async () => {
+  const checkpoint: MeasurementCheckpoint = {
+    classification: JSON.parse(classify),
+    units: { 'unit-1': JSON.parse(extraction), 'unit-2': JSON.parse(extraction) },
+    link: null,
+    findings: JSON.parse(findings),
+    model: 'm',
+  };
+  const { client, fetch } = setup([]);
+  const snapshots: MeasurementCheckpoint[] = [];
+  await llmMeasurement(
+    client,
+    paper,
+    options({
+      checkpoint,
+      onCheckpoint: async (value: MeasurementCheckpoint) => snapshots.push(structuredClone(value)),
+    }),
+  );
+  expect(snapshots[0]?.link).not.toBeNull();
+  expect(snapshots[0]?.findings).toBeNull();
+  expect(fetch).toHaveBeenCalledTimes(2);
+});
+
 it('M2 rejects an empty selection', async () => {
   const { client } = setup([]);
   await expect(llmMeasurement(client, paper, options({ sectionIds: [] }))).rejects.toThrow('Không có mục');

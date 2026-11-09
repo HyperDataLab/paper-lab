@@ -22,6 +22,7 @@ export interface ItemContext {
 
 const STATUS: Record<ProfileField['status'], { label: string; tone: 'accent' | 'neutral' | 'warning' }> = {
   REPORTED: { label: 'Tác giả nêu', tone: 'accent' },
+  HUMAN_EDITED: { label: 'Người duyệt sửa', tone: 'neutral' },
   INFERRED: { label: 'AI diễn giải', tone: 'neutral' },
   DERIVED: { label: 'AI tính từ số liệu', tone: 'neutral' },
   NOT_REPORTED: { label: 'Không thấy trong phần đã phân tích', tone: 'neutral' },
