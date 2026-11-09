@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  buildMeasurementTree,
   defaultMeasurementSections,
   estimateMeasurementCalls,
+  flattenMeasurementTree,
+  isMeasurementBlock,
   latestDecisions,
   measurementJson,
   measurementMarkdown,
@@ -9,6 +12,8 @@ import {
   planExtraction,
   protocolCsv,
   reviewedProfile,
+  type MeasurementNode,
+  type MeasurementRef,
 } from '@/core/measurement';
 import type { MeasurementPending, MeasurementRun, MeasurementsRecord, Paper } from '@/core/schemas';
 import { useLlm } from '@/shared/llm/LlmProvider';
@@ -19,21 +24,16 @@ import { downloadJson, downloadText } from '@/shared/calibration/download';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
-import { Checkbox } from '@/shared/ui/Checkbox';
-import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { TextField } from '@/shared/ui/TextField';
+import { Tree, type TreeNode } from '@/shared/ui/Tree';
 import type { Decide, ItemContext, Location } from './MeasurementItems';
-import { IssuesView, MetricsView, OverviewView, ProtocolView, ResultsView } from './MeasurementViews';
+import { MeasurementDetail } from './MeasurementViews';
+import { SectionPicker } from './SectionPicker';
 import styles from './measurement.module.css';
 
 const CSV = 'text/csv;charset=utf-8';
-const VIEWS = [
-  { value: 'overview', label: 'Tổng quan' },
-  { value: 'metrics', label: 'Metric' },
-  { value: 'protocol', label: 'Protocol' },
-  { value: 'results', label: 'Kết quả & truy vết' },
-  { value: 'issues', label: 'Vấn đề & duyệt' },
-];
+const sameRef = (a: MeasurementRef, b: MeasurementRef) =>
+  a.kind === b.kind && ('id' in a ? a.id : null) === ('id' in b ? b.id : null);
 
 export function PaperMeasurement({
   paper,
@@ -53,7 +53,9 @@ export function PaperMeasurement({
   const [progress, setProgress] = useState('');
   const [running, setRunning] = useState(false);
   const [error, setError] = useState('');
-  const [view, setView] = useState('overview');
+  const [selectedNode, setSelectedNode] = useState('overview');
+  const [query, setQuery] = useState('');
+  const [showSetup, setShowSetup] = useState(false);
   const controller = useRef<AbortController | null>(null);
   useEffect(() => {
     let active = true;
@@ -119,7 +121,8 @@ export function PaperMeasurement({
           checkpoint: result.checkpoint,
         });
       setRecord(saved);
-      setView('overview');
+      setSelectedNode('overview');
+      setShowSetup(false);
     } catch (cause) {
       setRecord(await repo.measurements.get(paper.id));
       if (!abort.signal.aborted)
@@ -170,52 +173,85 @@ export function PaperMeasurement({
   const exported = (current: MeasurementRun) =>
     reviewedProfile(current.profile, record?.decisions ?? [], current.id);
   if (loading) return <p>Đang tải hồ sơ đo lường…</p>;
+  const pending = record?.pending ?? null;
+  const setup = (
+    <>
+      <SectionPicker
+        paper={paper}
+        value={sections}
+        onChange={setSections}
+        disabled={running}
+        legend="Mục được gửi cho AI"
+        count={(section) =>
+          paper.paragraphs.filter((p) => p.sectionId === section.id && isMeasurementBlock(p)).length
+        }
+      />
+      <p>Ước tính {estimate} lượt gọi AI (chưa tính thử lại).</p>
+      <TextField
+        label="Trần số lượt gọi"
+        type="number"
+        min={1}
+        value={String(budget)}
+        disabled={running}
+        onChange={(e) => setBudget(Number(e.target.value))}
+      />
+      <div className={styles.meta}>
+        <Button variant="primary" disabled={running || !sections.length} onClick={() => void start(null)}>
+          Bắt đầu phân tích
+        </Button>
+      </div>
+    </>
+  );
+  const nodes = profile ? buildMeasurementTree(profile) : [];
+  const flat = flattenMeasurementTree(nodes);
+  const selected = flat.find((node) => node.id === selectedNode) ?? flat[0];
+  const open = (ref: MeasurementRef) => {
+    const node = flat.find((item) => sameRef(item.ref, ref));
+    if (node) setSelectedNode(node.id);
+  };
+  const toTree = (node: MeasurementNode): TreeNode => ({
+    id: node.id,
+    label: node.flagged ? `⚑ ${node.label}` : node.label,
+    meta: node.count || undefined,
+    children: node.children?.map(toTree),
+  });
+  const term = query.trim().toLowerCase();
+  const treeNodes = term
+    ? flat
+        .filter((node) => node.label.toLowerCase().includes(term))
+        .filter((node, index, list) => list.findIndex((item) => sameRef(item.ref, node.ref)) === index)
+        .map((node) => ({ id: node.id, label: node.label, meta: node.count || undefined }))
+    : nodes.map(toTree);
   return (
     <div className={styles.panel}>
-      <Card>
-        <h2>Phân tích đo lường và đánh giá</h2>
-        <p>
-          Trích xuất bài báo đã đo gì, bằng metric nào, dưới protocol nào. Mọi thông tin được đối chiếu lại
-          với bài bằng code; bạn là người quyết định cuối.
-        </p>
-        <fieldset disabled={running}>
-          <legend>Mục được gửi cho AI</legend>
-          {paper.sections.map((section) => (
-            <Checkbox
-              key={section.id}
-              checked={sections.includes(section.id)}
-              onChange={(e) =>
-                setSections((old) =>
-                  e.target.checked ? [...old, section.id] : old.filter((item) => item !== section.id),
-                )
-              }
-            >
-              {section.heading}
-            </Checkbox>
-          ))}
-        </fieldset>
-        <p>Ước tính {estimate} lượt gọi AI (chưa tính thử lại).</p>
-        <TextField
-          label="Trần số lượt gọi"
-          type="number"
-          min={1}
-          value={String(budget)}
-          disabled={running}
-          onChange={(e) => setBudget(Number(e.target.value))}
-        />
-        <div className={styles.meta}>
+      <Card padding="md">
+        {!run && <h2>Phân tích đo lường và đánh giá</h2>}
+        {!run && (
+          <p>
+            Trích xuất bài báo đã đo gì, bằng metric nào, dưới protocol nào. Mọi thông tin được đối chiếu lại
+            với bài bằng code; bạn là người quyết định cuối.
+          </p>
+        )}
+        <div className={styles.runBar}>
+          <span>
+            {run
+              ? `Phân tích lúc ${new Date(run.createdAt).toLocaleString('vi-VN')} · ${run.callsUsed} lượt gọi`
+              : 'Chưa phân tích bài này.'}
+          </span>
           {running ? (
             <Button variant="danger" onClick={() => controller.current?.abort()}>
               Dừng
             </Button>
           ) : (
             <>
-              <Button variant="primary" disabled={!sections.length} onClick={() => void start(null)}>
-                {run ? 'Phân tích lại' : 'Bắt đầu phân tích'}
-              </Button>
-              {record?.pending && (
-                <Button onClick={() => void start(record.pending)}>
-                  Tiếp tục phần còn lại ({Object.keys(record.pending.checkpoint.units).length} phần đã xong)
+              {pending && (
+                <Button variant="primary" onClick={() => void start(pending)}>
+                  Tiếp tục phần còn lại ({Object.keys(pending.checkpoint.units).length} phần đã xong)
+                </Button>
+              )}
+              {run && (
+                <Button onClick={() => setShowSetup(!showSetup)}>
+                  {showSetup ? 'Ẩn thiết lập' : 'Phân tích lại'}
                 </Button>
               )}
             </>
@@ -226,15 +262,12 @@ export function PaperMeasurement({
             </span>
           )}
         </div>
-        {error && <div role="alert">{error}</div>}
-      </Card>
-      {profile && context && run && (
-        <>
-          <SegmentedControl label="Xem hồ sơ" value={view} options={VIEWS} onChange={setView} />
+        {run && (
           <div className={styles.meta}>
-            <span>Xuất bản đã duyệt:</span>
+            <span>Xuất hồ sơ đã duyệt:</span>
             <Button
               size="sm"
+              variant="ghost"
               onClick={() =>
                 downloadJson(`${exportName}.json`, measurementJson(run, record?.decisions ?? []))
               }
@@ -243,6 +276,7 @@ export function PaperMeasurement({
             </Button>
             <Button
               size="sm"
+              variant="ghost"
               onClick={() =>
                 downloadText(
                   `${exportName}.md`,
@@ -255,6 +289,7 @@ export function PaperMeasurement({
             </Button>
             <Button
               size="sm"
+              variant="ghost"
               onClick={() =>
                 downloadText(`${exportName}-metrics.csv`, `\uFEFF${metricsCsv(exported(run))}`, CSV)
               }
@@ -263,6 +298,7 @@ export function PaperMeasurement({
             </Button>
             <Button
               size="sm"
+              variant="ghost"
               onClick={() =>
                 downloadText(`${exportName}-protocol.csv`, `\uFEFF${protocolCsv(exported(run))}`, CSV)
               }
@@ -270,12 +306,42 @@ export function PaperMeasurement({
               CSV protocol
             </Button>
           </div>
-          {view === 'overview' && <OverviewView profile={profile} paper={paper} />}
-          {view === 'metrics' && <MetricsView profile={profile} context={context} />}
-          {view === 'protocol' && <ProtocolView profile={profile} context={context} />}
-          {view === 'results' && <ResultsView profile={profile} context={context} />}
-          {view === 'issues' && <IssuesView profile={profile} context={context} />}
-        </>
+        )}
+        {(!run || showSetup) && !running && setup}
+        {error && <div role="alert">{error}</div>}
+      </Card>
+      {profile && context && selected && (
+        <div className={styles.workspace}>
+          <div className={styles.nav}>
+            <Card padding="md">
+              <TextField
+                label="Tìm trong hồ sơ"
+                size="sm"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              {treeNodes.length ? (
+                <Tree
+                  label="Hồ sơ đo lường"
+                  nodes={treeNodes}
+                  selectedId={selected.id}
+                  onSelect={setSelectedNode}
+                />
+              ) : (
+                <p>Không có mục nào khớp.</p>
+              )}
+            </Card>
+          </div>
+          <div className={styles.detail}>
+            <MeasurementDetail
+              target={selected.ref}
+              paper={paper}
+              profile={profile}
+              context={context}
+              open={open}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

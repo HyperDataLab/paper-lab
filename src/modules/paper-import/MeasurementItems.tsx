@@ -31,6 +31,13 @@ const STATUS: Record<ProfileField['status'], { label: string; tone: 'accent' | '
   NOT_CHECKED: { label: 'Chưa kiểm tra', tone: 'warning' },
 };
 
+const KIND_LABELS: Record<Evidence['kind'], string> = {
+  text: 'đoạn văn',
+  table: 'bảng',
+  figure: 'hình',
+  equation: 'công thức',
+};
+
 export function StatusBadges({
   status,
   needsReview,
@@ -53,7 +60,9 @@ export function EvidenceLinks({ ids, context }: { ids: string[]; context: ItemCo
       {ids.flatMap((id) => {
         const item = context.evidence.get(id);
         if (!item) return [];
-        const place = item.cell ? `hàng ${item.cell.row + 1}, cột ${item.cell.column + 1}` : item.kind;
+        const place = item.cell
+          ? `hàng ${item.cell.row + 1}, cột ${item.cell.column + 1}`
+          : KIND_LABELS[item.kind];
         return [
           <Button
             key={id}
@@ -105,7 +114,7 @@ export function ItemActions({
         Chấp nhận
       </Button>
       <Button size="sm" variant="ghost" onClick={() => send('reject')}>
-        Loại
+        Loại bỏ
       </Button>
     </span>
   );
@@ -194,7 +203,7 @@ export function FieldRow({
                 })
               }
             >
-              Đã xem
+              Đánh dấu đã xem
             </Button>
           )}
         </div>
