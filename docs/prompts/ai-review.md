@@ -74,7 +74,7 @@ across lenses (same anchor ± overlapping quote) while keeping which lenses rais
   hedging is expected).
 - `para-struct-paper-1`: adds `Previous paragraph ends with: "…"` and `Next paragraph starts with: "…"`, plus the
   section role; Schimel structures stay the same; `context_limited` is false when both neighbours exist.
-- `sent-syntax-paper-1`: identical rules, batched by section (≤ 40 sentences), heading included.
+- `sent-syntax-paper-batch-1`: identical rules, batched by section (≤ 40 sentences), heading included. Paragraphs sharing a request get unique sentence ids and token numbers, which code restores before validation.
 
 ## 4. Diversity and template metrics (code, no extra model call)
 

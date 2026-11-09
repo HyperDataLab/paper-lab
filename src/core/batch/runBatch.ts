@@ -9,6 +9,7 @@ import type {
 import type { PaperContext } from '../prompts/paperContext';
 import { segmentSentences } from '../text/segment';
 import { sliceCp } from '../text/offsets';
+import { groupSyntaxBatches, sentenceCountOf } from './planRun';
 
 export type BatchSignal = { action?: 'pause' | 'cancel' };
 export type BatchDeps = {
@@ -23,6 +24,11 @@ export type BatchDeps = {
   save: (run: PaperRun) => Promise<unknown>;
   now: () => string;
   sleep: (ms: number) => Promise<void>;
+  /** Runs several paragraphs of a section in one request and returns the paragraph ids it completed. */
+  analyzeSyntaxBatch?: (
+    members: { paragraph: PaperParagraph; context: PaperContext; analysisId: string }[],
+    onRequest: () => Promise<void>,
+  ) => Promise<string[]>;
   findCached?: (paragraph: PaperParagraph, run: PaperRun) => Promise<string | null>;
   getTransitionPairs?: () => Promise<TransitionPair[]>;
   analyzeTransitions?: (pairs: TransitionPair[], onRequest: () => Promise<void>) => Promise<void>;
@@ -91,14 +97,118 @@ export async function runBatch(
     await checkpoint();
     return true;
   };
+  type Item = PaperRun['items'][number];
+  const paragraphOf = (item: Item) =>
+    deps.paper.paragraphs.find((p) => p.id === item.paragraphId && p.textHash === item.textHash);
+  const adoptCached = async (item: Item, paragraph: PaperParagraph) => {
+    if (item.analysisId || !deps.findCached) return false;
+    const cached = await deps.findCached(paragraph, run);
+    if (!cached) return false;
+    item.analysisId = cached;
+    item.status = 'cached';
+    await checkpoint();
+    return true;
+  };
+  const ensureAnalysis = async (item: Item, paragraph: PaperParagraph) => {
+    if (item.analysisId) return item.analysisId;
+    await snapshot('detectors');
+    const id = await deps.analyze(paragraph, contextFor(deps.paper, paragraph), 'detectors', null);
+    item.analysisId = id;
+    const calibration = run.calibrationSnapshots?.detectors;
+    if (calibration && deps.recordCalibration) await deps.recordCalibration(id, 'detectors', calibration);
+    await checkpoint();
+    return id;
+  };
+  const counted = (step: BatchStep, item?: Item) => async () => {
+    if (run.callsUsed >= run.budget) throw new BatchBudgetExceededError();
+    run.callsUsed++;
+    if (run.callsByStep) run.callsByStep[step] = (run.callsByStep[step] ?? 0) + 1;
+    if (item) item.calls++;
+    await checkpoint();
+  };
+  /** False means the user paused or cancelled while waiting to retry. */
+  const withRetries = async (call: () => Promise<void>) => {
+    for (let attempt = 0; ;) {
+      try {
+        await call();
+        return true;
+      } catch (error) {
+        if (!retryable(error) || attempt >= 3) throw error;
+        await deps.sleep(1000 * 2 ** attempt++);
+        if (await stop()) return false;
+      }
+    }
+  };
+  const syntaxMembers = async (item: Item, paragraph: PaperParagraph, analysisId: string) => {
+    const candidates = run.items.slice(run.items.indexOf(item) + 1).flatMap((other) => {
+      const next = paragraphOf(other);
+      return next &&
+        next.sectionId === paragraph.sectionId &&
+        !other.stepsDone.includes('syntax') &&
+        ['pending', 'failed'].includes(other.status)
+        ? [{ item: other, paragraph: next }]
+        : [];
+    });
+    const [group = []] = groupSyntaxBatches([{ item, paragraph }, ...candidates], (member) =>
+      sentenceCountOf(member.paragraph.text),
+    );
+    const members = [{ item, paragraph, analysisId }];
+    for (const member of group.slice(1)) {
+      try {
+        if (await adoptCached(member.item, member.paragraph)) continue;
+        members.push({ ...member, analysisId: await ensureAnalysis(member.item, member.paragraph) });
+      } catch (error) {
+        member.item.status = 'failed';
+        member.item.error = error instanceof Error ? error.message : String(error);
+        await checkpoint();
+      }
+    }
+    return members;
+  };
+  /** One request for the group; if the group fails, this paragraph alone, so a bad neighbour cannot sink it. */
+  const runSyntax = async (
+    item: Item,
+    paragraph: PaperParagraph,
+    analysisId: string,
+    analyzeSyntaxBatch: NonNullable<BatchDeps['analyzeSyntaxBatch']>,
+  ) => {
+    const members = await syntaxMembers(item, paragraph, analysisId);
+    for (const group of members.length > 1 ? [members, members.slice(0, 1)] : [members]) {
+      let completed: string[] = [];
+      try {
+        const finished = await withRetries(async () => {
+          completed = await analyzeSyntaxBatch(
+            group.map((member) => ({
+              paragraph: member.paragraph,
+              context: contextFor(deps.paper, member.paragraph),
+              analysisId: member.analysisId,
+            })),
+            counted('syntax', item),
+          );
+        });
+        if (!finished) return false;
+      } catch (error) {
+        if (error instanceof BatchBudgetExceededError || group.length === 1) throw error;
+        continue;
+      }
+      const calibration = run.calibrationSnapshots?.syntax;
+      for (const member of group) {
+        if (!completed.includes(member.paragraph.id)) continue;
+        if (calibration && deps.recordCalibration)
+          await deps.recordCalibration(member.analysisId, 'syntax', calibration);
+        member.item.stepsDone.push('syntax');
+      }
+      await checkpoint();
+      if (item.stepsDone.includes('syntax')) return true;
+    }
+    throw new Error('Model returned no syntax for this paragraph');
+  };
   run.status = 'running';
   await checkpoint();
   for (const item of run.items) {
     if (['done', 'cached', 'skipped'].includes(item.status)) continue;
     if (await stop()) return run;
-    const paragraph = deps.paper.paragraphs.find(
-      (p) => p.id === item.paragraphId && p.textHash === item.textHash,
-    );
+    const paragraph = paragraphOf(item);
     if (!paragraph) {
       item.status = 'failed';
       item.error = 'Paragraph not found or changed';
@@ -106,25 +216,10 @@ export async function runBatch(
       continue;
     }
     try {
-      if (!item.analysisId && deps.findCached) {
-        const cached = await deps.findCached(paragraph, run);
-        if (cached) {
-          item.analysisId = cached;
-          item.status = 'cached';
-          await checkpoint();
-          continue;
-        }
-      }
+      if (await adoptCached(item, paragraph)) continue;
       item.status = 'running';
       item.error = null;
-      if (!item.analysisId) {
-        await snapshot('detectors');
-        item.analysisId = await deps.analyze(paragraph, contextFor(deps.paper, paragraph), 'detectors', null);
-        const calibration = run.calibrationSnapshots?.detectors;
-        if (calibration && deps.recordCalibration)
-          await deps.recordCalibration(item.analysisId, 'detectors', calibration);
-        await checkpoint();
-      }
+      const analysisId = await ensureAnalysis(item, paragraph);
       for (const step of run.plan.steps) {
         if (step === 'transitions') continue;
         if (item.stepsDone.includes(step)) continue;
@@ -133,36 +228,31 @@ export async function runBatch(
           await checkpoint();
           return run;
         }
-        let attempt = 0;
         await snapshot(step);
-        for (;;) {
-          try {
-            item.analysisId = await deps.analyze(
-              paragraph,
-              contextFor(deps.paper, paragraph),
-              step,
-              item.analysisId,
-              async () => {
-                if (run.callsUsed >= run.budget) throw new BatchBudgetExceededError();
-                run.callsUsed++;
-                if (run.callsByStep) run.callsByStep[step] = (run.callsByStep[step] ?? 0) + 1;
-                item.calls++;
-                await checkpoint();
-              },
-            );
-            const calibration = run.calibrationSnapshots?.[step];
-            if (calibration && deps.recordCalibration)
-              await deps.recordCalibration(item.analysisId, step, calibration);
-            break;
-          } catch (error) {
-            if (!retryable(error) || attempt >= 3) throw error;
-            await deps.sleep(1000 * 2 ** attempt++);
-            if (await stop()) {
-              item.status = 'pending';
-              await checkpoint();
-              return run;
-            }
+        if (step === 'syntax' && deps.analyzeSyntaxBatch) {
+          if (!(await runSyntax(item, paragraph, analysisId, deps.analyzeSyntaxBatch))) {
+            item.status = 'pending';
+            await checkpoint();
+            return run;
           }
+          continue;
+        }
+        const finished = await withRetries(async () => {
+          item.analysisId = await deps.analyze(
+            paragraph,
+            contextFor(deps.paper, paragraph),
+            step,
+            item.analysisId,
+            counted(step, item),
+          );
+          const calibration = run.calibrationSnapshots?.[step];
+          if (calibration && deps.recordCalibration)
+            await deps.recordCalibration(item.analysisId, step, calibration);
+        });
+        if (!finished) {
+          item.status = 'pending';
+          await checkpoint();
+          return run;
         }
         item.stepsDone.push(step);
         await checkpoint();
@@ -209,22 +299,8 @@ export async function runBatch(
         if (await stop()) return run;
         try {
           await snapshot('transitions');
-          let attempt = 0;
-          for (;;) {
-            try {
-              await deps.analyzeTransitions(chunk, async () => {
-                if (run.callsUsed >= run.budget) throw new BatchBudgetExceededError();
-                run.callsUsed++;
-                if (run.callsByStep) run.callsByStep.transitions = (run.callsByStep.transitions ?? 0) + 1;
-                await checkpoint();
-              });
-              break;
-            } catch (error) {
-              if (!retryable(error) || attempt >= 3) throw error;
-              await deps.sleep(1000 * 2 ** attempt++);
-              if (await stop()) return run;
-            }
-          }
+          const analyzeTransitions = deps.analyzeTransitions;
+          if (!(await withRetries(() => analyzeTransitions(chunk, counted('transitions'))))) return run;
         } catch (error) {
           run.status = error instanceof BatchBudgetExceededError ? 'budget_exceeded' : 'failed';
           await checkpoint();
