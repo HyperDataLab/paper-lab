@@ -16,6 +16,7 @@ import { ReviewResults } from './ReviewResults';
 import { SectionPicker } from './SectionPicker';
 import styles from './review.module.css';
 import { captureCalibration } from '@/shared/calibration/data';
+import { Loading } from '@/shared/ui/StateNote';
 
 export function PaperReview({
   paper,
@@ -147,7 +148,7 @@ export function PaperReview({
       setError(String(cause));
     }
   }
-  if (loading) return <p>Đang tải phản biện…</p>;
+  if (loading) return <Loading label="Đang tải phản biện…" />;
   const notesPanel = (
     <Card>
       <h2>Nhận xét của bạn</h2>

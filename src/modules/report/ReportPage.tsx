@@ -9,6 +9,7 @@ import { ReportText } from './ReportText';
 import styles from './report.module.css';
 import { Transparency } from '@/shared/report/Transparency';
 import { labels, statuses } from '@/modules/evaluate/issueLabels';
+import { Loading } from '@/shared/ui/StateNote';
 
 const percent = (value: number | null) => (value === null ? '—' : `${Math.round(value * 100)} %`);
 const SEVERITIES = {
@@ -46,7 +47,7 @@ export default function ReportPage() {
         </details>
       </div>
     );
-  if (!report) return <p>Đang tải báo cáo…</p>;
+  if (!report) return <Loading label="Đang tải báo cáo…" />;
   const { analysis } = report;
   const issues = Object.values(report.issues).flat();
   const quote = (span: { start: number; end: number } | null | undefined) =>

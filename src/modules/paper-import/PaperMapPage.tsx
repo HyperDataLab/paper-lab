@@ -32,6 +32,7 @@ import { PaperReview } from './PaperReview';
 import type { ReactNode } from 'react';
 import { Transparency } from '@/shared/report/Transparency';
 import { captureCalibration } from '@/shared/calibration/data';
+import { Loading } from '@/shared/ui/StateNote';
 
 type ViewId = 'profile' | 'snapshot' | 'metadata' | 'map' | 'review' | ProfileView;
 const GROUPS: { id: string; label: string; views: { id: ViewId; label: string }[] }[] = [
@@ -268,7 +269,7 @@ export default function PaperMapPage() {
       setError(String(cause));
     }
   }
-  if (loading) return <p>Đang tải bài báo…</p>;
+  if (loading) return <Loading label="Đang tải bài báo…" />;
   if (!paper)
     return (
       <div>

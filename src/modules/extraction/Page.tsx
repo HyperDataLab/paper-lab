@@ -7,6 +7,7 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { TextField } from '@/shared/ui/TextField';
 import styles from './extraction.module.css';
+import { Empty, Loading } from '@/shared/ui/StateNote';
 
 export default function Page() {
   const repo = useRepositories();
@@ -64,9 +65,12 @@ export default function Page() {
       {error && <p role="alert">{error}</p>}
       <h2>Các project</h2>
       {!projects ? (
-        <p>Đang tải…</p>
+        <Loading label="Đang tải…" />
       ) : projects.length === 0 ? (
-        <p>Chưa có project nào.</p>
+        <Empty
+          title="Chưa có project nào."
+          hint="Đặt tên và tạo project ở trên, hoặc nêu câu hỏi nghiên cứu ở Trang chủ."
+        />
       ) : (
         <ul className={styles.list}>
           {projects.map((project) => (

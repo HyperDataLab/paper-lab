@@ -25,6 +25,7 @@ import { TextField } from '@/shared/ui/TextField';
 import { Tree, type TreeNode } from '@/shared/ui/Tree';
 import { SectionPicker } from './SectionPicker';
 import styles from './measurement.module.css';
+import { Loading } from '@/shared/ui/StateNote';
 
 const LABELS: Record<StanceCategory, { name: string; help: string }> = {
   hedges: { name: 'Rào đón (Hedges)', help: 'Giữ khoảng cách, chưa khẳng định hoàn toàn.' },
@@ -131,7 +132,7 @@ export function PaperStance({
   const decisions = useMemo(() => record?.decisions ?? [], [record]);
   const metrics = useMemo(() => (run ? stanceMetrics(run, decisions) : undefined), [run, decisions]);
   const states = useMemo(() => (run ? stanceStates(run, decisions) : new Map()), [run, decisions]);
-  if (loading) return <p>Đang tải phân tích giọng văn…</p>;
+  if (loading) return <Loading label="Đang tải phân tích giọng văn…" />;
 
   const heading = (id: string) => paper.sections.find((section) => section.id === id)?.heading ?? id;
   const allRows = metrics ? [...metrics.stance.rows, ...metrics.engagement.rows] : [];

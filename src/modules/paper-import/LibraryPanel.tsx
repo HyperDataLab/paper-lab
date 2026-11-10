@@ -25,6 +25,7 @@ import { Select } from '@/shared/ui/Select';
 import { TextField } from '@/shared/ui/TextField';
 import { useLibrary } from './useLibrary';
 import styles from './library.module.css';
+import { Loading } from '@/shared/ui/StateNote';
 
 const PAGE_SIZE = 50;
 const STATUS: Record<
@@ -109,7 +110,7 @@ export function LibraryPanel() {
     setPage(0);
     setSelected([]);
   };
-  if (library.loading) return <p>Đang tải thư viện…</p>;
+  if (library.loading) return <Loading label="Đang tải thư viện…" />;
 
   const shown = filterLibrary(items, filter);
   const counts = statusCounts(items);

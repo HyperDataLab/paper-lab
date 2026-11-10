@@ -8,6 +8,7 @@ import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { TextField } from '@/shared/ui/TextField';
 import styles from './home.module.css';
+import { Loading } from '@/shared/ui/StateNote';
 
 const WORKFLOWS = [
   {
@@ -125,7 +126,7 @@ export default function Page() {
             <Link to="/papers">Tất cả bài báo</Link>
           </div>
           {!papers ? (
-            <p className={styles.muted}>Đang tải…</p>
+            <Loading label="Đang tải…" />
           ) : papers.length === 0 ? (
             <p className={styles.muted}>
               Chưa có bài nào. <Link to="/papers">Nhập bài đầu tiên</Link>.
@@ -151,7 +152,7 @@ export default function Page() {
             <Link to="/extraction">Tất cả project</Link>
           </div>
           {!projects ? (
-            <p className={styles.muted}>Đang tải…</p>
+            <Loading label="Đang tải…" />
           ) : projects.length === 0 ? (
             <p className={styles.muted}>Chưa có project nào. Nêu một câu hỏi ở trên để bắt đầu.</p>
           ) : (

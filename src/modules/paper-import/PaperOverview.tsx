@@ -8,6 +8,7 @@ import { labels } from '@/modules/evaluate/issueLabels';
 import { SECTION_ROLE_LABELS } from './sectionRoles';
 import { OverviewTable, type OverviewFocus } from './OverviewTable';
 import { OverviewTransitions } from './OverviewTransitions';
+import { Loading } from '@/shared/ui/StateNote';
 
 export function PaperOverview({
   paper,
@@ -66,7 +67,7 @@ export function PaperOverview({
         </details>
       </p>
     );
-  if (!record) return <p>Đang tải tổng quan…</p>;
+  if (!record) return <Loading label="Đang tải tổng quan…" />;
   const overview = record.overview;
   return (
     <>
