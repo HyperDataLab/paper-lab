@@ -6,9 +6,11 @@ import type {
   Paper,
   PaperChecksRecord,
   PaperContextRecord,
+  PaperInsightsRecord,
   StanceRecord,
 } from '../schemas';
 import { languageMetrics, proseParagraphs } from '../academicLanguage';
+import { CARS_MOVES, rhetoricMetrics, VALIDITY_THREATS } from '../rhetoric';
 import { RECENT_YEARS, referenceList, referenceStats } from '../scholarlyContext';
 import { stanceMetrics } from '../stance';
 
@@ -24,7 +26,9 @@ export type ProfileView =
   | 'writing-checks'
   | 'probe'
   | 'context-checks'
-  | 'context-references';
+  | 'context-references'
+  | 'reporting'
+  | 'moves';
 
 export type DimensionId = 'science' | 'argument' | 'discourse' | 'writing' | 'context';
 export type DimensionState = 'empty' | 'partial' | 'ready' | 'not_built';
@@ -59,6 +63,12 @@ export interface ProfileInput {
   measurement?: MeasurementsRecord;
   stance?: StanceRecord;
   scholarly?: PaperContextRecord;
+  insights?: PaperInsightsRecord;
+}
+
+function rhetoricOf(insights: PaperInsightsRecord | undefined) {
+  const run = insights?.rhetoricRuns.at(-1);
+  return run && insights ? { run, metrics: rhetoricMetrics(run, insights.decisions) } : null;
 }
 
 const decimal = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 });
@@ -77,7 +87,8 @@ function openFindings(checks: PaperChecksRecord | undefined, checkId: string) {
 
 const asText = (value: number | null) => (value === null ? null : String(value));
 
-function science({ measurement, checks }: ProfileInput): ProfileDimension {
+function science({ measurement, checks, insights }: ProfileInput): ProfileDimension {
+  const rhetoric = rhetoricOf(insights);
   const run = measurement?.runs.at(-1);
   const profile = run && measurement ? reviewedProfile(run.profile, measurement.decisions, run.id) : null;
   const claims = profile?.claims ?? [];
@@ -122,6 +133,20 @@ function science({ measurement, checks }: ProfileInput): ProfileDimension {
         source: 'ai',
       },
       {
+        id: 'validity_threats',
+        label: 'Loại đe doạ validity tác giả nêu',
+        value: rhetoric ? `${rhetoric.metrics.threats.length}/${VALIDITY_THREATS.length}` : null,
+        source: 'ai',
+      },
+      {
+        id: 'availability',
+        label: 'Công bố dữ liệu / code',
+        value: rhetoric
+          ? `${rhetoric.metrics.availability.includes('data_availability') ? 'Có nêu' : 'Chưa thấy'} / ${rhetoric.metrics.availability.includes('code_availability') ? 'Có nêu' : 'Chưa thấy'}`
+          : null,
+        source: 'ai',
+      },
+      {
         id: 'numbers_open',
         label: 'Số liệu cần đối chiếu',
         value: asText(openFindings(checks, 'numbers_consistency')),
@@ -129,7 +154,7 @@ function science({ measurement, checks }: ProfileInput): ProfileDimension {
       },
     ],
     attention: (high[0] ?? findings[0])?.explanation ?? null,
-    planned: ['Đe doạ validity tác giả nêu', 'Công bố dữ liệu và code'],
+    planned: [],
     target: 'measure',
   };
 }
@@ -161,7 +186,8 @@ const openIssues = (analyses: Analysis[], categories: string[]) =>
 const stateOf = (done: number, total: number): DimensionState =>
   done === 0 ? 'empty' : done < total ? 'partial' : 'ready';
 
-function discourse({ paper, analyses, checks }: ProfileInput): ProfileDimension {
+function discourse({ paper, analyses, checks, insights }: ProfileInput): ProfileDimension {
+  const rhetoric = rhetoricOf(insights);
   const selected = [...paperAnalyses(paper, analyses).values()];
   const body = paper.paragraphs.filter((p) => p.kind === 'body').length;
   const structured = selected.filter((a) => a.paragraph !== null && a.paragraph !== undefined);
@@ -187,6 +213,20 @@ function discourse({ paper, analyses, checks }: ProfileInput): ProfileDimension 
         source: 'ai',
       },
       {
+        id: 'cars_moves',
+        label: 'Moves CARS ở Mở đầu',
+        value: rhetoric ? `${rhetoric.metrics.cars.length}/${CARS_MOVES.length}` : null,
+        source: 'ai',
+      },
+      {
+        id: 'abstract_supported',
+        label: 'Khẳng định Tóm tắt có đoạn tương ứng',
+        value: rhetoric?.run.abstractChecked
+          ? `${rhetoric.metrics.supported}/${rhetoric.metrics.claims.length}`
+          : null,
+        source: 'ai',
+      },
+      {
         id: 'figures_open',
         label: 'Hình và bảng cần kiểm tra',
         value: asText(openFindings(checks, 'figures_tables')),
@@ -194,7 +234,7 @@ function discourse({ paper, analyses, checks }: ProfileInput): ProfileDimension 
       },
     ],
     attention: null,
-    planned: ['Moves ở Mở đầu và Bàn luận', 'Khớp Tóm tắt với Kết quả'],
+    planned: [],
     target: 'organization',
   };
 }

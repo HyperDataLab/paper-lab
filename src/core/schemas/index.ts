@@ -13,6 +13,7 @@ export * from './paperRun';
 export * from './paperOverview';
 export * from './paperChecks';
 export * from './paperContext';
+export * from './paperInsights';
 export * from './paperReview';
 export * from './paperProbe';
 export * from './calibration';

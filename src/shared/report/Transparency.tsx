@@ -9,6 +9,7 @@ import type {
   PaperChecksRecord,
   MeasurementsRecord,
   StanceRecord,
+  PaperInsightsRecord,
 } from '@/core/schemas';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { downloadJson } from '@/shared/calibration/download';
@@ -57,6 +58,7 @@ function paperSteps(
   checks?: PaperChecksRecord,
   measurements?: MeasurementsRecord,
   stance?: StanceRecord,
+  insights?: PaperInsightsRecord,
 ): Step[] {
   const sections = (ids: string[]) => ids.map((id) => paper.sections.find((s) => s.id === id)?.heading ?? id);
   return [
@@ -119,6 +121,17 @@ function paperSteps(
       calls: run.callsUsed ?? null,
       sections: sections(run.sectionIds),
       calibration: run.calibrationSnapshot ?? null,
+    })),
+    ...(insights?.rhetoricRuns ?? []).map((run): Step => ({
+      step: 'Tu từ và mức độ báo cáo',
+      model: run.model,
+      prompt: run.promptVersion,
+      rubric: null,
+      detectors: null,
+      date: run.createdAt,
+      calls: run.callsUsed,
+      sections: sections(run.sectionIds),
+      calibration: null,
     })),
     ...(stance?.runs ?? []).map((run): Step => ({
       step: 'Giọng văn',
@@ -233,9 +246,11 @@ export function Transparency({ paper, report }: { paper?: Paper; report?: Analys
       repo.paperChecks.get(paper.id),
       repo.measurements.get(paper.id),
       repo.stance.get(paper.id),
+      repo.paperInsights.get(paper.id),
     ])
-      .then(([runs, reviews, probes, checks, measurements, stance]) => {
-        if (active) setSteps(paperSteps(paper, runs, reviews, probes, checks, measurements, stance));
+      .then(([runs, reviews, probes, checks, measurements, stance, insights]) => {
+        if (active)
+          setSteps(paperSteps(paper, runs, reviews, probes, checks, measurements, stance, insights));
       })
       .catch((cause: unknown) => {
         if (active) setError(String(cause));
