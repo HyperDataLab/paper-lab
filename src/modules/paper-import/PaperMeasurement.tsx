@@ -33,6 +33,7 @@ import type { Decide, ItemContext, Location } from './MeasurementItems';
 import { MeasurementDetail } from './MeasurementViews';
 import { SectionPicker } from './SectionPicker';
 import styles from './measurement.module.css';
+import { Loading } from '@/shared/ui/StateNote';
 
 const CSV = 'text/csv;charset=utf-8';
 const sameRef = (a: MeasurementRef, b: MeasurementRef) =>
@@ -175,7 +176,7 @@ export function PaperMeasurement({
   const exportName = `measurement-${paper.id.slice(0, 8)}`;
   const exported = (current: MeasurementRun) =>
     reviewedProfile(current.profile, record?.decisions ?? [], current.id);
-  if (loading) return <p>Đang tải hồ sơ đo lường…</p>;
+  if (loading) return <Loading label="Đang tải hồ sơ đo lường…" />;
   const pending = record?.pending ?? null;
   const setup = (
     <Wizard

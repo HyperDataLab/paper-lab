@@ -8,6 +8,7 @@ import { useRepositories } from '@/shared/storage/StorageProvider';
 import styles from './report.module.css';
 import { labels, statuses } from '../evaluate/issueLabels';
 import { checkLabels } from '../revise/checkLabels';
+import { Loading } from '@/shared/ui/StateNote';
 
 const arrow = (value: number | null) =>
   value === null ? '—' : `${value > 0 ? '↑' : value < 0 ? '↓' : '→'} ${Math.abs(value).toFixed(2)}`;
@@ -54,7 +55,7 @@ export default function ComparePage() {
         </details>
       </div>
     );
-  if (!pair) return <p>Đang tải bản so sánh…</p>;
+  if (!pair) return <Loading label="Đang tải bản so sánh…" />;
   const [left, right] = pair;
   const comparison = compareAnalyses(left, right, revision);
   const diff = (side: 'before' | 'after') =>

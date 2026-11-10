@@ -17,6 +17,7 @@ import { Wizard } from '@/shared/ui/Wizard';
 import { placeLabel } from './paperLabels';
 import { SectionPicker } from './SectionPicker';
 import styles from './argument.module.css';
+import { Loading } from '@/shared/ui/StateNote';
 
 type Location = Finding['locations'][number];
 type Span = Argument['claim'];
@@ -108,7 +109,7 @@ export function PaperArguments({
   const run = record?.argumentRuns.at(-1);
   const decisions = useMemo(() => record?.decisions ?? [], [record]);
   const metrics = useMemo(() => (run ? argumentMetrics(run, decisions) : undefined), [run, decisions]);
-  if (loading) return <p>Đang tải lập luận…</p>;
+  if (loading) return <Loading label="Đang tải lập luận…" />;
   const open = (span: Span) =>
     onLocation({ paragraphId: span.paragraphId, start: span.start, end: span.end });
   const decide = (id: string, decision: 'confirm' | 'dismiss' | 'reopen') => {

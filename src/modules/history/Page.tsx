@@ -11,6 +11,7 @@ import { Checkbox } from '@/shared/ui/Checkbox';
 import { ReportMenu } from '@/shared/report/ReportMenu';
 import { groupHistory } from './groupHistory';
 import styles from './page.module.css';
+import { Empty, Loading } from '@/shared/ui/StateNote';
 type List = Awaited<ReturnType<ReturnType<typeof useRepositories>['analyses']['list']>>;
 function relative(date: string) {
   const days = Math.round((Date.parse(date) - Date.now()) / 86400000);
@@ -96,7 +97,7 @@ export default function Page() {
         </div>
       )}
       {!list ? (
-        <p>Đang tải…</p>
+        <Loading label="Đang tải…" />
       ) : (
         <>
           {list.corrupt > 0 && <p role="alert">Bản ghi bị lỗi: {list.corrupt}</p>}
@@ -191,7 +192,7 @@ export default function Page() {
             ))}
           </ul>
         ) : (
-          <p>Chưa có đoạn đã soạn.</p>
+          <Empty title="Chưa có đoạn đã soạn." />
         )}
       </Card>
       {deleting && (

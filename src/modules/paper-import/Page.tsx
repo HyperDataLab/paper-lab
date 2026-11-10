@@ -13,6 +13,7 @@ import { Tabs } from '@/shared/ui/Tabs';
 import { importPaperFile } from './importPaperFile';
 import { LibraryPanel } from './LibraryPanel';
 import styles from './page.module.css';
+import { Empty, Loading } from '@/shared/ui/StateNote';
 
 type Sort = 'recent' | 'title' | 'year';
 const SOURCE_NOTE: Partial<Record<PaperIdentity['titleSource'], string>> = {
@@ -25,6 +26,7 @@ export default function Page() {
   const navigate = useNavigate();
   const input = useRef<HTMLInputElement>(null);
   const [papers, setPapers] = useState<Paper[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [identities, setIdentities] = useState(new Map<string, PaperIdentity>());
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<Sort>('recent');
@@ -39,6 +41,7 @@ export default function Page() {
     void Promise.all([repo.papers.list(), repo.paperContext.list(), repo.library.list()])
       .then(([saved, contexts, library]) => {
         setPapers(saved);
+        setLoaded(true);
         setIdentities(
           new Map(
             saved.map((paper) => [
@@ -52,6 +55,7 @@ export default function Page() {
         );
       })
       .catch((cause: unknown) => {
+        setLoaded(true);
         setError('Không thể tải danh sách bài báo.');
         setDetail(String(cause));
       });
@@ -170,7 +174,7 @@ export default function Page() {
             )}
           </Card>
           <div className={styles.libraryHead}>
-            <h2>Bài báo đã nhập ({papers.length})</h2>
+            <h2>Bài báo đã nhập{loaded ? ` (${papers.length})` : ''}</h2>
             {papers.length > 0 && (
               <div className={styles.libraryTools}>
                 <TextField
@@ -194,8 +198,10 @@ export default function Page() {
               </div>
             )}
           </div>
-          {!papers.length ? (
-            <p>Chưa có bài báo.</p>
+          {!loaded ? (
+            <Loading label="Đang tải danh sách bài báo…" />
+          ) : !papers.length ? (
+            <Empty title="Chưa có bài báo." hint="Kéo thả một tệp PDF vào khung phía trên để bắt đầu." />
           ) : !rows.length ? (
             <p>Không có bài nào khớp “{search.trim()}”.</p>
           ) : (

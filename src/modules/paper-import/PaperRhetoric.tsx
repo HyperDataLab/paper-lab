@@ -23,6 +23,7 @@ import { Wizard } from '@/shared/ui/Wizard';
 import { placeLabel } from './paperLabels';
 import { SectionPicker } from './SectionPicker';
 import styles from './measurement.module.css';
+import { Loading } from '@/shared/ui/StateNote';
 
 type Location = Finding['locations'][number];
 const LABELS: Record<RhetoricCategory, { name: string; help: string }> = {
@@ -138,7 +139,7 @@ export function PaperRhetoric({
   const run = record?.rhetoricRuns.at(-1);
   const decisions = useMemo(() => record?.decisions ?? [], [record]);
   const metrics = useMemo(() => (run ? rhetoricMetrics(run, decisions) : undefined), [run, decisions]);
-  if (loading) return <p>Đang tải phân tích…</p>;
+  if (loading) return <Loading label="Đang tải phân tích…" />;
   const decide = (itemId: string, decision: 'confirm' | 'dismiss' | 'reopen') => {
     if (!run) return;
     void repo.paperInsights

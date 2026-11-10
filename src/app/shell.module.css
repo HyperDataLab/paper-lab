@@ -56,7 +56,7 @@
   padding-top: var(--space-3);
 }
 .navItem {
-  min-height: 42px;
+  min-height: 36px;
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -110,7 +110,7 @@
   min-width: 0;
 }
 .topbar {
-  min-height: 72px;
+  min-height: 56px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -146,7 +146,7 @@
   cursor: pointer;
 }
 .content {
-  padding: var(--space-10);
+  padding: var(--space-8);
   max-width: 1200px;
 }
 .wideContent {
