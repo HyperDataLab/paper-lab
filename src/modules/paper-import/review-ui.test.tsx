@@ -93,7 +93,8 @@ async function setup(large = false, waitForAbort = false) {
     </MemoryRouter>,
   );
   if (!large) {
-    fireEvent.click(await screen.findByRole('tab', { name: 'Phản biện AI' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Phát hiện' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Phản biện AI' }));
   }
   await screen.findByLabelText('Nhận xét của bạn trước khi xem AI');
   return { repo, paper, completeJson };

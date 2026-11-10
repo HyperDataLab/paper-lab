@@ -64,7 +64,10 @@ it('P4 runs local checks, navigates to evidence, reviews and shows overview coun
     </MemoryRouter>,
   );
   const openChecks = () => {
-    fireEvent.click(screen.getByRole('tab', { name: 'C. Diễn ngôn' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Cấu trúc và mạch' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Phát hiện' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Hình và bảng' }));
   };
   await screen.findByRole('tab', { name: 'Đọc bài' });
@@ -82,7 +85,7 @@ it('P4 runs local checks, navigates to evidence, reviews and shows overview coun
   fireEvent.click(
     within(card).getByText('“Figure 2”').closest('article')?.querySelector('button') as HTMLElement,
   );
-  expect(screen.getByRole('tab', { name: 'C. Diễn ngôn' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'Phát hiện' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Mở trong Đọc bài' }));
   expect(screen.getByRole('tab', { name: 'Đọc bài' })).toHaveAttribute('aria-selected', 'true');
@@ -107,12 +110,17 @@ it('P4 runs local checks, navigates to evidence, reviews and shows overview coun
       (await repo.audit.listByAnalysis(paper.id)).items.filter((e) => e.action === 'review_check'),
     ).toHaveLength(4),
   );
-  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Tóm lược' }));
   expect(await screen.findByText('Hình và bảng cần kiểm tra')).toBeInTheDocument();
-  expect(screen.getByRole('tab', { name: 'B. Lập luận' })).toBeEnabled();
+  expect(screen.getByRole('tab', { name: 'Hồ sơ' })).toBeEnabled();
   const context = screen.getByRole('article', { name: 'Bối cảnh học thuật và Nguồn gốc' });
   fireEvent.click(within(context).getByRole('button', { name: 'Xem chi tiết' }));
-  expect(screen.getByRole('tab', { name: 'E. Bối cảnh' })).toHaveAttribute('aria-selected', 'true');
+  // The card opens its block in Hồ sơ, already unfolded.
+  expect(screen.getByRole('tab', { name: 'Hồ sơ' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('button', { name: 'Thu gọn Tài liệu tham khảo' })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
   expect(await screen.findByRole('heading', { name: 'Tình trạng rút bài' })).toBeInTheDocument();
   expect(completeJson).not.toHaveBeenCalled();
 });
@@ -228,7 +236,10 @@ it('on a wide screen the paper stays beside the analysis and a finding is marked
   );
   const pane = await screen.findByRole('complementary', { name: 'Bài báo' });
   expect(within(pane).getByText('An introduction.')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('tab', { name: 'C. Diễn ngôn' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Cấu trúc và mạch' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Phát hiện' }));
   fireEvent.click(screen.getByRole('radio', { name: 'Hình và bảng' }));
   fireEvent.click(screen.getByRole('button', { name: 'Chạy kiểm tra' }));
   const quote = await screen.findByText('“Figure 2”');
@@ -237,7 +248,7 @@ it('on a wide screen the paper stays beside the analysis and a finding is marked
   expect(within(pane).getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
   expect(within(pane).getByLabelText('Mục đang đọc')).toHaveValue('b');
   expect(screen.queryByRole('dialog')).toBeNull();
-  expect(screen.getByRole('tab', { name: 'C. Diễn ngôn' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'Phát hiện' })).toHaveAttribute('aria-selected', 'true');
 
   // Turning it off brings back the single-column page and remembers the choice.
   fireEvent.click(screen.getByRole('button', { name: 'Đọc song song' }));
