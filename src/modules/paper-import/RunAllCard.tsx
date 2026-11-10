@@ -22,6 +22,7 @@ export function RunAllCard({
   onPrepare,
   onOpen,
   onRunChecks,
+  compact = false,
 }: {
   /** The panels' latest reports, including the functions that start and stop them. */
   jobs: RefObject<Partial<Record<JobId, JobReport>>>;
@@ -32,6 +33,8 @@ export function RunAllCard({
   onOpen: (job: JobId) => void;
   /** Runs the checks that use no AI, when the paper has none yet. */
   onRunChecks: () => void;
+  /** Only the button and its status, for a toolbar; the explanation is in the confirmation. */
+  compact?: boolean;
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
   const stopping = useRef(false);
@@ -76,38 +79,30 @@ export function RunAllCard({
             : !fact.startable
               ? 'Cần chỉnh trong tab đó trước, bỏ qua'
               : `~${fact.estimate} lượt gọi AI`;
-  return (
-    <Card padding="md">
-      <div className={styles.runAll}>
-        <div>
-          <h2>Phân tích toàn bài</h2>
-          <p className={styles.muted}>
-            Chạy lần lượt các phân tích AI còn thiếu, dùng phạm vi mục đã nhớ cho bài này và giới hạn chạy
-            trong Cài đặt. Phân tích đã có kết quả được bỏ qua.
-          </p>
-        </div>
-        {phase.kind === 'running' ? (
-          <Button
-            variant="danger"
-            onClick={() => {
-              stopping.current = true;
-              jobs.current[phase.current]?.stop?.();
-            }}
-          >
-            Dừng
-          </Button>
-        ) : (
-          <Button
-            variant="primary"
-            onClick={() => {
-              onPrepare();
-              setPhase({ kind: 'confirm' });
-            }}
-          >
-            Phân tích toàn bài
-          </Button>
-        )}
-      </div>
+  const action =
+    phase.kind === 'running' ? (
+      <Button
+        variant="danger"
+        onClick={() => {
+          stopping.current = true;
+          jobs.current[phase.current]?.stop?.();
+        }}
+      >
+        Dừng
+      </Button>
+    ) : (
+      <Button
+        variant="primary"
+        onClick={() => {
+          onPrepare();
+          setPhase({ kind: 'confirm' });
+        }}
+      >
+        Phân tích toàn bài
+      </Button>
+    );
+  const progress = (
+    <>
       {phase.kind === 'running' && (
         <p role="status">
           Đang chạy {phase.index + 1}/{phase.total}: {labels[phase.current]}. Bạn có thể mở tab khác trong lúc
@@ -124,38 +119,62 @@ export function RunAllCard({
         </p>
       )}
       {phase.kind === 'finished' && <p role="status">Đã chạy xong {phase.ran} phân tích.</p>}
-      {phase.kind === 'confirm' && (
-        <Dialog
-          title="Phân tích toàn bài?"
-          description="Mỗi phân tích gửi các mục đã chọn của bài cho AI. Kết quả AI là ứng viên; bạn vẫn là người xác nhận."
-          onClose={() => setPhase({ kind: 'idle' })}
+    </>
+  );
+  const dialog = phase.kind === 'confirm' && (
+    <Dialog
+      title="Phân tích toàn bài?"
+      description="Mỗi phân tích gửi các mục đã chọn của bài cho AI. Kết quả AI là ứng viên; bạn vẫn là người xác nhận."
+      onClose={() => setPhase({ kind: 'idle' })}
+    >
+      <ul className={styles.runAllList}>
+        {rows.map((row) => (
+          <li key={row.id}>
+            <span>{labels[row.id]}</span>
+            <span className={styles.muted}>{status(row.fact)}</span>
+          </li>
+        ))}
+      </ul>
+      <p>
+        Tổng ước tính: ~{total} lượt gọi AI cho {todo.length} phân tích (chưa tính thử lại). Mỗi phân tích vẫn
+        có trần riêng. Các kiểm tra không dùng AI cũng được chạy nếu chưa có.
+      </p>
+      <div className={styles.runActions}>
+        <Button data-dialog-initial-focus onClick={() => setPhase({ kind: 'idle' })}>
+          Huỷ
+        </Button>
+        <Button
+          variant="primary"
+          disabled={loading || todo.length === 0}
+          onClick={() => void run(todo.map((row) => row.id))}
         >
-          <ul className={styles.runAllList}>
-            {rows.map((row) => (
-              <li key={row.id}>
-                <span>{labels[row.id]}</span>
-                <span className={styles.muted}>{status(row.fact)}</span>
-              </li>
-            ))}
-          </ul>
-          <p>
-            Tổng ước tính: ~{total} lượt gọi AI cho {todo.length} phân tích (chưa tính thử lại). Mỗi phân tích
-            vẫn có trần riêng. Các kiểm tra không dùng AI cũng được chạy nếu chưa có.
+          {loading ? 'Đang tải…' : todo.length ? `Chạy ${todo.length} phân tích` : 'Không còn gì để chạy'}
+        </Button>
+      </div>
+    </Dialog>
+  );
+  if (compact)
+    return (
+      <div className={styles.runAllCompact}>
+        {action}
+        {progress}
+        {dialog}
+      </div>
+    );
+  return (
+    <Card padding="md">
+      <div className={styles.runAll}>
+        <div>
+          <h2>Phân tích toàn bài</h2>
+          <p className={styles.muted}>
+            Chạy lần lượt các phân tích AI còn thiếu, dùng phạm vi mục đã nhớ cho bài này và giới hạn chạy
+            trong Cài đặt. Phân tích đã có kết quả được bỏ qua.
           </p>
-          <div className={styles.runActions}>
-            <Button data-dialog-initial-focus onClick={() => setPhase({ kind: 'idle' })}>
-              Huỷ
-            </Button>
-            <Button
-              variant="primary"
-              disabled={loading || todo.length === 0}
-              onClick={() => void run(todo.map((row) => row.id))}
-            >
-              {loading ? 'Đang tải…' : todo.length ? `Chạy ${todo.length} phân tích` : 'Không còn gì để chạy'}
-            </Button>
-          </div>
-        </Dialog>
-      )}
+        </div>
+        {action}
+      </div>
+      {progress}
+      {dialog}
     </Card>
   );
 }

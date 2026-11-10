@@ -1,6 +1,6 @@
 import { BookOpenText, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useState } from 'react';
-import { Button } from '@/shared/ui/Button';
+import { IconButton } from '@/shared/ui/IconButton';
 import { SidebarGroup } from './SidebarGroup';
 import styles from './shell.module.css';
 
@@ -37,29 +37,21 @@ export function Sidebar({ onNavigate, mobile = false }: { onNavigate?: () => voi
       <div className={styles.brand}>
         <BookOpenText className={styles.logo} size={26} aria-hidden="true" />
         {!rail && <span>PaperLab</span>}
+        {!mobile && (
+          <IconButton
+            className={styles.collapse}
+            label={rail ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
+            onClick={toggle}
+          >
+            {rail ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          </IconButton>
+        )}
       </div>
       <nav aria-label="Điều hướng chính" className={styles.navigation}>
         {groups.map((group) => (
           <SidebarGroup key={group.id} group={group} rail={rail} onNavigate={onNavigate} />
         ))}
       </nav>
-      {!mobile && (
-        <Button
-          variant="ghost"
-          className={styles.collapse}
-          onClick={toggle}
-          aria-label={rail ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
-        >
-          {rail ? (
-            <PanelLeftOpen size={19} />
-          ) : (
-            <>
-              <PanelLeftClose size={19} />
-              <span>Thu gọn</span>
-            </>
-          )}
-        </Button>
-      )}
     </aside>
   );
 }

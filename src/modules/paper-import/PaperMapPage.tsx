@@ -27,7 +27,6 @@ import { PaperRhetoric } from './PaperRhetoric';
 import { PaperVocabulary } from './PaperVocabulary';
 import { PaperProbe } from './PaperProbe';
 import { PaperReader } from './PaperReader';
-import { ReadingPane } from './ReadingPane';
 import { PaperMeasurement } from './PaperMeasurement';
 import { PaperStance } from './PaperStance';
 import styles from './page.module.css';
@@ -57,7 +56,11 @@ import { captureCalibration } from '@/shared/calibration/data';
 import { Loading } from '@/shared/ui/StateNote';
 
 type ViewId = 'profile' | 'snapshot' | 'metadata' | 'map' | 'review' | ProfileView;
-type Mode = 'summary' | 'findings' | 'dossier' | 'map';
+/** The centre column holds the paper: its full text, or its summary. */
+type Pane = 'fulltext' | 'summary';
+/** The right column holds what the analyses say about the paper. */
+type Mode = 'arguments' | 'writing' | 'issues';
+type Place = 'summary' | Mode;
 type BlockId =
   | 'snapshot'
   | 'checks'
@@ -72,13 +75,14 @@ type BlockId =
   | 'probe'
   | 'metadata';
 /**
- * The page has three modes beside the paper. Each analysis is one block in a mode; a block with two
- * readings of the same analysis lists both views. Every former view id still opens its block.
+ * Every analysis is one block in one place: the paper's Summary in the centre column, or one of the three
+ * tabs of the right column. Names are the scientific terms a researcher already uses; the help line under
+ * each says, in Vietnamese, what the block answers. Every former view id still opens its block.
  */
 const BLOCKS: Record<
   BlockId,
   {
-    mode: Exclude<Mode, 'map'>;
+    place: Place;
     title: string;
     criterion: Criterion;
     job?: JobId;
@@ -86,112 +90,136 @@ const BLOCKS: Record<
   }
 > = {
   snapshot: {
-    mode: 'summary',
-    title: 'Thông tin cốt lõi',
+    place: 'summary',
+    title: 'Key facts',
     criterion: 'evidence',
     job: 'snapshot',
-    views: [{ id: 'snapshot', label: 'Thông tin cốt lõi' }],
+    views: [{ id: 'snapshot', label: 'Key facts' }],
   },
-  checks: {
-    mode: 'findings',
-    title: 'Kiểm tra tự động',
-    criterion: 'evidence',
-    views: [
-      { id: 'science-checks', label: 'Số liệu và khẳng định' },
-      { id: 'discourse-checks', label: 'Hình và bảng' },
-      { id: 'writing-checks', label: 'Viết tắt và mức khẳng định' },
-      { id: 'context-checks', label: 'Trích dẫn' },
-    ],
+  references: {
+    place: 'summary',
+    title: 'References',
+    criterion: 'context',
+    views: [{ id: 'context-references', label: 'References' }],
   },
-  review: {
-    mode: 'findings',
-    title: 'Phản biện AI',
-    criterion: 'claim',
-    job: 'review',
-    views: [{ id: 'review', label: 'Phản biện AI' }],
-  },
-  measure: {
-    mode: 'dossier',
-    title: 'Phương pháp và số liệu',
-    criterion: 'evidence',
-    job: 'measure',
-    views: [{ id: 'measure', label: 'Phương pháp và số liệu' }],
-  },
-  rhetoric: {
-    mode: 'dossier',
-    title: 'Giới hạn và cách dẫn dắt',
-    criterion: 'claim',
-    job: 'rhetoric',
-    views: [
-      { id: 'reporting', label: 'Giới hạn và dữ liệu' },
-      { id: 'moves', label: 'Cách dẫn dắt và Tóm tắt' },
-    ],
+  metadata: {
+    place: 'summary',
+    title: 'Publication info',
+    criterion: 'context',
+    views: [{ id: 'metadata', label: 'Publication info' }],
   },
   arguments: {
-    mode: 'dossier',
-    title: 'Lập luận',
+    place: 'arguments',
+    title: 'Claims & reasoning',
     criterion: 'claim',
     job: 'arguments',
     views: [
-      { id: 'toulmin', label: 'Thẻ luận điểm' },
-      { id: 'aif', label: 'Chuỗi suy luận' },
+      { id: 'toulmin', label: 'Toulmin model' },
+      { id: 'aif', label: 'AIF graph' },
+    ],
+  },
+  measure: {
+    place: 'arguments',
+    title: 'Evidence & measurement',
+    criterion: 'evidence',
+    job: 'measure',
+    views: [{ id: 'measure', label: 'Evidence & measurement' }],
+  },
+  rhetoric: {
+    place: 'arguments',
+    title: 'Validity & rhetorical moves',
+    criterion: 'claim',
+    job: 'rhetoric',
+    views: [
+      { id: 'reporting', label: 'Validity & data availability' },
+      { id: 'moves', label: 'Rhetorical moves & abstract' },
     ],
   },
   batch: {
-    mode: 'dossier',
-    title: 'Chất lượng viết',
+    place: 'writing',
+    title: 'Coherence & sentences',
     criterion: 'writing',
     job: 'batch',
     views: [
-      { id: 'organization', label: 'Cấu trúc và mạch' },
-      { id: 'language', label: 'Câu và từ' },
+      { id: 'organization', label: 'Paragraph structure & flow' },
+      { id: 'language', label: 'Sentences & word choice' },
     ],
   },
   stance: {
-    mode: 'dossier',
-    title: 'Giọng văn',
+    place: 'writing',
+    title: 'Stance & engagement',
     criterion: 'writing',
     job: 'stance',
-    views: [{ id: 'stance', label: 'Giọng văn' }],
+    views: [{ id: 'stance', label: 'Stance & engagement' }],
   },
   vocabulary: {
-    mode: 'dossier',
-    title: 'Từ vựng và cụm từ',
+    place: 'writing',
+    title: 'Vocabulary & phrases',
     criterion: 'writing',
-    views: [{ id: 'vocabulary', label: 'Từ vựng và cụm từ' }],
-  },
-  references: {
-    mode: 'dossier',
-    title: 'Tài liệu tham khảo',
-    criterion: 'context',
-    views: [{ id: 'context-references', label: 'Tài liệu tham khảo' }],
+    views: [{ id: 'vocabulary', label: 'Vocabulary & phrases' }],
   },
   probe: {
-    mode: 'dossier',
-    title: 'Độ bền điểm',
+    place: 'writing',
+    title: 'Score robustness',
     criterion: 'writing',
     job: 'probe',
-    views: [{ id: 'probe', label: 'Độ bền điểm' }],
+    views: [{ id: 'probe', label: 'Score robustness' }],
   },
-  metadata: {
-    mode: 'dossier',
-    title: 'Thông tin xuất bản',
-    criterion: 'context',
-    views: [{ id: 'metadata', label: 'Thông tin xuất bản' }],
+  checks: {
+    place: 'issues',
+    title: 'Automated checks',
+    criterion: 'evidence',
+    views: [
+      { id: 'science-checks', label: 'Numbers & claims' },
+      { id: 'discourse-checks', label: 'Figures & tables' },
+      { id: 'writing-checks', label: 'Acronyms & claim strength' },
+      { id: 'context-checks', label: 'Citations' },
+    ],
+  },
+  review: {
+    place: 'issues',
+    title: 'AI peer review',
+    criterion: 'claim',
+    job: 'review',
+    views: [{ id: 'review', label: 'AI peer review' }],
   },
 };
 const BLOCK_IDS = Object.keys(BLOCKS) as BlockId[];
 const blockOf = (view: ViewId) => BLOCK_IDS.find((id) => BLOCKS[id].views.some((item) => item.id === view));
-const modeOf = (view: ViewId): Mode => {
-  if (view === 'map') return 'map';
+/** Where a view opens: the centre column (full text or summary) or a tab of the right column. */
+const placeOf = (view: ViewId): Pane | Mode => {
+  if (view === 'map') return 'fulltext';
+  if (view === 'profile') return 'summary';
   const block = blockOf(view);
-  return block ? BLOCKS[block].mode : 'summary';
+  return block ? BLOCKS[block].place : 'summary';
 };
-const blocksIn = (mode: Mode) => BLOCK_IDS.filter((id) => BLOCKS[id].mode === mode);
-const MODE_HELP: Record<Exclude<Mode, 'map'>, string> = {
-  summary: 'Bài này nói gì: thông tin cốt lõi và tiến độ phân tích theo từng chiều.',
-  findings: 'Những điểm cần xem lại trong bài, từ kiểm tra tự động và phản biện của AI.',
-  dossier: 'Các phân tích mô tả bài báo. Mỗi khối trả lời một câu hỏi; mở khối để xem chi tiết.',
+const isPane = (place: Pane | Mode): place is Pane => place === 'fulltext' || place === 'summary';
+const blocksIn = (place: Place) => BLOCK_IDS.filter((id) => BLOCKS[id].place === place);
+const PANES: { id: Pane; label: string }[] = [
+  { id: 'fulltext', label: 'Full text' },
+  { id: 'summary', label: 'Summary' },
+];
+const MODES: { id: Mode; label: string }[] = [
+  { id: 'arguments', label: 'Arguments' },
+  { id: 'writing', label: 'Writing style' },
+  { id: 'issues', label: 'Issues' },
+];
+/** What a reader comes to each tab for, said once under the tab. */
+const PLACE_HELP: Record<Pane | Mode, string> = {
+  fulltext:
+    'Đọc bài gốc. Các đoạn được đánh dấu theo lớp; bấm vào chỗ đánh dấu để mở phát hiện hoặc phân tích tương ứng.',
+  summary:
+    'Nắm nhanh trước khi đọc kỹ: bài hỏi gì, đóng góp gì, làm thế nào, tìm ra gì và tự nhận giới hạn nào.',
+  arguments:
+    'Tác giả lập luận thế nào: luận điểm, bằng chứng, phép đo và giới hạn. Mỗi ý kèm câu trích để bạn kiểm.',
+  writing:
+    'Bài được viết ra sao: cấu trúc, mạch, câu chữ, giọng văn. Dùng để học cách viết, không phải để chấm bài.',
+  issues: 'Những điểm cần bạn xem và quyết định. AI và quy tắc chỉ đề xuất; bạn xác nhận hoặc bỏ qua.',
+};
+const DEFAULT_VIEW: Record<Mode, ViewId> = {
+  arguments: 'toulmin',
+  writing: 'organization',
+  issues: 'science-checks',
 };
 const CHECKS_OF: Partial<Record<ViewId, string[]>> = {
   'science-checks': ['numbers_consistency', 'unsupported_claims'],
@@ -203,16 +231,17 @@ const VIEW_HELP: Record<ViewId, string> = {
   snapshot: 'Bảy thông tin cốt lõi của nghiên cứu, mỗi giá trị kèm câu trích trong bài.',
   metadata: 'Thông tin xuất bản của bài từ OpenAlex hoặc Thư viện DOI.',
   toulmin:
-    'Luận điểm của tác giả và các thành phần theo Toulmin. Mô tả cấu trúc, không kết luận đúng hay sai.',
+    'Luận điểm của tác giả và các thành phần theo mô hình Toulmin. Mô tả cấu trúc, không kết luận đúng hay sai.',
   aif: 'Tiền đề dẫn tới kết luận qua bước suy luận nào, và bị phản bác ở đâu.',
   profile:
     'Mỗi chiều trả lời một câu hỏi riêng nên không có điểm tổng. Số có ghi “AI” là ứng viên từ mô hình, bạn có thể bác bỏ khi xem chi tiết.',
   map: 'Đọc bài theo mục lục, xem bảng và đoạn gốc.',
-  measure: 'Bài báo đo gì, bằng metric nào, dưới protocol nào, và kết quả ra sao.',
+  measure:
+    'Bài báo đo gì, bằng metric nào, dưới protocol nào, kết quả ra sao, và các câu nguyên tử làm căn cứ.',
   'science-checks': 'Đối chiếu tự động số liệu và khẳng định trong bài. Không dùng AI.',
   reporting:
     'Tác giả nêu giới hạn validity nào và có công bố dữ liệu, code không. Mô tả việc báo cáo, không kết luận bài đúng hay sai.',
-  moves: 'Bài dẫn dắt người đọc thế nào và Tóm tắt có khớp nội dung không.',
+  moves: 'Bài dẫn dắt người đọc thế nào (CARS, các bước ở phần Bàn luận) và Tóm tắt có khớp nội dung không.',
   organization: 'Cách đoạn văn được tổ chức và nối với nhau. Không phải điểm của bài báo.',
   'discourse-checks': 'Hình và bảng có được nhắc đến và đánh số đúng không. Không dùng AI.',
   language: 'Cấu trúc câu và lựa chọn từ theo từng mục. Không phải điểm của bài báo.',
@@ -228,22 +257,27 @@ const VIEW_HELP: Record<ViewId, string> = {
 
 /** Where each AI analysis lives, and what it is called in the running-work strip. */
 const JOBS: Record<JobId, { label: string; views: ViewId[] }> = {
-  snapshot: { label: 'Thông tin cốt lõi', views: ['snapshot'] },
-  measure: { label: 'Phương pháp và số liệu', views: ['measure'] },
-  rhetoric: { label: 'Giới hạn và cách dẫn dắt', views: ['reporting', 'moves'] },
-  arguments: { label: 'Lập luận', views: ['toulmin', 'aif'] },
-  batch: { label: 'Chất lượng viết', views: ['organization', 'language'] },
-  stance: { label: 'Giọng văn', views: ['stance'] },
-  probe: { label: 'Độ bền điểm', views: ['probe'] },
-  review: { label: 'Phản biện AI', views: ['review'] },
+  snapshot: { label: 'Key facts', views: ['snapshot'] },
+  measure: { label: 'Evidence & measurement', views: ['measure'] },
+  rhetoric: { label: 'Validity & rhetorical moves', views: ['reporting', 'moves'] },
+  arguments: { label: 'Claims & reasoning', views: ['toulmin', 'aif'] },
+  batch: { label: 'Coherence & sentences', views: ['organization', 'language'] },
+  stance: { label: 'Stance & engagement', views: ['stance'] },
+  probe: { label: 'Score robustness', views: ['probe'] },
+  review: { label: 'AI peer review', views: ['review'] },
 };
 const JOB_IDS = Object.keys(JOBS) as JobId[];
 /** The analyses whose result is per section and can take a run of one section merged into it. */
 const SECTION_JOBS: JobId[] = ['rhetoric', 'arguments', 'stance', 'batch'];
 const isView = (value: string | null): value is ViewId => value !== null && value in VIEW_HELP;
+/** The tab of the right column a view belongs to; a centre view leaves the right column on Issues. */
+const modeOf = (view: ViewId): Mode => {
+  const place = placeOf(view);
+  return isPane(place) ? 'issues' : place;
+};
 
 const WIDE = '(min-width: 1280px)';
-/** True on screens wide enough to show the paper beside its analysis. */
+/** True on screens wide enough to show the paper and its analysis as two columns. */
 function useWide() {
   const [wide, setWide] = useState(
     () => typeof window.matchMedia === 'function' && window.matchMedia(WIDE).matches,
@@ -286,19 +320,32 @@ export default function PaperMapPage() {
   const [error, setError] = useState('');
   const [counts, setCounts] = useState<{ sentences: number; words: number } | null>(null);
   const [candidateCounts, setCandidateCounts] = useState<Record<string, number>>({});
-  const [tab, setTabState] = useState<ViewId>(() => {
+  // The right column's view; the centre column's pane; and, on a narrow screen, which of the two shows.
+  const initial = (() => {
     const view = query.get('view');
-    return isView(view) ? view : 'profile';
+    return isView(view) ? view : null;
+  })();
+  const [tab, setTabState] = useState<ViewId>(() =>
+    initial && !isPane(placeOf(initial)) ? initial : DEFAULT_VIEW.issues,
+  );
+  const [pane, setPaneState] = useState<Pane>(() => {
+    const asked = query.get('pane');
+    if (asked === 'fulltext' || asked === 'summary') return asked;
+    const place = initial ? placeOf(initial) : 'fulltext';
+    return isPane(place) ? place : 'fulltext';
   });
+  const [focus, setFocus] = useState<'centre' | 'right'>(() =>
+    initial && !isPane(placeOf(initial)) ? 'right' : 'centre',
+  );
   // An AI panel stays mounted once opened, so its run keeps going while the reader looks elsewhere.
   const [opened, setOpened] = useState<JobId[]>([]);
   const [openBlocks, setOpenBlocks] = useState<BlockId[]>(() => {
-    const first = blockOf(tab);
+    const first = initial && blockOf(initial);
     return first ? [first] : [];
   });
   const [blockView, setBlockView] = useState<Partial<Record<BlockId, ViewId>>>(() => {
-    const first = blockOf(tab);
-    return first ? { [first]: tab } : {};
+    const first = initial && blockOf(initial);
+    return first && initial ? { [first]: initial } : {};
   });
   const jobs = useRef<Partial<Record<JobId, JobReport>>>({});
   const [jobFacts, setJobFacts] = useState<Partial<Record<JobId, JobFacts>>>({});
@@ -339,29 +386,38 @@ export default function PaperMapPage() {
       };
     });
   }, []);
-  /** Opens a view and records it in the address, so a reload or a shared link lands on the same view. */
+  /** Opens a view in its column and records it in the address, so a reload or a shared link lands there. */
   const setTab = (view: ViewId) => {
-    setTabState(view);
+    const place = placeOf(view);
     const block = blockOf(view);
-    // Every analysis of the mode being shown is mounted, so each row can say what a run would cost.
-    // The mode being left keeps its panels too, so nothing running there is interrupted.
-    const jobsOfMode = [...blocksIn(modeOf(tab)), ...blocksIn(modeOf(view))]
-      .map((id) => BLOCKS[id].job)
-      .filter((job): job is JobId => job !== undefined);
-    setOpened((old) => [...new Set([...old, ...jobsOfMode])]);
+    // Every analysis of the place being shown is mounted, so each row can say what a run would cost.
+    // What is left keeps its panels too, so nothing running there is interrupted.
+    const jobsOf = (target: Place) =>
+      blocksIn(target)
+        .map((id) => BLOCKS[id].job)
+        .filter((job): job is JobId => job !== undefined);
+    const kept = [...jobsOf(modeOf(tab)), ...(isPane(place) ? jobsOf('summary') : jobsOf(place))];
+    setOpened((old) => [...new Set([...old, ...kept])]);
+    if (isPane(place)) {
+      setPaneState(place);
+      setFocus('centre');
+    } else {
+      setTabState(view);
+      setFocus('right');
+    }
     if (block) {
       setOpenBlocks((old) => (old.includes(block) ? old : [...old, block]));
       setBlockView((old) => ({ ...old, [block]: view }));
-      if (view !== 'snapshot')
-        window.setTimeout(
-          () => document.getElementById(`block-${block}`)?.scrollIntoView?.({ block: 'start' }),
-          0,
-        );
+      window.setTimeout(
+        () => document.getElementById(`block-${block}`)?.scrollIntoView?.({ block: 'start' }),
+        0,
+      );
     }
     setQuery(
       (old) => {
         const next = new URLSearchParams(old);
         next.set('view', view);
+        if (isPane(place)) next.set('pane', place);
         return next;
       },
       { replace: true },
@@ -399,7 +455,7 @@ export default function PaperMapPage() {
     };
   }, [id, repo, storedTick]);
   const doneJobs = JOB_IDS.filter((job) => jobFacts[job]?.done).join(',');
-  const storedMode = modeOf(tab);
+  const storedMode = `${pane}:${modeOf(tab)}`;
   useEffect(() => {
     let active = true;
     if (!id) return;
@@ -431,11 +487,11 @@ export default function PaperMapPage() {
     [paper, checks, stored, findings],
   );
   useEffect(() => {
-    if (tab === 'map' && highlight)
+    if (pane === 'fulltext' && highlight)
       document
         .getElementById(`paper-paragraph-${highlight.paragraphId}`)
         ?.scrollIntoView?.({ block: 'center' });
-  }, [tab, selected, highlight]);
+  }, [pane, selected, highlight]);
   useEffect(() => {
     let active = true;
     if (!id) return;
@@ -463,7 +519,8 @@ export default function PaperMapPage() {
             start: whole ? 0 : start,
             end: whole ? Math.max(1, Array.from(linked.text).length) : end,
           });
-          setTabState('map');
+          setPaneState('fulltext');
+          setFocus('centre');
         }
         setLoading(false);
         if (value)
@@ -532,13 +589,17 @@ export default function PaperMapPage() {
     setEvidence(null);
     setTab('map');
   };
-  // Beside the analysis the paper is already on screen, so a finding is shown there, not in a drawer.
-  const split = wide && splitWanted && tab !== 'map';
+  // The paper is the centre of the page: on a wide screen it is always beside the analysis, so a quote opens
+  // there. On a narrow screen showing the analysis, the quote opens in a drawer to keep the reader's place.
+  const showRight = !wide || splitWanted;
+  const centreVisible = wide || focus === 'centre';
   const openLocation = (location: Finding['locations'][number]) => {
     const paragraph = paper.paragraphs.find((item) => item.id === location.paragraphId);
-    if (!split || !paragraph) return setEvidence(location);
+    if (!paragraph || !centreVisible) return setEvidence(location);
+    setFilter(null);
     setSelected(paragraph.sectionId);
     setHighlight(location);
+    setPaneState('fulltext');
   };
   const toggleSplit = () => {
     const next = !splitWanted;
@@ -549,11 +610,6 @@ export default function PaperMapPage() {
       /* Storage may be unavailable. */
     }
   };
-  const tabButton = (id: ViewId, label: string) => (
-    <Button role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>
-      {label}
-    </Button>
-  );
   const runChecks = () => {
     void captureCalibration(repo)
       .then((calibrationSnapshot) =>
@@ -637,6 +693,7 @@ export default function PaperMapPage() {
     if (!mark.findingId) return setTab(mark.view as ViewId);
     setFocusFinding(mark.findingId);
     setTab(viewOf('checks'));
+    if (!wide) setFocus('right');
   };
   const sectionLabel = (sectionId: string) =>
     paper.sections.find((section) => section.id === sectionId)?.heading ?? sectionId;
@@ -661,15 +718,21 @@ export default function PaperMapPage() {
   });
   const jobLabels = Object.fromEntries(JOB_IDS.map((job) => [job, JOBS[job].label])) as Record<JobId, string>;
   const mode = modeOf(tab);
+  const toReview = findings.filter((item) => item.status === 'open').length;
   // The findings table offers section runs, so the analyses that can do one are mounted there too.
   const shown = (job: JobId) =>
     opened.includes(job) ||
     blocksIn(mode).some((id) => BLOCKS[id].job === job) ||
-    (mode === 'findings' && SECTION_JOBS.includes(job));
+    (pane === 'summary' && blocksIn('summary').some((id) => BLOCKS[id].job === job)) ||
+    (mode === 'issues' && SECTION_JOBS.includes(job));
   const visibleJob = (job: JobId) =>
-    BLOCK_IDS.some((id) => BLOCKS[id].job === job && BLOCKS[id].mode === mode && openBlocks.includes(id));
+    BLOCK_IDS.some(
+      (id) =>
+        BLOCKS[id].job === job &&
+        openBlocks.includes(id) &&
+        (BLOCKS[id].place === mode ? showRight : BLOCKS[id].place === 'summary' && pane === 'summary'),
+    );
   const elsewhere = JOB_IDS.filter((job) => jobFacts[job]?.running && !visibleJob(job));
-  const lastDossier = blocksIn('dossier').find((id) => openBlocks.includes(id)) ?? 'measure';
   const checkView = viewOf('checks');
   const checkIds = CHECKS_OF[checkView] ?? [];
   const toggleBlock = (id: BlockId) =>
@@ -725,8 +788,8 @@ export default function PaperMapPage() {
     );
   };
   /** Jump chips for the blocks of a mode: one press opens the block and scrolls to it. */
-  const chips = (target: Exclude<Mode, 'map'>) => (
-    <div className={styles.blockChips} role="group" aria-label="Đi tới khối">
+  const chips = (target: Place) => (
+    <div className={styles.blockChips} role="group" aria-label="Jump to">
       {blocksIn(target).map((id) => (
         <Chip key={id} aria-pressed={openBlocks.includes(id)} onClick={() => setTab(viewOf(id))}>
           <CriterionMark criterion={BLOCKS[id].criterion} />
@@ -745,16 +808,55 @@ export default function PaperMapPage() {
         </details>
       </div>
     );
+  const paneTab = (item: { id: Pane; label: string }) => (
+    <Button
+      key={item.id}
+      role="tab"
+      aria-selected={pane === item.id && (wide || focus === 'centre')}
+      onClick={() => setTab(item.id === 'fulltext' ? 'map' : 'profile')}
+    >
+      {item.label}
+    </Button>
+  );
+  const modeTab = (item: { id: Mode; label: string }) => (
+    <Button
+      key={item.id}
+      role="tab"
+      aria-selected={mode === item.id && (wide || focus === 'right')}
+      onClick={() => {
+        setTab(
+          blockView[BLOCK_IDS.find((id) => BLOCKS[id].place === item.id) ?? 'checks'] ??
+            DEFAULT_VIEW[item.id],
+        );
+        if (!splitWanted && wide) toggleSplit();
+      }}
+    >
+      {item.label}
+      {item.id === 'issues' && toReview > 0 && <span className={styles.tabCount}>{toReview}</span>}
+    </Button>
+  );
   return (
-    <div className={`${styles.page} ${split ? '' : styles.narrow}`}>
+    <div className={styles.page}>
       <header className={styles.paperHead}>
         <Link to="/papers">← Bài báo đã nhập</Link>
         <div className={styles.titleRow}>
           <h1>{shownTitle ?? paperIdentity(paper).title}</h1>
           <div className={styles.row}>
+            {toReview > 0 && (
+              <Button
+                size="sm"
+                className={styles.reviewPill}
+                onClick={() => {
+                  setTab(viewOf('checks'));
+                  if (!splitWanted && wide) toggleSplit();
+                }}
+              >
+                {toReview} cần duyệt
+              </Button>
+            )}
             {wide && (
-              <Button size="sm" aria-pressed={splitWanted} onClick={toggleSplit}>
-                Đọc song song
+              <Button size="sm" aria-pressed={!splitWanted} onClick={toggleSplit}>
+                Ẩn phân tích
               </Button>
             )}
             <Transparency paper={paper} />
@@ -770,29 +872,15 @@ export default function PaperMapPage() {
         <BatchWorkspace paper={paper}>
           {(batch) => (
             <JobsContext.Provider value={reportJob}>
-              <div className={styles.paperTabs}>
-                <Tabs label="Bài báo">
-                  <Button role="tab" aria-selected={mode === 'summary'} onClick={() => setTab('profile')}>
-                    Tóm lược
-                  </Button>
-                  <Button
-                    role="tab"
-                    aria-selected={mode === 'findings'}
-                    onClick={() => setTab(viewOf('checks'))}
-                  >
-                    Phát hiện
-                  </Button>
-                  <Button
-                    role="tab"
-                    aria-selected={mode === 'dossier'}
-                    onClick={() => setTab(viewOf(lastDossier))}
-                  >
-                    Hồ sơ
-                  </Button>
-                  <span className={styles.tabDivider} aria-hidden="true" />
-                  {tabButton('map', 'Đọc bài')}
-                </Tabs>
-              </div>
+              {!wide && (
+                <div className={styles.paperTabs}>
+                  <Tabs label="Bài báo">
+                    {PANES.map(paneTab)}
+                    <span className={styles.tabDivider} aria-hidden="true" />
+                    {MODES.map(modeTab)}
+                  </Tabs>
+                </div>
+              )}
               {elsewhere.length > 0 && (
                 <p role="status" className={styles.runStrip}>
                   Đang chạy ở chỗ khác:{' '}
@@ -808,33 +896,70 @@ export default function PaperMapPage() {
                   ))}
                 </p>
               )}
-              <p className={styles.tabHelp}>{mode === 'map' ? VIEW_HELP.map : MODE_HELP[mode]}</p>
               <EvidencePanel
                 paper={paper}
                 location={evidence}
                 onClose={() => setEvidence(null)}
                 onOpenReader={openInReader}
               />
-              <div className={split ? styles.split : undefined}>
-                {split && (
-                  <ReadingPane
-                    paper={paper}
-                    selected={selected}
-                    onSelect={(sectionId) => {
-                      setSelected(sectionId);
-                      setHighlight(null);
-                    }}
-                    highlight={highlight}
-                    onOpenFull={() => setTab('map')}
-                    marks={marks}
-                    layers={layers}
-                    onLayers={setLayers}
-                    onMark={openMark}
-                  />
-                )}
-                <div className={styles.splitMain}>
-                  <div hidden={mode !== 'summary'} className={styles.blocks}>
-                    {mode === 'summary' && (
+              <div className={wide && showRight ? styles.workspace : undefined}>
+                <section
+                  className={wide ? styles.column : undefined}
+                  aria-label="Paper"
+                  hidden={!centreVisible}
+                >
+                  {wide && (
+                    <div className={styles.columnTabs}>
+                      <Tabs label="Paper">{PANES.map(paneTab)}</Tabs>
+                      <RunAllCard
+                        compact
+                        jobs={jobs}
+                        facts={jobFacts}
+                        labels={jobLabels}
+                        onPrepare={() => setOpened((old) => [...new Set([...old, ...RUN_ALL])])}
+                        onOpen={(job) => setTab(JOBS[job].views[0] ?? 'profile')}
+                        onRunChecks={() => {
+                          if (!checks) runChecks();
+                        }}
+                      />
+                    </div>
+                  )}
+                  <p className={styles.tabHelp}>{PLACE_HELP[pane]}</p>
+                  {pane === 'fulltext' && (
+                    <>
+                      {errorBox('Không thể xử lý bài báo.')}
+                      <PaperReader
+                        paper={paper}
+                        selected={selected}
+                        onSelect={setSelected}
+                        filter={filter}
+                        onClearFilter={() => setFilter(null)}
+                        highlight={highlight}
+                        candidateCounts={candidateCounts}
+                        batch={batch}
+                        onEditRole={(role) => void editRole(role)}
+                        marks={marks}
+                        layers={layers}
+                        onLayers={setLayers}
+                        onMark={openMark}
+                        outlineOpen={!(wide && showRight)}
+                      />
+                    </>
+                  )}
+                  <div hidden={pane !== 'summary'} className={styles.blocks}>
+                    {!wide && (
+                      <RunAllCard
+                        jobs={jobs}
+                        facts={jobFacts}
+                        labels={jobLabels}
+                        onPrepare={() => setOpened((old) => [...new Set([...old, ...RUN_ALL])])}
+                        onOpen={(job) => setTab(JOBS[job].views[0] ?? 'profile')}
+                        onRunChecks={() => {
+                          if (!checks) runChecks();
+                        }}
+                      />
+                    )}
+                    {pane === 'summary' && (
                       <PaperSummary
                         paper={paper}
                         insights={stored.insights}
@@ -842,21 +967,23 @@ export default function PaperMapPage() {
                         onOpen={setTab}
                       />
                     )}
-                    <RunAllCard
-                      jobs={jobs}
-                      facts={jobFacts}
-                      labels={jobLabels}
-                      onPrepare={() => setOpened((old) => [...new Set([...old, ...RUN_ALL])])}
-                      onOpen={(job) => setTab(JOBS[job].views[0] ?? 'profile')}
-                      onRunChecks={() => {
-                        if (!checks) runChecks();
-                      }}
-                    />
                     {block(
                       'snapshot',
                       shown('snapshot') && <PaperSnapshot paper={paper} onLocation={openLocation} />,
                     )}
-                    {mode === 'summary' && (
+                    {block(
+                      'metadata',
+                      pane === 'summary' && openBlocks.includes('metadata') && (
+                        <PaperMetadata paper={paper} />
+                      ),
+                    )}
+                    {block(
+                      'references',
+                      pane === 'summary' && openBlocks.includes('references') && (
+                        <PaperReferences paper={paper} onLocation={openLocation} />
+                      ),
+                    )}
+                    {pane === 'summary' && (
                       <PaperProfile
                         // A finished analysis changes what the cards can show, so they are read again.
                         key={JOB_IDS.filter((job) => jobFacts[job]?.done).join(',')}
@@ -867,9 +994,21 @@ export default function PaperMapPage() {
                       />
                     )}
                   </div>
-                  <div hidden={mode !== 'findings'} className={styles.blocks}>
+                </section>
+                <section
+                  className={wide ? styles.column : undefined}
+                  aria-label="Analysis"
+                  hidden={wide ? !showRight : focus !== 'right'}
+                >
+                  {wide && (
+                    <div className={styles.columnTabs}>
+                      <Tabs label="Analysis">{MODES.map(modeTab)}</Tabs>
+                    </div>
+                  )}
+                  <p className={styles.tabHelp}>{PLACE_HELP[mode]}</p>
+                  <div hidden={mode !== 'issues'} className={styles.blocks}>
                     {/* Rendered only while showing: hidden copies of its labels would shadow the blocks below. */}
-                    {mode === 'findings' && (
+                    {mode === 'issues' && (
                       <FindingsList
                         paper={paper}
                         findings={findings}
@@ -880,11 +1019,11 @@ export default function PaperMapPage() {
                         sectionRuns={sectionRuns}
                       />
                     )}
-                    <h2 className={styles.sourcesHead}>Nguồn của các phát hiện</h2>
-                    {chips('findings')}
+                    <h2 className={styles.sourcesHead}>Sources of the issues</h2>
+                    {chips('issues')}
                     {block(
                       'checks',
-                      mode === 'findings' && openBlocks.includes('checks') && (
+                      mode === 'issues' && openBlocks.includes('checks') && (
                         <>
                           {errorBox('Không thể xử lý kiểm tra.')}
                           <PaperChecks
@@ -910,8 +1049,18 @@ export default function PaperMapPage() {
                       ),
                     )}
                   </div>
-                  <div hidden={mode !== 'dossier'} className={styles.blocks}>
-                    {chips('dossier')}
+                  <div hidden={mode !== 'arguments'} className={styles.blocks}>
+                    {chips('arguments')}
+                    {block(
+                      'arguments',
+                      shown('arguments') && (
+                        <PaperArguments
+                          paper={paper}
+                          view={viewOf('arguments') === 'aif' ? 'aif' : 'toulmin'}
+                          onLocation={openLocation}
+                        />
+                      ),
+                    )}
                     {block(
                       'measure',
                       shown('measure') && <PaperMeasurement paper={paper} onLocation={openLocation} />,
@@ -926,21 +1075,14 @@ export default function PaperMapPage() {
                         />
                       ),
                     )}
-                    {block(
-                      'arguments',
-                      shown('arguments') && (
-                        <PaperArguments
-                          paper={paper}
-                          view={viewOf('arguments') === 'aif' ? 'aif' : 'toulmin'}
-                          onLocation={openLocation}
-                        />
-                      ),
-                    )}
+                  </div>
+                  <div hidden={mode !== 'writing'} className={styles.blocks}>
+                    {chips('writing')}
                     {block(
                       'batch',
                       <>
                         {shown('batch') && <BatchPanel paper={paper} batch={batch} />}
-                        {mode === 'dossier' && openBlocks.includes('batch') && (
+                        {mode === 'writing' && openBlocks.includes('batch') && (
                           <PaperOverview
                             paper={paper}
                             analyses={batch.analyses}
@@ -962,45 +1104,13 @@ export default function PaperMapPage() {
                     )}
                     {block(
                       'vocabulary',
-                      mode === 'dossier' && openBlocks.includes('vocabulary') && (
+                      mode === 'writing' && openBlocks.includes('vocabulary') && (
                         <PaperVocabulary paper={paper} onLocation={openLocation} />
                       ),
                     )}
-                    {block(
-                      'references',
-                      mode === 'dossier' && openBlocks.includes('references') && (
-                        <PaperReferences paper={paper} onLocation={openLocation} />
-                      ),
-                    )}
                     {block('probe', shown('probe') && <PaperProbe paper={paper} analyses={batch.analyses} />)}
-                    {block(
-                      'metadata',
-                      mode === 'dossier' && openBlocks.includes('metadata') && (
-                        <PaperMetadata paper={paper} />
-                      ),
-                    )}
                   </div>
-                  {mode === 'map' && (
-                    <>
-                      {errorBox('Không thể xử lý bài báo.')}
-                      <PaperReader
-                        paper={paper}
-                        selected={selected}
-                        onSelect={setSelected}
-                        filter={filter}
-                        onClearFilter={() => setFilter(null)}
-                        highlight={highlight}
-                        candidateCounts={candidateCounts}
-                        batch={batch}
-                        onEditRole={(role) => void editRole(role)}
-                        marks={marks}
-                        layers={layers}
-                        onLayers={setLayers}
-                        onMark={openMark}
-                      />
-                    </>
-                  )}
-                </div>
+                </section>
               </div>
             </JobsContext.Provider>
           )}
