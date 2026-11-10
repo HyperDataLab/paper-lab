@@ -36,6 +36,8 @@ export async function llmRhetoric(
     signal?: AbortSignal;
     newId?: () => string;
     now?: () => string;
+    /** False for a run of a few sections, which keeps the whole-paper abstract comparison it has. */
+    alignment?: boolean;
   },
 ) {
   requirePaperConsent(options.config);
@@ -84,7 +86,7 @@ export async function llmRhetoric(
     });
   }
   const { abstract, body } = alignmentInputs(paper, options.sectionIds);
-  if (abstract.length && body.length && !state.alignment) {
+  if (options.alignment !== false && abstract.length && body.length && !state.alignment) {
     await attempt(async () => {
       const result = await client.completeJson({
         ...buildAbstractAlignmentPrompt(abstract, body),

@@ -1,3 +1,6 @@
+import { runFreshness } from '@/core/runFreshness';
+import { useLlm } from '@/shared/llm/LlmProvider';
+import { PAPER_PROMPT_VERSIONS } from '@/shared/llm/paperParagraphAnalyzer';
 import { useState } from 'react';
 import { planRun } from '@/core/batch';
 import type { BatchStep, Paper } from '@/core/schemas';
@@ -8,7 +11,7 @@ import { TextField } from '@/shared/ui/TextField';
 import type { useBatchRun } from './useBatchRun';
 import { mainBodySections, usePaperScope, useRunBudget } from './paperScope';
 import { RunSetup } from './RunSetup';
-import { useReportJob } from './paperJobs';
+import { acceptsSectionRun, useReportJob } from './paperJobs';
 import styles from './page.module.css';
 
 const steps: { id: BatchStep; label: string }[] = [
@@ -19,6 +22,7 @@ const steps: { id: BatchStep; label: string }[] = [
   { id: 'transitions', label: 'Chuyển đoạn' },
 ];
 export function BatchPanel({ paper, batch }: { paper: Paper; batch: ReturnType<typeof useBatchRun> }) {
+  const llm = useLlm();
   const [sections, setSections] = usePaperScope(paper, mainBodySections);
   // Every step is on by default: a first run should answer everything without setup.
   const [selectedSteps, setSteps] = useState<BatchStep[]>(() => steps.map((step) => step.id));
@@ -34,7 +38,20 @@ export function BatchPanel({ paper, batch }: { paper: Paper; batch: ReturnType<t
   const running = run?.status === 'running';
   const [editing, setEditing] = useState(false);
   const showSetup = (!run || editing) && !running;
+  const staleness = run
+    ? runFreshness(
+        { sectionIds: run.plan.sectionIds, promptVersions: run.promptVersions, model: run.model },
+        { sectionIds: sections, promptVersions: PAPER_PROMPT_VERSIONS, model: llm.config.model },
+      )
+    : null;
+  const sectionChoices = paper.sections
+    .map((section) => ({
+      id: section.id,
+      estimate: planRun(paper, { sectionIds: [section.id], steps: selectedSteps, budget }).total,
+    }))
+    .filter((choice) => choice.estimate > 0);
   useReportJob('batch', {
+    stale: staleness,
     running,
     done: Boolean(run) && !running && !['paused', 'budget_exceeded', 'failed'].includes(run?.status ?? ''),
     estimate: plan.total,
@@ -42,6 +59,16 @@ export function BatchPanel({ paper, batch }: { paper: Paper; batch: ReturnType<t
     start:
       plan.withinBudget && plan.paragraphs.length && selectedSteps.length ? () => batch.start(plan) : null,
     stop: batch.pause,
+    sectionRun:
+      run && !running && acceptsSectionRun(staleness) && selectedSteps.length
+        ? {
+            sections: sectionChoices,
+            // Paragraphs already analysed with the same prompts are reused from the cache, so this only
+            // spends calls on the chosen section.
+            start: (sectionId: string) =>
+              batch.start(planRun(paper, { sectionIds: [sectionId], steps: selectedSteps, budget })),
+          }
+        : null,
   });
   return (
     <Card>

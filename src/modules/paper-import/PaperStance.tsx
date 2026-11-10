@@ -1,3 +1,5 @@
+import { PROMPT_VERSIONS } from '@/core/prompts';
+import { runFreshness } from '@/core/runFreshness';
 import { useStoredChanged } from './paperJobs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BatchBudgetExceededError } from '@/core/batch/runBatch';
@@ -24,7 +26,7 @@ import { Select } from '@/shared/ui/Select';
 import { Tree, type TreeNode } from '@/shared/ui/Tree';
 import { usePaperScope, useRunBudget } from './paperScope';
 import { RunSetup } from './RunSetup';
-import { useReportJob } from './paperJobs';
+import { acceptsSectionRun, useReportJob } from './paperJobs';
 import styles from './measurement.module.css';
 import { Loading } from '@/shared/ui/StateNote';
 
@@ -90,7 +92,7 @@ export function PaperStance({
     };
   }, [paper.id, repo]);
 
-  async function start(resume: boolean) {
+  async function start(resume: boolean, only: string[] | null = null) {
     const abort = new AbortController();
     controller.current = abort;
     setRunning(true);
@@ -102,7 +104,7 @@ export function PaperStance({
       setUsed(pending?.callsUsed ?? 0);
       setCap((pending?.callsUsed ?? 0) + budget);
       const result = await llmStance(llm.client, paper, {
-        sectionIds: pending?.sectionIds ?? sections,
+        sectionIds: only ?? pending?.sectionIds ?? sections,
         config: llm.config,
         budget: (pending?.callsUsed ?? 0) + budget,
         pending,
@@ -110,11 +112,16 @@ export function PaperStance({
         onRequest: setUsed,
         onChunk: (done, total) => setProgress(`Đã đọc ${done}/${total} phần`),
         onProgress: async (state) => {
-          await repo.stance.savePending(paper.id, state);
+          // A section run is short and merged at the end; it leaves no resumable state behind.
+          if (!only) await repo.stance.savePending(paper.id, state);
         },
       });
       if (abort.signal.aborted) return;
-      setRecord(await repo.stance.saveRun(paper.id, result.run, result.incomplete ? result.state : null));
+      setRecord(
+        only
+          ? await repo.stance.saveSectionRun(paper.id, result.run, only)
+          : await repo.stance.saveRun(paper.id, result.run, result.incomplete ? result.state : null),
+      );
       notifyStoredChanged();
       setSelected('overview');
       setShowSetup(false);
@@ -138,12 +145,30 @@ export function PaperStance({
   const decisions = useMemo(() => record?.decisions ?? [], [record]);
   const metrics = useMemo(() => (run ? stanceMetrics(run, decisions) : undefined), [run, decisions]);
   const states = useMemo(() => (run ? stanceStates(run, decisions) : new Map()), [run, decisions]);
+  const sectionChoices = paper.sections
+    .map((section) => ({ id: section.id, estimate: planStance(paper, [section.id]).length }))
+    .filter((choice) => choice.estimate > 0);
+  const staleness = run
+    ? runFreshness(
+        { sectionIds: run.sectionIds, promptVersions: { main: run.promptVersion }, model: run.model },
+        {
+          sectionIds: sections,
+          promptVersions: { main: PROMPT_VERSIONS.stanceEngagement },
+          model: llm.config.model,
+        },
+      )
+    : null;
   useReportJob('stance', {
+    stale: staleness,
     running,
     done: Boolean(run) && !record?.pending,
     estimate,
     ready: !loading,
     start: () => start(false),
+    sectionRun:
+      run && acceptsSectionRun(staleness)
+        ? { sections: sectionChoices, start: (sectionId: string) => start(false, [sectionId]) }
+        : null,
     stop: () => controller.current?.abort(),
   });
   if (loading) return <Loading label="Đang tải phân tích giọng văn…" />;

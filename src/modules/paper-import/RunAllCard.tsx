@@ -2,7 +2,7 @@ import { useRef, useState, type RefObject } from 'react';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Dialog } from '@/shared/ui/Dialog';
-import { RUN_ALL, type JobFacts, type JobId, type JobReport } from './paperJobs';
+import { describeStale, RUN_ALL, type JobFacts, type JobId, type JobReport } from './paperJobs';
 import styles from './page.module.css';
 
 type Phase =
@@ -38,7 +38,7 @@ export function RunAllCard({
   const rows = RUN_ALL.map((id) => ({ id, fact: facts[id] }));
   const loading = rows.some((row) => !row.fact?.ready);
   const todo = rows.filter(
-    (row) => row.fact?.ready && !row.fact.done && !row.fact.running && row.fact.startable,
+    (row) => row.fact?.ready && (!row.fact.done || row.fact.stale) && !row.fact.running && row.fact.startable,
   );
   const total = todo.reduce((sum, row) => sum + (row.fact?.estimate ?? 0), 0);
 
@@ -50,7 +50,7 @@ export function RunAllCard({
     for (const [index, id] of ids.entries()) {
       if (stopping.current) break;
       const job = jobs.current[id];
-      if (!job?.start || job.done || job.running) continue;
+      if (!job?.start || (job.done && !job.stale) || job.running) continue;
       last = id;
       setPhase({ kind: 'running', current: id, index, total: ids.length });
       await job.start();
@@ -59,7 +59,7 @@ export function RunAllCard({
       while (jobs.current[id]?.running) await wait(100);
       if (stopping.current) break;
       // Declined consent, a reached ceiling or an error: stop here rather than spend on the rest.
-      if (!jobs.current[id]?.done) return setPhase({ kind: 'stopped', at: id });
+      if (!jobs.current[id]?.done || jobs.current[id]?.stale) return setPhase({ kind: 'stopped', at: id });
       ran += 1;
     }
     setPhase(stopping.current && last ? { kind: 'stopped', at: last } : { kind: 'finished', ran });
@@ -69,11 +69,13 @@ export function RunAllCard({
       ? 'Đang tải…'
       : fact.running
         ? 'Đang chạy'
-        : fact.done
-          ? 'Đã có kết quả, bỏ qua'
-          : !fact.startable
-            ? 'Cần chỉnh trong tab đó trước, bỏ qua'
-            : `~${fact.estimate} lượt gọi AI`;
+        : fact.stale
+          ? `Kết quả cũ (${describeStale(fact.stale)}) · ~${fact.estimate} lượt gọi AI`
+          : fact.done
+            ? 'Đã có kết quả, bỏ qua'
+            : !fact.startable
+              ? 'Cần chỉnh trong tab đó trước, bỏ qua'
+              : `~${fact.estimate} lượt gọi AI`;
   return (
     <Card padding="md">
       <div className={styles.runAll}>

@@ -1,5 +1,8 @@
+import type { StaleReason } from '@/core/runFreshness';
+import { describeStale } from './paperJobs';
 import type { ReactNode } from 'react';
 import { Badge } from '@/shared/ui/Badge';
+import { ActionMenu } from '@/shared/ui/ActionBar';
 import { Button } from '@/shared/ui/Button';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { CRITERIA, type Criterion } from './criteria';
@@ -38,8 +41,10 @@ export function SectionBlock({
   help,
   criterion,
   status,
+  stale,
   estimate,
   onRun,
+  sectionRun,
   open,
   onToggle,
   views = [],
@@ -53,9 +58,15 @@ export function SectionBlock({
   criterion: Criterion;
   /** Absent for content that needs no AI run. */
   status?: BlockStatus;
+  stale?: StaleReason[] | null;
   estimate?: number;
   /** Starts the analysis with the remembered scope and the ceiling from Settings. */
   onRun?: () => void;
+  /** Running this analysis for one section and merging it into the result it already has. */
+  sectionRun?: {
+    sections: { id: string; label: string; estimate: number }[];
+    onRun: (sectionId: string) => void;
+  };
   open: boolean;
   onToggle: () => void;
   /** Two readings of the same analysis, when it has them. */
@@ -72,11 +83,21 @@ export function SectionBlock({
           <h2>{title}</h2>
           <p>{help}</p>
         </div>
+        {stale && <Badge tone="warning">Kết quả cũ ({describeStale(stale)})</Badge>}
         {status && <Badge tone={STATUS[status].tone}>{STATUS[status].label}</Badge>}
         {onRun && (
           <Button size="sm" variant="primary" onClick={onRun}>
             Phân tích{estimate ? ` (~${estimate} lượt)` : ''}
           </Button>
+        )}
+        {sectionRun && (
+          <ActionMenu
+            label="Chạy cho một mục"
+            items={sectionRun.sections.map((choice) => ({
+              label: `${choice.label} (~${choice.estimate} lượt)`,
+              onSelect: () => sectionRun.onRun(choice.id),
+            }))}
+          />
         )}
         <Button
           size="sm"

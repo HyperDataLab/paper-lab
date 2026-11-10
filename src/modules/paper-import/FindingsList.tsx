@@ -8,6 +8,7 @@ import {
 } from '@/core/paperFindings';
 import type { Paper } from '@/core/schemas';
 import { sliceCp } from '@/core/text/offsets';
+import { ActionMenu } from '@/shared/ui/ActionBar';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Chip } from '@/shared/ui/Chip';
@@ -46,6 +47,7 @@ export function FindingsList({
   onLocation,
   onOpenSource,
   onDecide,
+  sectionRuns = [],
 }: {
   paper: Paper;
   findings: PaperFinding[];
@@ -55,6 +57,13 @@ export function FindingsList({
   onOpenSource: (view: string) => void;
   /** Records a person's decision in the source that found it. */
   onDecide: (finding: PaperFinding, status: FindingStatus) => void;
+  /** Analyses that can be run for one section and merged into what they found, by criterion. */
+  sectionRuns?: {
+    criterion: Criterion;
+    label: string;
+    sections: { id: string; estimate: number }[];
+    run: (sectionId: string) => void;
+  }[];
 }) {
   // Sentence-level writing issues can outnumber everything else, so they start switched off when there is
   // anything else. Until the reader touches the chips the default follows the findings as they load.
@@ -90,16 +99,17 @@ export function FindingsList({
   const counts = useMemo(() => countBySection(findings), [findings]);
   const cell = (sectionId: string | null, criterion: Criterion) =>
     counts.find((item) => item.sectionId === sectionId && item.criterion === criterion)?.count ?? 0;
+  const runnable = new Set(sectionRuns.flatMap((item) => item.sections.map((choice) => choice.id)));
   const rows = [
     ...paper.sections
-      .filter((item) => counts.some((count) => count.sectionId === item.id))
+      .filter((item) => counts.some((count) => count.sectionId === item.id) || runnable.has(item.id))
       .map((item) => ({ id: item.id as string | null, label: item.heading })),
     ...(counts.some((count) => count.sectionId === null) ? [{ id: null, label: 'Cả bài' }] : []),
   ];
   const toggle = <T,>(list: T[], value: T) =>
     list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
 
-  if (findings.length === 0)
+  if (findings.length === 0 && sectionRuns.length === 0)
     return (
       <Empty
         title="Chưa có phát hiện nào."
@@ -162,24 +172,43 @@ export function FindingsList({
                   <th scope="row">{row.label}</th>
                   {CRITERION_IDS.map((id) => {
                     const count = cell(row.id, id);
+                    const runs = row.id
+                      ? sectionRuns.flatMap((item) => {
+                          const choice =
+                            item.criterion === id && item.sections.find((option) => option.id === row.id);
+                          return choice ? [{ item, choice }] : [];
+                        })
+                      : [];
                     return (
                       <td key={id}>
-                        {count === 0 ? (
-                          <span className={styles.muted}>—</span>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            aria-label={`${count} phát hiện ${CRITERIA[id].label} ở ${row.label}`}
-                            onClick={() => {
-                              setSection(row.id ?? WHOLE);
-                              setCriteria([id]);
-                              setStatuses(STATUS_IDS);
-                            }}
-                          >
-                            {count}
-                          </Button>
-                        )}
+                        <div className={styles.cellRow}>
+                          {count === 0 ? (
+                            <span className={styles.muted}>—</span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              aria-label={`${count} phát hiện ${CRITERIA[id].label} ở ${row.label}`}
+                              onClick={() => {
+                                setSection(row.id ?? WHOLE);
+                                setCriteria([id]);
+                                setStatuses(STATUS_IDS);
+                              }}
+                            >
+                              {count}
+                            </Button>
+                          )}
+                          {runs.length > 0 && row.id && (
+                            <ActionMenu
+                              icon
+                              label={`Chạy cho mục ${row.label}: ${CRITERIA[id].label}`}
+                              items={runs.map(({ item, choice }) => ({
+                                label: `${item.label} cho mục này (~${choice.estimate} lượt)`,
+                                onSelect: () => item.run(choice.id),
+                              }))}
+                            />
+                          )}
+                        </div>
                       </td>
                     );
                   })}

@@ -1,3 +1,5 @@
+import { runFreshness } from '@/core/runFreshness';
+import { MEASUREMENT_PROMPT_VERSION } from '@/shared/llm/llmMeasurement';
 import { useStoredChanged } from './paperJobs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -187,6 +189,20 @@ export function PaperMeasurement({
   const exported = (current: MeasurementRun) =>
     reviewedProfile(current.profile, record?.decisions ?? [], current.id);
   useReportJob('measure', {
+    stale: run
+      ? runFreshness(
+          {
+            sectionIds: run.sectionIds,
+            promptVersions: { main: run.profile.prompt_version },
+            model: run.profile.model_id,
+          },
+          {
+            sectionIds: sections,
+            promptVersions: { main: MEASUREMENT_PROMPT_VERSION },
+            model: llm.config.model,
+          },
+        )
+      : null,
     running,
     done: Boolean(run) && !record?.pending,
     estimate,

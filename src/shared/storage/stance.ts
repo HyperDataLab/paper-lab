@@ -9,6 +9,7 @@ import {
   type StanceRecord,
   type StanceRun,
 } from '@/core/schemas';
+import { carryDecisions, mergeStanceRuns } from '@/core/sectionRun';
 import type { ParagraphDb } from './db';
 
 export function createStanceRepository(
@@ -63,6 +64,45 @@ export function createStanceRepository(
             ...makeAudit(paperId, 'run_stance', 'model'),
             at,
             after: { runId: run.id },
+          }),
+        );
+        return value;
+      });
+    },
+    /** Merges a run over a few sections into the latest stance run; see core/sectionRun for the rules. */
+    async saveSectionRun(paperId: string, input: StanceRun, sectionIds: string[]) {
+      const next = StanceRunSchema.parse(input);
+      return db.transaction('rw', [db.papers, db.stance, db.auditEvents], async () => {
+        await requirePaper(paperId);
+        const previous = (await get(paperId)) ?? empty(paperId);
+        const latest = previous.runs.at(-1);
+        const at = now();
+        const merged = latest
+          ? mergeStanceRuns(latest, next, sectionIds, { id: next.id, createdAt: next.createdAt })
+          : { run: next, keptIds: [] };
+        const value = StanceRecordSchema.parse({
+          ...previous,
+          updatedAt: at,
+          runs: [...previous.runs, merged.run],
+          decisions: [
+            ...previous.decisions,
+            ...(latest
+              ? carryDecisions(
+                  previous.decisions,
+                  latest.id,
+                  merged.run.id,
+                  merged.keptIds,
+                  (item) => item.annotation_id,
+                )
+              : []),
+          ],
+        });
+        await db.stance.put(value);
+        await db.auditEvents.add(
+          AuditEventSchema.parse({
+            ...makeAudit(paperId, 'run_stance', 'model'),
+            at,
+            after: { runId: merged.run.id, mergedFrom: latest?.id ?? null, sectionIds },
           }),
         );
         return value;

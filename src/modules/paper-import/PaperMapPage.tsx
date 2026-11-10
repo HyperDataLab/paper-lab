@@ -238,6 +238,8 @@ const JOBS: Record<JobId, { label: string; views: ViewId[] }> = {
   review: { label: 'Phản biện AI', views: ['review'] },
 };
 const JOB_IDS = Object.keys(JOBS) as JobId[];
+/** The analyses whose result is per section and can take a run of one section merged into it. */
+const SECTION_JOBS: JobId[] = ['rhetoric', 'arguments', 'stance', 'batch'];
 const isView = (value: string | null): value is ViewId => value !== null && value in VIEW_HELP;
 
 const WIDE = '(min-width: 1280px)';
@@ -315,13 +317,26 @@ export default function PaperMapPage() {
         before &&
         before.running === report.running &&
         before.done === report.done &&
+        JSON.stringify(before.stale) === JSON.stringify(report.stale) &&
         before.estimate === report.estimate &&
         before.ready === report.ready &&
-        before.startable === (report.start !== null)
+        before.startable === (report.start !== null) &&
+        JSON.stringify(before.sections) === JSON.stringify(report.sectionRun?.sections ?? [])
       )
         return old;
-      const { running, done, estimate, ready } = report;
-      return { ...old, [jobId]: { running, done, estimate, ready, startable: report.start !== null } };
+      const { running, done, estimate, ready, stale } = report;
+      return {
+        ...old,
+        [jobId]: {
+          running,
+          done,
+          estimate,
+          ready,
+          stale,
+          startable: report.start !== null,
+          sections: report.sectionRun?.sections ?? [],
+        },
+      };
     });
   }, []);
   /** Opens a view and records it in the address, so a reload or a shared link lands on the same view. */
@@ -623,9 +638,34 @@ export default function PaperMapPage() {
     setFocusFinding(mark.findingId);
     setTab(viewOf('checks'));
   };
+  const sectionLabel = (sectionId: string) =>
+    paper.sections.find((section) => section.id === sectionId)?.heading ?? sectionId;
+  const runSection = (job: JobId, sectionId: string) => {
+    const block = BLOCK_IDS.find((id) => BLOCKS[id].job === job);
+    if (block) setOpenBlocks((old) => (old.includes(block) ? old : [...old, block]));
+    void jobs.current[job]?.sectionRun?.start(sectionId);
+  };
+  /** The analyses that can run one section on their own, by the criterion they answer to. */
+  const sectionRuns = JOB_IDS.flatMap((job) => {
+    const block = BLOCK_IDS.find((id) => BLOCKS[id].job === job);
+    const fact = jobFacts[job];
+    if (!block || !fact || fact.running || fact.sections.length === 0) return [];
+    return [
+      {
+        criterion: BLOCKS[block].criterion,
+        label: JOBS[job].label,
+        sections: fact.sections,
+        run: (sectionId: string) => runSection(job, sectionId),
+      },
+    ];
+  });
   const jobLabels = Object.fromEntries(JOB_IDS.map((job) => [job, JOBS[job].label])) as Record<JobId, string>;
   const mode = modeOf(tab);
-  const shown = (job: JobId) => opened.includes(job) || blocksIn(mode).some((id) => BLOCKS[id].job === job);
+  // The findings table offers section runs, so the analyses that can do one are mounted there too.
+  const shown = (job: JobId) =>
+    opened.includes(job) ||
+    blocksIn(mode).some((id) => BLOCKS[id].job === job) ||
+    (mode === 'findings' && SECTION_JOBS.includes(job));
   const visibleJob = (job: JobId) =>
     BLOCK_IDS.some((id) => BLOCKS[id].job === job && BLOCKS[id].mode === mode && openBlocks.includes(id));
   const elsewhere = JOB_IDS.filter((job) => jobFacts[job]?.running && !visibleJob(job));
@@ -656,9 +696,18 @@ export default function PaperMapPage() {
         help={VIEW_HELP[viewOf(id)]}
         criterion={def.criterion}
         status={status}
+        stale={fact?.stale}
+        sectionRun={
+          job && fact && !fact.running && fact.sections.length > 0
+            ? {
+                sections: fact.sections.map((choice) => ({ ...choice, label: sectionLabel(choice.id) })),
+                onRun: (sectionId: string) => runSection(job, sectionId),
+              }
+            : undefined
+        }
         estimate={fact?.estimate}
         onRun={
-          job && status === 'todo' && fact?.startable
+          job && (status === 'todo' || Boolean(fact?.stale)) && fact?.startable
             ? () => {
                 setOpenBlocks((old) => (old.includes(id) ? old : [...old, id]));
                 void jobs.current[job]?.start?.();
@@ -828,6 +877,7 @@ export default function PaperMapPage() {
                         onLocation={openLocation}
                         onOpenSource={(view) => setTab(view as ViewId)}
                         onDecide={decide}
+                        sectionRuns={sectionRuns}
                       />
                     )}
                     <h2 className={styles.sourcesHead}>Nguồn của các phát hiện</h2>

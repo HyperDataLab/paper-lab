@@ -19,11 +19,13 @@ const labels = {
 function Harness({
   done = [],
   failing,
+  stale,
   order,
   onRunChecks = () => {},
 }: {
   done?: JobId[];
   failing?: JobId;
+  stale?: JobId;
   order: JobId[];
   onRunChecks?: () => void;
 }) {
@@ -36,14 +38,23 @@ function Harness({
     reports[id] = {
       running: false,
       done: isDone,
+      stale: id === stale && !finished.includes((id + ':rerun') as JobId) ? ['model'] : null,
       estimate: 3,
       ready: true,
       start: async () => {
         order.push(id);
-        if (id !== failing) setFinished((old) => [...old, id]);
+        if (id !== failing) setFinished((old) => [...old, id, (id + ':rerun') as JobId]);
       },
     };
-    facts[id] = { running: false, done: isDone, estimate: 3, ready: true, startable: true };
+    facts[id] = {
+      running: false,
+      done: isDone,
+      stale: reports[id]?.stale,
+      estimate: 3,
+      ready: true,
+      startable: true,
+      sections: [],
+    };
   }
   // As on the page: the latest reports are published after every render.
   useEffect(() => {
@@ -94,4 +105,14 @@ it('P3 cancelling the confirmation starts nothing', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   expect(order).toEqual([]);
+});
+
+it('R6 includes stale completed analyses and shows their reason', async () => {
+  const order: JobId[] = [];
+  render(<Harness done={RUN_ALL} stale="rhetoric" order={order} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Phân tích toàn bài' }));
+  expect(screen.getByText('Kết quả cũ (model khác) · ~3 lượt gọi AI')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Chạy 1 phân tích' }));
+  expect(await screen.findByText('Đã chạy xong 1 phân tích.')).toBeInTheDocument();
+  expect(order).toEqual(['rhetoric']);
 });

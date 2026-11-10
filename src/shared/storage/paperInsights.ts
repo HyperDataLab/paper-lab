@@ -14,6 +14,7 @@ import {
   type RhetoricRun,
   type SnapshotRun,
 } from '@/core/schemas';
+import { carryDecisions, mergeArgumentRuns, mergeRhetoricRuns } from '@/core/sectionRun';
 import type { ParagraphDb } from './db';
 
 export function createPaperInsightsRepository(
@@ -83,6 +84,80 @@ export function createPaperInsightsRepository(
         });
         await db.paperInsights.put(value);
         await audit(paperId, 'run_rhetoric', at, { runId: run.id });
+        return value;
+      });
+    },
+    /** Merges a run over a few sections into the latest rhetoric run; see core/sectionRun for the rules. */
+    async saveRhetoricSectionRun(paperId: string, input: RhetoricRun, sectionIds: string[]) {
+      const next = RhetoricRunSchema.parse(input);
+      return db.transaction('rw', [db.papers, db.paperInsights, db.auditEvents], async () => {
+        await requirePaper(paperId);
+        const previous = (await get(paperId)) ?? empty(paperId);
+        const latest = previous.rhetoricRuns.at(-1);
+        const at = now();
+        const merged = latest
+          ? mergeRhetoricRuns(latest, next, sectionIds, { id: next.id, createdAt: next.createdAt })
+          : { run: next, keptIds: [] };
+        const value = PaperInsightsRecordSchema.parse({
+          ...previous,
+          updatedAt: at,
+          rhetoricRuns: [...previous.rhetoricRuns, merged.run],
+          decisions: [
+            ...previous.decisions,
+            ...(latest
+              ? carryDecisions(
+                  previous.decisions,
+                  latest.id,
+                  merged.run.id,
+                  merged.keptIds,
+                  (item) => item.item_id,
+                )
+              : []),
+          ],
+        });
+        await db.paperInsights.put(value);
+        await audit(paperId, 'run_rhetoric', at, {
+          runId: merged.run.id,
+          mergedFrom: latest?.id ?? null,
+          sectionIds,
+        });
+        return value;
+      });
+    },
+    /** Merges a run over a few sections into the latest argument run; see core/sectionRun for the rules. */
+    async saveArgumentSectionRun(paperId: string, input: ArgumentRun, sectionIds: string[]) {
+      const next = ArgumentRunSchema.parse(input);
+      return db.transaction('rw', [db.papers, db.paperInsights, db.auditEvents], async () => {
+        await requirePaper(paperId);
+        const previous = (await get(paperId)) ?? empty(paperId);
+        const latest = previous.argumentRuns.at(-1);
+        const at = now();
+        const merged = latest
+          ? mergeArgumentRuns(latest, next, sectionIds, { id: next.id, createdAt: next.createdAt })
+          : { run: next, keptIds: [] };
+        const value = PaperInsightsRecordSchema.parse({
+          ...previous,
+          updatedAt: at,
+          argumentRuns: [...previous.argumentRuns, merged.run],
+          decisions: [
+            ...previous.decisions,
+            ...(latest
+              ? carryDecisions(
+                  previous.decisions,
+                  latest.id,
+                  merged.run.id,
+                  merged.keptIds,
+                  (item) => item.item_id,
+                )
+              : []),
+          ],
+        });
+        await db.paperInsights.put(value);
+        await audit(paperId, 'run_argument', at, {
+          runId: merged.run.id,
+          mergedFrom: latest?.id ?? null,
+          sectionIds,
+        });
         return value;
       });
     },

@@ -1,10 +1,22 @@
+import type { StaleReason } from '@/core/runFreshness';
 import { createContext, useContext, useEffect } from 'react';
 
 /** The AI analyses of one paper. Each one is a panel that stays mounted while the reader visits other tabs. */
 export type JobId =
   'snapshot' | 'measure' | 'rhetoric' | 'arguments' | 'batch' | 'stance' | 'probe' | 'review';
 
+/** One section an analysis can be run for on its own, with what that run would cost. */
+export interface SectionChoice {
+  id: string;
+  estimate: number;
+}
 export interface JobReport {
+  /**
+   * Running this analysis for one section and merging it into the existing result. Null when there is no
+   * result yet, or the result used another prompt or model, so only a whole-paper run makes sense.
+   */
+  sectionRun?: { sections: SectionChoice[]; start: (sectionId: string) => Promise<unknown> } | null;
+  stale?: StaleReason[] | null;
   running: boolean;
   /** A finished result exists and nothing is waiting to be resumed. */
   done: boolean;
@@ -19,7 +31,11 @@ export interface JobReport {
 }
 
 /** What the page can show about a job without touching its functions. */
-export type JobFacts = Omit<JobReport, 'start' | 'stop'> & { startable: boolean };
+export type JobFacts = Omit<JobReport, 'start' | 'stop' | 'sectionRun'> & {
+  startable: boolean;
+  /** The sections this analysis can be run for on its own right now. */
+  sections: SectionChoice[];
+};
 
 export type JobReporter = (id: JobId, report: JobReport | null) => void;
 
@@ -45,3 +61,15 @@ export const RUN_ALL: JobId[] = ['snapshot', 'measure', 'rhetoric', 'arguments',
 /** Notify the paper page after a stored result changes; standalone panels need no provider. */
 export const StoredChangedContext = createContext<() => void>(() => {});
 export const useStoredChanged = () => useContext(StoredChangedContext);
+
+export const staleLabels: Record<StaleReason, string> = {
+  scope: 'phạm vi mục đã đổi',
+  prompt: 'prompt đã cập nhật',
+  model: 'model khác',
+};
+export const describeStale = (reasons: StaleReason[]) =>
+  reasons.map((reason) => staleLabels[reason]).join(', ');
+
+/** Whether a finished result can take a section run: the same prompt and model, any scope. */
+export const acceptsSectionRun = (stale: StaleReason[] | null | undefined) =>
+  !stale || stale.every((reason) => reason === 'scope');
