@@ -36,7 +36,7 @@ it('home starts a project from a research question and lists recent work', async
   );
   expect(await screen.findByRole('link', { name: /Project cũ/ })).toBeInTheDocument();
   expect(screen.getByText(/Chưa có bài nào/)).toBeInTheDocument();
-  const workflows = screen.getByRole('region', { name: 'Hoặc chọn việc cần làm' });
+  const workflows = screen.getByRole('region', { name: 'Lối tắt' });
   expect(within(workflows).getAllByRole('link')).toHaveLength(4);
 
   const start = screen.getByRole('button', { name: /Bắt đầu project/ });

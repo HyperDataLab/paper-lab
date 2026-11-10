@@ -75,16 +75,33 @@ export function projectPaperFromLibrary(item: LibraryItem, abstract: string | nu
 
 /** Adds what is new. The same paper or DOI is never added twice. */
 export function addPapers(project: ExtractionProject, papers: ProjectPaper[]): ExtractionProject {
-  const known = (paper: ProjectPaper) =>
-    project.papers.some(
-      (existing) =>
-        existing.key === paper.key ||
-        (paper.doi !== null && existing.doi?.toLowerCase() === paper.doi.toLowerCase()),
-    );
+  const existingPapers = [...project.papers];
   const fresh: ProjectPaper[] = [];
-  for (const paper of papers)
-    if (!known(paper) && !fresh.some((item) => item.key === paper.key)) fresh.push(paper);
-  return { ...project, papers: [...project.papers, ...fresh] };
+  for (const paper of papers) {
+    const sameKeyIndex = existingPapers.findIndex((existing) => existing.key === paper.key);
+    const existing = sameKeyIndex >= 0 ? existingPapers[sameKeyIndex] : undefined;
+    if (
+      existing?.access === 'METADATA_ONLY' &&
+      paper.access === 'ABSTRACT_ONLY' &&
+      existing.source.kind === 'library' &&
+      paper.source.kind === 'library'
+    ) {
+      existingPapers[sameKeyIndex] = paper;
+      continue;
+    }
+    const known =
+      existing !== undefined ||
+      existingPapers.some(
+        (item) => paper.doi !== null && item.doi?.toLowerCase() === paper.doi.toLowerCase(),
+      ) ||
+      fresh.some(
+        (item) =>
+          item.key === paper.key ||
+          (paper.doi !== null && item.doi?.toLowerCase() === paper.doi.toLowerCase()),
+      );
+    if (!known) fresh.push(paper);
+  }
+  return { ...project, papers: [...existingPapers, ...fresh] };
 }
 
 export function removePaper(project: ExtractionProject, key: string): ExtractionProject {

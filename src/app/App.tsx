@@ -37,6 +37,13 @@ export function App() {
   const current = modules.find(
     (item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`),
   );
+  const wideContent =
+    location.pathname === '/' ||
+    location.pathname === '/evaluate' ||
+    location.pathname === '/extraction' ||
+    location.pathname.startsWith('/extraction/') ||
+    location.pathname === '/papers' ||
+    location.pathname.startsWith('/papers/');
   useEffect(() => {
     if (theme === 'system') delete document.documentElement.dataset.theme;
     else document.documentElement.dataset.theme = theme;
@@ -77,6 +84,7 @@ export function App() {
             <div className={styles.topActions}>
               <Button
                 className={styles.search}
+                aria-label="Tìm chức năng"
                 onClick={() =>
                   window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))
                 }
@@ -100,9 +108,7 @@ export function App() {
               </IconButton>
             </div>
           </header>
-          <main
-            className={`${styles.content} ${location.pathname === '/evaluate' || location.pathname.startsWith('/extraction/') || location.pathname.startsWith('/papers/') ? styles.wideContent : ''}`}
-          >
+          <main className={`${styles.content} ${wideContent ? styles.wideContent : ''}`}>
             <StorageProvider>
               <LlmProvider>
                 <Suspense fallback={<Skeleton />}>

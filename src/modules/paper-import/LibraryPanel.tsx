@@ -21,6 +21,7 @@ import { Card } from '@/shared/ui/Card';
 import { Checkbox } from '@/shared/ui/Checkbox';
 import { Chip } from '@/shared/ui/Chip';
 import { Dialog } from '@/shared/ui/Dialog';
+import { DataTable } from '@/shared/ui/DataTable';
 import { Select } from '@/shared/ui/Select';
 import { TextField } from '@/shared/ui/TextField';
 import { useLibrary } from './useLibrary';
@@ -135,6 +136,7 @@ export function LibraryPanel() {
         <TextField
           multiline
           rows={4}
+          placeholder={'Ví dụ: 10.1038/s41586-020-2649-2\n10.1145/3368089.3409740'}
           label="Dán DOI, đường dẫn doi.org, hoặc cả đoạn văn có DOI"
           value={text}
           onChange={(event) => setText(event.target.value)}
@@ -177,8 +179,8 @@ export function LibraryPanel() {
       {problem && <div role="alert">{problem}</div>}
       {library.error && <div role="alert">Không thể tải thư viện: {library.error}</div>}
       {items.length > 0 && (
-        <Card>
-          <div className={styles.filters}>
+        <section className={styles.resultsPanel} aria-label="Danh sách thư viện bài báo">
+          <div className={styles.statusFilters}>
             {FILTERS.map((status) => {
               const count = status === 'all' ? items.length : (counts[status] ?? 0);
               if (status !== 'all' && !count) return null;
@@ -194,40 +196,49 @@ export function LibraryPanel() {
               );
             })}
           </div>
-          <div className={styles.filters}>
-            <TextField
-              label="Tìm theo tên, tác giả, DOI"
-              size="sm"
-              value={filter.query}
-              onChange={(event) => update({ query: event.target.value })}
-            />
-            <Select
-              label="Lĩnh vực lớn"
-              size="sm"
-              value={filter.domain}
-              onChange={(event) => update({ domain: event.target.value, field: '', topic: '' })}
-            >
-              <option value="">Tất cả</option>
-              {facets.domains.map(option)}
-            </Select>
-            <Select
-              label="Ngành"
-              size="sm"
-              value={filter.field}
-              onChange={(event) => update({ field: event.target.value, topic: '' })}
-            >
-              <option value="">Tất cả</option>
-              {facets.fields.map(option)}
-            </Select>
-            <Select
-              label="Chủ đề"
-              size="sm"
-              value={filter.topic}
-              onChange={(event) => update({ topic: event.target.value })}
-            >
-              <option value="">Tất cả</option>
-              {facets.topics.map(option)}
-            </Select>
+          <div className={styles.filterControls}>
+            <div className={styles.queryFilter}>
+              <TextField
+                label="Tìm theo tên, tác giả, DOI"
+                size="sm"
+                placeholder="Tên bài, tác giả hoặc DOI"
+                value={filter.query}
+                onChange={(event) => update({ query: event.target.value })}
+              />
+            </div>
+            <div className={styles.facetFilter}>
+              <Select
+                label="Lĩnh vực lớn"
+                size="sm"
+                value={filter.domain}
+                onChange={(event) => update({ domain: event.target.value, field: '', topic: '' })}
+              >
+                <option value="">Tất cả</option>
+                {facets.domains.map(option)}
+              </Select>
+            </div>
+            <div className={styles.facetFilter}>
+              <Select
+                label="Ngành"
+                size="sm"
+                value={filter.field}
+                onChange={(event) => update({ field: event.target.value, topic: '' })}
+              >
+                <option value="">Tất cả</option>
+                {facets.fields.map(option)}
+              </Select>
+            </div>
+            <div className={styles.facetFilter}>
+              <Select
+                label="Chủ đề"
+                size="sm"
+                value={filter.topic}
+                onChange={(event) => update({ topic: event.target.value })}
+              >
+                <option value="">Tất cả</option>
+                {facets.topics.map(option)}
+              </Select>
+            </div>
           </div>
           <div className={styles.bulk}>
             <span>{picked.length ? `Đã chọn ${picked.length}` : `Đang hiện ${shown.length} bài`}</span>
@@ -286,121 +297,119 @@ export function LibraryPanel() {
               if (file && attachTarget.current) void attach(attachTarget.current, file);
             }}
           />
-          <div className={styles.scroll}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>
-                    <Checkbox
-                      checked={allVisible}
-                      onChange={(event) =>
-                        setSelected(event.target.checked ? visible.map((item) => item.id) : [])
-                      }
-                    >
-                      <span className={styles.hidden}>Chọn tất cả trang này</span>
-                    </Checkbox>
-                  </th>
-                  <th>Bài báo</th>
-                  <th>Phân loại</th>
-                  <th>Trạng thái</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((item) => {
-                  const status = libraryStatus(item);
-                  const link = bestOpenLink(item);
-                  return (
-                    <tr
-                      key={item.id}
-                      onDragOver={(event) => event.preventDefault()}
-                      onDrop={(event) => drop(event, item)}
-                    >
-                      <td>
-                        <Checkbox
-                          checked={selected.includes(item.id)}
-                          onChange={(event) =>
-                            setSelected((old) =>
-                              event.target.checked ? [...old, item.id] : old.filter((id) => id !== item.id),
-                            )
-                          }
-                        >
-                          <span className={styles.hidden}>Chọn {item.doi}</span>
-                        </Checkbox>
-                      </td>
-                      <td>
-                        <a href={`https://doi.org/${item.doi}`} target="_blank" rel="noreferrer">
-                          {item.title ?? item.doi}
-                        </a>
-                        <div className={styles.note}>
-                          {[
-                            item.authors.slice(0, 3).join(', ') +
-                              (item.authors.length > 3 ? ' và cộng sự' : ''),
-                            item.year,
-                            item.venue,
-                          ]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </div>
-                      </td>
-                      <td className={styles.note}>
-                        {item.taxonomy ? (
+          <DataTable className={styles.libraryTable} scrollClassName={styles.scroll}>
+            <thead>
+              <tr>
+                <th>
+                  <Checkbox
+                    checked={allVisible}
+                    onChange={(event) =>
+                      setSelected(event.target.checked ? visible.map((item) => item.id) : [])
+                    }
+                  >
+                    <span className={styles.hidden}>Chọn tất cả trang này</span>
+                  </Checkbox>
+                </th>
+                <th>Bài báo</th>
+                <th>Phân loại</th>
+                <th>Trạng thái</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((item) => {
+                const status = libraryStatus(item);
+                const link = bestOpenLink(item);
+                return (
+                  <tr
+                    key={item.id}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => drop(event, item)}
+                  >
+                    <td>
+                      <Checkbox
+                        checked={selected.includes(item.id)}
+                        onChange={(event) =>
+                          setSelected((old) =>
+                            event.target.checked ? [...old, item.id] : old.filter((id) => id !== item.id),
+                          )
+                        }
+                      >
+                        <span className={styles.hidden}>Chọn {item.doi}</span>
+                      </Checkbox>
+                    </td>
+                    <td>
+                      <a href={`https://doi.org/${item.doi}`} target="_blank" rel="noreferrer">
+                        {item.title ?? item.doi}
+                      </a>
+                      <div className={styles.note}>
+                        {[
+                          item.authors.slice(0, 3).join(', ') +
+                            (item.authors.length > 3 ? ' và cộng sự' : ''),
+                          item.year,
+                          item.venue,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </div>
+                    </td>
+                    <td className={styles.note}>
+                      {item.taxonomy ? (
+                        <>
+                          <div>{item.taxonomy.field}</div>
+                          <div>{item.taxonomy.topic}</div>
+                        </>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td>
+                      <Badge tone={STATUS[status].tone}>{STATUS[status].label}</Badge>
+                      {item.file_matches_title === false && (
+                        <Badge tone="warning">File có thể không khớp</Badge>
+                      )}
+                      {item.error && <div className={styles.note}>{item.error}</div>}
+                    </td>
+                    <td>
+                      <div className={styles.rowActions}>
+                        {item.paper_id ? (
+                          <Link to={`/papers/${item.paper_id}`}>Mở bài</Link>
+                        ) : item.lookup === 'not_found' ? null : (
                           <>
-                            <div>{item.taxonomy.field}</div>
-                            <div>{item.taxonomy.topic}</div>
-                          </>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                      <td>
-                        <Badge tone={STATUS[status].tone}>{STATUS[status].label}</Badge>
-                        {item.file_matches_title === false && (
-                          <Badge tone="warning">File có thể không khớp</Badge>
-                        )}
-                        {item.error && <div className={styles.note}>{item.error}</div>}
-                      </td>
-                      <td>
-                        <div className={styles.rowActions}>
-                          {item.paper_id ? (
-                            <Link to={`/papers/${item.paper_id}`}>Mở bài</Link>
-                          ) : item.lookup === 'not_found' ? null : (
-                            <>
-                              {item.arxiv_id && (
-                                <Button
-                                  size="sm"
-                                  disabled={running || busyRow === item.id}
-                                  onClick={() => void library.downloadArxiv([item])}
-                                >
-                                  Tải từ arXiv
-                                </Button>
-                              )}
-                              {link && !item.arxiv_id && (
-                                <a href={link} target="_blank" rel="noreferrer">
-                                  Mở bản mở
-                                </a>
-                              )}
+                            {item.arxiv_id && (
                               <Button
                                 size="sm"
-                                variant="ghost"
-                                disabled={busyRow === item.id}
-                                onClick={() => {
-                                  attachTarget.current = item;
-                                  pdfInput.current?.click();
-                                }}
+                                disabled={running || busyRow === item.id}
+                                onClick={() => void library.downloadArxiv([item])}
                               >
-                                {busyRow === item.id ? 'Đang đọc…' : 'Gắn PDF'}
+                                Tải từ arXiv
                               </Button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                            )}
+                            {link && !item.arxiv_id && (
+                              <a href={link} target="_blank" rel="noreferrer">
+                                Mở bản mở
+                              </a>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={busyRow === item.id}
+                              onClick={() => {
+                                attachTarget.current = item;
+                                pdfInput.current?.click();
+                              }}
+                            >
+                              {busyRow === item.id ? 'Đang đọc…' : 'Gắn PDF'}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </DataTable>
           {pages > 1 && (
             <div className={styles.pager}>
               <Button size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
@@ -414,11 +423,11 @@ export function LibraryPanel() {
               </Button>
             </div>
           )}
-          <p className={styles.note}>
+          <p className={styles.tableNote}>
             Bài chưa có file: mở bản mở, tải PDF về rồi kéo thả vào đúng dòng hoặc bấm Gắn PDF. PDF chỉ được
             đọc trên máy của bạn.
           </p>
-        </Card>
+        </section>
       )}
       {confirming && (
         <Dialog

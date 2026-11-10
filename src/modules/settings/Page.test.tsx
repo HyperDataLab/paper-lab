@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
+import { chooseSelectOption } from '@/test/selectOption';
 import Page from './Page';
 
 beforeEach(() => localStorage.clear());
@@ -78,7 +79,7 @@ it('P1 saves the run ceiling once in Settings and rejects an out-of-range value'
       <Page />
     </LlmProvider>,
   );
-  fireEvent.change(screen.getByLabelText('Cách đặt trần'), { target: { value: 'fixed' } });
+  chooseSelectOption('Cách đặt trần', 'Một số cố định cho mọi lần chạy');
   fireEvent.change(screen.getByLabelText('Trần cố định (lượt gọi)'), { target: { value: '300' } });
   fireEvent.click(screen.getByRole('button', { name: 'Lưu giới hạn chạy' }));
   expect(screen.getByText('Đã lưu giới hạn chạy.')).toBeInTheDocument();

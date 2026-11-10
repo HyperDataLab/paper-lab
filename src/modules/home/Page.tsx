@@ -7,6 +7,7 @@ import type { ExtractionProject, Paper } from '@/core/schemas';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { TextField } from '@/shared/ui/TextField';
+import { FeatureCard } from './FeatureCard';
 import styles from './home.module.css';
 import { Loading } from '@/shared/ui/StateNote';
 
@@ -15,25 +16,25 @@ const WORKFLOWS = [
     to: '/papers',
     icon: FileText,
     title: 'Hiểu một bài báo',
-    text: 'Nhập PDF, xem hồ sơ 5 chiều, Snapshot và metadata của bài.',
+    text: 'Đọc PDF, xem hồ sơ và phân tích bài.',
   },
   {
     to: '/extraction',
     icon: Table2,
     title: 'Trích xuất dữ liệu nhiều bài',
-    text: 'So sánh các bài trong một bảng; mỗi ô kèm đoạn trích để kiểm chứng.',
+    text: 'So sánh nhiều bài bằng bảng có dẫn chứng.',
   },
   {
     to: '/extraction',
     icon: Search,
     title: 'Tìm và sàng lọc bài',
-    text: 'Lập kế hoạch tìm, tìm trên OpenAlex, sàng lọc rồi tổng hợp liên bài.',
+    text: 'Tìm trên OpenAlex, sàng lọc và tổng hợp.',
   },
   {
     to: '/evaluate',
     icon: PenLine,
     title: 'Kiểm tra đoạn văn của bạn',
-    text: 'Phân tích cấu trúc, mạch văn và từ ngữ của một đoạn văn học thuật.',
+    text: 'Đánh giá, sửa hoặc tạo đoạn học thuật.',
   },
 ];
 const RECENT = 5;
@@ -46,6 +47,7 @@ export default function Page() {
   const [papers, setPapers] = useState<Paper[] | null>(null);
   const [projects, setProjects] = useState<ExtractionProject[] | null>(null);
   const [error, setError] = useState('');
+  const [starting, setStarting] = useState(false);
   useEffect(() => {
     void Promise.all([repo.papers.list(), repo.extraction.list(), repo.paperContext.list()])
       .then(([savedPapers, savedProjects, contexts]) => {
@@ -66,7 +68,9 @@ export default function Page() {
   }, [repo]);
   async function start() {
     const text = question.trim();
-    if (!text) return;
+    if (!text || starting) return;
+    setStarting(true);
+    setError('');
     try {
       const project = await repo.extraction.save(
         newProject({
@@ -79,6 +83,8 @@ export default function Page() {
       navigate(`/extraction/${project.id}`);
     } catch (cause) {
       setError(String(cause));
+    } finally {
+      setStarting(false);
     }
   }
   return (
@@ -88,32 +94,43 @@ export default function Page() {
         <p className={styles.lead}>
           Nêu câu hỏi nghiên cứu để mở một project: tìm bài, trích xuất vào bảng và tổng hợp có trích dẫn.
         </p>
-        <div className={styles.ask}>
+        <form
+          className={styles.ask}
+          aria-busy={starting}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void start();
+          }}
+        >
           <TextField
             label="Câu hỏi nghiên cứu"
+            hint="Câu hỏi sẽ được dùng làm tiêu đề project."
             placeholder="Ví dụ: Phản biện bằng AI có kém đa dạng hơn phản biện của người không?"
             multiline
             rows={2}
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
           />
-          <Button variant="primary" disabled={!question.trim()} onClick={() => void start()}>
-            Bắt đầu project <ArrowRight size={16} aria-hidden="true" />
-          </Button>
-        </div>
+          <div className={styles.askFooter}>
+            <p className={styles.askNote}>Tìm kiếm và sàng lọc bài nằm trong tab Deep Research.</p>
+            <Button variant="primary" type="submit" disabled={!question.trim() || starting}>
+              {starting ? 'Đang tạo project…' : 'Bắt đầu project'}
+              {!starting && <ArrowRight size={16} aria-hidden="true" />}
+            </Button>
+          </div>
+        </form>
         {error && <p role="alert">{error}</p>}
       </header>
 
-      <section aria-labelledby="home-workflows">
-        <h2 id="home-workflows">Hoặc chọn việc cần làm</h2>
+      <section aria-labelledby="home-workflows" className={styles.workflows}>
+        <div className={styles.sectionIntro}>
+          <h2 id="home-workflows">Lối tắt</h2>
+          <p>Chọn một tác vụ để tiếp tục.</p>
+        </div>
         <ul className={styles.tiles}>
           {WORKFLOWS.map((item) => (
             <li key={item.title}>
-              <Link to={item.to} className={styles.tile}>
-                <item.icon size={20} aria-hidden="true" />
-                <strong>{item.title}</strong>
-                <span>{item.text}</span>
-              </Link>
+              <FeatureCard to={item.to} icon={item.icon} title={item.title} description={item.text} />
             </li>
           ))}
         </ul>

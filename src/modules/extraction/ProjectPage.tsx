@@ -136,23 +136,27 @@ export default function ProjectPage() {
   const openedPaper = open && project.papers.find((paper) => paper.key === open.paperKey);
   const exportName = `extraction-${project.title.replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 40)}`;
   return (
-    <div className={styles.page}>
-      <header>
-        <Link to="/extraction">← Các project</Link>
+    <div className={styles.projectWorkspace}>
+      <header className={styles.projectHeader}>
+        <Link className={styles.backLink} to="/extraction">
+          ← Các project
+        </Link>
         <h1>{project.title}</h1>
         {project.researchQuestion && (
           <p className={styles.note}>Câu hỏi nghiên cứu: {project.researchQuestion}</p>
         )}
       </header>
-      <SegmentedControl
-        label="Chế độ xem"
-        value={view}
-        options={[
-          { value: 'matrix', label: 'Ma trận' },
-          { value: 'deep', label: 'Deep Research' },
-        ]}
-        onChange={(value) => setView(value as 'matrix' | 'deep')}
-      />
+      <div className={styles.projectMode}>
+        <SegmentedControl
+          label="Chế độ xem"
+          value={view}
+          options={[
+            { value: 'matrix', label: 'Ma trận' },
+            { value: 'deep', label: 'Deep Research' },
+          ]}
+          onChange={(value) => setView(value as 'matrix' | 'deep')}
+        />
+      </div>
       {view === 'deep' ? (
         <DeepResearch project={project} onSave={save} onOpenMatrix={() => setView('matrix')} />
       ) : (
@@ -245,12 +249,14 @@ export default function ProjectPage() {
             ))}
           </div>
           {!project.papers.length || !visible.length ? (
-            <Card>
-              <h2>Bắt đầu</h2>
-              <p>
-                {!project.papers.length ? 'Thêm các bài cần so sánh. ' : ''}
-                {!visible.length ? 'Thêm các cột cần trích, hoặc chọn một mẫu theo loại bài.' : ''}
-              </p>
+            <Card padding="md">
+              <div className={styles.startState}>
+                <h2>Bắt đầu</h2>
+                <p>
+                  {!project.papers.length ? 'Thêm các bài cần so sánh. ' : ''}
+                  {!visible.length ? 'Thêm các cột cần trích, hoặc chọn một mẫu theo loại bài.' : ''}
+                </p>
+              </div>
             </Card>
           ) : (
             <div className={styles.scroll}>

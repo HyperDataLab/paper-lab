@@ -105,6 +105,157 @@
   font-family: inherit;
   font-size: var(--text-base);
 }
+.selectLabel {
+  cursor: pointer;
+}
+.selectWrap {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+.selectWrap.fieldInline {
+  width: auto;
+}
+.selectButton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  height: var(--control-h);
+  min-height: var(--control-h);
+  padding: 0 var(--space-3);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease;
+}
+.selectButton:hover:not(:disabled),
+.selectButton[aria-expanded='true'] {
+  border-color: var(--accent);
+}
+.selectButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.selectButton[aria-expanded='true'] {
+  box-shadow: 0 0 0 3px var(--soft);
+}
+.selectButton:disabled {
+  color: var(--text-muted);
+  background: var(--bg);
+  cursor: not-allowed;
+}
+.selectButtonSm {
+  height: var(--control-h-sm);
+  min-height: var(--control-h-sm);
+  padding-inline: var(--space-2);
+  font-size: var(--text-sm);
+}
+.selectValue {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.selectChevron {
+  flex: none;
+  color: var(--text-muted);
+  transition: transform 180ms ease;
+}
+.selectChevronOpen {
+  transform: rotate(180deg);
+}
+.selectNative {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  pointer-events: none;
+}
+.selectMenu {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  z-index: 80;
+  width: max-content;
+  min-width: 100%;
+  max-width: min(360px, calc(100vw - var(--space-8)));
+  max-height: min(320px, 45vh);
+  overflow: auto;
+  padding: var(--space-1);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-overlay);
+  animation: selectMenuIn 140ms ease-out both;
+}
+.selectOption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: calc(var(--control-h-sm) + var(--space-1));
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  cursor: pointer;
+}
+.selectOption > span {
+  overflow-wrap: anywhere;
+}
+.selectOption > svg {
+  flex: none;
+  color: var(--accent);
+}
+.selectOption:hover,
+.selectOptionActive,
+.selectOption[aria-selected='true'] {
+  background: var(--soft);
+}
+.selectOption[aria-selected='true'] {
+  color: var(--accent);
+  font-weight: 600;
+}
+.selectOption[aria-disabled='true'] {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+@keyframes selectMenuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .selectButton,
+  .selectChevron,
+  .selectMenu {
+    animation: none;
+    transition: none;
+  }
+}
 .controlMd {
   box-sizing: border-box;
   height: var(--control-h);
@@ -163,6 +314,8 @@
 }
 .segments {
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 .toast {
   position: fixed;
@@ -198,29 +351,21 @@
   font: var(--text-xs) var(--font-mono);
 }
 .tooltip {
-  position: relative;
+  display: block;
 }
-.tooltip:hover::after,
-.tooltip:focus-within::after {
-  content: attr(data-label);
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + var(--space-2));
-  transform: translateX(-50%);
-  background: var(--text);
-  color: var(--bg);
-  padding: var(--space-2) var(--space-2);
+.tooltipBubble {
+  position: fixed;
+  transform: translateY(-50%);
+  pointer-events: none;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius);
   white-space: nowrap;
-  z-index: 20;
+  z-index: 1100;
   font-size: var(--text-xs);
-}
-.tooltipRight:hover::after,
-.tooltipRight:focus-within::after {
-  left: calc(100% + var(--space-2));
-  bottom: auto;
-  top: 50%;
-  transform: translateY(-50%);
 }
 .tabs {
   display: flex;

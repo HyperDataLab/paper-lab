@@ -17,8 +17,9 @@ import styles from './ui.module.css';
 
 describe('shared UI', () => {
   it('assigns the token height class to single-line controls and sizes the checkbox', () => {
-    const { controlMd, controlSm, checkbox } = styles;
-    if (!controlMd || !controlSm || !checkbox) throw new Error('Control styles are missing');
+    const { controlMd, controlSm, checkbox, selectButton, selectButtonSm } = styles;
+    if (!controlMd || !controlSm || !checkbox || !selectButton || !selectButtonSm)
+      throw new Error('Control styles are missing');
     render(
       <>
         <Button>Medium button</Button>
@@ -38,16 +39,18 @@ describe('shared UI', () => {
         <Checkbox>Check</Checkbox>
       </>,
     );
-    for (const name of ['Medium button', 'Medium icon', 'Medium field', 'Medium select']) {
+    for (const name of ['Medium button', 'Medium icon', 'Medium field']) {
       expect(
         screen.queryByLabelText(name, { selector: 'input, select' }) ?? screen.getByRole('button', { name }),
       ).toHaveClass(controlMd);
     }
-    for (const name of ['Small button', 'Small icon', 'Small field', 'Small select']) {
+    for (const name of ['Small button', 'Small icon', 'Small field']) {
       const element =
         screen.queryByLabelText(name, { selector: 'input, select' }) ?? screen.getByRole('button', { name });
       expect(element).toHaveClass(controlSm);
     }
+    expect(screen.getByRole('combobox', { name: 'Medium select' })).toHaveClass(selectButton);
+    expect(screen.getByRole('combobox', { name: 'Small select' })).toHaveClass(selectButton, selectButtonSm);
     const css = readFileSync('src/shared/ui/ui.module.css', 'utf8');
     expect(css).toMatch(
       /\.controlMd\s*\{[^}]*height:\s*var\(--control-h\);[^}]*min-height:\s*var\(--control-h\);[^}]*line-height:\s*1;/s,

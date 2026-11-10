@@ -71,7 +71,7 @@ export function PaperProfile({
       {error && <p role="alert">Không tải được một phần dữ liệu của hồ sơ.</p>}
       <div className={styles.grid}>
         {dimensions.map((dimension) => (
-          <Card key={dimension.id}>
+          <Card key={dimension.id} padding="md">
             <article aria-label={dimension.title} className={styles.card}>
               <header className={styles.head}>
                 <span aria-hidden="true" className={styles.letter}>

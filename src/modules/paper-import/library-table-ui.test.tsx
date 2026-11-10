@@ -7,6 +7,7 @@ import type { Paper } from '@/core/schemas';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
+import { chooseSelectOption } from '@/test/selectOption';
 import Page from './Page';
 
 const at = '2026-01-01T00:00:00.000Z';
@@ -83,9 +84,9 @@ it('the library lists papers by title, authors and year, and can be searched and
   expect(screen.getByText('scan-01.pdf · Tên dò từ trang đầu')).toBeInTheDocument();
   expect(screen.getByText('Tên tệp · chưa có metadata')).toBeInTheDocument();
 
-  fireEvent.change(screen.getByLabelText('Sắp xếp'), { target: { value: 'title' } });
+  chooseSelectOption('Sắp xếp', 'Tên bài A–Z');
   expect(titles()[0]).toBe('Edge Offloading at Scale');
-  fireEvent.change(screen.getByLabelText('Sắp xếp'), { target: { value: 'year' } });
+  chooseSelectOption('Sắp xếp', 'Năm mới nhất');
   expect(titles()[0]).toBe('Stop Automating Peer Review Without Rigorous Evaluation');
 
   // Search covers authors and file names, not only titles.
