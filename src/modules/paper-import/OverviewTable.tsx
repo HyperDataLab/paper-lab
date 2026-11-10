@@ -3,15 +3,36 @@ import { DIMENSIONS } from '@/core/scoring/rubric';
 import { SECTION_ROLE_LABELS } from './sectionRoles';
 import styles from './overview.module.css';
 
-const categories = {
+const CATEGORIES = {
   structure: 'Cấu trúc câu',
   flow: 'Mạch',
   word: 'Từ ngữ',
   organization: 'Tổ chức đoạn',
   critical: 'Rủi ro nghĩa',
 } as const;
+export type OverviewFocus = 'discourse' | 'writing';
+const FOCUS: Record<OverviewFocus, { categories: (keyof typeof CATEGORIES)[]; dimensions: string[] }> = {
+  discourse: {
+    categories: ['organization', 'flow'],
+    dimensions: ['paragraph_organization', 'flow_coherence'],
+  },
+  writing: {
+    categories: ['structure', 'word', 'critical'],
+    dimensions: ['sentence_structure', 'verb_word_choice', 'concision_modifiers'],
+  },
+};
 const number = (value: number) => new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(value);
-export function OverviewTable({ paper, overview }: { paper: Paper; overview: PaperOverview }) {
+export function OverviewTable({
+  paper,
+  overview,
+  focus,
+}: {
+  paper: Paper;
+  overview: PaperOverview;
+  focus: OverviewFocus;
+}) {
+  const dimensions = DIMENSIONS.filter((dimension) => FOCUS[focus].dimensions.includes(dimension.id));
+  const categories = Object.fromEntries(FOCUS[focus].categories.map((id) => [id, CATEGORIES[id]]));
   const rows = overview.sections.filter((section) => section.analysed > 0);
   if (!rows.length)
     return <p>Chưa có đoạn nào được phân tích. Chọn mục ở phần trên rồi bấm Bắt đầu phân tích.</p>;
@@ -23,7 +44,7 @@ export function OverviewTable({ paper, overview }: { paper: Paper; overview: Pap
             <th scope="col">Mục</th>
             <th scope="col">Độ bao phủ</th>
             <th scope="col">Vấn đề cần xem lại</th>
-            {DIMENSIONS.map((dimension) => (
+            {dimensions.map((dimension) => (
               <th scope="col" key={dimension.id}>
                 {dimension.label}
               </th>
@@ -33,7 +54,10 @@ export function OverviewTable({ paper, overview }: { paper: Paper; overview: Pap
         <tbody>
           {rows.map((section) => {
             const info = paper.sections.find((item) => item.id === section.sectionId);
-            const max = Math.max(1, ...Object.values(section.issuesByCategory));
+            const max = Math.max(
+              1,
+              ...Object.keys(categories).map((id) => section.issuesByCategory[id] ?? 0),
+            );
             return (
               <tr key={section.sectionId}>
                 <th scope="row">
@@ -59,7 +83,7 @@ export function OverviewTable({ paper, overview }: { paper: Paper; overview: Pap
                     );
                   })}
                 </td>
-                {DIMENSIONS.map((dimension) => {
+                {dimensions.map((dimension) => {
                   const value = section.scores[dimension.id];
                   return (
                     <td key={dimension.id}>

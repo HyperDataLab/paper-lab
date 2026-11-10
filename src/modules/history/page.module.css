@@ -25,7 +25,7 @@
   color: var(--surface);
   display: inline-flex;
   font-weight: 600;
-  height: var(--control-h-md);
+  height: var(--control-h);
   padding: 0 var(--space-3);
 }
 .list {

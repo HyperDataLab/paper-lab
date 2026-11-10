@@ -1,0 +1,225 @@
+import { describe, expect, it } from 'vitest';
+import type { Analysis, MeasurementsRecord, Paper, PaperChecksRecord, StanceRecord } from '../schemas';
+import { fixtureProfile, fixtureRun } from '../measurement/testFixture';
+import { PROTOCOL_FIELDS } from '../schemas/measurement';
+import { buildPaperProfile, type DimensionId } from './index';
+
+type FieldStatus = 'REPORTED' | 'NOT_REPORTED' | 'NOT_APPLICABLE';
+
+const at = '2026-01-01T00:00:00.000Z';
+const paperId = '00000000-0000-4000-8000-000000000001';
+const runId = '00000000-0000-4000-8000-000000000002';
+const paper: Paper = {
+  schemaVersion: 1,
+  id: paperId,
+  title: 'T',
+  createdAt: at,
+  updatedAt: at,
+  source: { kind: 'pdf', fileName: 'a.pdf', pageCount: 3, sha256: 'x' },
+  sections: [
+    { id: 'i', heading: 'Intro', role: 'introduction', level: 1, pageStart: 1 },
+    { id: 'm', heading: 'Methods', role: 'methods', level: 1, pageStart: 2 },
+  ],
+  paragraphs: [
+    { id: 'p1', sectionId: 'i', order: 0, text: 'One two.', kind: 'body', textHash: 'a', pageStart: 1 },
+    { id: 'p2', sectionId: 'm', order: 1, text: 'Three.', kind: 'body', textHash: 'b', pageStart: 2 },
+    { id: 'r1', sectionId: 'm', order: 2, text: 'Ref.', kind: 'reference', textHash: 'c', pageStart: 3 },
+  ],
+};
+const field = (status: FieldStatus) => ({ value: null, status, evidence_ids: [], needs_review: false });
+function measurementProfile() {
+  const base = fixtureProfile();
+  const [claim, metric, experiment, finding] = [
+    base.claims[0],
+    base.metrics[0],
+    base.experiments[0],
+    base.findings[0],
+  ];
+  if (!claim || !metric || !experiment || !finding) throw new Error('fixture is incomplete');
+  return {
+    ...base,
+    status: 'partial' as const,
+    coverage: { analysed: ['i'], failed: [], not_selected: ['m'] },
+    claims: [
+      { ...claim, id: 'c1', linked_result_ids: ['x'] },
+      { ...claim, id: 'c2', linked_result_ids: [] },
+    ],
+    metrics: [
+      { ...metric, id: 'm1', definition: field('REPORTED') },
+      { ...metric, id: 'm2', definition: field('NOT_REPORTED') },
+    ],
+    experiments: [
+      {
+        ...experiment,
+        protocol: Object.fromEntries(
+          PROTOCOL_FIELDS.map((key, index) => [
+            key,
+            field(index === 0 ? 'REPORTED' : index === 1 ? 'NOT_REPORTED' : 'NOT_APPLICABLE'),
+          ]),
+        ) as unknown as typeof experiment.protocol,
+      },
+    ],
+    findings: [
+      { ...finding, id: 'f1', severity: 'low' as const, explanation: 'low one' },
+      { ...finding, id: 'f2', severity: 'high' as const, explanation: 'high one' },
+    ],
+  };
+}
+const measurement: MeasurementsRecord = {
+  schemaVersion: 1,
+  paperId,
+  updatedAt: at,
+  decisions: [],
+  pending: null,
+  runs: [{ ...fixtureRun(runId), profile: measurementProfile() }],
+};
+const checks = {
+  schemaVersion: 1,
+  paperId,
+  decisions: [{ findingId: 'gone', status: 'dismissed_by_human', note: '', at }],
+  report: {
+    version: 'checks-1',
+    generatedAt: at,
+    droppedLocations: 0,
+    checks: [
+      { id: 'citations_references', findings: [{ id: 'keep' }, { id: 'gone' }] },
+      { id: 'numbers_consistency', findings: [] },
+    ],
+  },
+} as unknown as PaperChecksRecord;
+const analysis = (paragraphId: string, text: string, extra: Partial<Analysis>) =>
+  ({
+    id: `a-${paragraphId}`,
+    updatedAt: at,
+    origin: { kind: 'paper', paperId, paragraphId },
+    text: {
+      sourceText: text,
+      tokens: text.split(' ').map((word) => ({ kind: 'word', text: word })),
+    },
+    issues: [],
+    paragraph: null,
+    sentenceAnnotations: [],
+    ...extra,
+  }) as unknown as Analysis;
+const stance = {
+  schemaVersion: 1,
+  paperId,
+  updatedAt: at,
+  decisions: [],
+  pending: null,
+  runs: [
+    {
+      id: runId,
+      words: { i: 1000 },
+      annotations: [{ id: 'x', category: 'hedges', sectionId: 'i' }],
+      discarded: {},
+    },
+  ],
+} as unknown as StanceRecord;
+const find = (dimensions: ReturnType<typeof buildPaperProfile>, id: DimensionId) => {
+  const dimension = dimensions.find((item) => item.id === id);
+  if (!dimension) throw new Error('missing dimension');
+  return {
+    ...dimension,
+    value: (indicator: string) => dimension.indicators.find((item) => item.id === indicator)?.value,
+  };
+};
+
+describe('D0 paper profile', () => {
+  it('reports nothing it has not measured, and marks argumentation as not built', () => {
+    const profile = buildPaperProfile({ paper, analyses: [] });
+    expect(profile.map((item) => item.letter)).toEqual(['A', 'B', 'C', 'D', 'E']);
+    expect(find(profile, 'science').state).toBe('empty');
+    expect(find(profile, 'science').value('claims_linked')).toBeNull();
+    expect(find(profile, 'argument').state).toBe('not_built');
+    expect(find(profile, 'argument').target).toBeNull();
+    expect(find(profile, 'writing').value('passive_rate')).toBeNull();
+    expect(find(profile, 'context').value('citations_open')).toBeNull();
+  });
+  it('computes science indicators and surfaces the most severe warning', () => {
+    const science = find(buildPaperProfile({ paper, analyses: [], measurement, checks }), 'science');
+    expect(science.state).toBe('partial');
+    expect(science.coverage).toBe('Đã đọc 1/2 mục');
+    expect(science.value('claims_linked')).toBe('1/2');
+    expect(science.value('protocol_reported')).toBe('50 %');
+    expect(science.value('metrics_defined')).toBe('1/2');
+    expect(science.value('numbers_open')).toBe('0');
+    expect(science.attention).toBe('high one');
+  });
+  it('leaves out what a person rejected', () => {
+    const reviewed = {
+      ...measurement,
+      decisions: [
+        {
+          run_id: runId,
+          item_id: 'c2',
+          field: null,
+          decision: 'reject',
+          reviewer: 'local',
+          timestamp: at,
+          previous_value: null,
+          new_value: null,
+          note: null,
+        },
+      ],
+    } as MeasurementsRecord;
+    expect(
+      find(buildPaperProfile({ paper, analyses: [], measurement: reviewed }), 'science').value(
+        'claims_linked',
+      ),
+    ).toBe('1/1');
+  });
+  it('counts only open findings for citations and explains them', () => {
+    const context = find(buildPaperProfile({ paper, analyses: [], checks }), 'context');
+    expect(context.value('citations_open')).toBe('1');
+    expect(context.value('references')).toBe('1');
+    expect(context.value('source_format')).toBe('PDF');
+    expect(context.attention).toContain('1 phát hiện');
+  });
+  it('computes discourse and writing only from analysed paragraphs', () => {
+    const annotation = (voice: string | null, distance: number | null) => ({
+      voice,
+      subjectVerbDistanceTokens: distance,
+    });
+    const issue = (category: string, status = 'candidate', severity = 'minor') => ({
+      category,
+      status,
+      severity,
+    });
+    const analyses = [
+      analysis('p1', 'One two.', {
+        paragraph: { type: 'LD' },
+        sentenceAnnotations: [annotation('passive', 2), annotation('active', 4), annotation(null, null)],
+        issues: [
+          issue('flow'),
+          issue('word'),
+          issue('word', 'dismissed_by_human'),
+          issue('structure', 'candidate', 'info'),
+        ],
+      } as unknown as Partial<Analysis>),
+    ];
+    const profile = buildPaperProfile({ paper, analyses, stance });
+    const discourse = find(profile, 'discourse');
+    expect(discourse.state).toBe('partial');
+    expect(discourse.value('imrad_roles')).toBe('2/4');
+    expect(discourse.value('structure_issues')).toBe('1');
+    const writing = find(profile, 'writing');
+    expect(writing.state).toBe('partial');
+    expect(writing.coverage).toBe('Đã phân tích câu 1/2 đoạn');
+    expect(writing.value('passive_rate')).toBe('50 %');
+    expect(writing.value('subject_verb')).toBe('3');
+    expect(writing.value('issue_density')).toBe('500');
+    expect(writing.value('hedge_booster')).toBe('1 / 0');
+  });
+  it('is ready only when the whole paper has been covered', () => {
+    const done = (id: string, text: string) =>
+      analysis(id, text, {
+        paragraph: { type: 'LD' },
+        sentenceAnnotations: [{ voice: 'active', subjectVerbDistanceTokens: 1 }],
+      } as unknown as Partial<Analysis>);
+    const analyses = [done('p1', 'One two.'), done('p2', 'Three.')];
+    const profile = buildPaperProfile({ paper, analyses, stance });
+    expect(find(profile, 'discourse').state).toBe('ready');
+    expect(find(profile, 'writing').state).toBe('ready');
+  });
+});

@@ -93,8 +93,7 @@ async function setup(large = false, waitForAbort = false) {
     </MemoryRouter>,
   );
   if (!large) {
-    await screen.findByText(/The method was described/);
-    fireEvent.click(screen.getByRole('tab', { name: 'Phản biện AI' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Phản biện AI' }));
   }
   await screen.findByLabelText('Nhận xét của bạn trước khi xem AI');
   return { repo, paper, completeJson };
@@ -158,6 +157,8 @@ it('P5 reveals reviews after skip, filters and audits decisions, and navigates t
   expect(
     screen.getByText('The method was described for all readers', { selector: 'mark' }),
   ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Mở trong Đọc bài' }));
+  expect(screen.getByRole('tab', { name: 'Đọc bài' })).toHaveAttribute('aria-selected', 'true');
   expect(scroll).toHaveBeenCalled();
 });
 it('P5 cancels an in-flight review without saving a run', async () => {

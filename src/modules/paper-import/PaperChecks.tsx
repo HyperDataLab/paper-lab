@@ -9,8 +9,14 @@ import { useRepositories } from '@/shared/storage/StorageProvider';
 import { useCalibration } from '@/shared/calibration/useCalibration';
 import { calibrationStatus } from '@/core/calibration';
 import { Checkbox } from '@/shared/ui/Checkbox';
-type Props = CheckHandlers & { paper: Paper; record: PaperChecksRecord | undefined; onRun: () => void };
-export function PaperChecks({ paper, record, onRun, onReview, onLocation }: Props) {
+type Props = CheckHandlers & {
+  paper: Paper;
+  record: PaperChecksRecord | undefined;
+  onRun: () => void;
+  /** The checks that belong to the dimension on screen. */
+  only: string[];
+};
+export function PaperChecks({ paper, record, onRun, onReview, onLocation, only }: Props) {
   const [hide, setHide] = useState(false);
   const repo = useRepositories();
   const calibration = useCalibration(repo, record);
@@ -36,6 +42,7 @@ export function PaperChecks({ paper, record, onRun, onReview, onLocation }: Prop
         </ActionBar>
       </Card>
       {record?.report.checks
+        .filter((check) => only.includes(check.id))
         .filter(
           (check) =>
             !hide || calibrationStatus(stats(check.id) ?? { n: 0, wilsonLow: null }) !== 'unreliable',
