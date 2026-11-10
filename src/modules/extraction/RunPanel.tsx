@@ -18,7 +18,7 @@ export interface RunChoice {
 }
 
 /** Only modes that are actually built can be chosen; the others say what they will add. */
-const AVAILABLE: ExtractionMode[] = ['STANDARD'];
+const AVAILABLE: ExtractionMode[] = ['STANDARD', 'HIGH_QUALITY'];
 
 export function RunPanel({
   project,
@@ -36,7 +36,7 @@ export function RunPanel({
   );
   const [fieldKeys, setFieldKeys] = useState(() => visible.map((field) => field.key));
   const [keepVerified, setKeepVerified] = useState(true);
-  const calls = estimateCalls(project, paperKeys, fieldKeys);
+  const calls = estimateCalls(project, paperKeys, fieldKeys, mode);
   const [budget, setBudget] = useState(() => Math.max(calls * 2, 10));
   const toggle = (list: string[], key: string, on: boolean) =>
     on ? [...list, key] : list.filter((item) => item !== key);

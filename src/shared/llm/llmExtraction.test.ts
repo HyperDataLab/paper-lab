@@ -141,3 +141,79 @@ it('stops at the budget and on cancel without losing the run', async () => {
     'CANCELLED',
   );
 });
+
+it('High Quality retries an unsupported value once, then verifies and records it as automated', async () => {
+  const replies = [
+    {
+      fields: [
+        {
+          field_key: 'methods_used',
+          status: 'found',
+          value: 'Survey',
+          inferred: false,
+          evidence: [{ paragraphId: 'p', quote: 'a survey' }],
+        },
+        { field_key: 'dataset', status: 'found', value: 'Panel data', inferred: false, evidence: [] },
+      ],
+    },
+    { fields: [{ field_key: 'dataset', status: 'not_found', value: null, inferred: false, evidence: [] }] },
+    { checks: [{ field_key: 'methods_used', verdict: 'SUPPORTED', note: 'ok', conflicts: [] }] },
+  ];
+  const completeJson = vi.fn(async (request: Parameters<LlmClient['completeJson']>[0]) => {
+    await request.onRequest?.();
+    return {
+      data: request.schema.parse(replies.shift()),
+      meta: { model: 'real', promptVersion: request.promptVersion, latencyMs: 1, repaired: false },
+    };
+  }) as unknown as LlmClient['completeJson'];
+  const done = await llmExtraction({ completeJson }, project(), new Map([[PAPER, paper]]), {
+    paperKeys: ['a'],
+    fieldKeys: ['methods_used', 'dataset'],
+    mode: 'HIGH_QUALITY',
+    keepVerified: true,
+    config: { model: 'm' } as LlmConfig,
+    budget: 10,
+    save: vi.fn(async () => {}),
+    newId: () => '00000000-0000-4000-8000-000000000002',
+    now: () => at,
+  });
+  expect(completeJson).toHaveBeenCalledTimes(3);
+  expect(done.runs[0]).toMatchObject({
+    status: 'COMPLETED',
+    callsUsed: 3,
+    promptVersion: 'extraction-1+extraction-verify-1',
+  });
+  expect(done.cells.find((item) => item.fieldKey === 'methods_used')).toMatchObject({
+    verification: 'AUTOMATED',
+    verdict: 'SUPPORTED',
+  });
+  expect(done.cells.find((item) => item.fieldKey === 'dataset')?.status).toBe('NOT_FOUND');
+});
+it('High Quality keeps a cell as it was when its retry or verification fails', async () => {
+  let call = 0;
+  const completeJson = vi.fn(async (request: Parameters<LlmClient['completeJson']>[0]) => {
+    await request.onRequest?.();
+    call++;
+    if (call > 1) throw new Error('bad output');
+    return {
+      data: request.schema.parse(answer),
+      meta: { model: 'real', promptVersion: request.promptVersion, latencyMs: 1, repaired: false },
+    };
+  }) as unknown as LlmClient['completeJson'];
+  const done = await llmExtraction({ completeJson }, project(), new Map([[PAPER, paper]]), {
+    paperKeys: ['a'],
+    fieldKeys: ['methods_used', 'dataset'],
+    mode: 'HIGH_QUALITY',
+    keepVerified: true,
+    config: { model: 'm' } as LlmConfig,
+    budget: 10,
+    save: vi.fn(async () => {}),
+    newId: () => '00000000-0000-4000-8000-000000000002',
+    now: () => at,
+  });
+  expect(done.runs[0]?.status).toBe('PARTIAL');
+  expect(done.cells.find((item) => item.fieldKey === 'methods_used')).toMatchObject({
+    status: 'EXTRACTED',
+    verdict: null,
+  });
+});

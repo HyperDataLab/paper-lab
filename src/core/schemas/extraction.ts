@@ -61,12 +61,14 @@ export const CellEvidenceSchema = z.object({
   start: z.number().int().nonnegative(),
   end: z.number().int().positive(),
   quote: z.string(),
+  /** A conflicting passage is shown beside the supporting one, never instead of it. */
+  stance: z.enum(['supports', 'conflicts']).default('supports'),
 });
 export type CellEvidence = z.infer<typeof CellEvidenceSchema>;
 
 export const CellHistorySchema = z.object({
   at: z.iso.datetime(),
-  action: z.enum(['extract', 'approve', 'edit', 'reject', 'reopen']),
+  action: z.enum(['extract', 'verify', 'approve', 'edit', 'reject', 'reopen']),
   by: z.enum(['model', 'human']),
   value: z.string().nullable(),
   status: CellStatusSchema,
@@ -92,6 +94,12 @@ export const ExtractionCellSchema = z.object({
   flags: z.array(z.string()),
   sourceAccess: SourceAccessSchema,
   verification: z.enum(['HUMAN', 'AUTOMATED']).nullable(),
+  /** The verifier's reading in High Quality mode. It is an automated check, never a human review. */
+  verdict: z
+    .enum(['SUPPORTED', 'PARTIALLY_SUPPORTED', 'CONTRADICTED', 'INDETERMINATE'])
+    .nullable()
+    .default(null),
+  verifierNote: z.string().nullable().default(null),
   history: z.array(CellHistorySchema),
 });
 export type ExtractionCell = z.infer<typeof ExtractionCellSchema>;
@@ -137,3 +145,15 @@ export const MatrixOutputSchema = z.object({
   ),
 });
 export type MatrixOutput = z.infer<typeof MatrixOutputSchema>;
+
+export const VerifyOutputSchema = z.object({
+  checks: z.array(
+    z.object({
+      field_key: z.string(),
+      verdict: z.enum(['SUPPORTED', 'PARTIALLY_SUPPORTED', 'CONTRADICTED', 'INDETERMINATE']),
+      note: z.string(),
+      conflicts: z.array(z.object({ paragraphId: z.string(), quote: z.string() })),
+    }),
+  ),
+});
+export type VerifyOutput = z.infer<typeof VerifyOutputSchema>;

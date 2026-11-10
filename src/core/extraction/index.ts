@@ -75,14 +75,21 @@ export function fieldBatches<T>(fields: T[]): T[][] {
   return batches;
 }
 
-export function estimateCalls(project: ExtractionProject, paperKeys: string[], fieldKeys: string[]) {
+/** High Quality adds a verification request per batch and, at most, one targeted retry per paper. */
+export function estimateCalls(
+  project: ExtractionProject,
+  paperKeys: string[],
+  fieldKeys: string[],
+  mode: ExtractionMode = 'STANDARD',
+) {
   const readable = project.papers.filter(
     (paper) => paperKeys.includes(paper.key) && paper.access !== 'METADATA_ONLY',
   );
-  return readable.length * Math.ceil(fieldKeys.length / FIELDS_PER_CALL);
+  const batches = Math.ceil(fieldKeys.length / FIELDS_PER_CALL);
+  return readable.length * (mode === 'STANDARD' ? batches : batches * 2 + (fieldKeys.length ? 1 : 0));
 }
 
-function evidenceFrom(
+export function evidenceFrom(
   raw: { paragraphId: string; quote: string },
   source: SourceParagraph[],
 ): CellEvidence | null {
@@ -96,6 +103,7 @@ function evidenceFrom(
     start: found.start,
     end: found.end,
     quote: Array.from(paragraph.text).slice(found.start, found.end).join(''),
+    stance: 'supports',
   };
 }
 
@@ -134,6 +142,8 @@ function cell(
     flags: values.flags ?? [],
     sourceAccess: context.paper.access,
     verification: null,
+    verdict: null,
+    verifierNote: null,
     history: [{ at: context.at, action: 'extract', by: 'model', value, status }],
   };
 }
@@ -309,3 +319,4 @@ export function matrixJson(project: ExtractionProject, options: { verifiedOnly: 
   };
 }
 export * from './project';
+export * from './verify';
