@@ -14,6 +14,7 @@ export * from './paperOverview';
 export * from './paperChecks';
 export * from './paperContext';
 export * from './paperInsights';
+export * from './extraction';
 export * from './paperReview';
 export * from './paperProbe';
 export * from './calibration';

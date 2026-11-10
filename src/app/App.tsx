@@ -15,6 +15,7 @@ import { Sidebar } from './Sidebar';
 import ReportPage from '@/modules/report/ReportPage';
 import ComparePage from '@/modules/report/ComparePage';
 import PaperMapPage from '@/modules/paper-import/PaperMapPage';
+import ExtractionProjectPage from '@/modules/extraction/ProjectPage';
 import styles from './shell.module.css';
 type Theme = 'light' | 'dark' | 'system';
 const THEME_LABELS: Record<Theme, string> = { system: 'Hệ thống', light: 'Sáng', dark: 'Tối' };
@@ -100,7 +101,7 @@ export function App() {
             </div>
           </header>
           <main
-            className={`${styles.content} ${location.pathname === '/evaluate' ? styles.wideContent : ''}`}
+            className={`${styles.content} ${location.pathname === '/evaluate' || location.pathname.startsWith('/extraction/') ? styles.wideContent : ''}`}
           >
             <StorageProvider>
               <LlmProvider>
@@ -113,6 +114,7 @@ export function App() {
                     <Route path="/report/:id" element={<ReportPage />} />
                     <Route path="/compare" element={<ComparePage />} />
                     <Route path="/papers/:id" element={<PaperMapPage />} />
+                    <Route path="/extraction/:id" element={<ExtractionProjectPage />} />
                     <Route
                       path="*"
                       element={

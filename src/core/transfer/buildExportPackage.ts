@@ -13,6 +13,7 @@ import {
   type MeasurementsRecord,
   type LibraryItem,
   type PaperInsightsRecord,
+  type ExtractionProject,
   type StanceRecord,
 } from '../schemas';
 export function buildExportPackage(
@@ -32,6 +33,7 @@ export function buildExportPackage(
   library: LibraryItem[] = [],
   stance: StanceRecord[] = [],
   paperInsights: PaperInsightsRecord[] = [],
+  extractionProjects: ExtractionProject[] = [],
 ) {
   return ExportPackageSchema.parse({
     format: 'paragraph-lab-export',
@@ -52,5 +54,6 @@ export function buildExportPackage(
     library,
     stance,
     paperInsights,
+    extractionProjects,
   });
 }

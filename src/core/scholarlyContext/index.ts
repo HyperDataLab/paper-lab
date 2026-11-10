@@ -177,3 +177,18 @@ export function arxivDoiFromFileName(fileName: string) {
   const id = /^(\d{4}\.\d{4,5})(?:v\d+)?(?:\.pdf)?$/iu.exec(fileName.trim())?.[1];
   return id ? `10.48550/arxiv.${id}` : null;
 }
+
+/** OpenAlex stores an abstract as word positions; this puts the words back in order. */
+export function abstractFromIndex(index: unknown): string | null {
+  if (typeof index !== 'object' || index === null) return null;
+  const words: string[] = [];
+  for (const [word, positions] of Object.entries(index as Record<string, unknown>)) {
+    if (!Array.isArray(positions)) continue;
+    for (const position of positions) if (Number.isInteger(position) && position >= 0) words[position] = word;
+  }
+  const text = words
+    .filter((word) => word !== undefined)
+    .join(' ')
+    .trim();
+  return text || null;
+}
