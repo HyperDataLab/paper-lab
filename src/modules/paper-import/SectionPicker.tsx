@@ -6,11 +6,9 @@ import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Checkbox } from '@/shared/ui/Checkbox';
 import { IconButton } from '@/shared/ui/IconButton';
+import { isMainBody } from './paperScope';
 import { SECTION_ROLE_LABELS } from './sectionRoles';
 import styles from './page.module.css';
-
-const isMainBody = (section: Section) =>
-  !['references', 'appendix'].includes(section.role) && !/^(front matter|acknowledg)/i.test(section.heading);
 
 /** Chooses sections through the paper's outline, so a long paper is a short list until a branch is opened. */
 export function SectionPicker({

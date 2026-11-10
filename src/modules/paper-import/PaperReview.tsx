@@ -13,10 +13,20 @@ import { Checkbox } from '@/shared/ui/Checkbox';
 import { TextField } from '@/shared/ui/TextField';
 import { LENS_DESCRIPTIONS } from './reviewLabels';
 import { ReviewResults } from './ReviewResults';
+import { usePaperScope, useRunBudget } from './paperScope';
 import { SectionPicker } from './SectionPicker';
 import styles from './review.module.css';
 import { captureCalibration } from '@/shared/calibration/data';
 import { Loading } from '@/shared/ui/StateNote';
+
+const reviewSections = (paper: Paper) =>
+  paper.sections
+    .filter(
+      (s) =>
+        !['references', 'appendix'].includes(s.role) &&
+        paper.paragraphs.some((p) => p.sectionId === s.id && p.kind === 'body'),
+    )
+    .map((s) => s.id);
 
 export function PaperReview({
   paper,
@@ -33,16 +43,8 @@ export function PaperReview({
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState('');
   const [lenses, setLenses] = useState<Lens[]>([...LensSchema.options]);
-  const [sections, setSections] = useState(() =>
-    paper.sections
-      .filter(
-        (s) =>
-          !['references', 'appendix'].includes(s.role) &&
-          paper.paragraphs.some((p) => p.sectionId === s.id && p.kind === 'body'),
-      )
-      .map((s) => s.id),
-  );
-  const [budget, setBudget] = useState(150);
+  const [sections, setSections] = usePaperScope(paper, reviewSections);
+  const { budget, setBudget } = useRunBudget(lenses.length);
   const [used, setUsed] = useState(0);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState('');
@@ -246,7 +248,7 @@ export function PaperReview({
                       min={0}
                       step={1}
                       value={budget}
-                      onChange={(e) => setBudget(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+                      onChange={(e) => setBudget(e.target.value)}
                     />
                     {lenses.length > budget && <p role="alert">Ước tính vượt giới hạn lượt gọi.</p>}
                   </>

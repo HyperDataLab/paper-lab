@@ -26,12 +26,12 @@ import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { ActionBar, ActionMenu } from '@/shared/ui/ActionBar';
 import { Card } from '@/shared/ui/Card';
-import { Wizard } from '@/shared/ui/Wizard';
 import { TextField } from '@/shared/ui/TextField';
 import { Tree, type TreeNode } from '@/shared/ui/Tree';
 import type { Decide, ItemContext, Location } from './MeasurementItems';
 import { MeasurementDetail } from './MeasurementViews';
-import { SectionPicker } from './SectionPicker';
+import { usePaperScope, useRunBudget } from './paperScope';
+import { RunSetup } from './RunSetup';
 import styles from './measurement.module.css';
 import { Loading } from '@/shared/ui/StateNote';
 
@@ -50,9 +50,11 @@ export function PaperMeasurement({
   const llm = useLlm();
   const [record, setRecord] = useState<MeasurementsRecord>();
   const [loading, setLoading] = useState(true);
-  const [sections, setSections] = useState(() => defaultMeasurementSections(paper));
+  const [sections, setSections] = usePaperScope(paper, defaultMeasurementSections);
   const estimate = estimateMeasurementCalls(planExtraction(paper, sections));
-  const [budget, setBudget] = useState(() => estimate * 2);
+  const { budget, setBudget } = useRunBudget(estimate);
+  // A resumed run gets a fresh allowance on top of the calls it already made.
+  const [cap, setCap] = useState(0);
   const [used, setUsed] = useState(0);
   const [progress, setProgress] = useState('');
   const [running, setRunning] = useState(false);
@@ -91,12 +93,13 @@ export function PaperMeasurement({
     let callsUsed = resume?.callsUsed ?? 0;
     const checkpoint = resume?.checkpoint ?? emptyCheckpoint();
     setUsed(callsUsed);
+    setCap(callsUsed + budget);
     try {
       if (!(await llm.ensureConsent('paper')) || abort.signal.aborted) return;
       const result = await llmMeasurement(llm.client, paper, {
         sectionIds,
         config: llm.config,
-        budget,
+        budget: (resume?.callsUsed ?? 0) + budget,
         callsUsed,
         checkpoint,
         signal: abort.signal,
@@ -132,7 +135,7 @@ export function PaperMeasurement({
       if (!abort.signal.aborted)
         setError(
           cause instanceof BatchBudgetExceededError
-            ? 'Đã chạm trần số lượt gọi. Phần đã xong được giữ lại; nâng trần rồi bấm Tiếp tục.'
+            ? 'Đã chạm trần số lượt gọi. Phần đã xong được giữ lại; bấm Tiếp tục để chạy phần còn lại.'
             : (describeLlmError(cause) ?? ''),
         );
     } finally {
@@ -179,46 +182,19 @@ export function PaperMeasurement({
   if (loading) return <Loading label="Đang tải hồ sơ đo lường…" />;
   const pending = record?.pending ?? null;
   const setup = (
-    <Wizard
-      label="Các bước thiết lập phân tích đo lường"
-      finishLabel="Bắt đầu phân tích"
-      finishDisabled={running || !sections.length}
-      onFinish={() => void start(null)}
-      note={`Ước tính ${estimate} lượt gọi AI (chưa tính thử lại).`}
-      steps={[
-        {
-          id: 'sections',
-          title: 'Chọn mục',
-          summary: `${sections.length} mục`,
-          ready: sections.length > 0,
-          content: (
-            <SectionPicker
-              paper={paper}
-              value={sections}
-              onChange={setSections}
-              disabled={running}
-              legend="Mục được gửi cho AI"
-              count={(section) =>
-                paper.paragraphs.filter((p) => p.sectionId === section.id && isMeasurementBlock(p)).length
-              }
-            />
-          ),
-        },
-        {
-          id: 'confirm',
-          title: 'Xác nhận và chạy',
-          content: (
-            <TextField
-              label="Trần số lượt gọi"
-              type="number"
-              min={1}
-              value={String(budget)}
-              disabled={running}
-              onChange={(e) => setBudget(Number(e.target.value))}
-            />
-          ),
-        },
-      ]}
+    <RunSetup
+      paper={paper}
+      sections={sections}
+      onSections={setSections}
+      estimate={estimate}
+      budget={budget}
+      onBudget={setBudget}
+      running={running}
+      disabled={!sections.length}
+      onStart={() => void start(null)}
+      count={(section) =>
+        paper.paragraphs.filter((p) => p.sectionId === section.id && isMeasurementBlock(p)).length
+      }
     />
   );
   const nodes = profile ? buildMeasurementTree(profile) : [];
@@ -255,7 +231,7 @@ export function PaperMeasurement({
           status={
             running || used > 0 ? (
               <span role="status">
-                {used}/{budget} lượt {progress && `· ${progress}`}
+                {used}/{cap || budget} lượt {progress && `· ${progress}`}
               </span>
             ) : run ? (
               `Phân tích lúc ${new Date(run.createdAt).toLocaleString('vi-VN')} · ${run.callsUsed} lượt gọi`

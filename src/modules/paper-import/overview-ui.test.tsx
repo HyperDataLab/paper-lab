@@ -170,9 +170,13 @@ async function setup() {
 it('P3 shows distributions, recurring filters, transition review and stale notice', async () => {
   const { repo, paper } = await setup();
   fireEvent.click(screen.getByRole('tab', { name: 'D. Viết học thuật' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Chuyển đoạn' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Phân tích câu' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Đánh giá ngữ cảnh' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc đoạn' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Chấm điểm' }));
   expect(screen.getByText('Chuyển đoạn: ~1 lượt gọi AI')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('tab', { name: 'C. Diễn ngôn' }));
   expect(await screen.findByText('Đã phân tích 3/4 đoạn (75 %)')).toBeInTheDocument();

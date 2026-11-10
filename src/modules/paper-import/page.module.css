@@ -403,3 +403,28 @@
 .paneParagraph p {
   margin: 0;
 }
+.runSetup {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.runSummary {
+  margin: 0;
+  color: var(--text-muted);
+}
+.runSummary strong {
+  color: var(--text);
+}
+.runActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.runOptions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
