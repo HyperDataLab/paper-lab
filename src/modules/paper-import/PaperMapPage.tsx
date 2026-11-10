@@ -41,6 +41,7 @@ import {
 } from './paperJobs';
 import { RunAllCard } from './RunAllCard';
 import { FindingsList } from './FindingsList';
+import { PaperSummary } from './PaperSummary';
 import { CriterionMark, SectionBlock, type BlockStatus } from './SectionBlock';
 import type { Criterion } from './criteria';
 import { Chip } from '@/shared/ui/Chip';
@@ -290,7 +291,7 @@ export default function PaperMapPage() {
   const [opened, setOpened] = useState<JobId[]>([]);
   const [openBlocks, setOpenBlocks] = useState<BlockId[]>(() => {
     const first = blockOf(tab);
-    return first && first !== 'snapshot' ? ['snapshot', first] : ['snapshot'];
+    return first ? [first] : [];
   });
   const [blockView, setBlockView] = useState<Partial<Record<BlockId, ViewId>>>(() => {
     const first = blockOf(tab);
@@ -732,6 +733,14 @@ export default function PaperMapPage() {
               )}
               <div className={styles.splitMain}>
                 <div hidden={mode !== 'summary'} className={styles.blocks}>
+                  {mode === 'summary' && (
+                    <PaperSummary
+                      paper={paper}
+                      insights={stored.insights}
+                      onLocation={openLocation}
+                      onOpen={setTab}
+                    />
+                  )}
                   <RunAllCard
                     jobs={jobs}
                     facts={jobFacts}
