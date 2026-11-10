@@ -1,8 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { paperIdentity } from '@/core/paperIdentity';
 import { type Paper, type Section, type Finding, type PaperChecksRecord } from '@/core/schemas';
 import { runPaperChecks } from '@/core/paperChecks';
+import {
+  collectFindings,
+  collectMarks,
+  type FindingInputs,
+  type FindingStatus,
+  type PaperFinding,
+  type PaperMark,
+} from '@/core/paperFindings';
 import type { ProfileView } from '@/core/paperProfile';
 import { analyzeText } from '@/core/text';
 import { detectCandidates } from '@/core/detectors';
@@ -32,6 +40,7 @@ import {
   type JobReporter,
 } from './paperJobs';
 import { RunAllCard } from './RunAllCard';
+import { FindingsList } from './FindingsList';
 import { CriterionMark, SectionBlock, type BlockStatus } from './SectionBlock';
 import type { Criterion } from './criteria';
 import { Chip } from '@/shared/ui/Chip';
@@ -349,6 +358,11 @@ export default function PaperMapPage() {
   const [checks, setChecks] = useState<PaperChecksRecord>();
   const [highlight, setHighlight] = useState<Finding['locations'][number] | null>(null);
   const [shownTitle, setShownTitle] = useState<string | null>(null);
+  // What the analyses have stored, read again whenever one of them finishes or a decision is made here.
+  const [stored, setStored] = useState<Omit<FindingInputs, 'paper' | 'checks'>>({});
+  const [storedTick, setStoredTick] = useState(0);
+  const [layers, setLayers] = useState<Criterion[]>(['claim', 'evidence', 'context']);
+  const [focusFinding, setFocusFinding] = useState<string | null>(null);
   const wide = useWide();
   const [splitWanted, setSplitWanted] = useState(readSplit);
   useEffect(() => {
@@ -366,6 +380,38 @@ export default function PaperMapPage() {
       active = false;
     };
   }, [id, repo]);
+  const doneJobs = JOB_IDS.filter((job) => jobFacts[job]?.done).join(',');
+  const storedMode = modeOf(tab);
+  useEffect(() => {
+    let active = true;
+    if (!id) return;
+    void Promise.all([
+      repo.paperReviews.get(id),
+      repo.analyses.listByPaper(id),
+      repo.paperOverviews.get(id),
+      repo.measurements.get(id),
+      repo.paperInsights.get(id),
+      repo.stance.get(id),
+    ])
+      .then(([reviews, analyses, overview, measurements, insights, stance]) => {
+        if (active) setStored({ reviews, analyses, overview, measurements, insights, stance });
+      })
+      .catch((cause: unknown) => {
+        if (active) setError(String(cause));
+      });
+    return () => {
+      active = false;
+    };
+    // Entering a mode re-reads too, so a decision made inside a block shows in the list and on the text.
+  }, [id, repo, doneJobs, storedMode, storedTick]);
+  const findings = useMemo(
+    () => (paper ? collectFindings({ paper, checks, ...stored }) : []),
+    [paper, checks, stored],
+  );
+  const marks = useMemo(
+    () => (paper ? collectMarks({ paper, checks, ...stored }, findings) : []),
+    [paper, checks, stored, findings],
+  );
   useEffect(() => {
     if (tab === 'map' && highlight)
       document
@@ -504,13 +550,33 @@ export default function PaperMapPage() {
       .then(setChecks)
       .catch((cause: unknown) => setError(String(cause)));
   };
+  const viewOf = (id: BlockId) => blockView[id] ?? BLOCKS[id].views[0]?.id ?? 'profile';
+  const decide = (finding: PaperFinding, status: FindingStatus) => {
+    const next =
+      status === 'confirmed'
+        ? 'confirmed_by_human'
+        : status === 'dismissed'
+          ? 'dismissed_by_human'
+          : 'candidate';
+    const itemId = finding.id.slice(finding.source.length + 1);
+    const done =
+      finding.source === 'checks'
+        ? repo.paperChecks.review(paper.id, itemId, next).then(setChecks)
+        : repo.paperReviews.review(paper.id, itemId, next).then(() => setStoredTick((tick) => tick + 1));
+    void done.catch((cause: unknown) => setError(String(cause)));
+  };
+  /** A mark on the paper opens the finding it stands for, or the block that described it. */
+  const openMark = (mark: PaperMark) => {
+    if (!mark.findingId) return setTab(mark.view as ViewId);
+    setFocusFinding(mark.findingId);
+    setTab(viewOf('checks'));
+  };
   const jobLabels = Object.fromEntries(JOB_IDS.map((job) => [job, JOBS[job].label])) as Record<JobId, string>;
   const mode = modeOf(tab);
   const shown = (job: JobId) => opened.includes(job) || blocksIn(mode).some((id) => BLOCKS[id].job === job);
   const visibleJob = (job: JobId) =>
     BLOCK_IDS.some((id) => BLOCKS[id].job === job && BLOCKS[id].mode === mode && openBlocks.includes(id));
   const elsewhere = JOB_IDS.filter((job) => jobFacts[job]?.running && !visibleJob(job));
-  const viewOf = (id: BlockId) => blockView[id] ?? BLOCKS[id].views[0]?.id ?? 'profile';
   const lastDossier = blocksIn('dossier').find((id) => openBlocks.includes(id)) ?? 'measure';
   const checkView = viewOf('checks');
   const checkIds = CHECKS_OF[checkView] ?? [];
@@ -658,6 +724,10 @@ export default function PaperMapPage() {
                   }}
                   highlight={highlight}
                   onOpenFull={() => setTab('map')}
+                  marks={marks}
+                  layers={layers}
+                  onLayers={setLayers}
+                  onMark={openMark}
                 />
               )}
               <div className={styles.splitMain}>
@@ -688,6 +758,18 @@ export default function PaperMapPage() {
                   )}
                 </div>
                 <div hidden={mode !== 'findings'} className={styles.blocks}>
+                  {/* Rendered only while showing: hidden copies of its labels would shadow the blocks below. */}
+                  {mode === 'findings' && (
+                    <FindingsList
+                      paper={paper}
+                      findings={findings}
+                      focusId={focusFinding}
+                      onLocation={openLocation}
+                      onOpenSource={(view) => setTab(view as ViewId)}
+                      onDecide={decide}
+                    />
+                  )}
+                  <h2 className={styles.sourcesHead}>Nguồn của các phát hiện</h2>
                   {chips('findings')}
                   {block(
                     'checks',
@@ -798,6 +880,8 @@ export default function PaperMapPage() {
                       candidateCounts={candidateCounts}
                       batch={batch}
                       onEditRole={(role) => void editRole(role)}
+                      marks={marks.filter((mark) => layers.includes(mark.criterion))}
+                      onMark={openMark}
                     />
                   </>
                 )}

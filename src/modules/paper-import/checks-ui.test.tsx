@@ -242,13 +242,36 @@ it('on a wide screen the paper stays beside the analysis and a finding is marked
   fireEvent.click(screen.getByRole('tab', { name: 'Phát hiện' }));
   fireEvent.click(screen.getByRole('radio', { name: 'Hình và bảng' }));
   fireEvent.click(screen.getByRole('button', { name: 'Chạy kiểm tra' }));
-  const quote = await screen.findByText('“Figure 2”');
+  // The same quote also heads its card in the unified list; this is the one in the checks block.
+  const quote = await within(screen.getByRole('region', { name: 'Kiểm tra tự động' })).findByText(
+    '“Figure 2”',
+  );
   fireEvent.click(quote.closest('article')?.querySelector('button') as HTMLElement);
   // The finding is marked in the paper beside it: no drawer, and the analysis tab stays open.
   expect(within(pane).getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
   expect(within(pane).getByLabelText('Mục đang đọc')).toHaveValue('b');
   expect(screen.queryByRole('dialog')).toBeNull();
   expect(screen.getByRole('tab', { name: 'Phát hiện' })).toHaveAttribute('aria-selected', 'true');
+
+  // R2: the same finding heads a card in the one list, in the one card shape.
+  const list = screen.getByRole('region', { name: 'Danh sách phát hiện' });
+  expect(within(list).getByText('Quy tắc')).toBeInTheDocument();
+  expect(within(list).getByText(/^Mức /)).toBeInTheDocument();
+  // R2: it is drawn on the words of the paper, as a control and not by colour alone.
+  const underlined = within(pane).getByRole('button', { name: 'Figure 2' });
+  expect(underlined).toHaveAttribute('data-finding', 'true');
+  expect(underlined.getAttribute('title')).toContain('Bằng chứng');
+  fireEvent.click(underlined);
+  expect(list.querySelector('[data-focus="true"]')).not.toBeNull();
+  // Deciding in the list is the same decision as in the block.
+  fireEvent.click(within(list).getByRole('button', { name: 'Xác nhận' }));
+  expect(await within(list).findByText('Đã xác nhận', { selector: 'span' })).toBeInTheDocument();
+  // A layer can be switched off; the passage the reader opened stays marked.
+  const layer = within(pane).getByRole('button', { name: /Bằng chứng/ });
+  expect(layer).toHaveAttribute('aria-pressed', 'true');
+  fireEvent.click(layer);
+  expect(within(pane).queryByRole('button', { name: 'Figure 2' })).toBeNull();
+  expect(within(pane).getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
 
   // Turning it off brings back the single-column page and remembers the choice.
   fireEvent.click(screen.getByRole('button', { name: 'Đọc song song' }));
