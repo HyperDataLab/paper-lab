@@ -1,0 +1,104 @@
+.home {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-8);
+  max-width: calc(var(--space-10) * 24);
+  margin: 0 auto;
+}
+.home h2 {
+  font-size: var(--text-md);
+  margin: 0 0 var(--space-3);
+}
+.hero {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-6);
+}
+.hero h1 {
+  margin: 0;
+}
+.lead,
+.muted {
+  color: var(--text-muted);
+  margin: 0;
+}
+.ask {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: end;
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.ask > :first-child {
+  width: 100%;
+}
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--space-10) * 5), 1fr));
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.tile {
+  display: grid;
+  gap: var(--space-1);
+  height: 100%;
+  align-content: start;
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text);
+}
+.tile:hover,
+.row:hover {
+  border-color: var(--accent);
+  text-decoration: none;
+}
+.tile svg {
+  color: var(--accent);
+  margin-bottom: var(--space-1);
+}
+.tile span,
+.row span {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.recent {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--space-10) * 8), 1fr));
+  gap: var(--space-6);
+}
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.sectionHead a {
+  font-size: var(--text-sm);
+}
+.rows {
+  display: grid;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.row {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+}
+.row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

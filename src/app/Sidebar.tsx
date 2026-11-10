@@ -5,8 +5,9 @@ import { SidebarGroup } from './SidebarGroup';
 import styles from './shell.module.css';
 
 const groups = [
+  { id: 'home', label: '' },
   { id: 'paper', label: 'BÀI BÁO' },
-  { id: 'analysis', label: '' },
+  { id: 'analysis', label: 'VIẾT' },
   { id: 'data', label: 'DỮ LIỆU' },
   { id: 'system', label: '' },
 ] as const;

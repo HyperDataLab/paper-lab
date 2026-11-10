@@ -1,6 +1,7 @@
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, MoreHorizontal } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button } from './Button';
+import { IconButton } from './IconButton';
 import styles from './ui.module.css';
 
 /** Status on the left, actions on the right, on every screen that runs something. */
@@ -13,13 +14,18 @@ export function ActionBar({ status, children }: { status: ReactNode; children?: 
   );
 }
 
-/** Secondary actions of one kind behind a single button, so they do not compete with the main one. */
+/**
+ * Secondary actions of one kind behind a single button, so they do not compete with the main one.
+ * With `icon`, the button is a "more" icon named by the label, for menus repeated on every row or column.
+ */
 export function ActionMenu({
   label,
   items,
+  icon = false,
 }: {
   label: string;
   items: { label: string; onSelect: () => void }[];
+  icon?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -40,9 +46,22 @@ export function ActionMenu({
   }, [open]);
   return (
     <div ref={root} className={styles.menu}>
-      <Button aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
-        {label} <ChevronDown size={14} aria-hidden="true" />
-      </Button>
+      {icon ? (
+        <IconButton
+          label={label}
+          variant="ghost"
+          size="sm"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+        >
+          <MoreHorizontal size={16} aria-hidden="true" />
+        </IconButton>
+      ) : (
+        <Button aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+          {label} <ChevronDown size={14} aria-hidden="true" />
+        </Button>
+      )}
       {open && (
         <div role="menu" className={styles.menuList}>
           {items.map((item) => (

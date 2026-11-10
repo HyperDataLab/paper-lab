@@ -37,6 +37,7 @@ export function SidebarItem({
     ) : (
       <NavLink
         to={item.path}
+        end={item.path === '/'}
         onClick={onNavigate}
         className={({ isActive }) => `${styles.navItem} ${isActive || childActive ? styles.active : ''}`}
         aria-label={rail ? item.label : undefined}

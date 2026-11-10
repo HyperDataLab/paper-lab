@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import {
   addFields,
@@ -264,6 +265,7 @@ export default function ProjectPage() {
                         <div className={styles.columnHead}>
                           <span>{field.label}</span>
                           <ActionMenu
+                            icon
                             label={`Tuỳ chọn cột ${field.label}`}
                             items={[
                               {
@@ -287,23 +289,33 @@ export default function ProjectPage() {
                         </div>
                       </th>
                     ))}
+                    <th scope="col" className={styles.addColumn}>
+                      <Button variant="ghost" size="sm" onClick={() => setPanel('columns')}>
+                        <Plus size={14} aria-hidden="true" /> Thêm cột
+                      </Button>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((paper) => (
                     <tr key={paper.key}>
                       <th scope="row" className={styles.sticky}>
-                        <span className={styles.paperTitle}>{paper.title}</span>
+                        <div className={styles.columnHead}>
+                          <span className={styles.paperTitle}>{paper.title}</span>
+                          <ActionMenu
+                            icon
+                            label={`Tuỳ chọn bài ${paper.title}`}
+                            items={[
+                              {
+                                label: 'Bỏ khỏi project',
+                                onSelect: () => void save(removePaper(project, paper.key)),
+                              },
+                            ]}
+                          />
+                        </div>
                         <span className={styles.note}>
-                          {[paper.year, ACCESS[paper.access]].filter(Boolean).join(' · ')}
+                          {[paper.authors[0], paper.year, ACCESS[paper.access]].filter(Boolean).join(' · ')}
                         </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => void save(removePaper(project, paper.key))}
-                        >
-                          Bỏ khỏi project
-                        </Button>
                       </th>
                       {visible.map((field) => {
                         const cell = cellOf(paper.key, field.key);
@@ -317,10 +329,16 @@ export default function ProjectPage() {
                                 aria-label={`${paper.title} · ${field.label}`}
                                 onClick={() => setOpen({ paperKey: paper.key, fieldKey: field.key })}
                               >
-                                <span className={styles.badges}>
-                                  <Badge tone={STATUS[cell.status].tone}>{STATUS[cell.status].label}</Badge>
-                                  {stale && <Badge tone="warning">Đã cũ</Badge>}
-                                </span>
+                                {(cell.status !== 'EXTRACTED' || stale) && (
+                                  <span className={styles.badges}>
+                                    {cell.status !== 'EXTRACTED' && (
+                                      <Badge tone={STATUS[cell.status].tone}>
+                                        {STATUS[cell.status].label}
+                                      </Badge>
+                                    )}
+                                    {stale && <Badge tone="warning">Đã cũ</Badge>}
+                                  </span>
+                                )}
                                 {cell.value && <span className={styles.cellValue}>{cell.value}</span>}
                               </Button>
                             ) : (
@@ -329,6 +347,7 @@ export default function ProjectPage() {
                           </td>
                         );
                       })}
+                      <td aria-hidden="true" />
                     </tr>
                   ))}
                 </tbody>
