@@ -3,7 +3,7 @@ it('has no corrupted module labels', () => {
   for (const item of modules) expect(item.label).not.toContain('?');
 });
 it('has unique ids and paths and is sorted by valid group and order', () => {
-  const groups = ['analysis', 'paper', 'data', 'labs', 'system'];
+  const groups = ['home', 'analysis', 'paper', 'data', 'labs', 'system'];
   expect(new Set(modules.map((m) => m.id)).size).toBe(modules.length);
   expect(new Set(modules.map((m) => m.path)).size).toBe(modules.length);
   for (let i = 0; i < modules.length; i++) {

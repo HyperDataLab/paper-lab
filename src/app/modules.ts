@@ -1,3 +1,4 @@
+import home from '@/modules/home';
 import evaluate from '@/modules/evaluate';
 import revise from '@/modules/revise';
 import generate from '@/modules/generate';
@@ -9,6 +10,7 @@ import paperImport from '@/modules/paper-import';
 import extraction from '@/modules/extraction';
 
 export const modules = [
+  home,
   evaluate,
   revise,
   generate,

@@ -68,9 +68,14 @@
   z-index: 3;
 }
 .matrix tbody th {
-  display: grid;
-  gap: var(--space-1);
-  justify-items: start;
+  font-weight: 400;
+}
+.matrix tbody th .note {
+  display: block;
+  margin-top: var(--space-1);
+}
+.matrix tbody th .columnHead {
+  align-items: flex-start;
 }
 .paperTitle {
   font-weight: 600;
@@ -87,6 +92,7 @@
   display: grid;
   gap: var(--space-1);
   height: auto;
+  justify-content: stretch;
   justify-items: start;
   padding: var(--space-1);
   text-align: left;
@@ -223,4 +229,11 @@
   display: grid;
   gap: var(--space-1);
   justify-items: start;
+}
+.addColumn {
+  white-space: nowrap;
+}
+.matrix tbody tr:hover td,
+.matrix tbody tr:hover th {
+  background: var(--soft);
 }

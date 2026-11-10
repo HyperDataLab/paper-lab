@@ -5,7 +5,7 @@ export interface ModuleDefinition {
   label: string;
   icon: LucideIcon;
   path: string;
-  group: 'analysis' | 'paper' | 'data' | 'labs' | 'system';
+  group: 'home' | 'analysis' | 'paper' | 'data' | 'labs' | 'system';
   order: number;
   status: 'ready' | 'beta' | 'soon';
   page: LazyExoticComponent<ComponentType>;
