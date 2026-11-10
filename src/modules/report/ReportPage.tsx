@@ -8,7 +8,16 @@ import { loadReport } from '@/shared/report/loadReport';
 import { ReportText } from './ReportText';
 import styles from './report.module.css';
 import { Transparency } from '@/shared/report/Transparency';
+import { labels, statuses } from '@/modules/evaluate/issueLabels';
 
+const percent = (value: number | null) => (value === null ? '—' : `${Math.round(value * 100)} %`);
+const SEVERITIES = {
+  info: 'Thông tin',
+  minor: 'Nhỏ',
+  moderate: 'Vừa',
+  major: 'Lớn',
+  critical: 'Nghiêm trọng',
+};
 export default function ReportPage() {
   const { id = '' } = useParams();
   const repo = useRepositories();
@@ -49,28 +58,6 @@ export default function ReportPage() {
       </div>
       <h1>Báo cáo phân tích</h1>
       <Transparency report={report} />
-      <section>
-        <h2>Thông tin &amp; phiên bản</h2>
-        <p>
-          Mã: {analysis.id} · {analysis.createdAt} ·{' '}
-          {analysis.contextLimited ? 'Thiếu ngữ cảnh' : 'Có ngữ cảnh'}
-        </p>
-        <p>
-          Hash: {analysis.text.sourceHash} · Đơn vị: {analysis.text.offsetUnit}
-        </p>
-        <p>
-          Tokenizer: {analysis.text.tokenizerVersion} · Segmenter: {analysis.text.segmenterVersion}
-        </p>
-        <ul>
-          {Object.entries(analysis.versions)
-            .filter(([key]) => key !== 'paperStepKeys')
-            .map(([key, value]) => (
-              <li key={key}>
-                {key}: {typeof value === 'string' ? value : '—'}
-              </li>
-            ))}
-        </ul>
-      </section>
       <section>
         <h2>Văn bản gốc</h2>
         <ReportText report={report} />
@@ -121,8 +108,8 @@ export default function ReportPage() {
           <>
             <p>
               Rubric: {analysis.scores.rubricVersion} · Độ bao phủ: {analysis.scores.coverage.applicable}/
-              {analysis.scores.coverage.total} ({analysis.scores.coverage.value}) · Độ tin cậy:{' '}
-              {analysis.scores.confidence ?? '—'} ·{' '}
+              {analysis.scores.coverage.total} ({percent(analysis.scores.coverage.value)}) · Độ tin cậy:{' '}
+              {percent(analysis.scores.confidence)} ·{' '}
               {analysis.scores.contextLimited ? 'Thiếu ngữ cảnh' : 'Có ngữ cảnh'}
             </p>
             <p>
@@ -132,7 +119,7 @@ export default function ReportPage() {
               {analysis.scores.dimensions.map((score) => (
                 <li key={score.id}>
                   {score.label}: {score.score ?? 'Không đánh giá được'} · rubric {score.rubric ?? '—'}/4 · độ
-                  tin cậy {score.confidence ?? '—'} · {score.descriptor ?? score.notAssessableReason}
+                  tin cậy {percent(score.confidence)} · {score.descriptor ?? score.notAssessableReason}
                 </li>
               ))}
             </ul>
@@ -146,8 +133,8 @@ export default function ReportPage() {
         <ol>
           {issues.map((issue) => (
             <li key={issue.id}>
-              <strong>{issue.type}</strong> · {issue.status} · {issue.severity}
-              <p>{issue.spans.map((span) => `“${span.quote}” [${span.start}, ${span.end})`).join('; ')}</p>
+              <strong>{labels[issue.type]}</strong> · {statuses[issue.status]} · {SEVERITIES[issue.severity]}
+              <p>{issue.spans.map((span) => `“${span.quote}”`).join('; ')}</p>
               <p>
                 {issue.why} · {issue.sourcePrinciple}
               </p>
@@ -184,6 +171,28 @@ export default function ReportPage() {
           {report.limits.map((limit) => (
             <li key={limit}>{limit}</li>
           ))}
+        </ul>
+      </section>
+      <section>
+        <h2>Thông tin &amp; phiên bản</h2>
+        <p>
+          Mã: {analysis.id} · {new Date(analysis.createdAt).toLocaleString('vi-VN')} ·{' '}
+          {analysis.contextLimited ? 'Thiếu ngữ cảnh' : 'Có ngữ cảnh'}
+        </p>
+        <p>
+          Hash: {analysis.text.sourceHash} · Đơn vị: {analysis.text.offsetUnit}
+        </p>
+        <p>
+          Tokenizer: {analysis.text.tokenizerVersion} · Segmenter: {analysis.text.segmenterVersion}
+        </p>
+        <ul>
+          {Object.entries(analysis.versions)
+            .filter(([key]) => key !== 'paperStepKeys')
+            .map(([key, value]) => (
+              <li key={key}>
+                {key}: {typeof value === 'string' ? value : '—'}
+              </li>
+            ))}
         </ul>
       </section>
     </article>

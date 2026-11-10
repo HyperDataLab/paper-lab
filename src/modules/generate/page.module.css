@@ -8,6 +8,9 @@
   gap: var(--space-4);
   align-items: start;
 }
+.setup {
+  max-width: calc(var(--space-10) * 18);
+}
 .actions {
   display: flex;
   flex-wrap: wrap;
