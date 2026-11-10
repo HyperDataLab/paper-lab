@@ -12,7 +12,8 @@ import { BatchParagraphStatus } from './BatchParagraphStatus';
 import { PaperTableView } from './PaperTableView';
 import { SECTION_ROLE_LABELS } from './sectionRoles';
 import { MarkedText } from './MarkedText';
-import type { PaperMark } from '@/core/paperFindings';
+import type { Criterion, PaperMark } from '@/core/paperFindings';
+import { LayerChips, MarkGutter } from './ReaderMarks';
 import styles from './page.module.css';
 import type { useBatchRun } from './useBatchRun';
 
@@ -64,6 +65,8 @@ export function PaperReader({
   batch,
   onEditRole,
   marks = [],
+  layers = [],
+  onLayers,
   onMark,
 }: {
   paper: Paper;
@@ -75,8 +78,9 @@ export function PaperReader({
   candidateCounts: Record<string, number>;
   batch: ReturnType<typeof useBatchRun>;
   onEditRole: (role: Section['role']) => void;
-  /** Marks to draw on the text, already limited to the layers that are on. */
   marks?: PaperMark[];
+  layers?: Criterion[];
+  onLayers?: (layers: Criterion[]) => void;
   onMark?: (mark: PaperMark) => void;
 }) {
   const navigate = useNavigate();
@@ -121,6 +125,7 @@ export function PaperReader({
     const kindLabel = KIND_LABELS[item.kind];
     const batchItem = batch.run?.items.find((entry) => entry.paragraphId === item.id);
     const marked = highlight?.paragraphId === item.id ? highlight : null;
+    const own = marks.filter((mark) => mark.paragraphId === item.id && layers.includes(mark.criterion));
     return (
       <div
         key={item.id}
@@ -135,14 +140,12 @@ export function PaperReader({
             caption={paper.paragraphs.find((p) => p.id === item.table?.captionId)}
           />
         ) : null}
-        <p className={item.table && !marked ? styles.hidden : styles.reading}>
-          <MarkedText
-            text={item.text}
-            marks={marks.filter((mark) => mark.paragraphId === item.id)}
-            selected={marked}
-            onMark={onMark}
-          />
-        </p>
+        <div className={item.table && !marked ? styles.hidden : styles.markedRow}>
+          <MarkGutter marks={own} />
+          <p className={styles.reading}>
+            <MarkedText text={item.text} marks={own} selected={marked} onMark={onMark} />
+          </p>
+        </div>
         <BatchParagraphStatus
           item={batchItem}
           analysis={batch.analyses.find((entry) => entry.id === batchItem?.analysisId)}
@@ -185,6 +188,7 @@ export function PaperReader({
         </Card>
       </div>
       <Card>
+        {onLayers && <LayerChips marks={marks} layers={layers} onLayers={onLayers} />}
         {filter && (
           <div className={styles.filterBar}>
             Đang lọc {filter.length} đoạn.{' '}

@@ -41,3 +41,7 @@ export function useReportJob(id: JobId, report: JobReport) {
  * the first waits for the reader's own notes, the second needs scored paragraphs.
  */
 export const RUN_ALL: JobId[] = ['snapshot', 'measure', 'rhetoric', 'arguments', 'batch', 'stance'];
+
+/** Notify the paper page after a stored result changes; standalone panels need no provider. */
+export const StoredChangedContext = createContext<() => void>(() => {});
+export const useStoredChanged = () => useContext(StoredChangedContext);

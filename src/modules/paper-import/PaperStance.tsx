@@ -1,3 +1,4 @@
+import { useStoredChanged } from './paperJobs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BatchBudgetExceededError } from '@/core/batch/runBatch';
 import {
@@ -51,6 +52,7 @@ export function PaperStance({
   onLocation: (location: Location) => void;
 }) {
   const repo = useRepositories();
+  const notifyStoredChanged = useStoredChanged();
   const llm = useLlm();
   const [record, setRecord] = useState<StanceRecord>();
   const [loading, setLoading] = useState(true);
@@ -113,6 +115,7 @@ export function PaperStance({
       });
       if (abort.signal.aborted) return;
       setRecord(await repo.stance.saveRun(paper.id, result.run, result.incomplete ? result.state : null));
+      notifyStoredChanged();
       setSelected('overview');
       setShowSetup(false);
     } catch (cause) {
@@ -176,7 +179,10 @@ export function PaperStance({
     if (!run) return;
     void repo.stance
       .decide(paper.id, { run_id: run.id, annotation_id: annotation.id, decision })
-      .then(setRecord)
+      .then((value) => {
+        setRecord(value);
+        notifyStoredChanged();
+      })
       .catch((cause: unknown) => setError(String(cause)));
   };
   const table = (rows: CategoryMetric[], title: string) => (

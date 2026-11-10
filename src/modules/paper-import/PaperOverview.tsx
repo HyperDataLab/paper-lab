@@ -1,3 +1,4 @@
+import { useStoredChanged } from './paperJobs';
 import { latestStyleWarning } from '@/core/probe';
 import { useEffect, useState } from 'react';
 import type { Analysis, Paper, PaperOverviewRecord, PaperRun } from '@/core/schemas';
@@ -24,6 +25,7 @@ export function PaperOverview({
   focus: OverviewFocus;
 }) {
   const repo = useRepositories();
+  const notifyStoredChanged = useStoredChanged();
   const [record, setRecord] = useState<PaperOverviewRecord>();
   const [error, setError] = useState('');
   const [styleWarning, setStyleWarning] = useState<string | null>(null);
@@ -53,6 +55,7 @@ export function PaperOverview({
   async function review(id: string, status: 'confirmed_by_human' | 'dismissed_by_human' | 'candidate') {
     try {
       setRecord(await repo.paperOverviews.reviewTransition(paper.id, id, status));
+      notifyStoredChanged();
     } catch (cause) {
       setError(String(cause));
     }

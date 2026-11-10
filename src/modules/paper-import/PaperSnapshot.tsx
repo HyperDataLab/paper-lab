@@ -1,3 +1,4 @@
+import { useStoredChanged } from './paperJobs';
 import { useEffect, useMemo, useState } from 'react';
 import { insightStates } from '@/core/rhetoric';
 import type { Finding, Paper, PaperInsightsRecord, SnapshotField } from '@/core/schemas';
@@ -32,6 +33,7 @@ export function PaperSnapshot({
   onLocation: (location: Finding['locations'][number]) => void;
 }) {
   const repo = useRepositories();
+  const notifyStoredChanged = useStoredChanged();
   const llm = useLlm();
   const [record, setRecord] = useState<PaperInsightsRecord>();
   const [running, setRunning] = useState(false);
@@ -60,6 +62,7 @@ export function PaperSnapshot({
       if (!(await llm.ensureConsent('paper'))) return;
       const result = await llmSnapshot(llm.client, paper, { config: llm.config });
       setRecord(await repo.paperInsights.saveSnapshotRun(paper.id, result));
+      notifyStoredChanged();
     } catch (cause) {
       setError(describeLlmError(cause) ?? 'Không tạo được snapshot.');
     } finally {
@@ -70,7 +73,10 @@ export function PaperSnapshot({
     if (!run) return;
     void repo.paperInsights
       .decide(paper.id, { run_id: run.id, item_id: id, decision })
-      .then(setRecord)
+      .then((value) => {
+        setRecord(value);
+        notifyStoredChanged();
+      })
       .catch((cause: unknown) => setError(String(cause)));
   };
   useReportJob('snapshot', { running, done: Boolean(run), estimate: 1, ready: loaded, start });

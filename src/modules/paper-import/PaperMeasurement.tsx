@@ -1,3 +1,4 @@
+import { useStoredChanged } from './paperJobs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   atomicCsv,
@@ -48,6 +49,7 @@ export function PaperMeasurement({
   onLocation: (location: Location) => void;
 }) {
   const repo = useRepositories();
+  const notifyStoredChanged = useStoredChanged();
   const llm = useLlm();
   const [record, setRecord] = useState<MeasurementsRecord>();
   const [loading, setLoading] = useState(true);
@@ -129,6 +131,7 @@ export function PaperMeasurement({
           checkpoint: result.checkpoint,
         });
       setRecord(saved);
+      notifyStoredChanged();
       setSelectedNode('overview');
       setShowSetup(false);
     } catch (cause) {
@@ -159,7 +162,10 @@ export function PaperMeasurement({
     if (!run) return;
     void repo.measurements
       .decide(paper.id, { ...input, run_id: run.id, note: null })
-      .then(setRecord)
+      .then((value) => {
+        setRecord(value);
+        notifyStoredChanged();
+      })
       .catch((cause: unknown) => setError(String(cause)));
   };
   const context: ItemContext | undefined =

@@ -10,7 +10,7 @@ import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import PaperMapPage from './PaperMapPage';
 
-it('P4 runs local checks, navigates to evidence, reviews and shows overview counts', async () => {
+it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview counts', async () => {
   vi.stubGlobal('crypto', webcrypto);
   const scroll = vi.fn();
   Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: scroll });
@@ -98,6 +98,8 @@ it('P4 runs local checks, navigates to evidence, reviews and shows overview coun
   if (!cardAgain) throw new Error('Missing card');
   fireEvent.click(within(cardAgain).getByRole('button', { name: 'Xác nhận' }));
   await within(cardAgain).findByText('Đã xác nhận');
+  const list = screen.getByRole('region', { name: 'Danh sách phát hiện' });
+  await within(list).findByText('Đã xác nhận');
   expect(await within(cardAgain).findByText('Chưa hiệu chuẩn (n=1)')).toBeInTheDocument();
   fireEvent.click(within(cardAgain).getByRole('button', { name: 'Hoàn tác' }));
   fireEvent.click(await within(cardAgain).findByRole('button', { name: 'Bỏ qua' }));

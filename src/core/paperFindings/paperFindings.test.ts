@@ -281,6 +281,27 @@ it('R2 cuts a paragraph into stretches by the marks covering them, by code point
   expect(segmentText('abc', [mark('late', 10, 12)])).toEqual([{ text: 'abc', marks: [] }]);
 });
 
+it('R5 keeps writing origins tied to their category after human review', () => {
+  const analysis = analyses[0];
+  if (!analysis) throw new Error('Missing analysis');
+  const issue = analysis.issues[0];
+  if (!issue) throw new Error('Missing issue');
+  const input = [
+    {
+      ...analysis,
+      issues: [
+        { ...issue, id: 'word', category: 'word', status: 'confirmed_by_human' },
+        { ...issue, id: 'flow', category: 'flow', status: 'candidate' },
+        { ...issue, id: 'organization', category: 'organization', status: 'dismissed_by_human' },
+      ],
+    },
+  ] as Analysis[];
+  const findings = collectFindings({ paper, analyses: input });
+  expect(findings.find((item) => item.id.endsWith(':word'))?.origin).toBe('rule');
+  expect(findings.find((item) => item.id.endsWith(':flow'))?.origin).toBe('ai');
+  expect(findings.find((item) => item.id.endsWith(':organization'))?.origin).toBe('ai');
+});
+
 it('R2 counts findings per section and criterion for the summary table', () => {
   const found = collectFindings({ paper, checks, analyses });
   expect(countBySection(found)).toEqual(

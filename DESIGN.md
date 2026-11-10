@@ -207,10 +207,10 @@ modes, named for the reader's question, plus the full reader:
 transitions, measurement findings). A card reads: criterion mark, the point in bold, `Badge`s for severity (Cao / Vừa / Thấp), origin
 (AI đề xuất / Quy tắc) and decision, the quote, the reason, the place, then actions. Filters are `Chip`s with counts for criterion and
 status, plus a section `Select`; Cách viết starts off when anything else exists. The table of sections by criteria is folded and only
-filters. The list is read from what each analysis stored and changes none of it; the AI review's points stay out until the reader has
+filters. Every card can be confirmed, dismissed or reopened, with the decision saved to its source; the AI review's points stay out until the reader has
 saved or skipped their own notes. Descriptions (claims, stance markers, snapshot sources) are marks on the text, not findings.
 
-**Findings are drawn on the paper's words** in the reading pane and in Đọc bài, by layer; the pane's chips switch layers on and off
+**Findings are drawn on the paper's words** in the reading pane and in Đọc bài, by layer; both readers' chips switch layers on and off
 (Cách viết starts off) and a margin mark names the criteria present in each paragraph. Pressing a marked stretch opens its finding in
 the list, or the block that described it.
 
