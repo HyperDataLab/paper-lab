@@ -18,11 +18,12 @@ import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { FindingCard, ReviewActions } from '@/shared/ui/FindingCard';
-import { TextField } from '@/shared/ui/TextField';
-import { Wizard } from '@/shared/ui/Wizard';
 import { placeLabel } from './paperLabels';
-import { SectionPicker } from './SectionPicker';
+import { usePaperScope, useRunBudget } from './paperScope';
+import { RunSetup } from './RunSetup';
+import { useReportJob } from './paperJobs';
 import styles from './measurement.module.css';
+import { Loading } from '@/shared/ui/StateNote';
 
 type Location = Finding['locations'][number];
 const LABELS: Record<RhetoricCategory, { name: string; help: string }> = {
@@ -65,9 +66,11 @@ export function PaperRhetoric({
   const llm = useLlm();
   const [record, setRecord] = useState<PaperInsightsRecord>();
   const [loading, setLoading] = useState(true);
-  const [sections, setSections] = useState(() => defaultRhetoricSections(paper));
+  const [sections, setSections] = usePaperScope(paper, defaultRhetoricSections);
   const estimate = estimateRhetoric(paper, sections);
-  const [budget, setBudget] = useState(() => Math.max(estimate * 2, 10));
+  const { budget, setBudget } = useRunBudget(estimate);
+  // A resumed run gets a fresh allowance on top of the calls it already made.
+  const [cap, setCap] = useState(0);
   const [used, setUsed] = useState(0);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState('');
@@ -100,10 +103,11 @@ export function PaperRhetoric({
     try {
       if (!(await llm.ensureConsent('paper')) || abort.signal.aborted) return;
       setUsed(pending?.callsUsed ?? 0);
+      setCap((pending?.callsUsed ?? 0) + budget);
       const result = await llmRhetoric(llm.client, paper, {
         sectionIds: pending?.sectionIds ?? sections,
         config: llm.config,
-        budget,
+        budget: (pending?.callsUsed ?? 0) + budget,
         pending,
         signal: abort.signal,
         onRequest: setUsed,
@@ -125,7 +129,7 @@ export function PaperRhetoric({
       if (!abort.signal.aborted)
         setError(
           cause instanceof BatchBudgetExceededError
-            ? 'Đã chạm trần số lượt gọi. Phần đã đọc được giữ lại; nâng trần rồi bấm Tiếp tục.'
+            ? 'Đã chạm trần số lượt gọi. Phần đã đọc được giữ lại; bấm Tiếp tục để chạy phần còn lại.'
             : (describeLlmError(cause) ?? ''),
         );
     } finally {
@@ -138,7 +142,15 @@ export function PaperRhetoric({
   const run = record?.rhetoricRuns.at(-1);
   const decisions = useMemo(() => record?.decisions ?? [], [record]);
   const metrics = useMemo(() => (run ? rhetoricMetrics(run, decisions) : undefined), [run, decisions]);
-  if (loading) return <p>Đang tải phân tích…</p>;
+  useReportJob('rhetoric', {
+    running,
+    done: Boolean(run) && !record?.rhetoricPending,
+    estimate,
+    ready: !loading,
+    start: () => start(false),
+    stop: () => controller.current?.abort(),
+  });
+  if (loading) return <Loading label="Đang tải phân tích…" />;
   const decide = (itemId: string, decision: 'confirm' | 'dismiss' | 'reopen') => {
     if (!run) return;
     void repo.paperInsights
@@ -166,46 +178,19 @@ export function PaperRhetoric({
   const open = (item: Pick<RhetoricItem, 'paragraphId' | 'start' | 'end'>) =>
     onLocation({ paragraphId: item.paragraphId, start: item.start, end: item.end });
   const setup = (
-    <Wizard
-      label="Các bước thiết lập phân tích"
-      finishLabel="Bắt đầu phân tích"
-      finishDisabled={running || !estimate}
-      onFinish={() => void start(false)}
-      note={`Ước tính ${estimate} lượt gọi AI (chưa tính thử lại).`}
-      steps={[
-        {
-          id: 'sections',
-          title: 'Chọn mục',
-          summary: `${sections.length} mục`,
-          ready: estimate > 0,
-          content: (
-            <SectionPicker
-              paper={paper}
-              value={sections}
-              onChange={setSections}
-              disabled={running}
-              legend="Mục được gửi cho AI"
-              count={(section) =>
-                paper.paragraphs.filter((p) => p.sectionId === section.id && p.kind === 'body').length
-              }
-            />
-          ),
-        },
-        {
-          id: 'confirm',
-          title: 'Xác nhận và chạy',
-          content: (
-            <TextField
-              label="Trần số lượt gọi"
-              type="number"
-              min={1}
-              value={String(budget)}
-              disabled={running}
-              onChange={(event) => setBudget(Number(event.target.value))}
-            />
-          ),
-        },
-      ]}
+    <RunSetup
+      paper={paper}
+      sections={sections}
+      onSections={setSections}
+      estimate={estimate}
+      budget={budget}
+      onBudget={setBudget}
+      running={running}
+      disabled={!estimate}
+      onStart={() => void start(false)}
+      count={(section) =>
+        paper.paragraphs.filter((p) => p.sectionId === section.id && p.kind === 'body').length
+      }
     />
   );
   return (
@@ -222,7 +207,7 @@ export function PaperRhetoric({
           status={
             running ? (
               <span role="status">
-                Đang phân tích… {used}/{budget} lượt
+                Đang phân tích… {used}/{cap || budget} lượt
               </span>
             ) : run ? (
               `Phân tích lúc ${new Date(run.createdAt).toLocaleString('vi-VN')} · ${run.sectionIds.length} mục · ${run.callsUsed} lượt gọi`

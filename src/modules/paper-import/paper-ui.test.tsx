@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
@@ -99,15 +99,19 @@ it('P2 estimates selected calls, asks manuscript consent and opens a completed a
   );
   await importPaper();
   fireEvent.click(screen.getByRole('tab', { name: 'D. Viết học thuật' }));
-  expect(screen.getByText('Ước tính ~0 lượt gọi AI (giới hạn 150)')).toBeInTheDocument();
+  // Sections and AI steps are preselected; the test narrows them to one paragraph and one step.
+  fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Phân tích câu' }));
-  expect(screen.getByText('Ước tính ~1 lượt gọi AI (giới hạn 150)')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Đánh giá ngữ cảnh' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc đoạn' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Chấm điểm' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Chuyển đoạn' }));
+  expect(screen.getByText(/ước tính 1 lượt gọi AI, trần 10/)).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Giới hạn lượt gọi'), { target: { value: '0' } });
-  expect(screen.getByText('Ước tính vượt giới hạn lượt gọi.')).toBeInTheDocument();
+  expect(screen.getByText(/Ước tính vượt trần số lượt gọi/)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Bắt đầu phân tích' })).toBeDisabled();
   fireEvent.change(screen.getByLabelText('Giới hạn lượt gọi'), { target: { value: '2' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu phân tích' }));
   expect(await screen.findByText(/Các đoạn được chọn của bản thảo/)).toBeInTheDocument();
   expect(completeJson).not.toHaveBeenCalled();
@@ -145,10 +149,13 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   const view = render(tree('/papers'));
   await importPaper();
   fireEvent.click(screen.getByRole('tab', { name: 'D. Viết học thuật' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Phân tích câu' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Đánh giá ngữ cảnh' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc đoạn' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Chấm điểm' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Chuyển đoạn' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu phân tích' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
   fireEvent.click(screen.getByRole('tab', { name: 'Đọc bài' }));
@@ -273,11 +280,12 @@ it('P2 pauses after the current call and resumes the remaining step', async () =
   );
   await importPaper();
   fireEvent.click(screen.getByRole('tab', { name: 'D. Viết học thuật' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Phân tích câu' }));
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Đánh giá ngữ cảnh' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc đoạn' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Chấm điểm' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Chuyển đoạn' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu phân tích' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
   await waitFor(() => expect(release).toBeDefined());
@@ -287,4 +295,42 @@ it('P2 pauses after the current call and resumes the remaining step', async () =
   await waitFor(() => expect(completeJson).toHaveBeenCalledTimes(2));
   fireEvent.click(screen.getByRole('tab', { name: 'Đọc bài' }));
   expect(await screen.findByText('Hoàn tất')).toBeInTheDocument();
+});
+it('P2 a run keeps going when the reader opens another tab, and the view is kept in the address', async () => {
+  localStorage.clear();
+  const repo = createRepositories(createDb(`keep-ui-${crypto.randomUUID()}`));
+  // Never answers: the run stays in flight for the whole test.
+  const completeJson = vi.fn(() => new Promise(() => {})) as unknown as LlmClient['completeJson'];
+  let search = '';
+  function Where() {
+    search = useLocation().search;
+    return null;
+  }
+  render(
+    <MemoryRouter initialEntries={['/papers']}>
+      <StorageProvider repositories={repo}>
+        <LlmProvider innerClient={{ completeJson }}>
+          <Where />
+          <Routes>
+            <Route path="/papers" element={<Page />} />
+            <Route path="/papers/:id" element={<PaperMapPage />} />
+          </Routes>
+        </LlmProvider>
+      </StorageProvider>
+    </MemoryRouter>,
+  );
+  await importPaper();
+  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Snapshot' }));
+  expect(search).toContain('view=snapshot');
+  fireEvent.click(screen.getByRole('button', { name: 'Tạo snapshot (AI)' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
+  await waitFor(() => expect(completeJson).toHaveBeenCalledTimes(1));
+  fireEvent.click(screen.getByRole('tab', { name: 'Đọc bài' }));
+  expect(search).toContain('view=map');
+  const strip = await screen.findByText(/Đang chạy ở tab khác/);
+  fireEvent.click(within(strip).getByRole('button', { name: 'Snapshot' }));
+  // Still the same run: the panel was hidden, not unmounted, so nothing was restarted.
+  expect(screen.getByText('Đang đọc bài…')).toBeVisible();
+  expect(completeJson).toHaveBeenCalledTimes(1);
 });

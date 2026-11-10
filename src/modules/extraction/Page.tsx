@@ -8,6 +8,7 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { TextField } from '@/shared/ui/TextField';
 import styles from './extraction.module.css';
+import { Empty, Loading } from '@/shared/ui/StateNote';
 
 export default function Page() {
   const repo = useRepositories();
@@ -71,59 +72,34 @@ export default function Page() {
               <p className={styles.note}>Đặt tên và xác định câu hỏi dẫn dắt việc trích xuất.</p>
             </div>
           </div>
-          <form
-            className={styles.projectForm}
-            aria-busy={creating}
-            noValidate
-            onSubmit={(event) => void create(event)}
-          >
-            <div className={styles.projectField}>
-              <TextField
-                ref={titleInput}
-                label="Tên project"
-                placeholder="Ví dụ: AI trong giáo dục"
-                value={title}
-                required
-                error={titleError || undefined}
-                onChange={(event) => {
-                  setTitle(event.target.value);
-                  if (event.target.value.trim()) setTitleError('');
-                }}
-              />
-            </div>
-            <div className={styles.projectField}>
-              <TextField
-                label="Câu hỏi nghiên cứu (không bắt buộc)"
-                placeholder="Bạn muốn tìm hiểu điều gì qua các bài báo?"
-                multiline
-                rows={2}
-                value={question}
-                onChange={(event) => setQuestion(event.target.value)}
-              />
-            </div>
-            <div className={styles.formFooter}>
-              <Button className={styles.createButton} variant="primary" type="submit" disabled={creating}>
-                {creating ? (
-                  <>
-                    <LoaderCircle className={styles.spinner} size={16} aria-hidden="true" />
-                    Đang tạo…
-                  </>
-                ) : (
-                  <>
-                    <Plus size={16} aria-hidden="true" />
-                    Tạo project
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
-        </Card>
-      </div>
-
-      {error && (
-        <p className={styles.error} role="alert">
-          {error}
-        </p>
+        </div>
+      </Card>
+      {error && <p role="alert">{error}</p>}
+      <h2>Các project</h2>
+      {!projects ? (
+        <Loading label="Đang tải…" />
+      ) : projects.length === 0 ? (
+        <Empty
+          title="Chưa có project nào."
+          hint="Đặt tên và tạo project ở trên, hoặc nêu câu hỏi nghiên cứu ở Trang chủ."
+        />
+      ) : (
+        <ul className={styles.list}>
+          {projects.map((project) => (
+            <li key={project.id}>
+              <Card padding="md">
+                <Link className={styles.title} to={`/extraction/${project.id}`}>
+                  {project.title}
+                </Link>
+                <p className={styles.note}>
+                  {project.papers.length} bài · {project.fields.filter((field) => !field.hidden).length} cột ·{' '}
+                  {project.cells.filter((cell) => cell.status === 'VERIFIED').length} ô đã xác nhận · cập nhật{' '}
+                  {new Date(project.updatedAt).toLocaleString('vi-VN')}
+                </p>
+              </Card>
+            </li>
+          ))}
+        </ul>
       )}
 
       <section className={styles.projectSection} aria-labelledby="extraction-projects-title">

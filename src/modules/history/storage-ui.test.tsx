@@ -43,6 +43,29 @@ it('AC-08 removes deleted analyses from comparison selection and allows another 
     expect.stringContaining(first.id),
   );
 });
+it('U5 history search narrows the list and the page keeps a single h1', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const repo = createRepositories(createDb(`history-search-${crypto.randomUUID()}`));
+  await repo.analyses.create({ text: await analyzeText('Alpha sentence.') });
+  await repo.analyses.create({ text: await analyzeText('Beta sentence.') });
+  render(
+    <MemoryRouter>
+      <StorageProvider repositories={repo}>
+        <History />
+      </StorageProvider>
+    </MemoryRouter>,
+  );
+  expect(await screen.findByRole('link', { name: 'Alpha sentence.' })).toBeInTheDocument();
+  expect(screen.getByRole('radio', { name: 'Bản phân tích (2)' })).toHaveAttribute('aria-checked', 'true');
+  fireEvent.change(screen.getByLabelText('Tìm trong lịch sử'), { target: { value: 'beta' } });
+  expect(screen.queryByRole('link', { name: 'Alpha sentence.' })).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Beta sentence.' })).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Tìm trong lịch sử'), { target: { value: 'zzz' } });
+  expect(screen.getByText('Không có bản phân tích nào khớp.')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('radio', { name: 'Đoạn đã soạn (0)' }));
+  expect(screen.getByText('Chưa có đoạn đã soạn.')).toBeInTheDocument();
+  expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+});
 it('EV-11 saves an evaluation and deletes it from history', async () => {
   vi.stubGlobal('crypto', webcrypto);
   const repo = createRepositories(createDb(`ui-${crypto.randomUUID()}`));

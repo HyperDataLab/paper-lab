@@ -33,6 +33,7 @@ import { Chip } from '@/shared/ui/Chip';
 import { TextField } from '@/shared/ui/TextField';
 import { GroundingDrawer, type GroundingTarget } from './GroundingDrawer';
 import styles from './extraction.module.css';
+import { Empty } from '@/shared/ui/StateNote';
 
 type Save = (
   next: ExtractionProject,
@@ -401,7 +402,7 @@ export function DeepResearch({
           </Button>
         </div>
         {!deep.candidates.length ? (
-          <p className={styles.note}>Chưa có bài ứng viên.</p>
+          <Empty title="Chưa có bài ứng viên." hint="Duyệt kế hoạch ở bước 1 rồi bấm Tìm theo kế hoạch." />
         ) : (
           <ul className={styles.candidates}>
             {shown.map((item) => (

@@ -18,13 +18,14 @@ import { Badge } from '@/shared/ui/Badge';
 import { ActionBar } from '@/shared/ui/ActionBar';
 import { Button } from '@/shared/ui/Button';
 import { FindingCard, ReviewActions } from '@/shared/ui/FindingCard';
-import { Wizard } from '@/shared/ui/Wizard';
 import { Card } from '@/shared/ui/Card';
 import { Select } from '@/shared/ui/Select';
-import { TextField } from '@/shared/ui/TextField';
 import { Tree, type TreeNode } from '@/shared/ui/Tree';
-import { SectionPicker } from './SectionPicker';
+import { usePaperScope, useRunBudget } from './paperScope';
+import { RunSetup } from './RunSetup';
+import { useReportJob } from './paperJobs';
 import styles from './measurement.module.css';
+import { Loading } from '@/shared/ui/StateNote';
 
 const LABELS: Record<StanceCategory, { name: string; help: string }> = {
   hedges: { name: 'Rào đón (Hedges)', help: 'Giữ khoảng cách, chưa khẳng định hoàn toàn.' },
@@ -53,9 +54,11 @@ export function PaperStance({
   const llm = useLlm();
   const [record, setRecord] = useState<StanceRecord>();
   const [loading, setLoading] = useState(true);
-  const [sections, setSections] = useState(() => defaultStanceSections(paper));
+  const [sections, setSections] = usePaperScope(paper, defaultStanceSections);
   const estimate = planStance(paper, sections).length;
-  const [budget, setBudget] = useState(() => Math.max(estimate * 2, 10));
+  const { budget, setBudget } = useRunBudget(estimate);
+  // A resumed run gets a fresh allowance on top of the calls it already made.
+  const [cap, setCap] = useState(0);
   const [used, setUsed] = useState(0);
   const [progress, setProgress] = useState('');
   const [running, setRunning] = useState(false);
@@ -95,10 +98,11 @@ export function PaperStance({
     try {
       if (!(await llm.ensureConsent('paper')) || abort.signal.aborted) return;
       setUsed(pending?.callsUsed ?? 0);
+      setCap((pending?.callsUsed ?? 0) + budget);
       const result = await llmStance(llm.client, paper, {
         sectionIds: pending?.sectionIds ?? sections,
         config: llm.config,
-        budget,
+        budget: (pending?.callsUsed ?? 0) + budget,
         pending,
         signal: abort.signal,
         onRequest: setUsed,
@@ -116,7 +120,7 @@ export function PaperStance({
       if (!abort.signal.aborted)
         setError(
           cause instanceof BatchBudgetExceededError
-            ? 'Đã chạm trần số lượt gọi. Phần đã đọc được giữ lại; nâng trần rồi bấm Tiếp tục.'
+            ? 'Đã chạm trần số lượt gọi. Phần đã đọc được giữ lại; bấm Tiếp tục để chạy phần còn lại.'
             : (describeLlmError(cause) ?? ''),
         );
     } finally {
@@ -131,7 +135,15 @@ export function PaperStance({
   const decisions = useMemo(() => record?.decisions ?? [], [record]);
   const metrics = useMemo(() => (run ? stanceMetrics(run, decisions) : undefined), [run, decisions]);
   const states = useMemo(() => (run ? stanceStates(run, decisions) : new Map()), [run, decisions]);
-  if (loading) return <p>Đang tải phân tích giọng văn…</p>;
+  useReportJob('stance', {
+    running,
+    done: Boolean(run) && !record?.pending,
+    estimate,
+    ready: !loading,
+    start: () => start(false),
+    stop: () => controller.current?.abort(),
+  });
+  if (loading) return <Loading label="Đang tải phân tích giọng văn…" />;
 
   const heading = (id: string) => paper.sections.find((section) => section.id === id)?.heading ?? id;
   const allRows = metrics ? [...metrics.stance.rows, ...metrics.engagement.rows] : [];
@@ -216,46 +228,19 @@ export function PaperStance({
   const pages = Math.max(1, Math.ceil(listed.length / PAGE_SIZE));
   const visible = listed.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const setup = (
-    <Wizard
-      label="Các bước thiết lập phân tích giọng văn"
-      finishLabel="Bắt đầu phân tích"
-      finishDisabled={running || !estimate}
-      onFinish={() => void start(false)}
-      note={`Ước tính ${estimate} lượt gọi AI (chưa tính thử lại).`}
-      steps={[
-        {
-          id: 'sections',
-          title: 'Chọn mục',
-          summary: `${sections.length} mục`,
-          ready: estimate > 0,
-          content: (
-            <SectionPicker
-              paper={paper}
-              value={sections}
-              onChange={setSections}
-              disabled={running}
-              legend="Mục được gửi cho AI"
-              count={(section) =>
-                paper.paragraphs.filter((p) => p.sectionId === section.id && p.kind === 'body').length
-              }
-            />
-          ),
-        },
-        {
-          id: 'confirm',
-          title: 'Xác nhận và chạy',
-          content: (
-            <TextField
-              label="Trần số lượt gọi"
-              type="number"
-              min={1}
-              value={String(budget)}
-              disabled={running}
-              onChange={(event) => setBudget(Number(event.target.value))}
-            />
-          ),
-        },
-      ]}
+    <RunSetup
+      paper={paper}
+      sections={sections}
+      onSections={setSections}
+      estimate={estimate}
+      budget={budget}
+      onBudget={setBudget}
+      running={running}
+      disabled={!estimate}
+      onStart={() => void start(false)}
+      count={(section) =>
+        paper.paragraphs.filter((p) => p.sectionId === section.id && p.kind === 'body').length
+      }
     />
   );
   return (
@@ -272,7 +257,7 @@ export function PaperStance({
           status={
             running || used > 0 ? (
               <span role="status">
-                {used}/{budget} lượt {progress && `· ${progress}`}
+                {used}/{cap || budget} lượt {progress && `· ${progress}`}
               </span>
             ) : run ? (
               `Phân tích lúc ${new Date(run.createdAt).toLocaleString('vi-VN')} · ${run.callsUsed} lượt gọi`

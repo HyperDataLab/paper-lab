@@ -15,6 +15,7 @@ import { Tabs } from '@/shared/ui/Tabs';
 import { importPaperFile } from './importPaperFile';
 import { LibraryPanel } from './LibraryPanel';
 import styles from './page.module.css';
+import { Empty, Loading } from '@/shared/ui/StateNote';
 
 type Sort = 'recent' | 'title' | 'year';
 const SOURCE_NOTE: Partial<Record<PaperIdentity['titleSource'], string>> = {
@@ -27,7 +28,7 @@ export default function Page() {
   const navigate = useNavigate();
   const input = useRef<HTMLInputElement>(null);
   const [papers, setPapers] = useState<Paper[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
   const [identities, setIdentities] = useState(new Map<string, PaperIdentity>());
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<Sort>('recent');
@@ -43,6 +44,7 @@ export default function Page() {
     void Promise.all([repo.papers.list(), repo.paperContext.list(), repo.library.list()])
       .then(([saved, contexts, library]) => {
         setPapers(saved);
+        setLoaded(true);
         setIdentities(
           new Map(
             saved.map((paper) => [
@@ -56,6 +58,7 @@ export default function Page() {
         );
       })
       .catch((cause: unknown) => {
+        setLoaded(true);
         setError('Không thể tải danh sách bài báo.');
         setDetail(String(cause));
       })
@@ -174,60 +177,40 @@ export default function Page() {
               </div>
             )}
           </Card>
-          <section
-            className={styles.libraryPanel}
-            aria-labelledby="imported-papers-title"
-            aria-busy={loading}
-          >
-            <header className={styles.libraryToolbar}>
-              <div className={styles.libraryTitle}>
-                <h2 id="imported-papers-title">Bài báo đã nhập</h2>
-                <span className={styles.libraryCount}>{papers.length}</span>
-              </div>
+          <div className={styles.libraryHead}>
+            <h2>Bài báo đã nhập{loaded ? ` (${papers.length})` : ''}</h2>
+            {papers.length > 0 && (
               <div className={styles.libraryTools}>
-                <div className={styles.paperSearch}>
-                  <Search size={18} aria-hidden="true" />
-                  <TextField
-                    label="Tìm bài"
-                    size="sm"
-                    type="search"
-                    placeholder="Tên bài, tác giả, tên tệp"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                  />
-                </div>
-                <div className={styles.librarySort}>
-                  <ArrowDownUp size={16} aria-hidden="true" />
-                  <Select
-                    label="Sắp xếp"
-                    className={styles.sortSelect}
-                    size="sm"
-                    value={sort}
-                    onChange={(event) => setSort(event.target.value as Sort)}
-                  >
-                    <option value="recent">Mới nhập trước</option>
-                    <option value="title">Tên bài A–Z</option>
-                    <option value="year">Năm mới nhất</option>
-                  </Select>
-                </div>
+                <TextField
+                  label="Tìm bài"
+                  size="sm"
+                  type="search"
+                  placeholder="Tên bài, tác giả, tên tệp"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                />
+                <Select
+                  label="Sắp xếp"
+                  size="sm"
+                  value={sort}
+                  onChange={(event) => setSort(event.target.value as Sort)}
+                >
+                  <option value="recent">Mới nhập trước</option>
+                  <option value="title">Tên bài A–Z</option>
+                  <option value="year">Năm mới nhất</option>
+                </Select>
               </div>
-            </header>
-            {loading ? (
-              <div className={styles.libraryLoading} role="status" aria-label="Đang tải danh sách bài báo">
-                {[0, 1, 2].map((row) => (
-                  <div className={styles.skeletonRow} key={row} aria-hidden="true">
-                    <span />
-                    <span />
-                    <span />
-                  </div>
-                ))}
-              </div>
-            ) : !papers.length ? (
-              <p className={styles.libraryEmpty}>Chưa có bài báo nào. Nhập tệp để bắt đầu.</p>
-            ) : !rows.length ? (
-              <p className={styles.libraryEmpty}>Không có bài nào khớp “{search.trim()}”.</p>
-            ) : (
-              <DataTable className={styles.library} scrollClassName={styles.libraryScroll}>
+            )}
+          </div>
+          {!loaded ? (
+            <Loading label="Đang tải danh sách bài báo…" />
+          ) : !papers.length ? (
+            <Empty title="Chưa có bài báo." hint="Kéo thả một tệp PDF vào khung phía trên để bắt đầu." />
+          ) : !rows.length ? (
+            <p>Không có bài nào khớp “{search.trim()}”.</p>
+          ) : (
+            <div className={styles.libraryScroll}>
+              <table className={styles.library}>
                 <thead>
                   <tr>
                     <th scope="col">Bài báo</th>
