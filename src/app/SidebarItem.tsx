@@ -45,5 +45,7 @@ export function SidebarItem({
         {content}
       </NavLink>
     );
-  return <div>{rail ? <Tooltip label={item.label}>{element}</Tooltip> : element}</div>;
+  return (
+    <div>{rail ? <Tooltip label={item.label}>{element}</Tooltip> : element}</div>
+  );
 }

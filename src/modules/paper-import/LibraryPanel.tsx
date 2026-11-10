@@ -134,6 +134,7 @@ export function LibraryPanel() {
         <TextField
           multiline
           rows={4}
+          placeholder={'Ví dụ: 10.1038/s41586-020-2649-2\n10.1145/3368089.3409740'}
           label="Dán DOI, đường dẫn doi.org, hoặc cả đoạn văn có DOI"
           value={text}
           onChange={(event) => setText(event.target.value)}

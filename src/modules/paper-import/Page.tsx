@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowDownUp, Search } from 'lucide-react';
 import { authorsShort, paperIdentity, type PaperIdentity } from '@/core/paperIdentity';
 import type { Paper } from '@/core/schemas';
 import { PaperSizeError } from '@/shared/paper/sizeGuard';
@@ -25,6 +26,7 @@ export default function Page() {
   const navigate = useNavigate();
   const input = useRef<HTMLInputElement>(null);
   const [papers, setPapers] = useState<Paper[]>([]);
+  const [loading, setLoading] = useState(true);
   const [identities, setIdentities] = useState(new Map<string, PaperIdentity>());
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<Sort>('recent');
@@ -36,6 +38,7 @@ export default function Page() {
   const [trigger, setTrigger] = useState<HTMLElement | null>(null);
   const [view, setView] = useState<'papers' | 'library'>('papers');
   const load = useCallback(() => {
+    setLoading(true);
     void Promise.all([repo.papers.list(), repo.paperContext.list(), repo.library.list()])
       .then(([saved, contexts, library]) => {
         setPapers(saved);
@@ -54,7 +57,8 @@ export default function Page() {
       .catch((cause: unknown) => {
         setError('Không thể tải danh sách bài báo.');
         setDetail(String(cause));
-      });
+      })
+      .finally(() => setLoading(false));
   }, [repo]);
   useEffect(() => {
     load();
@@ -129,7 +133,7 @@ export default function Page() {
       {view === 'library' && <LibraryPanel />}
       {view === 'papers' && (
         <>
-          <Card>
+          <Card padding="md">
             <div
               className={styles.drop}
               onDragOver={(event) => event.preventDefault()}
@@ -169,37 +173,56 @@ export default function Page() {
               </div>
             )}
           </Card>
-          <div className={styles.libraryHead}>
-            <h2>Bài báo đã nhập ({papers.length})</h2>
-            {papers.length > 0 && (
-              <div className={styles.libraryTools}>
-                <TextField
-                  label="Tìm bài"
-                  size="sm"
-                  type="search"
-                  placeholder="Tên bài, tác giả, tên tệp"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                />
-                <Select
-                  label="Sắp xếp"
-                  size="sm"
-                  value={sort}
-                  onChange={(event) => setSort(event.target.value as Sort)}
-                >
-                  <option value="recent">Mới nhập trước</option>
-                  <option value="title">Tên bài A–Z</option>
-                  <option value="year">Năm mới nhất</option>
-                </Select>
+          <section className={styles.libraryPanel} aria-labelledby="imported-papers-title" aria-busy={loading}>
+            <header className={styles.libraryToolbar}>
+              <div className={styles.libraryTitle}>
+                <h2 id="imported-papers-title">Bài báo đã nhập</h2>
+                <span className={styles.libraryCount}>{papers.length}</span>
               </div>
-            )}
-          </div>
-          {!papers.length ? (
-            <p>Chưa có bài báo.</p>
-          ) : !rows.length ? (
-            <p>Không có bài nào khớp “{search.trim()}”.</p>
-          ) : (
+              <div className={styles.libraryTools}>
+                <div className={styles.paperSearch}>
+                  <Search size={18} aria-hidden="true" />
+                  <TextField
+                    label="Tìm bài"
+                    size="sm"
+                    type="search"
+                    placeholder="Tên bài, tác giả, tên tệp"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                  />
+                </div>
+                <div className={styles.librarySort}>
+                  <ArrowDownUp size={16} aria-hidden="true" />
+                  <Select
+                    label="Sắp xếp"
+                    className={styles.sortSelect}
+                    size="sm"
+                    value={sort}
+                    onChange={(event) => setSort(event.target.value as Sort)}
+                  >
+                    <option value="recent">Mới nhập trước</option>
+                    <option value="title">Tên bài A–Z</option>
+                    <option value="year">Năm mới nhất</option>
+                  </Select>
+                </div>
+              </div>
+            </header>
             <div className={styles.libraryScroll}>
+              {loading ? (
+                <div className={styles.libraryLoading} role="status" aria-label="Đang tải danh sách bài báo">
+                  {[0, 1, 2].map((row) => (
+                    <div className={styles.skeletonRow} key={row} aria-hidden="true">
+                      <span />
+                      <span />
+                      <span />
+                    </div>
+                  ))}
+                </div>
+              ) : !papers.length ? (
+                <p className={styles.libraryEmpty}>Chưa có bài báo nào. Nhập tệp để bắt đầu.</p>
+              ) : !rows.length ? (
+                <p className={styles.libraryEmpty}>Không có bài nào khớp “{search.trim()}”.</p>
+              ) : (
               <table className={styles.library}>
                 <thead>
                   <tr>
@@ -256,8 +279,9 @@ export default function Page() {
                   ))}
                 </tbody>
               </table>
+              )}
             </div>
-          )}
+          </section>
         </>
       )}
       {deleting && (
