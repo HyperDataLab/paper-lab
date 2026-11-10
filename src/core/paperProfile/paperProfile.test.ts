@@ -217,6 +217,8 @@ describe('D0 paper profile', () => {
       paperDoi: null,
       checked: 2,
       found: 1,
+      retractionChecked: true,
+      metadata: null,
     };
     const retracted = find(
       buildPaperProfile({
@@ -248,6 +250,16 @@ describe('D0 paper profile', () => {
     );
     expect(clean.value('retracted')).toBe('0');
     expect(clean.attention).toBeNull();
+    const metadataOnly = find(
+      buildPaperProfile({
+        paper,
+        analyses: [],
+        scholarly: { ...base, retracted: [], retractionChecked: false },
+      }),
+      'context',
+    );
+    expect(metadataOnly.value('retracted')).toBeNull();
+    expect(metadataOnly.state).toBe('empty');
   });
   it('reports nothing it has not measured', () => {
     const profile = buildPaperProfile({ paper, analyses: [] });

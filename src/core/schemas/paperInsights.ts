@@ -130,6 +130,47 @@ export const ArgumentPendingSchema = z.object({
   model: z.string().nullable(),
   chunks: z.record(z.string(), ArgumentOutputSchema),
 });
+export const SNAPSHOT_FIELDS = [
+  'methods',
+  'outcome',
+  'results',
+  'population',
+  'sample_size',
+  'duration',
+  'location',
+] as const;
+export const SnapshotFieldSchema = z.enum(SNAPSHOT_FIELDS);
+export type SnapshotField = z.infer<typeof SnapshotFieldSchema>;
+export const SnapshotOutputSchema = z.object({
+  fields: z.array(
+    z.object({
+      field: SnapshotFieldSchema,
+      value: z.string().nullable(),
+      paragraphId: z.string().nullable(),
+      quote: z.string().nullable(),
+    }),
+  ),
+});
+export type SnapshotOutput = z.infer<typeof SnapshotOutputSchema>;
+export const SnapshotValueSchema = z.object({
+  id: z.string(),
+  field: SnapshotFieldSchema,
+  /** reported: a value with a verified quote. not_reported: the model found nothing. unverified: a value whose quote could not be found, so it is withheld. */
+  status: z.enum(['reported', 'not_reported', 'unverified']),
+  value: z.string().nullable(),
+  source: SpanSchema.nullable(),
+});
+export const SnapshotRunSchema = z.object({
+  id: z.uuid(),
+  createdAt: z.iso.datetime(),
+  model: z.string(),
+  promptVersion: z.string(),
+  callsUsed: z.number().int().nonnegative(),
+  sectionIds: z.array(z.string()),
+  values: z.array(SnapshotValueSchema),
+});
+export type SnapshotValue = z.infer<typeof SnapshotValueSchema>;
+export type SnapshotRun = z.infer<typeof SnapshotRunSchema>;
 export const InsightDecisionSchema = z.object({
   run_id: z.uuid(),
   item_id: z.string(),
@@ -151,6 +192,7 @@ export const PaperInsightsRecordSchema = z.object({
   rhetoricPending: RhetoricPendingSchema.nullable(),
   argumentRuns: z.array(ArgumentRunSchema).default([]),
   argumentPending: ArgumentPendingSchema.nullable().default(null),
+  snapshotRuns: z.array(SnapshotRunSchema).default([]),
   decisions: z.array(InsightDecisionSchema),
 });
 export type RhetoricItem = z.infer<typeof RhetoricItemSchema>;

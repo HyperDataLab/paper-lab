@@ -343,14 +343,15 @@ const FORMATS: Record<Paper['source']['kind'], string> = {
 function context({ paper, checks, scholarly }: ProfileInput): ProfileDimension {
   const open = openFindings(checks, 'citations_references');
   const stats = referenceStats(referenceList(paper));
-  const retraction = scholarly?.retracted[0];
+  const checked = scholarly?.retractionChecked ? scholarly : undefined;
+  const retraction = checked?.retracted[0];
   return {
     id: 'context',
     letter: 'E',
     title: 'Bối cảnh học thuật và Nguồn gốc',
     question: 'Bài đứng ở đâu trong tri thức hiện có, và dữ liệu đến từ đâu?',
-    state: checks && scholarly ? 'ready' : checks || scholarly ? 'partial' : 'empty',
-    coverage: scholarly ? `Đã tra ${scholarly.found}/${scholarly.checked} DOI trên OpenAlex` : null,
+    state: checks && checked ? 'ready' : checks || checked ? 'partial' : 'empty',
+    coverage: checked ? `Đã tra ${checked.found}/${checked.checked} DOI trên OpenAlex` : null,
     indicators: [
       { id: 'references', label: 'Tài liệu tham khảo', value: String(stats.total), source: 'count' },
       {
@@ -362,7 +363,7 @@ function context({ paper, checks, scholarly }: ProfileInput): ProfileDimension {
       {
         id: 'retracted',
         label: 'Bài bị rút được ghi nhận',
-        value: scholarly ? String(scholarly.retracted.length) : null,
+        value: checked ? String(checked.retracted.length) : null,
         source: 'count',
       },
       { id: 'citations_open', label: 'Phát hiện về trích dẫn còn mở', value: asText(open), source: 'count' },

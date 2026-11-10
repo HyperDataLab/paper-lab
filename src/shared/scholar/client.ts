@@ -9,7 +9,7 @@ import {
   type OaLookup,
   type OpenAlexLookup,
 } from '@/core/library';
-import { mapWorkStatuses, type WorkStatus } from '@/core/scholarlyContext';
+import { mapPaperMetadata, mapWorkStatuses, type WorkStatus } from '@/core/scholarlyContext';
 import { guardPaperSize } from '@/shared/paper/sizeGuard';
 
 type Deps = { fetch: typeof fetch; sleep: (ms: number) => Promise<void> };
@@ -104,6 +104,14 @@ export function createScholarClient(options: { email?: string | null }, deps: De
     }
     return statuses;
   }
-  return { lookupDoi, downloadArxivPdf, workStatuses };
+  /** Null when OpenAlex has no record of the DOI. */
+  async function paperMetadata(doi: string, signal?: AbortSignal) {
+    const work = await getJson(
+      `https://api.openalex.org/works/https://doi.org/${encodeURIComponent(doi)}`,
+      signal,
+    );
+    return work ? mapPaperMetadata(work, new Date().toISOString()) : null;
+  }
+  return { lookupDoi, downloadArxivPdf, workStatuses, paperMetadata };
 }
 export type ScholarClient = ReturnType<typeof createScholarClient>;

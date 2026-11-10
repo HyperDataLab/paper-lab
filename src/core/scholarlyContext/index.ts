@@ -1,7 +1,7 @@
 import { normalizeDoi } from '../library/doi';
 import { referenceEntries, paperReferenceParagraphs } from '../paperChecks/references';
 import type { Located } from '../paperChecks/common';
-import type { Finding, Paper, RetractedWork } from '../schemas';
+import type { Finding, LibraryItem, Paper, PaperMetadata, RetractedWork } from '../schemas';
 
 const DOI_TEXT = /\b10\.\d{4,9}\/[^\s"<>]+/iu;
 const NOT_YEARS = /https?:\/\/\S+|\b10\.\d{4,9}\/\S+|arxiv[:\s]\S+/giu;
@@ -118,4 +118,62 @@ export function retractedWorks(statuses: WorkStatus[], own: string | null): Retr
   return statuses
     .filter((status) => status.isRetracted)
     .map(({ doi, title, year }) => ({ doi, title, year, isPaper: doi === own }));
+}
+
+const text = (value: unknown) => (typeof value === 'string' && value.trim() ? value.trim() : null);
+
+/** One OpenAlex work as the metadata panel shows it. Anything missing stays null rather than guessed. */
+export function mapPaperMetadata(raw: unknown, fetchedAt: string): PaperMetadata | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const work = raw as Record<string, unknown>;
+  const biblio = (work.biblio ?? {}) as Record<string, unknown>;
+  const location = (work.primary_location ?? {}) as Record<string, unknown>;
+  const source = (location.source ?? {}) as Record<string, unknown>;
+  const topic = (work.primary_topic ?? {}) as Record<string, unknown>;
+  const authorships = Array.isArray(work.authorships) ? work.authorships : [];
+  const first = text(biblio.first_page);
+  const last = text(biblio.last_page);
+  return {
+    source: 'openalex',
+    fetchedAt,
+    doi: typeof work.doi === 'string' ? normalizeDoi(work.doi) : null,
+    title: text(work.display_name) ?? text(work.title),
+    type: text(work.type),
+    year: typeof work.publication_year === 'number' ? work.publication_year : null,
+    authors: authorships.flatMap((entry: Record<string, unknown>) => {
+      const name = text((entry.author as Record<string, unknown> | undefined)?.display_name);
+      return name ? [name] : [];
+    }),
+    venue: text(source.display_name),
+    volume: text(biblio.volume),
+    issue: text(biblio.issue),
+    pages: first && last && first !== last ? `${first}–${last}` : first,
+    citedBy: typeof work.cited_by_count === 'number' ? work.cited_by_count : null,
+    topic: text(topic.display_name),
+  };
+}
+
+/** What the DOI library already knows, so the panel works without a lookup. */
+export function metadataFromLibrary(item: LibraryItem, fetchedAt: string): PaperMetadata {
+  return {
+    source: 'library',
+    fetchedAt,
+    doi: item.doi,
+    title: item.title,
+    type: null,
+    year: item.year,
+    authors: item.authors,
+    venue: item.venue,
+    volume: null,
+    issue: null,
+    pages: null,
+    citedBy: null,
+    topic: item.taxonomy?.topic ?? null,
+  };
+}
+
+/** An arXiv file name such as 2605.03202v2.pdf gives the DataCite DOI arXiv registers for it. */
+export function arxivDoiFromFileName(fileName: string) {
+  const id = /^(\d{4}\.\d{4,5})(?:v\d+)?(?:\.pdf)?$/iu.exec(fileName.trim())?.[1];
+  return id ? `10.48550/arxiv.${id}` : null;
 }

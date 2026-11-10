@@ -39,6 +39,7 @@ export const AuditEventSchema = z.object({
     'review_rhetoric',
     'run_argument',
     'review_argument',
+    'run_snapshot',
   ]),
   before: z.unknown().nullable(),
   after: z.unknown().nullable(),

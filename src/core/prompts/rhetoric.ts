@@ -78,3 +78,22 @@ An empty list or null is the right answer for anything the text does not give. N
     user: `<document>\n${documentBody(paragraphs)}\n</document>`,
   };
 }
+
+export function buildSnapshotPrompt(paragraphs: PaperParagraph[]) {
+  return {
+    system: `You fill a short study snapshot from an academic paper. You report what the paper states; you do not judge it.
+${UNTRUSTED}
+
+Return all seven fields once each:
+- methods: the study design or main method, in a few words.
+- outcome: what was measured as the outcome.
+- results: the main finding, in one short sentence.
+- population: who or what was studied.
+- sample_size: how many participants, items or units, with the number as written.
+- duration: how long the study or follow-up lasted.
+- location: where the study or data came from.
+For each field give value (short, in the paper's language), paragraphId and quote: one clause copied exactly from that paragraph that states it.
+If the paper does not state a field, return value, paragraphId and quote as null. Never estimate, convert or combine numbers.`,
+    user: `<document>\n${documentBody(paragraphs)}\n</document>`,
+  };
+}

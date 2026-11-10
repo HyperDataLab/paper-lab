@@ -55,6 +55,8 @@ export function PaperReferences({
           checked: dois.length,
           found: statuses.length,
           retracted: retractedWorks(statuses, paperDoi(paper)),
+          retractionChecked: true,
+          metadata: record?.metadata ?? null,
         }),
       );
     } catch {
@@ -109,7 +111,7 @@ export function PaperReferences({
           status={
             running ? (
               <span role="status">Đang tra cứu OpenAlex…</span>
-            ) : record ? (
+            ) : record?.retractionChecked ? (
               `Tra lúc ${new Date(record.checkedAt).toLocaleString('vi-VN')}: OpenAlex có ${record.found}/${record.checked} DOI.`
             ) : (
               `Sẽ gửi ${dois.length} DOI tới OpenAlex. Nội dung bài không được gửi đi.`
@@ -117,12 +119,12 @@ export function PaperReferences({
           }
         >
           <Button variant="primary" disabled={running || dois.length === 0} onClick={() => void check()}>
-            {record ? 'Tra cứu lại' : 'Kiểm tra rút bài'}
+            {record?.retractionChecked ? 'Tra cứu lại' : 'Kiểm tra rút bài'}
           </Button>
         </ActionBar>
         {error && <p role="alert">{error}</p>}
         {dois.length === 0 && <p>Danh sách tài liệu không có DOI nên chưa kiểm tra được.</p>}
-        {record && record.retracted.length === 0 && (
+        {record?.retractionChecked && record.retracted.length === 0 && (
           <p>
             OpenAlex không ghi nhận bài bị rút trong {record.found} DOI tra được. Tài liệu không có DOI hoặc
             chưa có trên OpenAlex thì chưa được kiểm tra.
