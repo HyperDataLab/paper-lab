@@ -16,7 +16,7 @@ import PaperMapPage from './PaperMapPage';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 const at = '2026-01-01T00:00:00.000Z';
-async function setup() {
+async function setup(modelConfirmed = false) {
   let time = Date.parse(at);
   const repo = createRepositories(
     createDb(`overview-ui-${crypto.randomUUID()}`),
@@ -49,7 +49,7 @@ async function setup() {
     type: 'FUZZY_VERB',
     category: 'word',
     findingKind: 'review_candidate',
-    status: 'candidate',
+    status: modelConfirmed ? 'confirmed_by_model' : 'candidate',
     severity: 'minor',
     spans: [{ start: 0, end: 9, role: 'word' }],
     sentenceIds: ['s1'],
@@ -140,7 +140,10 @@ async function setup() {
     transitions: {
       pairs,
       judgements,
-      findings: transitionFindings(pairs, judgements),
+      findings: transitionFindings(pairs, judgements).map((finding) => ({
+        ...finding,
+        status: modelConfirmed ? 'confirmed_by_model' : finding.status,
+      })),
       model: 'fake',
       promptVersion: 'para-flow-1',
       updatedAt: at,
@@ -226,4 +229,61 @@ it('P3 marks a transition unavailable when its annotations disappear', async () 
   fireEvent.click(screen.getByRole('radio', { name: 'Cấu trúc và mạch' }));
   expect(await screen.findByText('Không còn hợp lệ')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeDisabled();
+});
+
+it('R5 decides writing and transition findings from the unified list', async () => {
+  const { repo, paper } = await setup();
+  fireEvent.click(screen.getByRole('tab', { name: 'Phát hiện' }));
+  const list = await screen.findByRole('region', { name: 'Danh sách phát hiện' });
+  const analyses = await repo.analyses.listByPaper(paper.id);
+  const writing = list.querySelector(`[id="finding-writing:${analyses[0]?.id}:issue"]`);
+  const transition = list.querySelector('[id^="finding-transition:"]');
+  if (!(writing instanceof HTMLElement) || !(transition instanceof HTMLElement))
+    throw new Error('Missing findings');
+  fireEvent.click(within(writing).getByRole('button', { name: 'Xác nhận' }));
+  await within(writing).findByText('Đã xác nhận');
+  expect((await repo.analyses.get(analyses[0]!.id))?.issues[0]?.status).toBe('confirmed_by_human');
+  fireEvent.click(within(transition).getByRole('button', { name: 'Xác nhận' }));
+  await within(transition).findByText('Đã xác nhận');
+  expect((await repo.paperOverviews.get(paper.id))?.transitions?.findings[0]?.status).toBe(
+    'confirmed_by_human',
+  );
+});
+
+it('R5 restores model verdicts after human decisions on writing and transition findings', async () => {
+  const { repo, paper } = await setup(true);
+  fireEvent.click(screen.getByRole('tab', { name: 'Phát hiện' }));
+  const list = await screen.findByRole('region', { name: 'Danh sách phát hiện' });
+  const analyses = await repo.analyses.listByPaper(paper.id);
+  const analysis = analyses[0];
+  if (!analysis) throw new Error('Missing analysis');
+  const writing = list.querySelector(`[id="finding-writing:${analysis.id}:issue"]`);
+  const transition = list.querySelector('[id^="finding-transition:"]');
+  if (!(writing instanceof HTMLElement) || !(transition instanceof HTMLElement))
+    throw new Error('Missing findings');
+  for (const row of [writing, transition]) {
+    fireEvent.click(within(row).getByRole('button', { name: 'Xác nhận' }));
+    await within(row).findByText('Đã xác nhận');
+    fireEvent.click(within(row).getByRole('button', { name: 'Hoàn tác' }));
+    await within(row).findByRole('button', { name: 'Xác nhận' });
+  }
+  expect((await repo.analyses.get(analysis.id))?.issues[0]?.status).toBe('confirmed_by_model');
+  expect((await repo.paperOverviews.get(paper.id))?.transitions?.findings[0]?.status).toBe(
+    'confirmed_by_model',
+  );
+});
+
+it('R5 full reader switches writing marks and shows a margin criterion', async () => {
+  await setup();
+  fireEvent.click(screen.getByRole('tab', { name: 'Đọc bài' }));
+  const layers = await screen.findByRole('group', { name: 'Lớp đánh dấu trên bài' });
+  const writing = within(layers).getByRole('button', { name: /Cách viết/ });
+  expect(writing).toHaveAttribute('aria-pressed', 'false');
+  fireEvent.click(writing);
+  const paragraph = document.querySelector('#paper-paragraph-p1');
+  if (!(paragraph instanceof HTMLElement)) throw new Error('Missing paragraph');
+  await within(paragraph).findByRole('button', { name: /Paragraph/ });
+  expect(paragraph.querySelector('[class*="gutter"] [data-criterion="writing"]')).toBeInTheDocument();
+  fireEvent.click(writing);
+  expect(paragraph.querySelector('[class*="gutter"] [data-criterion="writing"]')).toBeNull();
 });

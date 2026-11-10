@@ -1,3 +1,4 @@
+import { useStoredChanged } from './paperJobs';
 import { useEffect, useRef, useState } from 'react';
 import { LENSES, LensSchema, PROMPT_VERSIONS, type Lens } from '@/core/prompts';
 import { agreement, anchoringRate, mergePanel, panelSimilarity } from '@/core/reviewPanel';
@@ -39,6 +40,7 @@ export function PaperReview({
   onLocation: (anchor: { paragraphId: string; start: number; end: number }) => void;
 }) {
   const repo = useRepositories();
+  const notifyStoredChanged = useStoredChanged();
   const llm = useLlm();
   const [record, setRecord] = useState<PaperReviewsRecord>();
   const [loading, setLoading] = useState(true);
@@ -82,6 +84,7 @@ export function PaperReview({
   async function saveNotes(skip = false) {
     try {
       setRecord(await repo.paperReviews.saveNotes(paper.id, notes, skip));
+      notifyStoredChanged();
       if (skip) setNotes('');
       setError('');
     } catch (cause) {
@@ -134,6 +137,7 @@ export function PaperReview({
         },
       });
       if (!abort.signal.aborted) setRecord(saved);
+      notifyStoredChanged();
     } catch (cause) {
       if (!abort.signal.aborted) setError(String(cause));
     } finally {
@@ -146,6 +150,7 @@ export function PaperReview({
   async function review(id: string, status: ReviewDecision['status'] | 'candidate') {
     try {
       setRecord(await repo.paperReviews.review(paper.id, id, status));
+      notifyStoredChanged();
       setError('');
     } catch (cause) {
       setError(String(cause));

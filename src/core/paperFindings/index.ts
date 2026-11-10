@@ -26,6 +26,7 @@ export interface FindingLocation {
 export interface PaperFinding {
   id: string;
   source: FindingSource;
+  runId?: string;
   criterion: Criterion;
   /** The point in one line. For sentence-level writing issues the reader's label comes from `code`. */
   title: string;
@@ -165,7 +166,7 @@ export function collectFindings(input: FindingInputs): PaperFinding[] {
             : issue.severity === 'moderate'
               ? 'medium'
               : 'low',
-        origin: issue.status === 'candidate' ? 'rule' : 'ai',
+        origin: issue.category === 'flow' || issue.category === 'organization' ? 'ai' : 'rule',
         status: HUMAN[issue.status] ?? 'open',
       });
     }
@@ -201,6 +202,7 @@ export function collectFindings(input: FindingInputs): PaperFinding[] {
       add({
         id: `measurement:${finding.id}`,
         source: 'measurement',
+        runId: measurement.id,
         criterion: 'evidence',
         view: 'measure',
         title: MEASUREMENT_TITLES[finding.type] ?? finding.type,

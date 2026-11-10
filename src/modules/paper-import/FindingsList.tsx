@@ -53,7 +53,7 @@ export function FindingsList({
   focusId: string | null;
   onLocation: (location: FindingLocation) => void;
   onOpenSource: (view: string) => void;
-  /** Present for the sources whose decision can be recorded from here; others are decided in their block. */
+  /** Records a person's decision in the source that found it. */
   onDecide: (finding: PaperFinding, status: FindingStatus) => void;
 }) {
   // Sentence-level writing issues can outnumber everything else, so they start switched off when there is
@@ -204,7 +204,6 @@ export function FindingsList({
             ? (paper.sections.find((item) => item.id === finding.sectionId)?.heading ?? 'Cả bài')
             : null;
         const quote = paragraph && first ? `“${sliceCp(paragraph.text, first.start, first.end)}”` : undefined;
-        const decidable = finding.source === 'checks' || finding.source === 'review';
         return (
           <div key={finding.id} id={`finding-${finding.id}`} className={styles.findingRow}>
             {heading && <h3>{heading}</h3>}
@@ -243,14 +242,12 @@ export function FindingsList({
                     <Button size="sm" variant="ghost" onClick={() => onOpenSource(finding.view)}>
                       Chi tiết
                     </Button>
-                    {decidable && (
-                      <ReviewActions
-                        decided={finding.status !== 'open'}
-                        onConfirm={() => onDecide(finding, 'confirmed')}
-                        onDismiss={() => onDecide(finding, 'dismissed')}
-                        onUndo={() => onDecide(finding, 'open')}
-                      />
-                    )}
+                    <ReviewActions
+                      decided={finding.status !== 'open'}
+                      onConfirm={() => onDecide(finding, 'confirmed')}
+                      onDismiss={() => onDecide(finding, 'dismissed')}
+                      onUndo={() => onDecide(finding, 'open')}
+                    />
                   </>
                 }
               >

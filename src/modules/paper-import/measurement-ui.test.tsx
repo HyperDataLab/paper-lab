@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import PaperMapPage from './PaperMapPage';
 import { webcrypto } from 'node:crypto';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { fixturePaper, fixtureRun, PAPER_ID } from '@/core/measurement/testFixture';
 import { acceptConsent } from '@/shared/llm/consent';
@@ -254,4 +256,33 @@ it('AS-10 opens an atomic sentence, marks it checked, undoes it and tracks progr
   fireEvent.click(screen.getByRole('button', { name: /Claim: Robust/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Câu nguyên tử 1' }));
   expect(screen.getByText('7 từ')).toBeInTheDocument();
+});
+
+it('R5 decides a measurement finding from the unified list', async () => {
+  const repo = createRepositories(createDb(`r5-measure-${crypto.randomUUID()}`));
+  await repo.papers.create(fixturePaper);
+  const run = fixtureRun();
+  await repo.measurements.saveRun(PAPER_ID, run);
+  render(
+    <MemoryRouter initialEntries={[`/papers/${PAPER_ID}`]}>
+      <StorageProvider repositories={repo}>
+        <LlmProvider>
+          <Routes>
+            <Route path="/papers/:id" element={<PaperMapPage />} />
+          </Routes>
+        </LlmProvider>
+      </StorageProvider>
+    </MemoryRouter>,
+  );
+  fireEvent.click(await screen.findByRole('tab', { name: 'Phát hiện' }));
+  const list = await screen.findByRole('region', { name: 'Danh sách phát hiện' });
+  const finding = await within(list).findByText('Chưa thấy nêu seed.');
+  const row = finding.closest('[id^="finding-measurement:"]');
+  if (!(row instanceof HTMLElement)) throw new Error('Missing measurement finding');
+  fireEvent.click(within(row).getByRole('button', { name: 'Xác nhận' }));
+  await within(row).findByText('Đã xác nhận');
+  expect((await repo.measurements.get(PAPER_ID))?.decisions.at(-1)).toMatchObject({
+    run_id: run.id,
+    decision: 'accept',
+  });
 });

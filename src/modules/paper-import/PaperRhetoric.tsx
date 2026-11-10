@@ -1,3 +1,4 @@
+import { useStoredChanged } from './paperJobs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BatchBudgetExceededError } from '@/core/batch/runBatch';
 import {
@@ -63,6 +64,7 @@ export function PaperRhetoric({
   onLocation: (location: Location) => void;
 }) {
   const repo = useRepositories();
+  const notifyStoredChanged = useStoredChanged();
   const llm = useLlm();
   const [record, setRecord] = useState<PaperInsightsRecord>();
   const [loading, setLoading] = useState(true);
@@ -124,6 +126,7 @@ export function PaperRhetoric({
         ),
       );
       setShowSetup(false);
+      notifyStoredChanged();
     } catch (cause) {
       setRecord(await repo.paperInsights.get(paper.id));
       if (!abort.signal.aborted)
@@ -155,7 +158,10 @@ export function PaperRhetoric({
     if (!run) return;
     void repo.paperInsights
       .decide(paper.id, { run_id: run.id, item_id: itemId, decision })
-      .then(setRecord)
+      .then((value) => {
+        setRecord(value);
+        notifyStoredChanged();
+      })
       .catch((cause: unknown) => setError(String(cause)));
   };
   const stateLabel = (id: string) => {

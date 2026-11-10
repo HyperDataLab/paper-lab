@@ -570,7 +570,7 @@ export function createRepositories(
     async reviewTransition(
       paperId: string,
       findingId: string,
-      status: 'confirmed_by_human' | 'dismissed_by_human' | 'candidate',
+      status: 'confirmed_by_human' | 'dismissed_by_human' | 'confirmed_by_model' | 'candidate',
     ) {
       return db.transaction('rw', db.paperOverviews, db.papers, db.analyses, db.auditEvents, async () => {
         const current = await paperOverviews.get(paperId);

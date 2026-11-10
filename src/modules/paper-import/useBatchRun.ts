@@ -1,3 +1,4 @@
+import { useStoredChanged } from './paperJobs';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { runBatch, type BatchSignal } from '@/core/batch';
 import type { Analysis, Paper, PaperRun, RunPlan } from '@/core/schemas';
@@ -21,6 +22,7 @@ async function readableErrors<T>(call: () => Promise<T>): Promise<T> {
 
 export function useBatchRun(paper: Paper) {
   const repo = useRepositories();
+  const notifyStoredChanged = useStoredChanged();
   const { client, config, ensureConsent } = useLlm();
   const [run, setRun] = useState<PaperRun | null>(null);
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
@@ -98,6 +100,7 @@ export function useBatchRun(paper: Paper) {
               ...current,
               transitions: mergeTransitions(old, result, judgedAt),
             });
+            notifyStoredChanged();
           },
           analyze: (...args) => readableErrors(() => analyzer.analyze(...args)),
           analyzeSyntaxBatch: (...args) => readableErrors(() => analyzer.analyzeSyntaxBatch(...args)),
@@ -107,6 +110,7 @@ export function useBatchRun(paper: Paper) {
             await repo.paperRuns.save(next);
             if (next.status === 'running') setRun(next);
             await refresh();
+            notifyStoredChanged();
           },
         },
         signal.current,
