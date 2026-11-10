@@ -40,6 +40,7 @@ export function App() {
   const wideContent =
     location.pathname === '/' ||
     location.pathname === '/evaluate' ||
+    location.pathname === '/extraction' ||
     location.pathname.startsWith('/extraction/') ||
     location.pathname === '/papers' ||
     location.pathname.startsWith('/papers/');

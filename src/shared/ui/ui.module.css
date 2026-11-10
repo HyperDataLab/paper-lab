@@ -115,7 +115,10 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease;
 }
 .selectButton:hover:not(:disabled),
 .selectButton[aria-expanded='true'] {
@@ -293,6 +296,8 @@
 }
 .segments {
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 .toast {
   position: fixed;

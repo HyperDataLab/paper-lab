@@ -7,6 +7,7 @@ import { PaperSizeError } from '@/shared/paper/sizeGuard';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
+import { DataTable } from '@/shared/ui/DataTable';
 import { Dialog } from '@/shared/ui/Dialog';
 import { Select } from '@/shared/ui/Select';
 import { TextField } from '@/shared/ui/TextField';
@@ -173,7 +174,11 @@ export default function Page() {
               </div>
             )}
           </Card>
-          <section className={styles.libraryPanel} aria-labelledby="imported-papers-title" aria-busy={loading}>
+          <section
+            className={styles.libraryPanel}
+            aria-labelledby="imported-papers-title"
+            aria-busy={loading}
+          >
             <header className={styles.libraryToolbar}>
               <div className={styles.libraryTitle}>
                 <h2 id="imported-papers-title">Bài báo đã nhập</h2>
@@ -207,23 +212,22 @@ export default function Page() {
                 </div>
               </div>
             </header>
-            <div className={styles.libraryScroll}>
-              {loading ? (
-                <div className={styles.libraryLoading} role="status" aria-label="Đang tải danh sách bài báo">
-                  {[0, 1, 2].map((row) => (
-                    <div className={styles.skeletonRow} key={row} aria-hidden="true">
-                      <span />
-                      <span />
-                      <span />
-                    </div>
-                  ))}
-                </div>
-              ) : !papers.length ? (
-                <p className={styles.libraryEmpty}>Chưa có bài báo nào. Nhập tệp để bắt đầu.</p>
-              ) : !rows.length ? (
-                <p className={styles.libraryEmpty}>Không có bài nào khớp “{search.trim()}”.</p>
-              ) : (
-              <table className={styles.library}>
+            {loading ? (
+              <div className={styles.libraryLoading} role="status" aria-label="Đang tải danh sách bài báo">
+                {[0, 1, 2].map((row) => (
+                  <div className={styles.skeletonRow} key={row} aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                ))}
+              </div>
+            ) : !papers.length ? (
+              <p className={styles.libraryEmpty}>Chưa có bài báo nào. Nhập tệp để bắt đầu.</p>
+            ) : !rows.length ? (
+              <p className={styles.libraryEmpty}>Không có bài nào khớp “{search.trim()}”.</p>
+            ) : (
+              <DataTable className={styles.library} scrollClassName={styles.libraryScroll}>
                 <thead>
                   <tr>
                     <th scope="col">Bài báo</th>
@@ -278,9 +282,8 @@ export default function Page() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
-              )}
-            </div>
+              </DataTable>
+            )}
           </section>
         </>
       )}

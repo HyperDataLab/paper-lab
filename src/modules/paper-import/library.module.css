@@ -2,8 +2,15 @@
   display: grid;
   gap: var(--space-4);
 }
+.resultsPanel {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
 .actions,
-.filters,
+.statusFilters,
 .bulk,
 .pager,
 .rowActions {
@@ -15,13 +22,46 @@
 .actions {
   margin-top: var(--space-2);
 }
-.filters {
-  align-items: flex-end;
-  margin-bottom: var(--space-3);
+.statusFilters {
+  padding: var(--space-4) var(--space-4) 0;
+}
+.filterControls {
+  display: grid;
+  grid-template-columns: minmax(300px, 1.4fr) repeat(3, minmax(170px, 1fr));
+  align-items: end;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 1280px;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+.queryFilter,
+.facetFilter {
+  min-width: 0;
+}
+.queryFilter > div,
+.facetFilter > div {
+  width: 100%;
+}
+.filterControls label,
+.facetFilter > div > span {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+.queryFilter input {
+  min-height: var(--control-h);
+}
+.filterControls [role='combobox'] {
+  min-height: var(--control-h);
+}
+.resultsPanel > .filterControls {
+  margin: 0;
 }
 .bulk {
+  min-height: var(--control-h);
   border-top: 1px solid var(--border);
-  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-3) var(--space-4);
 }
 .bulk > span:first-child {
   margin-right: auto;
@@ -29,7 +69,15 @@
 }
 .pager {
   justify-content: center;
-  padding-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.tableNote {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
 }
 .note {
   color: var(--text-muted);
@@ -45,15 +93,58 @@
 .scroll {
   overflow-x: auto;
 }
-.table {
-  border-collapse: collapse;
-  width: 100%;
-  font-size: var(--text-sm);
+.libraryTable {
+  min-width: 960px;
+  table-layout: fixed;
 }
-.table th,
-.table td {
-  border-bottom: 1px solid var(--border);
-  padding: var(--space-2);
-  text-align: left;
-  vertical-align: top;
+.libraryTable th:first-child,
+.libraryTable td:first-child {
+  width: 48px;
+}
+.libraryTable th:nth-child(2),
+.libraryTable td:nth-child(2) {
+  width: 46%;
+}
+.libraryTable th:nth-child(3),
+.libraryTable td:nth-child(3) {
+  width: 20%;
+}
+.libraryTable th:nth-child(4),
+.libraryTable td:nth-child(4) {
+  width: 14%;
+}
+.libraryTable td:nth-child(2) > a {
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: none;
+}
+.libraryTable td:nth-child(2) > a:hover {
+  color: var(--accent-hover);
+}
+@media (max-width: 960px) {
+  .filterControls {
+    grid-template-columns: minmax(0, 1.35fr) repeat(3, minmax(120px, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .filterControls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .queryFilter {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 520px) {
+  .filterControls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .queryFilter {
+    grid-column: auto;
+  }
+  .bulk {
+    align-items: flex-start;
+  }
+  .bulk > span:first-child {
+    flex: 1 0 100%;
+  }
 }

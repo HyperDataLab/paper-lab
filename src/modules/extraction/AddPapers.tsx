@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
+import { LoaderCircle } from 'lucide-react';
 import { projectPaperFromLibrary, projectPaperFromPaper } from '@/core/extraction';
 import type { ExtractionProject, LibraryItem, Paper, PaperMetadata, ProjectPaper } from '@/core/schemas';
 import { createScholarClient } from '@/shared/scholar/client';
 import { useRepositories } from '@/shared/storage/StorageProvider';
-import { ActionBar } from '@/shared/ui/ActionBar';
+import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Checkbox } from '@/shared/ui/Checkbox';
 import { Drawer } from '@/shared/ui/Drawer';
@@ -24,6 +25,7 @@ export function AddPapers({
   const [library, setLibrary] = useState<LibraryItem[]>([]);
   const [metadata, setMetadata] = useState(new Map<string, PaperMetadata | null>());
   const [chosen, setChosen] = useState<string[]>([]);
+  const [missingAbstractIds, setMissingAbstractIds] = useState<string[]>([]);
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState('');
   useEffect(() => {
@@ -35,7 +37,11 @@ export function AddPapers({
       },
     );
   }, [repo]);
-  const inProject = (key: string) => project.papers.some((paper) => paper.key === key);
+  const paperInProject = (key: string) => project.papers.find((paper) => paper.key === key);
+  const inProject = (key: string) => Boolean(paperInProject(key));
+  const retryCount = chosen.filter(
+    (key) => paperInProject(key)?.access === 'METADATA_ONLY',
+  ).length;
   const toggle = (key: string, on: boolean) =>
     setChosen((old) => (on ? [...old, key] : old.filter((item) => item !== key)));
   const linked = (paper: Paper) => library.find((item) => item.paper_id === paper.id);
@@ -45,7 +51,7 @@ export function AddPapers({
     setMessage('');
     const client = createScholarClient({});
     const result: ProjectPaper[] = [];
-    let missing = 0;
+    const missing: string[] = [];
     for (const paper of papers)
       if (chosen.includes(`paper:${paper.id}`))
         result.push(projectPaperFromPaper(paper, linked(paper), metadata.get(paper.id)));
@@ -57,71 +63,129 @@ export function AddPapers({
       } catch {
         abstract = null;
       }
-      if (!abstract) missing++;
+      if (!abstract) missing.push(item.id);
       result.push(projectPaperFromLibrary(item, abstract));
     }
     setWorking(false);
     onAdd(result);
-    if (missing) setMessage(`${missing} bài không lấy được tóm tắt, chỉ có metadata.`);
+    setChosen([]);
+    setMissingAbstractIds(missing);
+    if (missing.length)
+      setMessage(`${missing.length} bài không lấy được tóm tắt; bài lỗi đã được đánh dấu trong danh sách.`);
     else onClose();
   }
   return (
     <Drawer open onClose={onClose} label="Thêm bài" side="right">
-      <div className={styles.drawer}>
-        <header className={styles.drawerHead}>
-          <h2>Thêm bài</h2>
+      <div className={`${styles.drawer} ${styles.addPapersDrawer}`}>
+        <header className={styles.addPaperHeader}>
+          <div>
+            <h2>Thêm bài vào project</h2>
+            <p>Chọn bài toàn văn hoặc abstract để đưa vào bảng trích xuất.</p>
+          </div>
           <Button variant="ghost" size="sm" onClick={onClose}>
             Đóng
           </Button>
         </header>
-        <section>
-          <h3>Bài đã nhập (đọc toàn văn)</h3>
-          {papers.length === 0 && <p className={styles.note}>Chưa có bài nào được nhập.</p>}
-          {papers.map((paper) => {
-            const key = `paper:${paper.id}`;
-            return (
-              <Checkbox
-                key={key}
-                disabled={inProject(key)}
-                checked={inProject(key) || chosen.includes(key)}
-                onChange={(event) => toggle(key, event.target.checked)}
-              >
-                {projectPaperFromPaper(paper, linked(paper), metadata.get(paper.id)).title}
-              </Checkbox>
-            );
-          })}
-        </section>
-        <section>
-          <h3>Thư viện DOI chưa có tệp (đọc tóm tắt)</h3>
-          {fileless.length === 0 && <p className={styles.note}>Không có DOI nào chưa có tệp.</p>}
-          {fileless.map((item) => {
-            const key = `library:${item.id}`;
-            return (
-              <Checkbox
-                key={key}
-                disabled={inProject(key)}
-                checked={inProject(key) || chosen.includes(key)}
-                onChange={(event) => toggle(key, event.target.checked)}
-              >
-                {item.title ?? item.doi} {item.year ? `(${item.year})` : ''}
-              </Checkbox>
-            );
-          })}
-        </section>
-        <ActionBar
-          status={
-            working ? (
-              <span role="status">Đang lấy tóm tắt từ OpenAlex…</span>
+        <div className={styles.paperSections}>
+          <section className={styles.paperGroup} aria-labelledby="imported-paper-group">
+            <header className={styles.paperGroupHead}>
+              <h3 id="imported-paper-group">Bài đã nhập</h3>
+              <span>Đọc toàn văn · {papers.length}</span>
+            </header>
+            {papers.length === 0 ? (
+              <p className={styles.groupEmpty}>Chưa có bài nào được nhập.</p>
             ) : (
-              `Đã chọn ${chosen.length} bài. Với DOI, chỉ DOI được gửi tới OpenAlex.`
-            )
-          }
-        >
-          <Button variant="primary" disabled={!chosen.length || working} onClick={() => void add()}>
-            Thêm vào project
+              <ul className={styles.paperOptions}>
+                {papers.map((paper) => {
+                  const key = `paper:${paper.id}`;
+                  return (
+                    <li className={styles.paperOption} key={key}>
+                      <Checkbox
+                        disabled={inProject(key)}
+                        checked={inProject(key) || chosen.includes(key)}
+                        onChange={(event) => toggle(key, event.target.checked)}
+                      >
+                        <span className={styles.paperOptionText}>
+                          {projectPaperFromPaper(paper, linked(paper), metadata.get(paper.id)).title}
+                        </span>
+                      </Checkbox>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+          <section className={styles.paperGroup} aria-labelledby="doi-paper-group">
+            <header className={styles.paperGroupHead}>
+              <h3 id="doi-paper-group">Thư viện DOI chưa có tệp</h3>
+              <span>Đọc abstract · {fileless.length}</span>
+            </header>
+            {fileless.length === 0 ? (
+              <p className={styles.groupEmpty}>Không có DOI nào chưa có tệp.</p>
+            ) : (
+              <ul className={styles.paperOptions}>
+                {fileless.map((item) => {
+                  const key = `library:${item.id}`;
+                  const existingPaper = paperInProject(key);
+                  const abstractMissing =
+                    existingPaper?.access === 'METADATA_ONLY' || missingAbstractIds.includes(item.id);
+                  const alreadyAvailable = Boolean(existingPaper) && !abstractMissing;
+                  return (
+                    <li
+                      className={`${styles.paperOption} ${
+                        abstractMissing ? styles.paperOptionWarning : ''
+                      }`}
+                      key={key}
+                    >
+                      <Checkbox
+                        disabled={alreadyAvailable}
+                        checked={alreadyAvailable || chosen.includes(key)}
+                        onChange={(event) => toggle(key, event.target.checked)}
+                      >
+                        <span className={styles.paperOptionContent}>
+                          <span className={styles.paperOptionText}>
+                            {item.title ?? item.doi} {item.year ? `(${item.year})` : ''}
+                          </span>
+                          {abstractMissing && (
+                            <Badge tone="warning">
+                              {missingAbstractIds.includes(item.id)
+                                ? 'Không lấy được abstract · Có thể thử lại'
+                                : 'Chưa có abstract · Có thể thử lại'}
+                            </Badge>
+                          )}
+                        </span>
+                      </Checkbox>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        </div>
+        <footer className={styles.addPaperFooter}>
+          {message ? (
+            <p className={styles.addPaperMessage} role="status">
+              {message}
+            </p>
+          ) : null}
+          <div className={styles.addPaperStatus}>
+            <strong>{working ? 'Đang lấy abstract…' : `Đã chọn ${chosen.length} bài`}</strong>
+            <span>Với DOI, chỉ mã DOI được gửi tới OpenAlex.</span>
+          </div>
+          <Button
+            className={styles.addPaperButton}
+            variant="primary"
+            disabled={!chosen.length || working}
+            onClick={() => void add()}
+          >
+            {working && <LoaderCircle className={styles.spinner} size={16} aria-hidden="true" />}
+            {working
+              ? 'Đang thêm…'
+              : retryCount > 0 && retryCount === chosen.length
+                ? 'Thử lại abstract'
+                : 'Thêm vào project'}
           </Button>
-        </ActionBar>
-        {message && <p role="status">{message}</p>}
+        </footer>
       </div>
     </Drawer>
   );

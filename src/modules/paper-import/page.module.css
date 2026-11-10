@@ -15,7 +15,9 @@
   border-radius: var(--radius-lg);
   padding: var(--space-4) var(--space-5);
   text-align: left;
-  transition: border-color 180ms ease, background-color 180ms ease;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease;
 }
 .drop:hover {
   border-color: var(--accent);
@@ -445,7 +447,9 @@
   padding-left: calc(var(--space-8) + var(--space-1));
   border-radius: var(--radius);
   background: var(--surface);
-  transition: border-color 180ms ease, box-shadow 180ms ease;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease;
 }
 .paperSearch input:hover:not(:disabled) {
   border-color: var(--accent);
@@ -485,18 +489,8 @@
   background: var(--surface);
 }
 .library {
-  width: 100%;
   min-width: 880px;
   table-layout: fixed;
-  border-collapse: collapse;
-  font-size: var(--text-sm);
-}
-.library th,
-.library td {
-  padding: var(--space-3);
-  border-bottom: 1px solid var(--border);
-  text-align: left;
-  vertical-align: top;
   overflow-wrap: anywhere;
 }
 .library th:nth-child(1),
@@ -529,23 +523,6 @@
 }
 .library td:nth-child(6) button {
   white-space: nowrap;
-}
-.library thead th {
-  color: var(--text-muted);
-  font-weight: 500;
-  background: var(--bg);
-  font-size: var(--text-xs);
-  letter-spacing: 0.025em;
-}
-.library tbody tr:last-child th,
-.library tbody tr:last-child td {
-  border-bottom: 0;
-}
-.library tbody tr:hover {
-  background: var(--soft);
-}
-.library tbody tr {
-  transition: background-color 160ms ease;
 }
 .library tbody th {
   min-width: 0;
