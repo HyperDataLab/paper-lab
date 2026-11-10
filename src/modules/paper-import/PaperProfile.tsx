@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { buildPaperProfile, type DimensionState, type ProfileView } from '@/core/paperProfile';
-import type { Analysis, MeasurementsRecord, Paper, PaperChecksRecord, StanceRecord } from '@/core/schemas';
+import type {
+  Analysis,
+  MeasurementsRecord,
+  Paper,
+  PaperChecksRecord,
+  PaperContextRecord,
+  StanceRecord,
+} from '@/core/schemas';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Stat } from '@/shared/ui/ActionBar';
 import { Badge } from '@/shared/ui/Badge';
@@ -30,14 +37,20 @@ export function PaperProfile({
   const repo = useRepositories();
   const [measurement, setMeasurement] = useState<MeasurementsRecord>();
   const [stance, setStance] = useState<StanceRecord>();
+  const [scholarly, setScholarly] = useState<PaperContextRecord>();
   const [error, setError] = useState('');
   useEffect(() => {
     let active = true;
-    void Promise.all([repo.measurements.get(paper.id), repo.stance.get(paper.id)])
-      .then(([savedMeasurement, savedStance]) => {
+    void Promise.all([
+      repo.measurements.get(paper.id),
+      repo.stance.get(paper.id),
+      repo.paperContext.get(paper.id),
+    ])
+      .then(([savedMeasurement, savedStance, savedScholarly]) => {
         if (!active) return;
         setMeasurement(savedMeasurement);
         setStance(savedStance);
+        setScholarly(savedScholarly);
       })
       .catch((cause: unknown) => {
         if (active) setError(String(cause));
@@ -47,8 +60,8 @@ export function PaperProfile({
     };
   }, [paper.id, repo]);
   const dimensions = useMemo(
-    () => buildPaperProfile({ paper, analyses, checks, measurement, stance }),
-    [paper, analyses, checks, measurement, stance],
+    () => buildPaperProfile({ paper, analyses, checks, measurement, stance, scholarly }),
+    [paper, analyses, checks, measurement, stance, scholarly],
   );
   return (
     <section aria-label="Hồ sơ bài báo" className={styles.profile}>

@@ -1,0 +1,155 @@
+import { useEffect, useMemo, useState } from 'react';
+import type { Finding, Paper, PaperContextRecord } from '@/core/schemas';
+import {
+  doisToCheck,
+  paperDoi,
+  RECENT_YEARS,
+  referenceList,
+  referenceStats,
+  retractedWorks,
+} from '@/core/scholarlyContext';
+import { createScholarClient } from '@/shared/scholar/client';
+import { useRepositories } from '@/shared/storage/StorageProvider';
+import { ActionBar, Stat, StatGrid } from '@/shared/ui/ActionBar';
+import { Badge } from '@/shared/ui/Badge';
+import { Button } from '@/shared/ui/Button';
+import { Card } from '@/shared/ui/Card';
+import { FindingCard } from '@/shared/ui/FindingCard';
+import styles from './page.module.css';
+
+export function PaperReferences({
+  paper,
+  onLocation,
+}: {
+  paper: Paper;
+  onLocation: (location: Finding['locations'][number]) => void;
+}) {
+  const repo = useRepositories();
+  const items = useMemo(() => referenceList(paper), [paper]);
+  const stats = useMemo(() => referenceStats(items), [items]);
+  const dois = useMemo(() => doisToCheck(paper, items), [paper, items]);
+  const [record, setRecord] = useState<PaperContextRecord>();
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let active = true;
+    void repo.paperContext.get(paper.id).then((saved) => {
+      if (active) setRecord(saved);
+    });
+    return () => {
+      active = false;
+    };
+  }, [paper.id, repo]);
+  async function check() {
+    setRunning(true);
+    setError('');
+    try {
+      // The email is for Unpaywall only, so this client is created without it.
+      const statuses = await createScholarClient({}).workStatuses(dois);
+      setRecord(
+        await repo.paperContext.save({
+          schemaVersion: 1,
+          paperId: paper.id,
+          checkedAt: new Date().toISOString(),
+          paperDoi: paperDoi(paper),
+          checked: dois.length,
+          found: statuses.length,
+          retracted: retractedWorks(statuses, paperDoi(paper)),
+        }),
+      );
+    } catch {
+      setError('Không tra cứu được OpenAlex. Vui lòng thử lại.');
+    } finally {
+      setRunning(false);
+    }
+  }
+  const locationOf = (doi: string) => items.find((item) => item.doi === doi)?.location ?? null;
+  return (
+    <>
+      <Card>
+        <h2>Danh sách tài liệu</h2>
+        <StatGrid>
+          <Stat value={stats.total} label="Tài liệu tham khảo" />
+          <Stat
+            value={stats.withYear ? `${Math.round((stats.recent / stats.withYear) * 100)} %` : '—'}
+            label={`Trong ${RECENT_YEARS} năm tính đến năm mới nhất được trích`}
+          />
+          <Stat value={stats.median ?? '—'} label="Năm trung vị" />
+          <Stat value={stats.newest ?? '—'} label="Năm mới nhất được trích" />
+          <Stat value={stats.withDoi} label="Tài liệu có DOI" />
+        </StatGrid>
+        <p className={styles.tabHelp}>
+          Năm được ước tính từ nội dung từng mục. {stats.total - stats.withYear} mục không đọc được năm nên
+          không tính vào tỷ lệ.
+        </p>
+        {stats.buckets.length > 0 && (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th scope="col">Giai đoạn</th>
+                <th scope="col">Số tài liệu</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.buckets.map((bucket) => (
+                <tr key={bucket.from}>
+                  <td>
+                    {bucket.from}–{bucket.to}
+                  </td>
+                  <td>{bucket.count}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
+      <Card>
+        <h2>Tình trạng rút bài</h2>
+        <ActionBar
+          status={
+            running ? (
+              <span role="status">Đang tra cứu OpenAlex…</span>
+            ) : record ? (
+              `Tra lúc ${new Date(record.checkedAt).toLocaleString('vi-VN')}: OpenAlex có ${record.found}/${record.checked} DOI.`
+            ) : (
+              `Sẽ gửi ${dois.length} DOI tới OpenAlex. Nội dung bài không được gửi đi.`
+            )
+          }
+        >
+          <Button variant="primary" disabled={running || dois.length === 0} onClick={() => void check()}>
+            {record ? 'Tra cứu lại' : 'Kiểm tra rút bài'}
+          </Button>
+        </ActionBar>
+        {error && <p role="alert">{error}</p>}
+        {dois.length === 0 && <p>Danh sách tài liệu không có DOI nên chưa kiểm tra được.</p>}
+        {record && record.retracted.length === 0 && (
+          <p>
+            OpenAlex không ghi nhận bài bị rút trong {record.found} DOI tra được. Tài liệu không có DOI hoặc
+            chưa có trên OpenAlex thì chưa được kiểm tra.
+          </p>
+        )}
+        <div className={styles.findingList}>
+          {record?.retracted.map((work) => {
+            const location = locationOf(work.doi);
+            return (
+              <FindingCard
+                key={work.doi}
+                labels={
+                  <Badge tone="danger">
+                    {work.isPaper ? 'Bài này đã bị rút' : 'Tài liệu trích đã bị rút'}
+                  </Badge>
+                }
+                source={location ? { label: 'Xem trong bài', onOpen: () => onLocation(location) } : undefined}
+              >
+                <p>
+                  {work.title ?? 'Không rõ nhan đề'}
+                  {work.year ? ` (${work.year})` : ''} · {work.doi}
+                </p>
+              </FindingCard>
+            );
+          })}
+        </div>
+      </Card>
+    </>
+  );
+}

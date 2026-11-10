@@ -126,6 +126,46 @@ const find = (dimensions: ReturnType<typeof buildPaperProfile>, id: DimensionId)
 };
 
 describe('D0 paper profile', () => {
+  it('puts a retraction first and treats a clean lookup as zero', () => {
+    const base = {
+      schemaVersion: 1 as const,
+      paperId,
+      checkedAt: at,
+      paperDoi: null,
+      checked: 2,
+      found: 1,
+    };
+    const retracted = find(
+      buildPaperProfile({
+        paper,
+        analyses: [],
+        checks,
+        scholarly: { ...base, retracted: [{ doi: '10.1/x', title: 'Bad', year: 2020, isPaper: false }] },
+      }),
+      'context',
+    );
+    expect(retracted.state).toBe('ready');
+    expect(retracted.value('retracted')).toBe('1');
+    expect(retracted.attention).toContain('Bad');
+    expect(retracted.coverage).toBe('Đã tra 1/2 DOI trên OpenAlex');
+    const self = find(
+      buildPaperProfile({
+        paper,
+        analyses: [],
+        scholarly: { ...base, retracted: [{ doi: '10.1/x', title: null, year: null, isPaper: true }] },
+      }),
+      'context',
+    );
+    expect(self.state).toBe('partial');
+    expect(self.attention).toContain('Bài này');
+    expect(self.attention).toContain('10.1/x');
+    const clean = find(
+      buildPaperProfile({ paper, analyses: [], scholarly: { ...base, retracted: [] } }),
+      'context',
+    );
+    expect(clean.value('retracted')).toBe('0');
+    expect(clean.attention).toBeNull();
+  });
   it('reports nothing it has not measured, and marks argumentation as not built', () => {
     const profile = buildPaperProfile({ paper, analyses: [] });
     expect(profile.map((item) => item.letter)).toEqual(['A', 'B', 'C', 'D', 'E']);
@@ -173,6 +213,7 @@ describe('D0 paper profile', () => {
     const context = find(buildPaperProfile({ paper, analyses: [], checks }), 'context');
     expect(context.value('citations_open')).toBe('1');
     expect(context.value('references')).toBe('1');
+    expect(context.value('retracted')).toBeNull();
     expect(context.value('source_format')).toBe('PDF');
     expect(context.attention).toContain('1 phát hiện');
   });

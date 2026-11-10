@@ -27,6 +27,8 @@ import {
   MeasurementsRecordSchema,
   LibraryItemSchema,
   StanceRecordSchema,
+  PaperContextRecordSchema,
+  type PaperContextRecord,
   CalibrationLabelsSchema,
   CalibrationLabelSetSchema,
 } from '@/core/schemas';
@@ -481,6 +483,7 @@ export function createRepositories(
           db.measurements,
           db.library,
           db.stance,
+          db.paperContext,
           db.reviewNgrams,
           db.auditEvents,
         ],
@@ -493,6 +496,7 @@ export function createRepositories(
             await db.paperProbes.delete(id);
             await db.measurements.delete(id);
             await db.stance.delete(id);
+            await db.paperContext.delete(id);
             await db.library
               .where('paper_id')
               .equals(id)
@@ -673,6 +677,18 @@ export function createRepositories(
   const measurements = createMeasurementsRepository(db, now, makeAudit);
   const library = createLibraryRepository(db, now, ids);
   const stance = createStanceRepository(db, now, makeAudit);
+  // A cheap lookup that can be repeated, so like paper runs it is not part of the export.
+  const paperContext = {
+    async get(paperId: string) {
+      const row = await db.paperContext.get(paperId);
+      return row ? PaperContextRecordSchema.parse(row) : undefined;
+    },
+    async save(input: PaperContextRecord) {
+      const value = PaperContextRecordSchema.parse(input);
+      await db.paperContext.put(value);
+      return value;
+    },
+  };
   const calibrationLabels = {
     async import(sourceFileName: string, data: unknown) {
       const parsed = CalibrationLabelsSchema.parse(data);
@@ -1006,6 +1022,7 @@ export function createRepositories(
     measurements,
     library,
     stance,
+    paperContext,
     calibrationLabels,
     transfer,
   };

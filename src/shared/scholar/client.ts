@@ -9,6 +9,7 @@ import {
   type OaLookup,
   type OpenAlexLookup,
 } from '@/core/library';
+import { mapWorkStatuses, type WorkStatus } from '@/core/scholarlyContext';
 import { guardPaperSize } from '@/shared/paper/sizeGuard';
 
 type Deps = { fetch: typeof fetch; sleep: (ms: number) => Promise<void> };
@@ -21,6 +22,7 @@ export class ScholarHttpError extends Error {
     super(`HTTP ${status}`);
   }
 }
+const STATUS_BATCH = 50;
 export type LookupOutcome = { found: true; patch: LookupPatch } | { found: false };
 
 export function createScholarClient(options: { email?: string | null }, deps: Deps = defaults) {
@@ -83,6 +85,25 @@ export function createScholarClient(options: { email?: string | null }, deps: De
       throw new Error('arXiv không trả về tệp PDF.');
     return new File([data], name, { type: 'application/pdf' });
   }
-  return { lookupDoi, downloadArxivPdf };
+  /** Only DOIs leave the browser. A DOI missing from the answer is unknown to OpenAlex, not cleared. */
+  async function workStatuses(dois: string[], signal?: AbortSignal) {
+    const statuses: WorkStatus[] = [];
+    for (let start = 0; start < dois.length; start += STATUS_BATCH) {
+      const filter = dois
+        .slice(start, start + STATUS_BATCH)
+        .map(encodeURIComponent)
+        .join('|');
+      statuses.push(
+        ...mapWorkStatuses(
+          await getJson(
+            `https://api.openalex.org/works?filter=doi:${filter}&select=doi,title,publication_year,is_retracted&per-page=${STATUS_BATCH}`,
+            signal,
+          ),
+        ),
+      );
+    }
+    return statuses;
+  }
+  return { lookupDoi, downloadArxivPdf, workStatuses };
 }
 export type ScholarClient = ReturnType<typeof createScholarClient>;

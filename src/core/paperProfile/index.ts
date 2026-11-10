@@ -1,6 +1,14 @@
 import { reviewedProfile } from '../measurement/review';
 import { paperAnalyses } from '../paperOverview/aggregatePaper';
-import type { Analysis, MeasurementsRecord, Paper, PaperChecksRecord, StanceRecord } from '../schemas';
+import type {
+  Analysis,
+  MeasurementsRecord,
+  Paper,
+  PaperChecksRecord,
+  PaperContextRecord,
+  StanceRecord,
+} from '../schemas';
+import { RECENT_YEARS, referenceList, referenceStats } from '../scholarlyContext';
 import { stanceMetrics } from '../stance';
 
 /** The place in the paper page that answers an indicator. */
@@ -13,7 +21,8 @@ export type ProfileView =
   | 'stance'
   | 'writing-checks'
   | 'probe'
-  | 'context-checks';
+  | 'context-checks'
+  | 'context-references';
 
 export type DimensionId = 'science' | 'argument' | 'discourse' | 'writing' | 'context';
 export type DimensionState = 'empty' | 'partial' | 'ready' | 'not_built';
@@ -47,6 +56,7 @@ export interface ProfileInput {
   checks?: PaperChecksRecord;
   measurement?: MeasurementsRecord;
   stance?: StanceRecord;
+  scholarly?: PaperContextRecord;
 }
 
 const decimal = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 });
@@ -255,28 +265,41 @@ const FORMATS: Record<Paper['source']['kind'], string> = {
   text: 'Văn bản',
 };
 
-function context({ paper, checks }: ProfileInput): ProfileDimension {
+function context({ paper, checks, scholarly }: ProfileInput): ProfileDimension {
   const open = openFindings(checks, 'citations_references');
+  const stats = referenceStats(referenceList(paper));
+  const retraction = scholarly?.retracted[0];
   return {
     id: 'context',
     letter: 'E',
     title: 'Bối cảnh học thuật và Nguồn gốc',
     question: 'Bài đứng ở đâu trong tri thức hiện có, và dữ liệu đến từ đâu?',
-    state: checks ? 'partial' : 'empty',
-    coverage: null,
+    state: checks && scholarly ? 'ready' : checks || scholarly ? 'partial' : 'empty',
+    coverage: scholarly ? `Đã tra ${scholarly.found}/${scholarly.checked} DOI trên OpenAlex` : null,
     indicators: [
+      { id: 'references', label: 'Tài liệu tham khảo', value: String(stats.total), source: 'count' },
       {
-        id: 'references',
-        label: 'Mục tài liệu tham khảo (ước tính)',
-        value: String(paper.paragraphs.filter((p) => p.kind === 'reference').length),
+        id: 'references_recent',
+        label: `Trong ${RECENT_YEARS} năm tính đến năm mới nhất được trích`,
+        value: percent(stats.recent, stats.withYear),
+        source: 'count',
+      },
+      {
+        id: 'retracted',
+        label: 'Bài bị rút được ghi nhận',
+        value: scholarly ? String(scholarly.retracted.length) : null,
         source: 'count',
       },
       { id: 'citations_open', label: 'Phát hiện về trích dẫn còn mở', value: asText(open), source: 'count' },
       { id: 'source_format', label: 'Định dạng nguồn', value: FORMATS[paper.source.kind], source: 'count' },
     ],
-    attention: open ? `${open} phát hiện về trích dẫn và tài liệu tham khảo chưa được xử lý.` : null,
-    planned: ['Độ mới của tài liệu', 'Tình trạng rút bài', 'Chức năng trích dẫn', 'Định vị đóng góp'],
-    target: 'context-checks',
+    attention: retraction
+      ? `${retraction.isPaper ? 'Bài này' : 'Một tài liệu được trích'} được OpenAlex ghi nhận là đã rút: ${retraction.title ?? retraction.doi}.`
+      : open
+        ? `${open} phát hiện về trích dẫn và tài liệu tham khảo chưa được xử lý.`
+        : null,
+    planned: ['Chức năng trích dẫn', 'Định vị đóng góp'],
+    target: 'context-references',
   };
 }
 
