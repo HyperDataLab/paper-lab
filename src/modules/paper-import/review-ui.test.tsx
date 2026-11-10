@@ -116,6 +116,8 @@ it('P5 reveals reviews after skip, filters and audits decisions, and navigates t
   await waitFor(() => expect(completeJson).toHaveBeenCalledTimes(5));
   await waitFor(async () => expect((await repo.paperReviews.get(paper.id))?.runs).toHaveLength(1));
   expect(screen.queryByText(/Tỷ lệ neo trích dẫn/)).not.toBeInTheDocument();
+  // The reader is told a result exists and how to reveal it, instead of seeing nothing.
+  expect(await screen.findByText(/Đã có kết quả phản biện của AI/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ qua bước này' }));
   expect(await screen.findByText('5/10')).toBeInTheDocument();
   expect(

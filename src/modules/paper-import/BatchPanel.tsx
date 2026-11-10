@@ -8,6 +8,7 @@ import { TextField } from '@/shared/ui/TextField';
 import type { useBatchRun } from './useBatchRun';
 import { mainBodySections, usePaperScope, useRunBudget } from './paperScope';
 import { RunSetup } from './RunSetup';
+import { useReportJob } from './paperJobs';
 import styles from './page.module.css';
 
 const steps: { id: BatchStep; label: string }[] = [
@@ -33,6 +34,13 @@ export function BatchPanel({ paper, batch }: { paper: Paper; batch: ReturnType<t
   const running = run?.status === 'running';
   const [editing, setEditing] = useState(false);
   const showSetup = (!run || editing) && !running;
+  useReportJob('batch', {
+    running,
+    done: Boolean(run) && !running && !['paused', 'budget_exceeded', 'failed'].includes(run?.status ?? ''),
+    estimate: plan.total,
+    ready: batch.loaded,
+    start: plan.withinBudget && plan.paragraphs.length ? () => batch.start(plan) : null,
+  });
   return (
     <Card>
       <div className={styles.sectionHead}>

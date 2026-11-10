@@ -23,6 +23,7 @@ import { Select } from '@/shared/ui/Select';
 import { Tree, type TreeNode } from '@/shared/ui/Tree';
 import { usePaperScope, useRunBudget } from './paperScope';
 import { RunSetup } from './RunSetup';
+import { useReportJob } from './paperJobs';
 import styles from './measurement.module.css';
 import { Loading } from '@/shared/ui/StateNote';
 
@@ -134,6 +135,13 @@ export function PaperStance({
   const decisions = useMemo(() => record?.decisions ?? [], [record]);
   const metrics = useMemo(() => (run ? stanceMetrics(run, decisions) : undefined), [run, decisions]);
   const states = useMemo(() => (run ? stanceStates(run, decisions) : new Map()), [run, decisions]);
+  useReportJob('stance', {
+    running,
+    done: Boolean(run) && !record?.pending,
+    estimate,
+    ready: !loading,
+    start: () => start(false),
+  });
   if (loading) return <Loading label="Đang tải phân tích giọng văn…" />;
 
   const heading = (id: string) => paper.sections.find((section) => section.id === id)?.heading ?? id;

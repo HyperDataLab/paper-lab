@@ -11,6 +11,7 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { ReviewActions } from '@/shared/ui/FindingCard';
 import { placeLabel } from './paperLabels';
+import { useReportJob } from './paperJobs';
 import styles from './snapshot.module.css';
 
 const LABELS: Record<SnapshotField, string> = {
@@ -35,10 +36,13 @@ export function PaperSnapshot({
   const [record, setRecord] = useState<PaperInsightsRecord>();
   const [running, setRunning] = useState(false);
   const [error, setError] = useState('');
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     let active = true;
     void repo.paperInsights.get(paper.id).then((value) => {
-      if (active) setRecord(value);
+      if (!active) return;
+      setRecord(value);
+      setLoaded(true);
     });
     return () => {
       active = false;
@@ -69,6 +73,7 @@ export function PaperSnapshot({
       .then(setRecord)
       .catch((cause: unknown) => setError(String(cause)));
   };
+  useReportJob('snapshot', { running, done: Boolean(run), estimate: 1, ready: loaded, start });
   return (
     <Card>
       <h2>Snapshot</h2>
