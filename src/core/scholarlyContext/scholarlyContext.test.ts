@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Paper } from '../schemas';
 import {
+  arxivDoiFromFileName,
+  mapPaperMetadata,
+  metadataFromLibrary,
   doisToCheck,
   mapWorkStatuses,
   paperDoi,
@@ -124,5 +127,68 @@ describe('D1 scholarly context', () => {
     ]);
     expect(mapWorkStatuses(null)).toEqual([]);
     expect(mapWorkStatuses({ results: 'x' })).toEqual([]);
+  });
+  it('maps an OpenAlex work for the metadata panel and leaves gaps empty', () => {
+    const value = mapPaperMetadata(
+      {
+        doi: 'https://doi.org/10.1162/TACL.A.616',
+        display_name: 'Cross-layer',
+        type: 'article',
+        publication_year: 2024,
+        authorships: [{ author: { display_name: 'A. Mu' } }, { author: {} }],
+        primary_location: { source: { display_name: 'TACL' } },
+        biblio: { volume: '14', issue: null, first_page: '10', last_page: '20' },
+        cited_by_count: 8,
+        primary_topic: { display_name: 'NLP' },
+      },
+      '2026-01-01T00:00:00.000Z',
+    );
+    expect(value).toMatchObject({
+      doi: '10.1162/tacl.a.616',
+      title: 'Cross-layer',
+      year: 2024,
+      authors: ['A. Mu'],
+      venue: 'TACL',
+      volume: '14',
+      issue: null,
+      pages: '10–20',
+      citedBy: 8,
+      topic: 'NLP',
+    });
+    expect(
+      mapPaperMetadata({ biblio: { first_page: '5', last_page: '5' } }, '2026-01-01T00:00:00.000Z')?.pages,
+    ).toBe('5');
+    expect(mapPaperMetadata(null, '2026-01-01T00:00:00.000Z')).toBeNull();
+  });
+  it('uses what the DOI library already holds', () => {
+    const value = metadataFromLibrary(
+      {
+        schemaVersion: 1,
+        id: '00000000-0000-4000-8000-000000000003',
+        doi: '10.1/x',
+        addedAt: at,
+        updatedAt: at,
+        lookup: 'done',
+        title: 'T',
+        authors: ['A'],
+        year: 2020,
+        venue: 'V',
+        access: 'unknown',
+        oa_sources: [],
+        arxiv_id: null,
+        taxonomy: null,
+        openalex_id: null,
+        paper_id: null,
+        file_matches_title: null,
+        error: null,
+      },
+      at,
+    );
+    expect(value).toMatchObject({ source: 'library', doi: '10.1/x', title: 'T', topic: null, citedBy: null });
+  });
+  it('reads an arXiv DOI from an arXiv file name only', () => {
+    expect(arxivDoiFromFileName('2605.03202v2.pdf')).toBe('10.48550/arxiv.2605.03202');
+    expect(arxivDoiFromFileName('1909.01234')).toBe('10.48550/arxiv.1909.01234');
+    expect(arxivDoiFromFileName('paper-2024.pdf')).toBeNull();
   });
 });

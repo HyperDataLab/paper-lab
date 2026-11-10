@@ -58,14 +58,15 @@ Measurement quality targets (PRD §12) are not measured yet: they need a gold st
 
 Hồ sơ organises the paper page by question: Khoa học, Lập luận, Diễn ngôn, Viết học thuật, Bối cảnh. Indicators are in `core/paperProfile`.
 
-| #   | Slice                                                                       | Status |
-| --- | --------------------------------------------------------------------------- | ------ |
-| D0  | Hồ sơ from existing data, tabs by dimension, evidence drawer                | ✅     |
-| D1  | Bối cảnh: reference age and retraction status from metadata                 | ✅     |
-| D2  | Viết học thuật: vocabulary, repeated phrases, comparison baseline           | ✅     |
-| D3  | Khoa học: validity threats, data and code; Diễn ngôn: moves, Abstract match | ✅     |
-| D4  | Lập luận: Toulmin and AIF, built natively in PaperLab                       | ✅     |
-| D5  | Measure indicator quality against human labels                              | ⬜     |
+| #   | Slice                                                                                   | Status |
+| --- | --------------------------------------------------------------------------------------- | ------ |
+| D0  | Hồ sơ from existing data, tabs by dimension, evidence drawer                            | ✅     |
+| D1  | Bối cảnh: reference age and retraction status from metadata                             | ✅     |
+| D2  | Viết học thuật: vocabulary, repeated phrases, comparison baseline                       | ✅     |
+| D3  | Khoa học: validity threats, data and code; Diễn ngôn: moves, Abstract match             | ✅     |
+| D4  | Lập luận: Toulmin and AIF, built natively in PaperLab                                   | ✅     |
+| D5  | Measure indicator quality against human labels                                          | ⬜     |
+| SM  | Snapshot (7 attributes with verified quotes) and Metadata (OpenAlex or the DOI library) | ✅     |
 
 ## Open decisions
 

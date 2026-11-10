@@ -11,7 +11,9 @@ import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { Tabs } from '@/shared/ui/Tabs';
 import { EvidencePanel } from './EvidencePanel';
 import { PaperArguments } from './PaperArguments';
+import { PaperMetadata } from './PaperMetadata';
 import { PaperProfile } from './PaperProfile';
+import { PaperSnapshot } from './PaperSnapshot';
 import { PaperReferences } from './PaperReferences';
 import { PaperRhetoric } from './PaperRhetoric';
 import { PaperVocabulary } from './PaperVocabulary';
@@ -29,8 +31,17 @@ import type { ReactNode } from 'react';
 import { Transparency } from '@/shared/report/Transparency';
 import { captureCalibration } from '@/shared/calibration/data';
 
-type ViewId = 'profile' | 'map' | 'review' | ProfileView;
-const GROUPS: { id: string; label: string; views: { id: ProfileView; label: string }[] }[] = [
+type ViewId = 'profile' | 'snapshot' | 'metadata' | 'map' | 'review' | ProfileView;
+const GROUPS: { id: string; label: string; views: { id: ViewId; label: string }[] }[] = [
+  {
+    id: 'profile',
+    label: 'Hồ sơ',
+    views: [
+      { id: 'profile', label: '5 chiều' },
+      { id: 'snapshot', label: 'Snapshot' },
+      { id: 'metadata', label: 'Metadata' },
+    ],
+  },
   {
     id: 'science',
     label: 'A. Khoa học',
@@ -84,6 +95,8 @@ const CHECKS_OF: Partial<Record<ViewId, string[]>> = {
   'context-checks': ['citations_references'],
 };
 const VIEW_HELP: Record<ViewId, string> = {
+  snapshot: 'Bảy thông tin cốt lõi của nghiên cứu, mỗi giá trị kèm câu trích trong bài.',
+  metadata: 'Thông tin xuất bản của bài từ OpenAlex hoặc Thư viện DOI.',
   toulmin:
     'Luận điểm của tác giả và các thành phần theo Toulmin. Mô tả cấu trúc, không kết luận đúng hay sai.',
   aif: 'Tiền đề dẫn tới kết luận qua bước suy luận nào, và bị phản bác ở đâu.',
@@ -267,10 +280,19 @@ export default function PaperMapPage() {
           <>
             <div className={styles.paperTabs}>
               <Tabs label="Bài báo">
-                {tabButton('profile', 'Hồ sơ')}
+                {GROUPS.slice(0, 1).map((group) => (
+                  <Button
+                    key={group.id}
+                    role="tab"
+                    aria-selected={activeGroup?.id === group.id}
+                    onClick={() => setTab(group.views[0]?.id ?? 'profile')}
+                  >
+                    {group.label}
+                  </Button>
+                ))}
                 {tabButton('map', 'Đọc bài')}
                 <span className={styles.tabDivider} aria-hidden="true" />
-                {GROUPS.map((group) => (
+                {GROUPS.slice(1).map((group) => (
                   <Button
                     key={group.id}
                     role="tab"
@@ -302,6 +324,10 @@ export default function PaperMapPage() {
             />
             {tab === 'profile' ? (
               <PaperProfile paper={paper} analyses={batch.analyses} checks={checks} onOpen={setTab} />
+            ) : tab === 'snapshot' ? (
+              <PaperSnapshot paper={paper} onLocation={openLocation} />
+            ) : tab === 'metadata' ? (
+              <PaperMetadata paper={paper} />
             ) : tab === 'toulmin' || tab === 'aif' ? (
               <PaperArguments paper={paper} view={tab} onLocation={openLocation} key={tab} />
             ) : tab === 'reporting' || tab === 'moves' ? (

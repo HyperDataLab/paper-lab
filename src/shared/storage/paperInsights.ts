@@ -4,6 +4,7 @@ import {
   InsightDecisionSchema,
   PaperInsightsRecordSchema,
   RhetoricRunSchema,
+  SnapshotRunSchema,
   type ArgumentPending,
   type ArgumentRun,
   type AuditEvent,
@@ -11,6 +12,7 @@ import {
   type PaperInsightsRecord,
   type RhetoricPending,
   type RhetoricRun,
+  type SnapshotRun,
 } from '@/core/schemas';
 import type { ParagraphDb } from './db';
 
@@ -31,6 +33,7 @@ export function createPaperInsightsRepository(
     rhetoricPending: null,
     argumentRuns: [],
     argumentPending: null,
+    snapshotRuns: [],
     decisions: [],
   });
   async function requirePaper(paperId: string) {
@@ -112,13 +115,30 @@ export function createPaperInsightsRepository(
         return value;
       });
     },
+    async saveSnapshotRun(paperId: string, input: SnapshotRun) {
+      const run = SnapshotRunSchema.parse(input);
+      return db.transaction('rw', [db.papers, db.paperInsights, db.auditEvents], async () => {
+        await requirePaper(paperId);
+        const previous = (await get(paperId)) ?? empty(paperId);
+        const at = now();
+        const value = PaperInsightsRecordSchema.parse({
+          ...previous,
+          updatedAt: at,
+          snapshotRuns: [...previous.snapshotRuns, run],
+        });
+        await db.paperInsights.put(value);
+        await audit(paperId, 'run_snapshot', at, { runId: run.id });
+        return value;
+      });
+    },
     async decide(paperId: string, input: Omit<InsightDecision, 'at'>) {
       return db.transaction('rw', [db.papers, db.paperInsights, db.auditEvents], async () => {
         await requirePaper(paperId);
         const previous = await get(paperId);
         if (!previous) throw new Error('Run not found');
         const isArgument = previous.argumentRuns.some((run) => run.id === input.run_id);
-        if (!isArgument && !previous.rhetoricRuns.some((run) => run.id === input.run_id))
+        const isSnapshot = previous.snapshotRuns.some((run) => run.id === input.run_id);
+        if (!isArgument && !isSnapshot && !previous.rhetoricRuns.some((run) => run.id === input.run_id))
           throw new Error('Run not found');
         const at = now();
         const decision = InsightDecisionSchema.parse({ ...input, at });

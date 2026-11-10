@@ -22,6 +22,7 @@ export const PROMPT_VERSIONS = {
   rhetoric: 'rhetoric-1',
   abstractAlignment: 'abstract-align-1',
   argument: 'argument-1',
+  snapshot: 'snapshot-1',
 } as const;
 export const CONNECTION_TEST_SYSTEM = 'You are a connection test. Return the requested JSON object.';
 export const CONNECTION_TEST_USER =

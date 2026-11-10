@@ -127,3 +127,15 @@ it('D1 asks OpenAlex for DOIs only, in batches, and never sends the email', asyn
   expect(s.calls.join('')).not.toContain('example.org');
   expect(statuses[0]).toEqual({ doi: '10.1000/a', title: 'A', year: 2020, isRetracted: true });
 });
+
+it('asks OpenAlex for one paper by DOI and reports an unknown DOI as null', async () => {
+  const s = setup({
+    'doi.org%2F': () => json({}, 404),
+    openalex: () => json({ display_name: 'P', publication_year: 2024 }),
+  });
+  const found = await client(s).paperMetadata('10.1/x');
+  expect(s.calls[0]).toContain('works/https://doi.org/10.1%2Fx');
+  expect(found).toMatchObject({ title: 'P', year: 2024, source: 'openalex' });
+  const missing = setup({});
+  expect(await client(missing).paperMetadata('10.1/y')).toBeNull();
+});
