@@ -28,6 +28,7 @@ import {
   LibraryItemSchema,
   StanceRecordSchema,
   PaperContextRecordSchema,
+  PaperInsightsRecordSchema,
   type PaperContextRecord,
   CalibrationLabelsSchema,
   CalibrationLabelSetSchema,
@@ -45,6 +46,7 @@ import { createPaperProbesRepository } from './paperProbes';
 import { createMeasurementsRepository } from './measurements';
 import { createLibraryRepository } from './library';
 import { createStanceRepository } from './stance';
+import { createPaperInsightsRepository } from './paperInsights';
 export class SourceImmutableError extends Error {
   override name = 'SourceImmutableError';
 }
@@ -484,6 +486,7 @@ export function createRepositories(
           db.library,
           db.stance,
           db.paperContext,
+          db.paperInsights,
           db.reviewNgrams,
           db.auditEvents,
         ],
@@ -497,6 +500,7 @@ export function createRepositories(
             await db.measurements.delete(id);
             await db.stance.delete(id);
             await db.paperContext.delete(id);
+            await db.paperInsights.delete(id);
             await db.library
               .where('paper_id')
               .equals(id)
@@ -677,6 +681,7 @@ export function createRepositories(
   const measurements = createMeasurementsRepository(db, now, makeAudit);
   const library = createLibraryRepository(db, now, ids);
   const stance = createStanceRepository(db, now, makeAudit);
+  const paperInsights = createPaperInsightsRepository(db, now, makeAudit);
   // A cheap lookup that can be repeated, so like paper runs it is not part of the export.
   const paperContext = {
     async get(paperId: string) {
@@ -748,6 +753,7 @@ export function createRepositories(
         (await db.measurements.toArray()).map((value) => MeasurementsRecordSchema.parse(value)),
         await library.list(),
         (await db.stance.toArray()).map((value) => StanceRecordSchema.parse(value)),
+        (await db.paperInsights.toArray()).map((value) => PaperInsightsRecordSchema.parse(value)),
       );
     },
     async previewImport(raw: unknown) {
@@ -827,6 +833,7 @@ export function createRepositories(
           db.measurements,
           db.library,
           db.stance,
+          db.paperInsights,
           db.reviewNgrams,
           db.calibrationLabels,
         ],
@@ -984,6 +991,12 @@ export function createRepositories(
             if (!existing || record.updatedAt > existing.updatedAt)
               await db.stance.put(StanceRecordSchema.parse(record));
           }
+          for (const record of plan.paperInsights) {
+            if (!(await db.papers.get(record.paperId))) continue;
+            const existing = await paperInsights.get(record.paperId);
+            if (!existing || record.updatedAt > existing.updatedAt)
+              await db.paperInsights.put(PaperInsightsRecordSchema.parse(record));
+          }
           for (const record of plan.library) {
             const existing = await db.library.where('doi').equals(record.doi).first();
             if (existing && record.updatedAt <= existing.updatedAt) continue;
@@ -1023,6 +1036,7 @@ export function createRepositories(
     library,
     stance,
     paperContext,
+    paperInsights,
     calibrationLabels,
     transfer,
   };

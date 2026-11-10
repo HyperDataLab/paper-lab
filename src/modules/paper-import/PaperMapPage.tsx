@@ -12,6 +12,7 @@ import { Tabs } from '@/shared/ui/Tabs';
 import { EvidencePanel } from './EvidencePanel';
 import { PaperProfile } from './PaperProfile';
 import { PaperReferences } from './PaperReferences';
+import { PaperRhetoric } from './PaperRhetoric';
 import { PaperVocabulary } from './PaperVocabulary';
 import { PaperProbe } from './PaperProbe';
 import { PaperReader } from './PaperReader';
@@ -34,6 +35,7 @@ const GROUPS: { id: string; label: string; views: { id: ProfileView; label: stri
     label: 'A. Khoa học',
     views: [
       { id: 'measure', label: 'Đo lường' },
+      { id: 'reporting', label: 'Validity và dữ liệu' },
       { id: 'science-checks', label: 'Kiểm tra số liệu' },
     ],
   },
@@ -42,6 +44,7 @@ const GROUPS: { id: string; label: string; views: { id: ProfileView; label: stri
     label: 'C. Diễn ngôn',
     views: [
       { id: 'organization', label: 'Cấu trúc và mạch' },
+      { id: 'moves', label: 'Moves và Tóm tắt' },
       { id: 'discourse-checks', label: 'Hình và bảng' },
     ],
   },
@@ -77,6 +80,9 @@ const VIEW_HELP: Record<ViewId, string> = {
   map: 'Đọc bài theo mục lục, xem bảng và đoạn gốc.',
   measure: 'Bài báo đo gì, bằng metric nào, dưới protocol nào, và kết quả ra sao.',
   'science-checks': 'Đối chiếu tự động số liệu và khẳng định trong bài. Không dùng AI.',
+  reporting:
+    'Tác giả nêu giới hạn validity nào và có công bố dữ liệu, code không. Mô tả việc báo cáo, không kết luận bài đúng hay sai.',
+  moves: 'Bài dẫn dắt người đọc thế nào và Tóm tắt có khớp nội dung không.',
   organization: 'Cách đoạn văn được tổ chức và nối với nhau. Không phải điểm của bài báo.',
   'discourse-checks': 'Hình và bảng có được nhắc đến và đánh số đúng không. Không dùng AI.',
   language: 'Cấu trúc câu và lựa chọn từ theo từng mục. Không phải điểm của bài báo.',
@@ -297,6 +303,8 @@ export default function PaperMapPage() {
             />
             {tab === 'profile' ? (
               <PaperProfile paper={paper} analyses={batch.analyses} checks={checks} onOpen={setTab} />
+            ) : tab === 'reporting' || tab === 'moves' ? (
+              <PaperRhetoric paper={paper} focus={tab} onLocation={openLocation} key={tab} />
             ) : tab === 'vocabulary' ? (
               <PaperVocabulary paper={paper} onLocation={openLocation} />
             ) : tab === 'context-references' ? (

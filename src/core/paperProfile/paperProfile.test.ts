@@ -126,6 +126,43 @@ const find = (dimensions: ReturnType<typeof buildPaperProfile>, id: DimensionId)
 };
 
 describe('D0 paper profile', () => {
+  it('shows validity, availability, moves and abstract support once analysed', () => {
+    const span = { sectionId: 'i', page: 1, start: 0, end: 1, excerpt: 'x', rationale: 'r' };
+    const item = (id: string, category: string) => ({ ...span, id, paragraphId: 'p1', category });
+    const insights = {
+      schemaVersion: 1,
+      paperId,
+      updatedAt: at,
+      rhetoricPending: null,
+      decisions: [],
+      rhetoricRuns: [
+        {
+          id: runId,
+          createdAt: at,
+          model: 'm',
+          promptVersion: 'p',
+          callsUsed: 1,
+          sectionIds: [],
+          failedSectionIds: [],
+          discarded: { not_found: 0, duplicate: 0 },
+          items: [item('a', 'threat_external'), item('b', 'data_availability'), item('c', 'niche')],
+          abstractChecked: true,
+          abstractClaims: [
+            { id: 'x', claim: span, support: span, rationale: 'r' },
+            { id: 'y', claim: span, support: null, rationale: 'r' },
+          ],
+        },
+      ],
+    } as unknown as Parameters<typeof buildPaperProfile>[0]['insights'];
+    const profile = buildPaperProfile({ paper, analyses: [], insights });
+    expect(find(profile, 'science').value('validity_threats')).toBe('1/4');
+    expect(find(profile, 'science').value('availability')).toBe('Có nêu / Chưa thấy');
+    expect(find(profile, 'discourse').value('cars_moves')).toBe('1/3');
+    expect(find(profile, 'discourse').value('abstract_supported')).toBe('1/2');
+    const empty = buildPaperProfile({ paper, analyses: [] });
+    expect(find(empty, 'science').value('validity_threats')).toBeNull();
+    expect(find(empty, 'discourse').value('abstract_supported')).toBeNull();
+  });
   it('puts a retraction first and treats a clean lookup as zero', () => {
     const base = {
       schemaVersion: 1 as const,

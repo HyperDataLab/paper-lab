@@ -19,7 +19,7 @@ it('P7 migrates existing databases and round trips imported labels and audit in 
   const db = createDb(name);
   const repo = createRepositories(db);
   expect(await repo.calibrationLabels.list()).toEqual([]);
-  expect(db.verno).toBe(14);
+  expect(db.verno).toBe(15);
   const data = {
     format: 'paragraph-lab-labels',
     version: 1,

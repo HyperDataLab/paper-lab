@@ -6,6 +6,7 @@ import type {
   Paper,
   PaperChecksRecord,
   PaperContextRecord,
+  PaperInsightsRecord,
   StanceRecord,
 } from '@/core/schemas';
 import { useRepositories } from '@/shared/storage/StorageProvider';
@@ -38,6 +39,7 @@ export function PaperProfile({
   const [measurement, setMeasurement] = useState<MeasurementsRecord>();
   const [stance, setStance] = useState<StanceRecord>();
   const [scholarly, setScholarly] = useState<PaperContextRecord>();
+  const [insights, setInsights] = useState<PaperInsightsRecord>();
   const [error, setError] = useState('');
   useEffect(() => {
     let active = true;
@@ -45,12 +47,14 @@ export function PaperProfile({
       repo.measurements.get(paper.id),
       repo.stance.get(paper.id),
       repo.paperContext.get(paper.id),
+      repo.paperInsights.get(paper.id),
     ])
-      .then(([savedMeasurement, savedStance, savedScholarly]) => {
+      .then(([savedMeasurement, savedStance, savedScholarly, savedInsights]) => {
         if (!active) return;
         setMeasurement(savedMeasurement);
         setStance(savedStance);
         setScholarly(savedScholarly);
+        setInsights(savedInsights);
       })
       .catch((cause: unknown) => {
         if (active) setError(String(cause));
@@ -60,8 +64,8 @@ export function PaperProfile({
     };
   }, [paper.id, repo]);
   const dimensions = useMemo(
-    () => buildPaperProfile({ paper, analyses, checks, measurement, stance, scholarly }),
-    [paper, analyses, checks, measurement, stance, scholarly],
+    () => buildPaperProfile({ paper, analyses, checks, measurement, stance, scholarly, insights }),
+    [paper, analyses, checks, measurement, stance, scholarly, insights],
   );
   return (
     <section aria-label="Hồ sơ bài báo" className={styles.profile}>
