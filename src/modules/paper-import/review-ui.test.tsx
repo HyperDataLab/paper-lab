@@ -145,18 +145,20 @@ it('P5 reveals reviews after skip, filters and audits decisions, and navigates t
   expect(screen.getByText('Không có nhận xét phù hợp.')).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Khía cạnh'), { target: { value: 'soundness' } });
   fireEvent.change(screen.getByLabelText('Góc nhìn'), { target: { value: 'methods_skeptic' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
-  await screen.findByText('Đã xác nhận');
-  fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Bỏ qua' }));
-  await screen.findByText('Đã bỏ qua');
-  fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }));
+  // The unified list above shows the same points; these are the controls inside the review block.
+  const block = within(screen.getByRole('region', { name: 'Phản biện AI' }));
+  fireEvent.click(block.getByRole('button', { name: 'Xác nhận' }));
+  await block.findByText('Đã xác nhận');
+  fireEvent.click(block.getByRole('button', { name: 'Hoàn tác' }));
+  fireEvent.click(await block.findByRole('button', { name: 'Bỏ qua' }));
+  await block.findByText('Đã bỏ qua');
+  fireEvent.click(block.getByRole('button', { name: 'Hoàn tác' }));
   await waitFor(async () =>
     expect(
       (await repo.audit.listByAnalysis(paper.id)).items.filter((event) => event.action === 'review_point'),
     ).toHaveLength(4),
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Methods' }));
+  fireEvent.click(block.getByRole('button', { name: 'Methods' }));
   expect(
     screen.getByText('The method was described for all readers', { selector: 'mark' }),
   ).toBeInTheDocument();

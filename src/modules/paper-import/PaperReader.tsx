@@ -11,6 +11,8 @@ import { Tree, type TreeNode } from '@/shared/ui/Tree';
 import { BatchParagraphStatus } from './BatchParagraphStatus';
 import { PaperTableView } from './PaperTableView';
 import { SECTION_ROLE_LABELS } from './sectionRoles';
+import { MarkedText } from './MarkedText';
+import type { PaperMark } from '@/core/paperFindings';
 import styles from './page.module.css';
 import type { useBatchRun } from './useBatchRun';
 
@@ -61,6 +63,8 @@ export function PaperReader({
   candidateCounts,
   batch,
   onEditRole,
+  marks = [],
+  onMark,
 }: {
   paper: Paper;
   selected: string;
@@ -71,6 +75,9 @@ export function PaperReader({
   candidateCounts: Record<string, number>;
   batch: ReturnType<typeof useBatchRun>;
   onEditRole: (role: Section['role']) => void;
+  /** Marks to draw on the text, already limited to the layers that are on. */
+  marks?: PaperMark[];
+  onMark?: (mark: PaperMark) => void;
 }) {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -129,15 +136,12 @@ export function PaperReader({
           />
         ) : null}
         <p className={item.table && !marked ? styles.hidden : styles.reading}>
-          {marked ? (
-            <>
-              {Array.from(item.text).slice(0, marked.start).join('')}
-              <mark>{Array.from(item.text).slice(marked.start, marked.end).join('')}</mark>
-              {Array.from(item.text).slice(marked.end).join('')}
-            </>
-          ) : (
-            item.text
-          )}
+          <MarkedText
+            text={item.text}
+            marks={marks.filter((mark) => mark.paragraphId === item.id)}
+            selected={marked}
+            onMark={onMark}
+          />
         </p>
         <BatchParagraphStatus
           item={batchItem}
