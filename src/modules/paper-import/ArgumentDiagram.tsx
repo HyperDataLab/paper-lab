@@ -19,16 +19,16 @@ import styles from './argument.module.css';
 
 type Span = Argument['claim'];
 const ROLES: Record<DiagramRole, string> = {
-  claim: 'Luận điểm',
-  data: 'Dữ liệu',
-  warrant: 'Lý lẽ nối',
-  backing: 'Hậu thuẫn',
-  qualifier: 'Giới hạn',
-  rebuttal: 'Phản biện',
-  premise: 'Tiền đề',
-  conclusion: 'Kết luận',
-  ra: 'Suy luận',
-  ca: 'Phản bác',
+  claim: 'Claim',
+  data: 'Grounds',
+  warrant: 'Warrant',
+  backing: 'Backing',
+  qualifier: 'Qualifier',
+  rebuttal: 'Rebuttal',
+  premise: 'Premise',
+  conclusion: 'Conclusion',
+  ra: 'Inference',
+  ca: 'Conflict',
 };
 const ZOOMS = [0.6, 0.8, 1, 1.25, 1.5];
 const PAD = 12;
@@ -166,7 +166,7 @@ export function ArgumentDiagram({
         {node.inferred && <Badge tone="warning">AI suy ra</Badge>}
       </div>
       {node.missing ? (
-        <p className={styles.dMissing}>Chưa xác định</p>
+        <p className={styles.dMissing}>Not identified</p>
       ) : (
         <p className={styles.dText} title={node.text ?? undefined}>
           {node.text}

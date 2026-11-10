@@ -167,14 +167,14 @@ async function setup(modelConfirmed = false) {
       </StorageProvider>
     </MemoryRouter>,
   );
-  await screen.findByRole('tab', { name: 'Đọc bài' });
+  await screen.findByRole('tab', { name: 'Full text' });
   return { repo, paper };
 }
 it('P3 shows distributions, recurring filters, transition review and stale notice', async () => {
   const { repo, paper } = await setup();
-  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
-  fireEvent.click(screen.getByRole('radio', { name: 'Câu và từ' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
@@ -183,9 +183,9 @@ it('P3 shows distributions, recurring filters, transition review and stale notic
   fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc đoạn' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chấm điểm' }));
   expect(screen.getByText('Chuyển đoạn: ~1 lượt gọi AI')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
-  fireEvent.click(screen.getByRole('radio', { name: 'Cấu trúc và mạch' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Paragraph structure & flow' }));
   expect(await screen.findByText('Đã phân tích 3/4 đoạn (75 %)')).toBeInTheDocument();
   expect(screen.getByText(/Kết quả chuyển đoạn đã cũ/)).toBeInTheDocument();
   expect(screen.getAllByText('Chưa đủ dữ liệu').length).toBeGreaterThan(0);
@@ -204,19 +204,19 @@ it('P3 shows distributions, recurring filters, transition review and stale notic
   expect(
     (await repo.audit.listByAnalysis(paper.id)).items.filter((e) => e.action === 'review_transition'),
   ).toHaveLength(3);
-  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
-  fireEvent.click(screen.getByRole('radio', { name: 'Câu và từ' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   expect(await screen.findByText('62,5 (56,25–68,75, n = 2)')).toBeInTheDocument();
   fireEvent.click(await screen.findByRole('button', { name: /Động từ chưa cụ thể · 3 lần/ }));
-  expect(screen.getByRole('tab', { name: 'Đọc bài' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'Full text' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByText('Paragraph 1.')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('treeitem', { name: /Results/ }));
   expect(screen.getByText('Paragraph 3.')).toBeInTheDocument();
   expect(screen.queryByText('Paragraph 4.')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ lọc' }));
   expect(screen.getByText('Paragraph 4.')).toBeInTheDocument();
-  expect(within(screen.getByRole('tablist', { name: 'Bài báo' })).getAllByRole('tab')).toHaveLength(4);
+  expect(within(screen.getByRole('tablist', { name: 'Bài báo' })).getAllByRole('tab')).toHaveLength(5);
 });
 it('P3 marks a transition unavailable when its annotations disappear', async () => {
   const { repo, paper } = await setup();
@@ -224,17 +224,17 @@ it('P3 marks a transition unavailable when its annotations disappear', async () 
   const first = analyses.find((item) => item.origin?.kind === 'paper' && item.origin.paragraphId === 'p1');
   if (!first) throw new Error('Missing analysis');
   await repo.analyses.update(first.id, { sentenceAnnotations: [] });
-  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
-  fireEvent.click(screen.getByRole('radio', { name: 'Cấu trúc và mạch' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Paragraph structure & flow' }));
   expect(await screen.findByText('Không còn hợp lệ')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeDisabled();
 });
 
 it('R5 decides writing and transition findings from the unified list', async () => {
   const { repo, paper } = await setup();
-  fireEvent.click(screen.getByRole('tab', { name: 'Phát hiện' }));
-  const list = await screen.findByRole('region', { name: 'Danh sách phát hiện' });
+  fireEvent.click(screen.getByRole('tab', { name: 'Issues' }));
+  const list = await screen.findByRole('region', { name: 'Issues' });
   const analyses = await repo.analyses.listByPaper(paper.id);
   const writing = list.querySelector(`[id="finding-writing:${analyses[0]?.id}:issue"]`);
   const transition = list.querySelector('[id^="finding-transition:"]');
@@ -252,8 +252,8 @@ it('R5 decides writing and transition findings from the unified list', async () 
 
 it('R5 restores model verdicts after human decisions on writing and transition findings', async () => {
   const { repo, paper } = await setup(true);
-  fireEvent.click(screen.getByRole('tab', { name: 'Phát hiện' }));
-  const list = await screen.findByRole('region', { name: 'Danh sách phát hiện' });
+  fireEvent.click(screen.getByRole('tab', { name: 'Issues' }));
+  const list = await screen.findByRole('region', { name: 'Issues' });
   const analyses = await repo.analyses.listByPaper(paper.id);
   const analysis = analyses[0];
   if (!analysis) throw new Error('Missing analysis');
@@ -275,9 +275,9 @@ it('R5 restores model verdicts after human decisions on writing and transition f
 
 it('R5 full reader switches writing marks and shows a margin criterion', async () => {
   await setup();
-  fireEvent.click(screen.getByRole('tab', { name: 'Đọc bài' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Full text' }));
   const layers = await screen.findByRole('group', { name: 'Lớp đánh dấu trên bài' });
-  const writing = within(layers).getByRole('button', { name: /Cách viết/ });
+  const writing = within(layers).getByRole('button', { name: /Writing/ });
   expect(writing).toHaveAttribute('aria-pressed', 'false');
   fireEvent.click(writing);
   const paragraph = document.querySelector('#paper-paragraph-p1');

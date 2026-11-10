@@ -44,7 +44,7 @@ const insights = {
 it("R3 shows the author's main claim with what it rests on, and labels an inferred warrant as not the author's", () => {
   const onLocation = vi.fn();
   render(<PaperSummary paper={paper} insights={insights} onLocation={onLocation} onOpen={vi.fn()} />);
-  const claims = screen.getByRole('region', { name: /Luận điểm chính/ });
+  const claims = screen.getByRole('region', { name: /Main claims/ });
   expect(within(claims).getByText('“X improves Y.”').tagName).toBe('STRONG');
   expect(within(claims).getByText('“Y rose 12%.”')).toBeInTheDocument();
   expect(within(claims).getByText('AI suy ra, không phải lời tác giả')).toBeInTheDocument();
@@ -56,13 +56,13 @@ it("R3 shows the author's main claim with what it rests on, and labels an inferr
 it('R3 offers to open an analysis that has not run instead of showing an empty summary', () => {
   const onOpen = vi.fn();
   render(<PaperSummary paper={paper} insights={insights} onLocation={vi.fn()} onOpen={onOpen} />);
-  const question = screen.getByRole('region', { name: /Tác giả hỏi gì và đóng góp gì/ });
+  const question = screen.getByRole('region', { name: /Research gap & contribution/ });
   expect(within(question).getByText('Chưa phân tích cách tác giả dẫn dắt.')).toBeInTheDocument();
   fireEvent.click(within(question).getByRole('button', { name: 'Mở để phân tích' }));
   expect(onOpen).toHaveBeenCalledWith('moves');
-  const facts = screen.getByRole('region', { name: /Thông tin cốt lõi/ });
+  const facts = screen.getByRole('region', { name: /Key facts/ });
   fireEvent.click(within(facts).getByRole('button', { name: 'Mở để phân tích' }));
   expect(onOpen).toHaveBeenCalledWith('snapshot');
   // With nothing run at all, the limits section is simply absent.
-  expect(screen.queryByRole('region', { name: /Giới hạn tác giả nêu/ })).toBeNull();
+  expect(screen.queryByRole('region', { name: /Stated limitations/ })).toBeNull();
 });

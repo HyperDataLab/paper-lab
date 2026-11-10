@@ -114,10 +114,10 @@ it('R6 a section run from the findings table reads only that section and keeps t
       </StorageProvider>
     </MemoryRouter>,
   );
-  const list = await screen.findByRole('region', { name: 'Danh sách phát hiện' });
-  fireEvent.click(within(list).getByText('Bảng mục × tiêu chí'));
-  fireEvent.click(await within(list).findByRole('button', { name: 'Chạy cho mục Results: Cách viết' }));
-  fireEvent.click(await screen.findByRole('menuitem', { name: /^Giọng văn cho mục này/ }));
+  const list = await screen.findByRole('region', { name: 'Issues' });
+  fireEvent.click(within(list).getByText('Sections × criteria'));
+  fireEvent.click(await within(list).findByRole('button', { name: 'Chạy cho mục Results: Writing' }));
+  fireEvent.click(await screen.findByRole('menuitem', { name: /^Stance & engagement cho mục này/ }));
 
   await waitFor(async () => expect((await repo.stance.get(paper.id))?.runs).toHaveLength(2));
   // Only the Results section was sent to the model.

@@ -94,8 +94,8 @@ async function setup(large = false, waitForAbort = false) {
     </MemoryRouter>,
   );
   if (!large) {
-    fireEvent.click(await screen.findByRole('tab', { name: 'Phát hiện' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Phản biện AI' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Issues' }));
+    fireEvent.click(screen.getByRole('button', { name: 'AI peer review' }));
   }
   await screen.findByLabelText('Nhận xét của bạn trước khi xem AI');
   return { repo, paper, completeJson };
@@ -147,7 +147,7 @@ it('P5 reveals reviews after skip, filters and audits decisions, and navigates t
   chooseSelectOption('Khía cạnh', 'Độ vững của khoa học');
   chooseSelectOption('Góc nhìn', 'Phương pháp');
   // The unified list above shows the same points; these are the controls inside the review block.
-  const block = within(screen.getByRole('region', { name: 'Phản biện AI' }));
+  const block = within(screen.getByRole('region', { name: 'AI peer review' }));
   fireEvent.click(block.getByRole('button', { name: 'Xác nhận' }));
   await block.findByText('Đã xác nhận');
   fireEvent.click(block.getByRole('button', { name: 'Hoàn tác' }));
@@ -164,7 +164,7 @@ it('P5 reveals reviews after skip, filters and audits decisions, and navigates t
     screen.getByText('The method was described for all readers', { selector: 'mark' }),
   ).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Mở trong Đọc bài' }));
-  expect(screen.getByRole('tab', { name: 'Đọc bài' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'Full text' })).toHaveAttribute('aria-selected', 'true');
   expect(scroll).toHaveBeenCalled();
 });
 it('P5 cancels an in-flight review without saving a run', async () => {

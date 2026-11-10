@@ -64,13 +64,13 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
     </MemoryRouter>,
   );
   const openChecks = () => {
-    fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
-    fireEvent.click(screen.getByRole('radio', { name: 'Cấu trúc và mạch' }));
-    fireEvent.click(screen.getByRole('tab', { name: 'Phát hiện' }));
-    fireEvent.click(screen.getByRole('radio', { name: 'Hình và bảng' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Paragraph structure & flow' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Issues' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Figures & tables' }));
   };
-  await screen.findByRole('tab', { name: 'Đọc bài' });
+  await screen.findByRole('tab', { name: 'Full text' });
   expect(screen.getByText('Minh bạch')).toBeInTheDocument();
   openChecks();
   expect(screen.getByText(/Các kiểm tra tự động là thử nghiệm/)).toBeInTheDocument();
@@ -85,10 +85,10 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
   fireEvent.click(
     within(card).getByText('“Figure 2”').closest('article')?.querySelector('button') as HTMLElement,
   );
-  expect(screen.getByRole('tab', { name: 'Phát hiện' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'Issues' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Mở trong Đọc bài' }));
-  expect(screen.getByRole('tab', { name: 'Đọc bài' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'Full text' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
   expect(scroll).toHaveBeenCalled();
   openChecks();
@@ -98,7 +98,7 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
   if (!cardAgain) throw new Error('Missing card');
   fireEvent.click(within(cardAgain).getByRole('button', { name: 'Xác nhận' }));
   await within(cardAgain).findByText('Đã xác nhận');
-  const list = screen.getByRole('region', { name: 'Danh sách phát hiện' });
+  const list = screen.getByRole('region', { name: 'Issues' });
   await within(list).findByText('Đã xác nhận');
   expect(await within(cardAgain).findByText('Chưa hiệu chuẩn (n=1)')).toBeInTheDocument();
   fireEvent.click(within(cardAgain).getByRole('button', { name: 'Hoàn tác' }));
@@ -112,17 +112,14 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
       (await repo.audit.listByAnalysis(paper.id)).items.filter((e) => e.action === 'review_check'),
     ).toHaveLength(4),
   );
-  fireEvent.click(screen.getByRole('tab', { name: 'Tóm lược' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Summary' }));
   expect(await screen.findByText('Hình và bảng cần kiểm tra')).toBeInTheDocument();
-  expect(screen.getByRole('tab', { name: 'Hồ sơ' })).toBeEnabled();
+  expect(screen.getByRole('tab', { name: 'Arguments' })).toBeEnabled();
   const context = screen.getByRole('article', { name: 'Bối cảnh học thuật và Nguồn gốc' });
   fireEvent.click(within(context).getByRole('button', { name: 'Xem chi tiết' }));
-  // The card opens its block in Hồ sơ, already unfolded.
-  expect(screen.getByRole('tab', { name: 'Hồ sơ' })).toHaveAttribute('aria-selected', 'true');
-  expect(screen.getByRole('button', { name: 'Thu gọn Tài liệu tham khảo' })).toHaveAttribute(
-    'aria-expanded',
-    'true',
-  );
+  // References are part of the paper's Summary: the card opens that block there, already unfolded.
+  expect(screen.getByRole('tab', { name: 'Summary' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('button', { name: 'Thu gọn References' })).toHaveAttribute('aria-expanded', 'true');
   expect(await screen.findByRole('heading', { name: 'Tình trạng rút bài' })).toBeInTheDocument();
   expect(completeJson).not.toHaveBeenCalled();
 });
@@ -182,7 +179,7 @@ it('a link from a grounded citation opens the reader on the quoted passage', asy
   await waitFor(() => expect(scroll).toHaveBeenCalled());
 });
 
-it('on a wide screen the paper stays beside the analysis and a finding is marked there', async () => {
+it('R7 on a wide screen the paper is the centre column beside the analysis, and a finding is marked there', async () => {
   vi.stubGlobal('crypto', webcrypto);
   vi.stubGlobal(
     'matchMedia',
@@ -236,48 +233,62 @@ it('on a wide screen the paper stays beside the analysis and a finding is marked
       </StorageProvider>
     </MemoryRouter>,
   );
-  const pane = await screen.findByRole('complementary', { name: 'Bài báo' });
+  const pane = await screen.findByRole('region', { name: 'Paper' });
   expect(within(pane).getByText('An introduction.')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
-  fireEvent.click(screen.getByRole('radio', { name: 'Cấu trúc và mạch' }));
-  fireEvent.click(screen.getByRole('tab', { name: 'Phát hiện' }));
-  fireEvent.click(screen.getByRole('radio', { name: 'Hình và bảng' }));
+  // Two columns, each with its own tabs: the paper in the centre, the analysis on the right.
+  expect(
+    within(screen.getByRole('tablist', { name: 'Paper' }))
+      .getAllByRole('tab')
+      .map((tab) => tab.textContent),
+  ).toEqual(['Full text', 'Summary']);
+  expect(
+    within(screen.getByRole('tablist', { name: 'Analysis' }))
+      .getAllByRole('tab')
+      .map((tab) => tab.textContent),
+  ).toEqual(['Arguments', 'Writing style', 'Issues']);
+  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Paragraph structure & flow' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Issues' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Figures & tables' }));
   fireEvent.click(screen.getByRole('button', { name: 'Chạy kiểm tra' }));
   // The same quote also heads its card in the unified list; this is the one in the checks block.
-  const quote = await within(screen.getByRole('region', { name: 'Kiểm tra tự động' })).findByText(
+  const quote = await within(screen.getByRole('region', { name: 'Automated checks' })).findByText(
     '“Figure 2”',
   );
   fireEvent.click(quote.closest('article')?.querySelector('button') as HTMLElement);
   // The finding is marked in the paper beside it: no drawer, and the analysis tab stays open.
   expect(within(pane).getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
-  expect(within(pane).getByRole('combobox', { name: 'Mục đang đọc' })).toHaveTextContent('Results');
+  expect(within(pane).getByRole('heading', { name: 'Results' })).toBeInTheDocument();
   expect(screen.queryByRole('dialog')).toBeNull();
-  expect(screen.getByRole('tab', { name: 'Phát hiện' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'Issues' })).toHaveAttribute('aria-selected', 'true');
 
   // R2: the same finding heads a card in the one list, in the one card shape.
-  const list = screen.getByRole('region', { name: 'Danh sách phát hiện' });
-  expect(within(list).getByText('Quy tắc')).toBeInTheDocument();
-  expect(within(list).getByText(/^Mức /)).toBeInTheDocument();
+  const list = screen.getByRole('region', { name: 'Issues' });
+  expect(within(list).getByText('Rule')).toBeInTheDocument();
+  expect(within(list).getByText(/^(High|Medium|Low)$/)).toBeInTheDocument();
   // R2: it is drawn on the words of the paper, as a control and not by colour alone.
   const underlined = within(pane).getByRole('button', { name: 'Figure 2' });
   expect(underlined).toHaveAttribute('data-finding', 'true');
-  expect(underlined.getAttribute('title')).toContain('Bằng chứng');
+  expect(underlined.getAttribute('title')).toContain('Evidence');
   fireEvent.click(underlined);
   expect(list.querySelector('[data-focus="true"]')).not.toBeNull();
   // Deciding in the list is the same decision as in the block.
   fireEvent.click(within(list).getByRole('button', { name: 'Xác nhận' }));
   expect(await within(list).findByText('Đã xác nhận', { selector: 'span' })).toBeInTheDocument();
   // A layer can be switched off; the passage the reader opened stays marked.
-  const layer = within(pane).getByRole('button', { name: /Bằng chứng/ });
+  const layer = within(pane).getByRole('button', { name: /Evidence/ });
   expect(layer).toHaveAttribute('aria-pressed', 'true');
   fireEvent.click(layer);
   expect(within(pane).queryByRole('button', { name: 'Figure 2' })).toBeNull();
   expect(within(pane).getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
 
-  // Turning it off brings back the single-column page and remembers the choice.
-  fireEvent.click(screen.getByRole('button', { name: 'Đọc song song' }));
-  expect(screen.queryByRole('complementary', { name: 'Bài báo' })).toBeNull();
+  // The issues needing review are announced in the header and counted on the tab.
+  expect(screen.queryByRole('button', { name: /cần duyệt$/ })).toBeNull();
+  // Hiding the analysis leaves the paper alone on the page and remembers the choice.
+  fireEvent.click(screen.getByRole('button', { name: 'Ẩn phân tích' }));
+  expect(screen.queryByRole('region', { name: 'Analysis' })).toBeNull();
+  expect(screen.getByRole('region', { name: 'Paper' })).toBeVisible();
   expect(localStorage.getItem('paper-split')).toBe('false');
   localStorage.removeItem('paper-split');
   vi.unstubAllGlobals();

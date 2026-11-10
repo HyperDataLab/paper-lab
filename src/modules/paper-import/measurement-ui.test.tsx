@@ -274,8 +274,8 @@ it('R5 decides a measurement finding from the unified list', async () => {
       </StorageProvider>
     </MemoryRouter>,
   );
-  fireEvent.click(await screen.findByRole('tab', { name: 'Phát hiện' }));
-  const list = await screen.findByRole('region', { name: 'Danh sách phát hiện' });
+  fireEvent.click(await screen.findByRole('tab', { name: 'Issues' }));
+  const list = await screen.findByRole('region', { name: 'Issues' });
   const finding = await within(list).findByText('Chưa thấy nêu seed.');
   const row = finding.closest('[id^="finding-measurement:"]');
   if (!(row instanceof HTMLElement)) throw new Error('Missing measurement finding');

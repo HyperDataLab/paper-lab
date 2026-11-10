@@ -38,7 +38,7 @@ function markdown() {
 }
 async function importPaper() {
   fireEvent.change(screen.getByLabelText('Chọn tệp bài báo'), { target: { files: [markdown()] } });
-  fireEvent.click(await screen.findByRole('tab', { name: 'Đọc bài' }));
+  fireEvent.click(await screen.findByRole('tab', { name: 'Full text' }));
   await screen.findByText('The first paragraph.');
 }
 it('imports a paper, persists and audits role edits, then prefills Evaluate', async () => {
@@ -61,9 +61,9 @@ it('imports a paper, persists and audits role edits, then prefills Evaluate', as
 it('requires confirmation before deleting a paper', async () => {
   const repo = setup();
   await importPaper();
-  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
-  fireEvent.click(screen.getByRole('radio', { name: 'Câu và từ' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   fireEvent.click(screen.getByRole('link', { name: /Bài báo đã nhập/ }));
   await screen.findByRole('link', { name: 'study' });
   fireEvent.click(screen.getByRole('button', { name: /^Xoá / }));
@@ -102,9 +102,9 @@ it('P2 estimates selected calls, asks manuscript consent and opens a completed a
     </MemoryRouter>,
   );
   await importPaper();
-  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
-  fireEvent.click(screen.getByRole('radio', { name: 'Câu và từ' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   // Sections and AI steps are preselected; the test narrows them to one paragraph and one step.
   fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
@@ -113,15 +113,19 @@ it('P2 estimates selected calls, asks manuscript consent and opens a completed a
   fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc đoạn' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chấm điểm' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chuyển đoạn' }));
-  expect(screen.getByText(/ước tính 1 lượt gọi AI, trần 10/)).toBeInTheDocument();
+  expect(
+    within(screen.getByRole('region', { name: 'Coherence & sentences' })).getByText(
+      /ước tính 1 lượt gọi AI, trần 10/,
+    ),
+  ).toBeInTheDocument();
   fireEvent.change(
-    within(screen.getByRole('region', { name: 'Chất lượng viết' })).getByLabelText('Giới hạn lượt gọi'),
+    within(screen.getByRole('region', { name: 'Coherence & sentences' })).getByLabelText('Giới hạn lượt gọi'),
     { target: { value: '0' } },
   );
   expect(screen.getByText(/Ước tính vượt trần số lượt gọi/)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Bắt đầu phân tích' })).toBeDisabled();
   fireEvent.change(
-    within(screen.getByRole('region', { name: 'Chất lượng viết' })).getByLabelText('Giới hạn lượt gọi'),
+    within(screen.getByRole('region', { name: 'Coherence & sentences' })).getByLabelText('Giới hạn lượt gọi'),
     { target: { value: '2' } },
   );
   fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu phân tích' }));
@@ -129,7 +133,7 @@ it('P2 estimates selected calls, asks manuscript consent and opens a completed a
   expect(completeJson).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Đồng ý và tiếp tục' }));
   expect(await screen.findByText(/Tiến độ: 1\/1 đoạn/)).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('tab', { name: 'Đọc bài' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Full text' }));
   expect(await screen.findByText('Hoàn tất')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('link', { name: 'Mở trong Đánh giá' }));
   expect(await screen.findByRole('link', { name: 'Bài báo › Introduction' })).toBeInTheDocument();
@@ -160,9 +164,9 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   );
   const view = render(tree('/papers'));
   await importPaper();
-  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
-  fireEvent.click(screen.getByRole('radio', { name: 'Câu và từ' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
@@ -172,7 +176,7 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chuyển đoạn' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu phân tích' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
-  fireEvent.click(screen.getByRole('tab', { name: 'Đọc bài' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Full text' }));
   expect(await screen.findByText('Thất bại')).toBeInTheDocument();
   expect(screen.getByText(/Đã có lỗi không xác định/)).toBeInTheDocument();
   fail = false;
@@ -186,9 +190,9 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   await repo.paperRuns.save({ ...run, status: 'running' });
   view.unmount();
   render(tree(`/papers/${paper.id}`));
-  fireEvent.click(await screen.findByRole('tab', { name: 'Hồ sơ' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
-  fireEvent.click(screen.getByRole('radio', { name: 'Câu và từ' }));
+  fireEvent.click(await screen.findByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   expect(await screen.findByRole('button', { name: 'Tiếp tục chạy' })).toBeInTheDocument();
   expect((await repo.paperRuns.get(run.id))?.status).toBe('paused');
 });
@@ -209,9 +213,9 @@ it('P2 increases a budget on the same run when resuming', async () => {
     </MemoryRouter>,
   );
   await importPaper();
-  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
-  fireEvent.click(screen.getByRole('radio', { name: 'Câu và từ' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   const paper = (await repo.papers.list())[0];
   if (!paper) throw new Error('missing paper');
   const { planRun } = await import('@/core/batch');
@@ -257,13 +261,13 @@ it('P2 increases a budget on the same run when resuming', async () => {
       </StorageProvider>
     </MemoryRouter>,
   );
-  fireEvent.click(await screen.findByRole('tab', { name: 'Hồ sơ' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
-  fireEvent.click(screen.getByRole('radio', { name: 'Câu và từ' }));
+  fireEvent.click(await screen.findByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   // The field moves once the paused run has loaded, so wait for that before typing.
   const resume = await screen.findByRole('button', { name: 'Tiếp tục chạy' });
   fireEvent.change(
-    within(screen.getByRole('region', { name: 'Chất lượng viết' })).getByLabelText('Giới hạn lượt gọi'),
+    within(screen.getByRole('region', { name: 'Coherence & sentences' })).getByLabelText('Giới hạn lượt gọi'),
     { target: { value: '10' } },
   );
   fireEvent.click(resume);
@@ -302,9 +306,9 @@ it('P2 pauses after the current call and resumes the remaining step', async () =
     </MemoryRouter>,
   );
   await importPaper();
-  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
-  fireEvent.click(screen.getByRole('radio', { name: 'Câu và từ' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
@@ -318,7 +322,7 @@ it('P2 pauses after the current call and resumes the remaining step', async () =
   release?.();
   fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục chạy' }));
   await waitFor(() => expect(completeJson).toHaveBeenCalledTimes(2));
-  fireEvent.click(screen.getByRole('tab', { name: 'Đọc bài' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Full text' }));
   expect(await screen.findByText('Hoàn tất')).toBeInTheDocument();
 });
 it('P2 a run keeps going when the reader opens another tab, and the view is kept in the address', async () => {
@@ -345,17 +349,17 @@ it('P2 a run keeps going when the reader opens another tab, and the view is kept
     </MemoryRouter>,
   );
   await importPaper();
-  fireEvent.click(screen.getByRole('tab', { name: 'Tóm lược' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Summary' }));
   expect(search).toContain('view=profile');
   // The snapshot table is folded under the summary tiles; its block is opened to run it.
-  fireEvent.click(screen.getByRole('button', { name: 'Mở Thông tin cốt lõi' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Mở Key facts' }));
   fireEvent.click(screen.getByRole('button', { name: 'Tạo snapshot (AI)' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
   await waitFor(() => expect(completeJson).toHaveBeenCalledTimes(1));
-  fireEvent.click(screen.getByRole('tab', { name: 'Đọc bài' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Full text' }));
   expect(search).toContain('view=map');
   const strip = await screen.findByText(/Đang chạy ở chỗ khác/);
-  fireEvent.click(within(strip).getByRole('button', { name: 'Thông tin cốt lõi' }));
+  fireEvent.click(within(strip).getByRole('button', { name: 'Key facts' }));
   // Still the same run: the panel was hidden, not unmounted, so nothing was restarted.
   expect(screen.getByText('Đang đọc bài…')).toBeVisible();
   expect(completeJson).toHaveBeenCalledTimes(1);
@@ -378,20 +382,20 @@ it('R1 an old view link opens its block in the new three-mode page, and an analy
       </StorageProvider>
     </MemoryRouter>,
   );
-  expect(await screen.findByRole('tab', { name: 'Hồ sơ' })).toHaveAttribute('aria-selected', 'true');
-  expect(within(screen.getByRole('tablist', { name: 'Bài báo' })).getAllByRole('tab')).toHaveLength(4);
-  const block = screen.getByRole('region', { name: 'Lập luận' });
-  expect(within(block).getByRole('button', { name: 'Thu gọn Lập luận' })).toHaveAttribute(
+  expect(await screen.findByRole('tab', { name: 'Arguments' })).toHaveAttribute('aria-selected', 'true');
+  expect(within(screen.getByRole('tablist', { name: 'Bài báo' })).getAllByRole('tab')).toHaveLength(5);
+  const block = screen.getByRole('region', { name: 'Claims & reasoning' });
+  expect(within(block).getByRole('button', { name: 'Thu gọn Claims & reasoning' })).toHaveAttribute(
     'aria-expanded',
     'true',
   );
-  expect(await within(block).findByRole('radio', { name: 'Chuỗi suy luận' })).toHaveAttribute(
+  expect(await within(block).findByRole('radio', { name: 'AIF graph' })).toHaveAttribute(
     'aria-checked',
     'true',
   );
   // A folded analysis that has not run: its question, its state and one button that starts it.
-  const stance = screen.getByRole('region', { name: 'Giọng văn' });
-  expect(within(stance).getByRole('button', { name: 'Mở Giọng văn' })).toHaveAttribute(
+  const stance = screen.getByRole('region', { name: 'Validity & rhetorical moves' });
+  expect(within(stance).getByRole('button', { name: 'Mở Validity & rhetorical moves' })).toHaveAttribute(
     'aria-expanded',
     'false',
   );

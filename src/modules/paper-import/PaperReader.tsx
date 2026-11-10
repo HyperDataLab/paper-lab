@@ -68,6 +68,7 @@ export function PaperReader({
   layers = [],
   onLayers,
   onMark,
+  outlineOpen = true,
 }: {
   paper: Paper;
   selected: string;
@@ -82,7 +83,10 @@ export function PaperReader({
   layers?: Criterion[];
   onLayers?: (layers: Criterion[]) => void;
   onMark?: (mark: PaperMark) => void;
+  /** Whether the outline starts open; beside the analysis it starts folded to leave room for the text. */
+  outlineOpen?: boolean;
 }) {
+  const [showOutline, setShowOutline] = useState(outlineOpen);
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const counts = useMemo(() => {
@@ -171,8 +175,8 @@ export function PaperReader({
   }
 
   return (
-    <div className={styles.reader}>
-      <div className={styles.readerNav}>
+    <div className={showOutline ? styles.reader : styles.readerSingle}>
+      <div className={styles.readerNav} hidden={!showOutline}>
         <Card padding="md">
           <TextField
             label="Tìm mục"
@@ -188,6 +192,30 @@ export function PaperReader({
         </Card>
       </div>
       <Card>
+        <div className={styles.readerBar}>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-pressed={showOutline}
+            onClick={() => setShowOutline(!showOutline)}
+          >
+            Outline
+          </Button>
+          {!showOutline && (
+            <Select
+              label="Section"
+              size="sm"
+              value={selected}
+              onChange={(event) => onSelect(event.target.value)}
+            >
+              {paper.sections.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {`${'\u00a0'.repeat(Math.max(0, item.level - 1) * 2)}${item.heading}`}
+                </option>
+              ))}
+            </Select>
+          )}
+        </div>
         {onLayers && <LayerChips marks={marks} layers={layers} onLayers={onLayers} />}
         {filter && (
           <div className={styles.filterBar}>
