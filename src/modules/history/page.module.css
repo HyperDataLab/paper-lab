@@ -6,10 +6,19 @@
 .page h1 {
   margin: 0;
 }
-.note {
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  margin: 0;
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.search {
+  flex: 1 1 240px;
+  max-width: 360px;
+}
+.flush > :first-child {
+  border-top: 0;
 }
 .compareBar {
   background: var(--bg);
@@ -41,6 +50,9 @@
 .group summary {
   cursor: pointer;
   font-weight: 600;
+}
+.group summary span:first-child {
+  margin-right: var(--space-2);
 }
 .section {
   margin-top: var(--space-3);

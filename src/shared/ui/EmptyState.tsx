@@ -1,5 +1,6 @@
-import { Card } from './Card';
 import styles from './ui.module.css';
+
+/** An empty screen: what is missing, what to do, and a technical note. Not a heading, so the page keeps one h1. */
 export function EmptyState({
   title,
   description,
@@ -10,12 +11,10 @@ export function EmptyState({
   detail: string;
 }) {
   return (
-    <Card>
-      <div className={styles.empty}>
-        <h1>{title}</h1>
-        <p>{description}</p>
-        <span className={styles.detail}>{detail}</span>
-      </div>
-    </Card>
+    <div className={styles.emptyNote}>
+      <strong>{title}</strong>
+      <span>{description}</span>
+      <span className={styles.detail}>{detail}</span>
+    </div>
   );
 }

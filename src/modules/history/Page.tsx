@@ -5,10 +5,12 @@ import { ActionBar } from '@/shared/ui/ActionBar';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
-import { EmptyState } from '@/shared/ui/EmptyState';
 import { Dialog } from '@/shared/ui/Dialog';
 import { Checkbox } from '@/shared/ui/Checkbox';
 import { ReportMenu } from '@/shared/report/ReportMenu';
+import { PageHeader } from '@/shared/ui/PageHeader';
+import { SegmentedControl } from '@/shared/ui/SegmentedControl';
+import { TextField } from '@/shared/ui/TextField';
 import { groupHistory } from './groupHistory';
 import styles from './page.module.css';
 import { Empty, Loading } from '@/shared/ui/StateNote';
@@ -25,6 +27,8 @@ export default function Page() {
   const [paperTitles, setPaperTitles] = useState(new Map<string, string>());
   const [generations, setGenerations] = useState<Awaited<ReturnType<typeof repo.generations.list>>>([]);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [view, setView] = useState('analyses');
+  const [query, setQuery] = useState('');
   const [deleteTrigger, setDeleteTrigger] = useState<HTMLElement | null>(null);
   const [revisions, setRevisions] = useState<
     Record<string, Awaited<ReturnType<typeof repo.revisions.listBySource>>>
@@ -54,7 +58,28 @@ export default function Page() {
   useEffect(() => {
     load();
   }, [load]);
-  const groups = useMemo(() => groupHistory(list?.items ?? [], paperTitles), [list, paperTitles]);
+  const needle = query.trim().toLocaleLowerCase('vi');
+  const groups = useMemo(() => {
+    const all = groupHistory(list?.items ?? [], paperTitles);
+    if (!needle) return all;
+    // Search matches the paper title or the paragraph's own name, and keeps the grouping.
+    return all
+      .map((group) => {
+        const sections = group.sections
+          .map((section) => ({
+            ...section,
+            entries: section.entries.filter((entry) =>
+              `${group.title} ${entry.fullLabel}`.toLocaleLowerCase('vi').includes(needle),
+            ),
+          }))
+          .filter((section) => section.entries.length > 0);
+        return { ...group, sections, count: sections.reduce((sum, item) => sum + item.entries.length, 0) };
+      })
+      .filter((group) => group.count > 0);
+  }, [list, paperTitles, needle]);
+  const shownGenerations = needle
+    ? generations.filter((item) => item.input.mainClaim.toLocaleLowerCase('vi').includes(needle))
+    : generations;
   async function remove() {
     if (!deleting) return;
     try {
@@ -68,11 +93,35 @@ export default function Page() {
   }
   return (
     <div className={styles.page}>
-      <h1>Lịch sử</h1>
-      <p className={styles.note}>
-        Dữ liệu chỉ lưu trong trình duyệt này. <Link to="/transfer">Xuất JSON</Link> để sao lưu hoặc chuyển
-        máy.
-      </p>
+      <PageHeader
+        title="Lịch sử"
+        lead={
+          <>
+            Các đoạn văn đã phân tích và đã soạn. Dữ liệu chỉ lưu trong trình duyệt này;{' '}
+            <Link to="/transfer">xuất JSON</Link> để sao lưu hoặc chuyển máy.
+          </>
+        }
+      />
+      <div className={styles.filters}>
+        <SegmentedControl
+          label="Loại bản ghi"
+          value={view}
+          onChange={setView}
+          options={[
+            { value: 'analyses', label: `Bản phân tích (${list?.items.length ?? 0})` },
+            { value: 'generations', label: `Đoạn đã soạn (${generations.length})` },
+          ]}
+        />
+        <div className={styles.search}>
+          <TextField
+            label="Tìm trong lịch sử"
+            type="search"
+            placeholder="Tên bài báo hoặc nội dung đoạn"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
+      </div>
       {selected.length > 0 && (
         <div className={styles.compareBar}>
           <ActionBar status={<span>Đã chọn {selected.length}/2 bản để so sánh</span>}>
@@ -96,24 +145,24 @@ export default function Page() {
           </details>
         </div>
       )}
-      {!list ? (
+      {view !== 'analyses' ? null : !list ? (
         <Loading label="Đang tải…" />
       ) : (
         <>
           {list.corrupt > 0 && <p role="alert">Bản ghi bị lỗi: {list.corrupt}</p>}
           {list.items.length === 0 ? (
-            <>
-              <EmptyState
-                title="Chưa có bản phân tích"
-                description="Dữ liệu được lưu trong trình duyệt này."
-                detail="Hãy xuất JSON để sao lưu."
-              />
+            <Empty
+              title="Chưa có bản phân tích"
+              hint="Phân tích một đoạn văn rồi lưu, bản ghi sẽ hiện ở đây."
+            >
               <Link to="/evaluate">Phân tích đoạn văn</Link>
-            </>
+            </Empty>
+          ) : groups.length === 0 ? (
+            <Empty title="Không có bản phân tích nào khớp." hint="Thử từ khoá khác hoặc xoá ô tìm." />
           ) : (
             <div className={styles.list}>
               {groups.map((group, position) => (
-                <details key={group.key} className={styles.group} open={position === 0}>
+                <details key={group.key} className={styles.group} open={position === 0 || !!needle}>
                   <summary>
                     <span>{group.title}</span> <Badge>{group.count} đoạn</Badge>
                   </summary>
@@ -178,11 +227,16 @@ export default function Page() {
           )}
         </>
       )}
-      <Card>
-        <h2>Đoạn đã soạn</h2>
-        {generations.length ? (
-          <ul className={styles.rows}>
-            {generations.map((item) => (
+      {view !== 'generations' ? null : generations.length === 0 ? (
+        <Empty title="Chưa có đoạn đã soạn." hint="Soạn một đoạn từ luận điểm của bạn.">
+          <Link to="/generate">Soạn đoạn mới</Link>
+        </Empty>
+      ) : shownGenerations.length === 0 ? (
+        <Empty title="Không có đoạn đã soạn nào khớp." hint="Thử từ khoá khác hoặc xoá ô tìm." />
+      ) : (
+        <Card padding="md">
+          <ul className={`${styles.rows} ${styles.flush}`}>
+            {shownGenerations.map((item) => (
               <li key={item.id} className={styles.row}>
                 <div className={styles.rowMain}>
                   <Link to={`/generate?id=${item.id}`}>{item.input.mainClaim}</Link>
@@ -191,10 +245,8 @@ export default function Page() {
               </li>
             ))}
           </ul>
-        ) : (
-          <Empty title="Chưa có đoạn đã soạn." />
-        )}
-      </Card>
+        </Card>
+      )}
       {deleting && (
         <Dialog
           title="Xoá bản phân tích này?"

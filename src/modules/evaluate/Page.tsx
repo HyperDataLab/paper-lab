@@ -26,6 +26,7 @@ import { latestStyleWarning } from '@/core/probe';
 import { AnalysisSchema } from '@/core/schemas';
 import { RUBRIC_VERSION } from '@/core/scoring/rubric';
 import { ReportMenu } from '@/shared/report/ReportMenu';
+import { PageHeader } from '@/shared/ui/PageHeader';
 import { useCalibration } from '@/shared/calibration/useCalibration';
 import { captureCalibration } from '@/shared/calibration/data';
 
@@ -287,6 +288,7 @@ export default function Page() {
       setLoading(false);
     }
   }
+  const words = text.trim() ? text.trim().split(/\s+/u).length : 0;
   const canJudge = candidates.length > 0 || !!syntax.annotations?.some((a) => a.voice === 'passive');
   const judgeDone = canJudge && !!judge.versions && !judge.running;
   const nextStep = !syntax.annotations
@@ -300,20 +302,28 @@ export default function Page() {
           : 'save';
   return (
     <div className={styles.page}>
-      <h1>Đánh giá</h1>
-      {!id && !result && <ParagraphModes current="/evaluate" />}
+      <PageHeader
+        title="Đánh giá"
+        lead={
+          !id && !result
+            ? 'Dán một đoạn văn học thuật tiếng Anh rồi phân tích từng bước. AI chỉ đưa gợi ý; bạn quyết định giữ hay bỏ.'
+            : undefined
+        }
+      >
+        {!id && !result && <ParagraphModes current="/evaluate" />}
+      </PageHeader>
       {paperBreadcrumb && (
-        <p>
+        <p className={styles.crumb}>
           <Link to={`/papers/${paperBreadcrumb.id}`}>Bài báo › {paperBreadcrumb.heading}</Link>
         </p>
       )}
       {generationId && (
-        <p>
+        <p className={styles.crumb}>
           <Link to={`/generate?id=${generationId}`}>Đoạn soạn từ luận điểm</Link>
         </p>
       )}
       {parent && (
-        <p>
+        <p className={styles.crumb}>
           <Link to={`/evaluate?id=${parent.id}`}>Bản sửa của {parent.title}</Link>
         </p>
       )}
@@ -336,29 +346,32 @@ export default function Page() {
             }}
             rows={7}
           />
-          {id ? (
-            <Button
-              onClick={() => {
-                setParams({});
-                setText('');
-                setResult(null);
-                setError(null);
-                setSaved(false);
-                setCreatedId(null);
-                setDecisions([]);
-                resetSyntax();
-                resetJudge();
-                resetParagraph();
-                resetScoring();
-              }}
-            >
-              Tạo bản phân tích mới
-            </Button>
-          ) : (
-            <Button variant="primary" type="button" disabled={loading} onClick={() => void run()}>
-              Tách câu
-            </Button>
-          )}
+          <div className={styles.inputFoot}>
+            <span>{words} từ</span>
+            {id ? (
+              <Button
+                onClick={() => {
+                  setParams({});
+                  setText('');
+                  setResult(null);
+                  setError(null);
+                  setSaved(false);
+                  setCreatedId(null);
+                  setDecisions([]);
+                  resetSyntax();
+                  resetJudge();
+                  resetParagraph();
+                  resetScoring();
+                }}
+              >
+                Tạo bản phân tích mới
+              </Button>
+            ) : (
+              <Button variant="primary" type="button" disabled={loading} onClick={() => void run()}>
+                Tách câu
+              </Button>
+            )}
+          </div>
         </Card>
       )}
       {loading || (id && !result && !error) ? (
