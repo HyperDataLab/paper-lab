@@ -110,7 +110,7 @@ it('R4 Toulmin is drawn as a diagram: empty slots say so, and an inferred warran
   expect(within(screen.getByTestId('node-warrant')).getByText('AI suy ra')).toBeInTheDocument();
   expect(within(screen.getByTestId('node-warrant')).getByText('Không phải lời tác giả')).toBeInTheDocument();
   for (const id of ['node-backing-0', 'node-qualifier'])
-    expect(within(screen.getByTestId(id)).getByText('Chưa xác định')).toBeInTheDocument();
+    expect(within(screen.getByTestId(id)).getByText('Not identified')).toBeInTheDocument();
   expect(screen.getByText(/4\/6 thành phần đã xác định/)).toBeInTheDocument();
   // The rebuttal line is dashed and labelled, not only coloured.
   expect(within(diagram).getByText('Trừ khi')).toBeInTheDocument();
@@ -142,7 +142,7 @@ it('R4 AIF is drawn with RA and CA nodes between statements, and the reader step
 it('R5 moves a card with arrow keys and restores its layout', () => {
   show('toulmin');
   const card = screen.getByTestId('node-claim');
-  const handle = screen.getByRole('group', { name: 'Luận điểm: di chuyển bằng phím mũi tên' });
+  const handle = screen.getByRole('group', { name: 'Claim: di chuyển bằng phím mũi tên' });
   const original = Number(card.getAttribute('x'));
   fireEvent.keyDown(handle, { key: 'ArrowRight' });
   expect(Number(card.getAttribute('x'))).toBe(original + 10);

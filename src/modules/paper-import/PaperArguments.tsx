@@ -26,7 +26,7 @@ import { Loading } from '@/shared/ui/StateNote';
 
 type Location = Finding['locations'][number];
 type Span = Argument['claim'];
-const NOT_IDENTIFIED = 'Chưa xác định';
+const NOT_IDENTIFIED = 'Not identified';
 
 export function PaperArguments({
   paper,
@@ -343,7 +343,7 @@ export function PaperArguments({
                   }
                 >
                   <dl className={styles.slots}>
-                    <dt>Dữ liệu</dt>
+                    <dt>Grounds</dt>
                     <dd>{quotes(item.data)}</dd>
                     <dt>Warrant</dt>
                     <dd>
@@ -359,9 +359,9 @@ export function PaperArguments({
                     </dd>
                     <dt>Backing</dt>
                     <dd>{quotes(item.backing)}</dd>
-                    <dt>Giới hạn</dt>
+                    <dt>Qualifier</dt>
                     <dd>{quotes(item.qualifier ? [item.qualifier] : [])}</dd>
-                    <dt>Phản biện</dt>
+                    <dt>Rebuttal</dt>
                     <dd>{quotes(item.rebuttals)}</dd>
                   </dl>
                 </FindingCard>

@@ -79,12 +79,12 @@ Color is never the only signal (WCAG 1.4.1). Each category has a color **and** a
 A paper analysis belongs to one of four criteria. Each has one colour, one shape and one letter, used wherever the criterion is named
 (block headers, jump and filter chips, the layer switches and margin marks beside the paper, the left edge of a finding card).
 
-| Criterion  | Token             | Light / dark          | Mark                 |
-| ---------- | ----------------- | --------------------- | -------------------- |
-| Luận điểm  | `--crit-claim`    | `#1D4ED8` / `#60A5FA` | circle, letter L     |
-| Bằng chứng | `--crit-evidence` | `#7E22CE` / `#C084FC` | square, letter B     |
-| Cách viết  | `--crit-writing`  | `#A21CAF` / `#F0ABFC` | dashed box, letter V |
-| Bối cảnh   | `--crit-context`  | `#475569` / `#CBD5E1` | double box, letter C |
+| Criterion | Token             | Light / dark          | Mark                 |
+| --------- | ----------------- | --------------------- | -------------------- |
+| Claims    | `--crit-claim`    | `#1D4ED8` / `#60A5FA` | circle, letter C     |
+| Evidence  | `--crit-evidence` | `#7E22CE` / `#C084FC` | square, letter E     |
+| Writing   | `--crit-writing`  | `#A21CAF` / `#F0ABFC` | dashed box, letter W |
+| Sources   | `--crit-context`  | `#475569` / `#CBD5E1` | double box, letter S |
 
 On the paper's text a criterion is an underline in its colour **and** its own line style: Luận điểm solid, Bằng chứng double,
 Cách viết dotted, Bối cảnh dashed. A finding's underline is thicker than a descriptive mark's. The passage the reader just opened is a
@@ -192,50 +192,63 @@ prompt versions accompany the advisory banner.
 
 ## 9. Paper workspace
 
-The header (title, page, section and word counts) and the mode tabs come first on the page, and the tabs stay visible while scrolling.
-The paper is the constant: from 1280 px it sits beside the analysis, and a finding marks its passage there. Beside it the page has three
-modes, named for the reader's question, plus the full reader:
+The paper is the centre of the page, as in SciSpace's reader. From 1280 px the page has two columns that scroll on their own: the
+paper in the centre and what the analyses say about it on the right. Below 1280 px one tab bar holds all five tabs and shows one column
+at a time; a quote then opens in a drawer so the reader keeps their place. The app sidebar folds to a rail from the control beside the
+brand. "Ẩn phân tích" hides the right column and leaves the paper alone on the page.
 
-| Mode          | Answers                   | Holds                                                                                     |
-| ------------- | ------------------------- | ----------------------------------------------------------------------------------------- |
-| **Tóm lược**  | What does the paper say?  | "Phân tích toàn bài", Thông tin cốt lõi (snapshot), progress by dimension                 |
-| **Phát hiện** | What needs a second look? | One list of every finding, then its sources: Kiểm tra tự động, Phản biện AI               |
-| **Hồ sơ**     | The descriptive detail    | Phương pháp và số liệu, Giới hạn và cách dẫn dắt, Lập luận, Chất lượng viết, Giọng văn, … |
-| Đọc bài       | The text itself           | Outline tree and reading column                                                           |
+Each tab answers the question a reader brings to it; the line under the tab says it in Vietnamese.
+
+| Column | Tab               | The reader wants                                     | Holds                                                                                                                      |
+| ------ | ----------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Centre | **Full text**     | to read the paper itself and check a passage         | Outline (folds away beside the analysis), the text with its marks, layer chips                                             |
+| Centre | **Summary**       | to grasp what the paper says before reading closely  | Research gap & contribution, Key facts, Main claims, Stated limitations, Publication info, References, analysis coverage   |
+| Right  | **Arguments**     | to judge how the author reasons and on what evidence | Claims & reasoning (Toulmin model, AIF graph), Evidence & measurement (with atomic sentences), Validity & rhetorical moves |
+| Right  | **Writing style** | to learn from how the paper is written               | Coherence & sentences, Stance & engagement, Vocabulary & phrases, Score robustness                                         |
+| Right  | **Issues**        | to see what needs a decision and make it             | Every finding in one list, grouped by type, then its sources: Automated checks, AI peer review                             |
+
+"Phân tích toàn bài" sits in the centre column's tab bar. When findings still need a decision, the header shows "N cần duyệt" and
+the Issues tab carries the count; the Issues list opens with "N phát hiện cần bạn duyệt" and a button that narrows it to those.
+
+**Language.** Navigation, block titles and scientific terms are in English, the way researchers name them (Claims, Grounds, Warrant,
+Qualifier, Rebuttal, Premise, Inference, Conflict, Key facts, Stance & engagement…); empty Toulmin slots read "Not identified". Help
+lines, hints, explanations, action buttons and status words stay in Vietnamese ("Cần duyệt", "Đã xác nhận", "Phân tích", "Xác nhận").
 
 **Findings are one list in one card shape**, whatever found them (rule checks, AI review, sentence-level writing issues, paragraph
-transitions, measurement findings). A card reads: criterion mark, the point in bold, `Badge`s for severity (Cao / Vừa / Thấp), origin
-(AI đề xuất / Quy tắc) and decision, the quote, the reason, the place, then actions. Filters are `Chip`s with counts for criterion and
-status, plus a section `Select`; Cách viết starts off when anything else exists. The table of sections by criteria is folded; a count filters
+transitions, measurement findings). A card reads: criterion mark, the point in bold, `Badge`s for severity (High / Medium / Low), origin
+(AI / Rule) and decision, the quote, the reason, the place, then actions. Filters are `Chip`s with counts for criterion and
+status, plus a section `Select`; Writing starts off when anything else exists. The list is grouped by type of problem
+(Claims & reasoning, Evidence & data, Sources & citations, Writing), each group with "N cần duyệt / M"; inside a group what needs review
+comes first, then the most severe, then paper order. "Group by: Section" groups by the paper's sections instead. The table of sections by criteria is folded; a count filters
 the list, and a cell's menu runs that criterion's analyses for that section alone. Every card can be confirmed, dismissed or reopened, with the decision saved to its source; the AI review's points stay out until the reader has
 saved or skipped their own notes. Descriptions (claims, stance markers, snapshot sources) are marks on the text, not findings.
 
-**A section run merges, it does not replace.** Lập luận, Giới hạn và cách dẫn dắt, Giọng văn and Chất lượng viết can be run for one
+**A section run merges, it does not replace.** Claims & reasoning, Validity & rhetorical moves, Stance & engagement and Coherence & sentences can be run for one
 section, from the block header ("Chạy cho một mục") or from a cell of the findings table. Items of other sections stay as they were,
 the rerun section's items are replaced, and a person's decisions on kept items carry over to the merged run (the previous run stays in
 the history unchanged). The abstract comparison is whole-paper and is kept. A result made with another prompt or model takes no section
-run; Phương pháp và số liệu, Phản biện AI and Thông tin cốt lõi always run for the whole paper.
+run; Evidence & measurement, AI peer review and Key facts always run for the whole paper.
 
 **A finished result can be out of date.** It is "Kết quả cũ" when the reader now asks for a section it did not read, when its prompt has
 changed, or when it was made with another model; the block says which. "Phân tích toàn bài" runs such results again instead of
 skipping them.
 
-**Findings are drawn on the paper's words** in the reading pane and in Đọc bài, by layer; both readers' chips switch layers on and off
-(Cách viết starts off) and a margin mark names the criteria present in each paragraph. Pressing a marked stretch opens its finding in
+**Findings are drawn on the paper's words** in Full text, by layer; the chips switch layers on and off
+(Writing starts off) and a margin mark names the criteria present in each paragraph. Pressing a marked stretch opens its finding in
 the list, or the block that described it.
 
-**Arguments are drawn as diagrams.** Lập luận shows one argument at a time with previous / next, zoom and “Vừa khung”. The canvas chooses a vertical layout below 720px, and the reader can choose its orientation. Cards and scheme nodes can be moved by pointer or arrow keys; “Bố cục lại” restores their computed positions. A minimap shows the visible area when the drawing overflows. “Toàn bài” in Chuỗi suy luận lays out the live argument network with shared statements once, and “Chỉ hiện xung đột” isolates conflict steps. Thẻ luận điểm uses Toulmin slots; empty slots read “Chưa xác định” and inferred warrants are labelled “AI suy ra” and “Không phải lời tác giả”. In AIF, statements connect through RA or CA nodes, which have no passage. Limits and conflicts use dashed, labelled lines. “Danh sách” keeps every argument on one page.
+**Arguments are drawn as diagrams.** Claims & reasoning shows one argument at a time with previous / next, zoom and “Vừa khung”. The canvas chooses a vertical layout below 720px, and the reader can choose its orientation. Cards and scheme nodes can be moved by pointer or arrow keys; “Bố cục lại” restores their computed positions. A minimap shows the visible area when the drawing overflows. “Toàn bài” in AIF graph lays out the live argument network with shared statements once, and “Chỉ hiện xung đột” isolates conflict steps. Toulmin model uses the slots Claim, Grounds, Warrant, Backing, Qualifier and Rebuttal; empty slots read “Not identified” and inferred warrants are labelled “AI suy ra” and “Không phải lời tác giả”. In AIF, statements connect through RA or CA nodes, which have no passage. Limits and conflicts use dashed, labelled lines. “Danh sách” keeps every argument on one page.
 
-There is no second level of tabs and no theory name in navigation (Toulmin, AIF, CARS stay inside their block). Each analysis is one
+There is no second level of tabs; a theory's name (Toulmin, AIF, CARS) appears only inside its block. Each analysis is one
 **block** (`SectionBlock`): a row with its criterion mark, a plain title, the question it answers, its state as a `Badge`, and its
 content folded underneath. A block that has not run is that row plus one `Phân tích (~N lượt)` button; it is never an empty card.
-A block with two readings of one analysis switches between them inside the block. Jump `Chip`s at the top of a mode open a block and
+A block with two readings of one analysis switches between them inside the block. Jump `Chip`s at the top of a tab open a block and
 scroll to it. Every former `?view=` id still opens its block. AI panels stay mounted while folded or in another mode, so a run is not
 interrupted; a strip names what is running out of sight.
 
 Anything with more than a screenful of items is a tree or folds:
 
-- Đọc bài has a sticky outline tree (`shared/ui/Tree`, ARIA tree keyboard pattern) built from section levels, with a filter and body-paragraph
+- Full text has a sticky outline tree (`shared/ui/Tree`, ARIA tree keyboard pattern) built from section levels, with a filter and body-paragraph
   counts that include children. The reading column shows one section at a time with previous and next.
 - Four or more consecutive list, equation or footnote blocks fold into one row, and open when a highlight lands inside.
 - Internal ids and the `body` kind are not shown; other kinds carry a Vietnamese label.

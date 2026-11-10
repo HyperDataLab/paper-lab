@@ -18,13 +18,13 @@ import { useReportJob } from './paperJobs';
 import styles from './snapshot.module.css';
 
 const LABELS: Record<SnapshotField, string> = {
-  methods: 'Phương pháp',
-  outcome: 'Biến kết cục',
-  results: 'Kết quả',
-  population: 'Đối tượng',
-  sample_size: 'Cỡ mẫu',
-  duration: 'Thời gian',
-  location: 'Địa điểm',
+  methods: 'Methods',
+  outcome: 'Outcome',
+  results: 'Results',
+  population: 'Population',
+  sample_size: 'Sample size',
+  duration: 'Duration',
+  location: 'Location',
 };
 
 export function PaperSnapshot({

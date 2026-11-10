@@ -193,7 +193,12 @@ export function PaperReader({
       </div>
       <Card>
         <div className={styles.readerBar}>
-          <Button size="sm" variant="ghost" aria-pressed={showOutline} onClick={() => setShowOutline(!showOutline)}>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-pressed={showOutline}
+            onClick={() => setShowOutline(!showOutline)}
+          >
             Outline
           </Button>
           {!showOutline && (

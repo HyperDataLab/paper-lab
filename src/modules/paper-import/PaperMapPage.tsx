@@ -832,7 +832,12 @@ export default function PaperMapPage() {
       }}
     >
       {item.label}
-      {item.id === 'issues' && toReview > 0 && <span className={styles.tabCount}>{toReview}</span>}
+      {item.id === 'issues' && toReview > 0 && (
+        // The header names the count in words; here it is a mark, so the tab keeps its name.
+        <span className={styles.tabCount} aria-hidden="true" title={`${toReview} cần duyệt`}>
+          {toReview}
+        </span>
+      )}
     </Button>
   );
   return (

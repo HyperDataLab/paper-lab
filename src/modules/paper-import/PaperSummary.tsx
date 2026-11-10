@@ -9,13 +9,13 @@ import { CriterionMark } from './SectionBlock';
 import styles from './summary.module.css';
 
 const FACTS: Record<SnapshotField, string> = {
-  methods: 'Phương pháp',
-  outcome: 'Biến kết cục',
-  results: 'Kết quả',
-  population: 'Đối tượng',
-  sample_size: 'Cỡ mẫu',
-  duration: 'Thời gian',
-  location: 'Địa điểm',
+  methods: 'Methods',
+  outcome: 'Outcome',
+  results: 'Results',
+  population: 'Population',
+  sample_size: 'Sample size',
+  duration: 'Duration',
+  location: 'Location',
 };
 const SHOWN_LIMITS = 3;
 
@@ -69,16 +69,16 @@ export function PaperSummary({
       <div className={styles.summary}>
         <section aria-labelledby="summary-question">
           <h2 id="summary-question">
-            <CriterionMark criterion="claim" /> Tác giả hỏi gì và đóng góp gì
+            <CriterionMark criterion="claim" /> Research gap & contribution
           </h2>
           {summary.has.rhetoric ? (
             <div className={styles.pair}>
               <div>
-                <h3>Khoảng trống tác giả nêu</h3>
+                <h3>Gap</h3>
                 {quotes(summary.gap, 'Chưa thấy câu nêu khoảng trống trong các mục đã đọc.')}
               </div>
               <div>
-                <h3>Đóng góp của bài</h3>
+                <h3>Contribution</h3>
                 {quotes(summary.contribution, 'Chưa thấy câu nêu đóng góp trong các mục đã đọc.')}
               </div>
             </div>
@@ -89,7 +89,7 @@ export function PaperSummary({
 
         <section aria-labelledby="summary-facts">
           <h2 id="summary-facts">
-            <CriterionMark criterion="evidence" /> Thông tin cốt lõi
+            <CriterionMark criterion="evidence" /> Key facts
           </h2>
           {!summary.has.snapshot ? (
             missing('Chưa trích thông tin cốt lõi (1 lượt gọi AI).', 'snapshot')
@@ -112,7 +112,7 @@ export function PaperSummary({
 
         <section aria-labelledby="summary-claims">
           <h2 id="summary-claims">
-            <CriterionMark criterion="claim" /> Luận điểm chính
+            <CriterionMark criterion="claim" /> Main claims
           </h2>
           {!summary.has.arguments ? (
             missing('Chưa phân tích lập luận.', 'toulmin')
@@ -126,17 +126,17 @@ export function PaperSummary({
                     <strong>“{item.claim.excerpt}”</strong> {place(item.claim)}
                   </p>
                   <dl className={styles.support}>
-                    <dt>Dựa trên</dt>
+                    <dt>Grounds</dt>
                     <dd>
                       {item.data.length === 0 ? (
-                        <span className={styles.muted}>Chưa xác định</span>
+                        <span className={styles.muted}>Not identified</span>
                       ) : (
                         quotes(item.data, '')
                       )}
                     </dd>
                     {item.warrant && (
                       <>
-                        <dt>Lý lẽ nối</dt>
+                        <dt>Warrant</dt>
                         <dd>
                           {item.warrant.text}{' '}
                           <Badge tone={item.warrant.inferred ? 'warning' : 'neutral'}>
@@ -147,7 +147,7 @@ export function PaperSummary({
                     )}
                     {item.limits.length > 0 && (
                       <>
-                        <dt>Tác giả tự giới hạn</dt>
+                        <dt>Qualifiers & rebuttals</dt>
                         <dd>{quotes(item.limits, '')}</dd>
                       </>
                     )}
@@ -166,8 +166,7 @@ export function PaperSummary({
         {summary.has.rhetoric && (
           <section aria-labelledby="summary-limits">
             <h2 id="summary-limits">
-              <CriterionMark criterion="evidence" /> Giới hạn tác giả nêu{' '}
-              <Badge>{summary.limits.length}</Badge>
+              <CriterionMark criterion="evidence" /> Stated limitations <Badge>{summary.limits.length}</Badge>
             </h2>
             {quotes(
               summary.limits.slice(0, SHOWN_LIMITS),

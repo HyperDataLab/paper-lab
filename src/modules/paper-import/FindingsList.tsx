@@ -13,6 +13,7 @@ import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Chip } from '@/shared/ui/Chip';
 import { FindingCard, ReviewActions } from '@/shared/ui/FindingCard';
+import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { Select } from '@/shared/ui/Select';
 import { Empty } from '@/shared/ui/StateNote';
 import { CRITERIA } from './criteria';
@@ -23,16 +24,23 @@ import styles from './page.module.css';
 
 const CRITERION_IDS = Object.keys(CRITERIA) as Criterion[];
 const STATUS: Record<FindingStatus, string> = {
-  open: 'Chưa xem',
+  open: 'Cần duyệt',
   confirmed: 'Đã xác nhận',
   dismissed: 'Đã bỏ qua',
 };
 const STATUS_IDS = Object.keys(STATUS) as FindingStatus[];
 const SEVERITY = {
-  high: { label: 'Cao', tone: 'danger' },
-  medium: { label: 'Vừa', tone: 'warning' },
-  low: { label: 'Thấp', tone: 'neutral' },
+  high: { label: 'High', tone: 'danger', rank: 0 },
+  medium: { label: 'Medium', tone: 'warning', rank: 1 },
+  low: { label: 'Low', tone: 'neutral', rank: 2 },
 } as const;
+/** The groups of the list, by the kind of problem, in the order a reader of a paper weighs them. */
+const GROUPS: { id: Criterion; label: string }[] = [
+  { id: 'claim', label: 'Claims & reasoning' },
+  { id: 'evidence', label: 'Evidence & data' },
+  { id: 'context', label: 'Sources & citations' },
+  { id: 'writing', label: 'Writing' },
+];
 const PAGE = 30;
 const WHOLE = '__paper';
 
@@ -76,6 +84,7 @@ export function FindingsList({
   const [statuses, setStatuses] = useState<FindingStatus[]>(['open', 'confirmed']);
   const [section, setSection] = useState('all');
   const [limit, setLimit] = useState(PAGE);
+  const [groupBy, setGroupBy] = useState('type');
   const [applied, setApplied] = useState<string | null>(null);
   if (focusId && focusId !== applied) {
     setApplied(focusId);
@@ -93,9 +102,24 @@ export function FindingsList({
 
   const inSection = (item: PaperFinding) =>
     section === 'all' || (section === WHOLE ? item.sectionId === null : item.sectionId === section);
-  const shown = findings.filter(
+  const filtered = findings.filter(
     (item) => criteria.includes(item.criterion) && statuses.includes(item.status) && inSection(item),
   );
+  const group = (item: PaperFinding) => GROUPS.findIndex((entry) => entry.id === item.criterion);
+  const shown =
+    groupBy === 'type'
+      ? filtered
+          .map((item, position) => ({ item, position }))
+          .sort(
+            (a, b) =>
+              group(a.item) - group(b.item) ||
+              Number(a.item.status !== 'open') - Number(b.item.status !== 'open') ||
+              SEVERITY[a.item.severity].rank - SEVERITY[b.item.severity].rank ||
+              a.position - b.position,
+          )
+          .map(({ item }) => item)
+      : filtered;
+  const toReview = findings.filter((item) => item.status === 'open').length;
   const counts = useMemo(() => countBySection(findings), [findings]);
   const cell = (sectionId: string | null, criterion: Criterion) =>
     counts.find((item) => item.sectionId === sectionId && item.criterion === criterion)?.count ?? 0;
@@ -113,13 +137,37 @@ export function FindingsList({
     return (
       <Empty
         title="Chưa có phát hiện nào."
-        hint="Chạy Kiểm tra tự động bên dưới, hoặc Phân tích toàn bài ở Tóm lược."
+        hint="Chạy Automated checks bên dưới, hoặc Phân tích toàn bài ở cột bài báo."
       />
     );
   const visible = shown.slice(0, limit);
   return (
-    <section className={styles.findings} aria-label="Danh sách phát hiện">
-      <div className={styles.blockChips} role="group" aria-label="Lọc theo tiêu chí">
+    <section className={styles.findings} aria-label="Issues">
+      {toReview > 0 && (
+        <p className={styles.reviewNotice} role="status">
+          <strong>{toReview} phát hiện cần bạn duyệt.</strong>
+          <Button
+            size="sm"
+            onClick={() => {
+              setStatuses(['open']);
+              setCriteria(CRITERION_IDS);
+              setSection('all');
+            }}
+          >
+            Chỉ hiện mục cần duyệt
+          </Button>
+        </p>
+      )}
+      <SegmentedControl
+        label="Group by"
+        value={groupBy}
+        options={[
+          { value: 'type', label: 'Type' },
+          { value: 'section', label: 'Section' },
+        ]}
+        onChange={setGroupBy}
+      />
+      <div className={styles.blockChips} role="group" aria-label="Filter by criterion">
         {CRITERION_IDS.map((id) => (
           <Chip
             key={id}
@@ -132,7 +180,7 @@ export function FindingsList({
           </Chip>
         ))}
       </div>
-      <div className={styles.blockChips} role="group" aria-label="Lọc theo trạng thái">
+      <div className={styles.blockChips} role="group" aria-label="Filter by status">
         {STATUS_IDS.map((id) => (
           <Chip
             key={id}
@@ -153,7 +201,7 @@ export function FindingsList({
         </Select>
       </div>
       <details className={styles.matrix}>
-        <summary>Bảng mục × tiêu chí</summary>
+        <summary>Sections × criteria</summary>
         <div className={styles.tableWrap}>
           <table>
             <thead>
@@ -228,10 +276,27 @@ export function FindingsList({
       {visible.map((finding, index) => {
         const first = finding.locations[0];
         const paragraph = first && paper.paragraphs.find((item) => item.id === first.paragraphId);
+        const previous = visible[index - 1];
+        const entry = GROUPS[group(finding)];
         const heading =
-          index === 0 || visible[index - 1]?.sectionId !== finding.sectionId
-            ? (paper.sections.find((item) => item.id === finding.sectionId)?.heading ?? 'Cả bài')
-            : null;
+          groupBy === 'type'
+            ? index === 0 || previous?.criterion !== finding.criterion
+              ? entry && (
+                  <>
+                    <CriterionMark criterion={entry.id} /> {entry.label}{' '}
+                    <span className={styles.groupCount}>
+                      {
+                        findings.filter((item) => item.criterion === entry.id && item.status === 'open')
+                          .length
+                      }{' '}
+                      cần duyệt / {findings.filter((item) => item.criterion === entry.id).length}
+                    </span>
+                  </>
+                )
+              : null
+            : index === 0 || previous?.sectionId !== finding.sectionId
+              ? (paper.sections.find((item) => item.id === finding.sectionId)?.heading ?? 'Cả bài')
+              : null;
         const quote = paragraph && first ? `“${sliceCp(paragraph.text, first.start, first.end)}”` : undefined;
         return (
           <div key={finding.id} id={`finding-${finding.id}`} className={styles.findingRow}>
@@ -247,11 +312,9 @@ export function FindingsList({
                   <>
                     <CriterionMark criterion={finding.criterion} />
                     <strong>{findingTitle(finding)}</strong>
-                    <Badge tone={SEVERITY[finding.severity].tone}>
-                      Mức {SEVERITY[finding.severity].label}
-                    </Badge>
+                    <Badge tone={SEVERITY[finding.severity].tone}>{SEVERITY[finding.severity].label}</Badge>
                     <Badge tone={finding.origin === 'ai' ? 'accent' : 'neutral'}>
-                      {finding.origin === 'ai' ? 'AI đề xuất' : 'Quy tắc'}
+                      {finding.origin === 'ai' ? 'AI' : 'Rule'}
                     </Badge>
                     {finding.status !== 'open' && (
                       <Badge tone={finding.status === 'confirmed' ? 'success' : 'neutral'}>
