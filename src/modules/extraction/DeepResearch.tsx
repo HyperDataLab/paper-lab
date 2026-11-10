@@ -4,7 +4,9 @@ import {
   candidateFromWork,
   decideCandidate,
   emptyDeep,
+  isGrounded,
   mergeCandidates,
+  paperEvidence,
   papersFromCandidates,
   SCREENING_BATCH,
   synthesisInput,
@@ -29,6 +31,7 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Chip } from '@/shared/ui/Chip';
 import { TextField } from '@/shared/ui/TextField';
+import { GroundingDrawer, type GroundingTarget } from './GroundingDrawer';
 import styles from './extraction.module.css';
 
 type Save = (
@@ -91,6 +94,7 @@ export function DeepResearch({
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<ScreeningStatus | 'all'>('all');
+  const [grounding, setGrounding] = useState<GroundingTarget | null>(null);
   const controller = useRef<AbortController | null>(null);
   const plan = deep.plan;
   const planFromDraft = (): SearchPlan => ({
@@ -250,6 +254,8 @@ export function DeepResearch({
       });
     });
   const latest = deep.syntheses.at(-1);
+  const numberOf = (key: string) => (latest?.paperKeys.indexOf(key) ?? -1) + 1;
+  const hasGrounding = Boolean(latest?.claims.some((claim) => claim.citations.length > 0));
   const titleOf = (key: string) => project.papers.find((paper) => paper.key === key)?.title ?? key;
   const shown = deep.candidates.filter((item) => filter === 'all' || item.status === filter);
   const count = (status: ScreeningStatus) => deep.candidates.filter((item) => item.status === status).length;
@@ -492,10 +498,40 @@ export function DeepResearch({
                         <p>
                           {claim.text}{' '}
                           {!claim.supported && <Badge tone="warning">Chưa có nguồn trong ma trận</Badge>}
+                          {hasGrounding && claim.supported && claim.kind !== 'gap' && !isGrounded(claim) && (
+                            <Badge tone="warning">Chưa có đoạn trích kiểm chứng</Badge>
+                          )}
                         </p>
-                        {claim.paperKeys.length > 0 && (
+                        {claim.citations.length > 0 && (
+                          <span className={styles.badges}>
+                            {claim.citations.map((citation) => (
+                              <Chip
+                                key={`${citation.paperKey}:${citation.fieldKey}`}
+                                title={citation.quotes[0]?.quote ?? 'Không có đoạn trích'}
+                                aria-label={`Trích dẫn ${numberOf(citation.paperKey)}: ${titleOf(citation.paperKey)} · ${citation.fieldLabel}`}
+                                onClick={() =>
+                                  setGrounding({ kind: 'citation', citation, claim: claim.text })
+                                }
+                              >
+                                [{numberOf(citation.paperKey)}] {citation.fieldLabel} ·{' '}
+                                {!citation.quotes.length
+                                  ? 'không có đoạn trích'
+                                  : citation.fullText
+                                    ? 'toàn văn'
+                                    : 'tóm tắt'}
+                              </Chip>
+                            ))}
+                          </span>
+                        )}
+                        {claim.paperKeys.some(
+                          (key) => !claim.citations.some((citation) => citation.paperKey === key),
+                        ) && (
                           <span className={styles.note}>
-                            Nguồn: {claim.paperKeys.map(titleOf).join('; ')}
+                            Chỉ nêu tên bài:{' '}
+                            {claim.paperKeys
+                              .filter((key) => !claim.citations.some((citation) => citation.paperKey === key))
+                              .map(titleOf)
+                              .join('; ')}
                           </span>
                         )}
                         {claim.caveat && <span className={styles.note}>Lưu ý: {claim.caveat}</span>}
@@ -508,9 +544,50 @@ export function DeepResearch({
             <p className={styles.note}>
               Khoảng trống là giả thuyết cần kiểm tra, không phải kết luận rằng chưa ai nghiên cứu.
             </p>
+            {latest.paperKeys.length > 0 && (
+              <section>
+                <h3>Tài liệu và đoạn trích</h3>
+                {!hasGrounding && (
+                  <p className={styles.note}>
+                    Bản tổng hợp này tạo trước khi có đối chiếu trích dẫn. Chạy lại tổng hợp để xem đoạn trích
+                    đứng sau từng nhận định.
+                  </p>
+                )}
+                <ol className={styles.references}>
+                  {latest.paperKeys.map((key) => {
+                    const quotes = paperEvidence(latest, key).reduce(
+                      (total, item) => total + item.citation.quotes.length,
+                      0,
+                    );
+                    return (
+                      <li key={key}>
+                        {titleOf(key)}{' '}
+                        {hasGrounding && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setGrounding({ kind: 'paper', paperKey: key })}
+                          >
+                            {quotes} đoạn trích
+                          </Button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </section>
+            )}
           </div>
         )}
       </Card>
+      {grounding && latest && (
+        <GroundingDrawer
+          project={project}
+          synthesis={latest}
+          target={grounding}
+          onClose={() => setGrounding(null)}
+        />
+      )}
     </div>
   );
 }

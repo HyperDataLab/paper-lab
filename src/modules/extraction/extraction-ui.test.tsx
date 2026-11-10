@@ -159,3 +159,90 @@ it('Deep Research waits for an approved plan and leaves screening decisions to a
   expect(stored?.deep?.candidates[0]).toMatchObject({ status: 'included', reason: 'Đúng chủ đề' });
   expect(stored?.deep?.plan?.approvedAt).not.toBeNull();
 });
+
+it('citation grounding shows the passage behind a claim and links to it in the paper', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const repo = createRepositories(createDb(`extraction-grounding-${crypto.randomUUID()}`));
+  const base = newProject({ id: crypto.randomUUID(), title: 'Đối chiếu', researchQuestion: '', now: at });
+  const projectPaper = projectPaperFromPaper(paper);
+  const quote = {
+    paragraphId: 'p',
+    section: 'Methods',
+    page: 2,
+    start: 9,
+    end: 25,
+    quote: 'an online survey',
+  };
+  const citation = {
+    paperKey: projectPaper.key,
+    fieldKey: 'methods_used',
+    fieldLabel: 'Methods Used',
+    value: 'Online survey',
+    fullText: true,
+    humanVerified: false,
+  };
+  const saved = await repo.extraction.save({
+    ...base,
+    papers: [projectPaper],
+    deep: {
+      plan: null,
+      rounds: [],
+      candidates: [],
+      syntheses: [
+        {
+          id: crypto.randomUUID(),
+          createdAt: at,
+          model: 'm',
+          promptVersion: 'synthesis-3',
+          paperKeys: [projectPaper.key],
+          droppedRefs: 0,
+          claims: [
+            {
+              kind: 'theme',
+              text: 'Bài dùng khảo sát trực tuyến.',
+              paperKeys: [projectPaper.key],
+              caveat: null,
+              supported: true,
+              citations: [{ ...citation, quotes: [quote] }],
+            },
+            {
+              kind: 'agreement',
+              text: 'Nhận định không có đoạn trích.',
+              paperKeys: [projectPaper.key],
+              caveat: null,
+              supported: true,
+              citations: [{ ...citation, fieldKey: 'results', fieldLabel: 'Results', quotes: [] }],
+            },
+          ],
+        },
+      ],
+    },
+  });
+  mount(repo, `/extraction/${saved.id}`);
+  fireEvent.click(await screen.findByRole('radio', { name: 'Deep Research' }));
+  // Only the claim whose citation has no passage is flagged.
+  expect(screen.getAllByText('Chưa có đoạn trích kiểm chứng')).toHaveLength(1);
+  const chip = screen.getByRole('button', { name: 'Trích dẫn 1: A survey paper · Methods Used' });
+  expect(chip).toHaveTextContent('[1] Methods Used · toàn văn');
+  expect(chip).toHaveAttribute('title', 'an online survey');
+  expect(screen.getByRole('button', { name: /· Results$/ })).toHaveTextContent('không có đoạn trích');
+
+  fireEvent.click(chip);
+  const card = await screen.findByRole('dialog', { name: 'Trích dẫn nguồn' });
+  expect(within(card).getByText('an online survey')).toBeInTheDocument();
+  expect(within(card).getByText('Đã dùng toàn văn')).toBeInTheDocument();
+  expect(within(card).getByText('Bài dùng khảo sát trực tuyến.')).toBeInTheDocument();
+  expect(within(card).getByRole('link', { name: 'Xem đoạn này trong bài' })).toHaveAttribute(
+    'href',
+    `/papers/${paper.id}?p=p&s=9&e=25`,
+  );
+  fireEvent.click(within(card).getByRole('button', { name: 'Đóng' }));
+
+  fireEvent.click(screen.getByRole('button', { name: '1 đoạn trích' }));
+  const evidence = await screen.findByRole('dialog', { name: 'Bằng chứng từ bài này' });
+  expect(within(evidence).getByText('an online survey')).toBeInTheDocument();
+  expect(
+    within(evidence).getByText('Không có đoạn trích tìm thấy trong bài cho giá trị này.'),
+  ).toBeInTheDocument();
+  expect(within(evidence).getAllByText(/Dùng cho 1 nhận định/)).toHaveLength(2);
+});

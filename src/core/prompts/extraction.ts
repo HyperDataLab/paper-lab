@@ -98,7 +98,7 @@ Research question: ${question || 'not stated'}
 Return claims, each with:
 - kind: "theme" (a common topic or approach), "agreement" (papers that agree), "disagreement" (papers that differ, and how) or "gap" (what the matrix does not cover).
 - text: one or two sentences in Vietnamese.
-- paperKeys: the labels in square brackets (such as "P1") of the papers it rests on, copied exactly. Every claim except a gap needs at least one.
+- paperKeys: the labels in square brackets of the values it rests on (such as "P1.2", never the bare paper label), copied exactly. Cite every value the claim uses. Every claim except a gap needs at least one.
 - caveat: a short limit in Vietnamese, such as abstract-only sources or few papers, or null.
 A gap is a candidate for the user to check, based only on these papers; never claim that no research exists.`,
     user: `<document>\n${rows.join('\n\n')}\n</document>`,

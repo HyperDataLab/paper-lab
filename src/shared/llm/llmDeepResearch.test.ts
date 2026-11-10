@@ -72,12 +72,18 @@ it('synthesises from at least two papers and keeps only known references', async
       screening: 'included',
     })),
     fields: [{ key: 'results', label: 'Results', hidden: false }],
-    cells: ['a', 'b'].map((paperKey) => ({ paperKey, fieldKey: 'results', value: 'v', status: 'EXTRACTED' })),
+    cells: ['a', 'b'].map((paperKey) => ({
+      paperKey,
+      fieldKey: 'results',
+      value: 'v',
+      status: 'EXTRACTED',
+      evidence: [],
+    })),
   } as unknown as ExtractionProject;
   const synthesis = await llmSynthesis(
     {
       completeJson: reply({
-        claims: [{ kind: 'agreement', text: 'Giống nhau', paperKeys: ['P1', 'b', 'z'], caveat: null }],
+        claims: [{ kind: 'agreement', text: 'Giống nhau', paperKeys: ['P1.1', 'b', 'z'], caveat: null }],
       }),
     },
     project,
@@ -87,7 +93,7 @@ it('synthesises from at least two papers and keeps only known references', async
     paperKeys: ['a', 'b'],
     droppedRefs: 1,
     model: 'real',
-    promptVersion: 'synthesis-2',
+    promptVersion: 'synthesis-3',
   });
   await expect(
     llmSynthesis({ completeJson: reply({ claims: [] }) }, { ...project, cells: [] }, { config }),

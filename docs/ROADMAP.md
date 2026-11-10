@@ -72,11 +72,12 @@ Hồ sơ organises the paper page by question: Khoa học, Lập luận, Diễn 
 
 A separate menu: one matrix per project, rows are papers, columns are fields, every cell carries evidence.
 
-| #   | Slice                                                                                     | Status |
-| --- | ----------------------------------------------------------------------------------------- | ------ |
-| X1  | Projects, 50 suggested and custom columns, Standard mode, evidence drawer, review, export | ✅     |
-| X2  | High Quality: verification pass per cell, conflicts, selective rerun                      | ✅     |
-| X3  | Deep Research: search plan, OpenAlex discovery, screening, cross-paper synthesis          | ✅     |
+| #   | Slice                                                                                        | Status |
+| --- | -------------------------------------------------------------------------------------------- | ------ |
+| X1  | Projects, 50 suggested and custom columns, Standard mode, evidence drawer, review, export    | ✅     |
+| X2  | High Quality: verification pass per cell, conflicts, selective rerun                         | ✅     |
+| X3  | Deep Research: search plan, OpenAlex discovery, screening, cross-paper synthesis             | ✅     |
+| X4  | Citation grounding: each synthesis citation shows the verified passage, links into the paper | ✅     |
 
 ## Open decisions
 

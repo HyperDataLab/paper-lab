@@ -116,3 +116,58 @@ it('P4 runs local checks, navigates to evidence, reviews and shows overview coun
   expect(await screen.findByRole('heading', { name: 'Tình trạng rút bài' })).toBeInTheDocument();
   expect(completeJson).not.toHaveBeenCalled();
 });
+
+it('a link from a grounded citation opens the reader on the quoted passage', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const scroll = vi.fn();
+  Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: scroll });
+  const repo = createRepositories(createDb(`grounding-link-${crypto.randomUUID()}`));
+  const at = '2026-01-01T00:00:00.000Z';
+  const paper: Paper = {
+    schemaVersion: 1,
+    id: crypto.randomUUID(),
+    title: 'Bài có trích dẫn',
+    createdAt: at,
+    updatedAt: at,
+    source: { kind: 'text', fileName: '', pageCount: null, sha256: '' },
+    sections: [
+      { id: 'a', heading: 'Introduction', role: 'introduction', level: 1, pageStart: null },
+      { id: 'b', heading: 'Results', role: 'results', level: 1, pageStart: null },
+    ],
+    paragraphs: [
+      {
+        id: 'p1',
+        sectionId: 'a',
+        order: 0,
+        kind: 'body',
+        text: 'An introduction.',
+        pageStart: null,
+        textHash: '',
+      },
+      {
+        id: 'p2',
+        sectionId: 'b',
+        order: 1,
+        kind: 'body',
+        text: 'Latency fell to 10 ms.',
+        pageStart: null,
+        textHash: '',
+      },
+    ],
+  };
+  await repo.papers.create(paper);
+  render(
+    <MemoryRouter initialEntries={[`/papers/${paper.id}?p=p2&s=16&e=21`]}>
+      <StorageProvider repositories={repo}>
+        <LlmProvider innerClient={{ completeJson: vi.fn() }}>
+          <Routes>
+            <Route path="/papers/:id" element={<PaperMapPage />} />
+          </Routes>
+        </LlmProvider>
+      </StorageProvider>
+    </MemoryRouter>,
+  );
+  const mark = await screen.findByText('10 ms', { selector: 'mark' });
+  expect(mark.closest('#paper-paragraph-p2')).not.toBeNull();
+  await waitFor(() => expect(scroll).toHaveBeenCalled());
+});

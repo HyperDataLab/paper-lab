@@ -27,7 +27,7 @@ export const PROMPT_VERSIONS = {
   extractionVerify: 'extraction-verify-1',
   searchPlan: 'search-plan-1',
   screening: 'screening-1',
-  synthesis: 'synthesis-2',
+  synthesis: 'synthesis-3',
 } as const;
 export const CONNECTION_TEST_SYSTEM = 'You are a connection test. Return the requested JSON object.';
 export const CONNECTION_TEST_USER =

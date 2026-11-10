@@ -5,7 +5,9 @@ import {
   candidateFromWork,
   decideCandidate,
   emptyDeep,
+  isGrounded,
   mergeCandidates,
+  paperEvidence,
   papersFromCandidates,
   planFromOutput,
   synthesisInput,
@@ -121,8 +123,26 @@ describe('deep research', () => {
     revision: 'r',
     screening: 'included' as const,
   });
+  const quote = (text: string, stance: 'supports' | 'conflicts' = 'supports') => ({
+    paragraphId: 'p1',
+    section: 'Results',
+    page: 4,
+    start: 0,
+    end: text.length,
+    quote: text,
+    stance,
+  });
   const cell = (paperKey: string, value: string | null, status = 'EXTRACTED') =>
-    ({ paperKey, fieldKey: 'results', value, status }) as ExtractionProject['cells'][number];
+    ({
+      paperKey,
+      fieldKey: 'results',
+      value,
+      status,
+      sourceAccess: 'ABSTRACT_ONLY',
+      verification: null,
+      // Paper b has a value a person typed in, with no passage behind it.
+      evidence: paperKey === 'a' ? [quote('latency was 10 ms'), quote('about 12 ms', 'conflicts')] : [],
+    }) as unknown as ExtractionProject['cells'][number];
   const project = {
     title: 'P',
     researchQuestion: 'RQ',
@@ -135,19 +155,20 @@ describe('deep research', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]).toContain('[P1] Alpha (2023) · source: ABSTRACT_ONLY');
     expect(rows[1]).toContain('[P2] Beta');
-    expect(rows[0]).toContain('Results: 10 ms');
+    expect(rows[0]).toContain('[P1.1] Results: 10 ms');
   });
-  it('drops references to unknown papers and marks a claim with none left unsupported', () => {
+  it('grounds each citation in the passage behind its value and drops unknown references', () => {
     const { claims, dropped } = verifySynthesis(
       {
         claims: [
           {
             kind: 'disagreement',
             text: 'Khác nhau',
-            paperKeys: ['P1', '[p2]', 'a', 'ghost', 'c'],
+            paperKeys: ['P1.1', '[p2.1]', 'P1.1', 'a', 'ghost', 'c', 'P9.1'],
             caveat: null,
           },
           { kind: 'theme', text: 'Không nguồn', paperKeys: ['ghost'], caveat: 'ít bài' },
+          { kind: 'agreement', text: 'Chỉ nêu tên bài', paperKeys: ['P1', 'P2.1'], caveat: null },
           { kind: 'gap', text: 'Thiếu đo năng lượng', paperKeys: [], caveat: null },
         ],
       },
@@ -155,24 +176,60 @@ describe('deep research', () => {
     );
     expect(claims[0]).toMatchObject({ paperKeys: ['a', 'b'], supported: true });
     expect(claims[1]).toMatchObject({ paperKeys: [], supported: false });
-    expect(claims[2]?.supported).toBe(true);
+    // One citation per value: the passage that supports it, never the conflicting one.
+    expect(claims[0]?.citations).toEqual([
+      {
+        paperKey: 'a',
+        fieldKey: 'results',
+        fieldLabel: 'Results',
+        value: '10 ms',
+        fullText: false,
+        humanVerified: false,
+        quotes: [
+          { paragraphId: 'p1', section: 'Results', page: 4, start: 0, end: 17, quote: 'latency was 10 ms' },
+        ],
+      },
+      expect.objectContaining({ paperKey: 'b', quotes: [] }),
+    ]);
+    expect(claims.map((claim) => isGrounded(claim))).toEqual([true, false, false, false]);
+    // A bare paper label names the paper but grounds nothing.
+    expect(claims[2]).toMatchObject({ paperKeys: ['a', 'b'], supported: true });
+    expect(claims[2]?.citations.map((item) => item.paperKey)).toEqual(['b']);
+    expect(claims[3]?.supported).toBe(true);
     // 'c' is a real paper, but the model was never shown it (its only value is a conflict).
-    expect(dropped).toBe(3);
-    const markdown = synthesisMarkdown(project, {
+    expect(dropped).toBe(4);
+    const synthesis = {
       id: '00000000-0000-4000-8000-000000000001',
       createdAt: at,
       model: 'm',
-      promptVersion: 'synthesis-2',
+      promptVersion: 'synthesis-3',
       paperKeys: ['a', 'b'],
+      claims,
+      droppedRefs: dropped,
+    };
+    expect(paperEvidence(synthesis, 'a')).toEqual([
+      { citation: expect.objectContaining({ fieldKey: 'results' }), claims: ['Khác nhau'] },
+    ]);
+    expect(paperEvidence(synthesis, 'b')[0]?.claims).toEqual(['Khác nhau', 'Chỉ nêu tên bài']);
+    const markdown = synthesisMarkdown(project, {
+      ...synthesis,
       claims: [
         ...claims,
-        { kind: 'gap', text: 'Chưa thấy đo năng lượng', paperKeys: [], caveat: null, supported: false },
+        {
+          kind: 'gap',
+          text: 'Chưa thấy đo năng lượng',
+          paperKeys: [],
+          caveat: null,
+          supported: false,
+          citations: [],
+        },
       ],
-      droppedRefs: dropped,
     });
     expect(markdown).toContain('## Điểm khác biệt\n- Khác nhau [1][2]');
     expect(markdown).toContain('Không nguồn (chưa có nguồn trong ma trận) — Lưu ý: ít bài');
     expect(markdown).toContain('## Khoảng trống ứng viên');
-    expect(markdown).toContain('1. Alpha (2023). https://doi.org/10.1234/a');
+    expect(markdown).toContain(
+      '1. Alpha (2023). https://doi.org/10.1234/a\n   - Results: “latency was 10 ms” (tr. 4) (tóm tắt)',
+    );
   });
 });
