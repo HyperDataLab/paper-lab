@@ -18,6 +18,10 @@ export async function importPaperFile(
   const data = await file.arrayBuffer();
   const digest = await crypto.subtle.digest('SHA-256', data);
   const sha256 = `sha256:${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
+  // The original file is kept here so the paper can be read as a PDF; it reaches the lab's storage only
+  // when a lab account is signed in (see shared/pdfStore).
+  if (ext === 'pdf')
+    await repo.pdfFiles.put(sha256.slice('sha256:'.length), new Blob([data], { type: 'application/pdf' }));
   if (options.reuseExisting) {
     const existing = (await repo.papers.list()).find((paper) => paper.source.sha256 === sha256);
     if (existing) return existing;

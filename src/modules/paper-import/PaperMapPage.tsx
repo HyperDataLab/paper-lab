@@ -27,6 +27,8 @@ import { PaperRhetoric } from './PaperRhetoric';
 import { PaperVocabulary } from './PaperVocabulary';
 import { PaperProbe } from './PaperProbe';
 import { PaperReader } from './PaperReader';
+import { PaperPdf } from './PaperPdf';
+import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { PaperMeasurement } from './PaperMeasurement';
 import { PaperStance } from './PaperStance';
 import styles from './page.module.css';
@@ -437,6 +439,23 @@ export default function PaperMapPage() {
   const notifyStoredChanged = useCallback(() => setStoredTick((tick) => tick + 1), []);
   const [layers, setLayers] = useState<Criterion[]>(['claim', 'evidence', 'context']);
   const [focusFinding, setFocusFinding] = useState<string | null>(null);
+  // Full text shows the original PDF, or the parsed text with its marks; the reader's choice is remembered.
+  const [fullView, setFullViewState] = useState<'pdf' | 'text'>(() => {
+    try {
+      return localStorage.getItem('paper-fulltext-view') === 'text' ? 'text' : 'pdf';
+    } catch {
+      return 'pdf';
+    }
+  });
+  const setFullView = (view: 'pdf' | 'text') => {
+    setFullViewState(view);
+    try {
+      localStorage.setItem('paper-fulltext-view', view);
+    } catch {
+      /* the choice then lasts for this visit only */
+    }
+  };
+  const [pdfTarget, setPdfTarget] = useState<{ page: number; nonce: number } | null>(null);
   const wide = useWide();
   const [splitWanted, setSplitWanted] = useState(readSplit);
   useEffect(() => {
@@ -600,6 +619,9 @@ export default function PaperMapPage() {
     setSelected(paragraph.sectionId);
     setHighlight(location);
     setPaneState('fulltext');
+    // In the PDF the passage's page is shown; the exact words are highlighted in Text.
+    const page = paragraph.pageStart;
+    if (page) setPdfTarget((old) => ({ page, nonce: (old?.nonce ?? 0) + 1 }));
   };
   const toggleSplit = () => {
     const next = !splitWanted;
@@ -930,7 +952,21 @@ export default function PaperMapPage() {
                     </div>
                   )}
                   <p className={styles.tabHelp}>{PLACE_HELP[pane]}</p>
-                  {pane === 'fulltext' && (
+                  {pane === 'fulltext' && paper.source.kind === 'pdf' && (
+                    <SegmentedControl
+                      label="Full text view"
+                      value={fullView}
+                      options={[
+                        { value: 'pdf', label: 'PDF' },
+                        { value: 'text', label: 'Text' },
+                      ]}
+                      onChange={(value) => setFullView(value === 'text' ? 'text' : 'pdf')}
+                    />
+                  )}
+                  {pane === 'fulltext' && paper.source.kind === 'pdf' && fullView === 'pdf' && (
+                    <PaperPdf paper={paper} target={pdfTarget} />
+                  )}
+                  {pane === 'fulltext' && (paper.source.kind !== 'pdf' || fullView === 'text') && (
                     <>
                       {errorBox('Không thể xử lý bài báo.')}
                       <PaperReader

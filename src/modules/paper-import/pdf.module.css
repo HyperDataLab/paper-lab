@@ -1,0 +1,76 @@
+.viewer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+}
+.toolbar {
+  position: sticky;
+  top: var(--space-10);
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-2) 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.toolbar label {
+  width: calc(var(--space-10) * 2);
+}
+.count {
+  align-self: center;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.spacer {
+  flex: 1;
+}
+.pages {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  max-height: calc(100vh - var(--space-10) * 4);
+  overflow: auto;
+  padding: var(--space-3) 0;
+  background: var(--bg);
+  border-radius: var(--radius);
+}
+.page {
+  position: relative;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  outline: 2px solid transparent;
+  transition: outline-color 0.3s;
+}
+.page canvas {
+  display: block;
+}
+.page[data-flash='true'] {
+  outline-color: var(--accent);
+}
+.note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.attach {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+.attach p {
+  margin: 0;
+}
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

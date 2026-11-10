@@ -26,7 +26,7 @@
           },
           {
             "key": "Content-Security-Policy",
-            "value": "default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.workers.dev https://9router.oraltest.site https://api.openalex.org https://api.crossref.org https://api.unpaywall.org https://www.ebi.ac.uk https://arxiv.org; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+            "value": "default-src 'self'; script-src 'self' https://apis.google.com; frame-src https://hyperdatalab-paragraph-lab.firebaseapp.com https://accounts.google.com; worker-src 'self' blob:; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.workers.dev https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://9router.oraltest.site https://api.openalex.org https://api.crossref.org https://api.unpaywall.org https://www.ebi.ac.uk https://arxiv.org; img-src 'self' data: blob: https://lh3.googleusercontent.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
           }
         ]
       },

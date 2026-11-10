@@ -424,8 +424,8 @@ export function LibraryPanel() {
             </div>
           )}
           <p className={styles.tableNote}>
-            Bài chưa có file: mở bản mở, tải PDF về rồi kéo thả vào đúng dòng hoặc bấm Gắn PDF. PDF chỉ được
-            đọc trên máy của bạn.
+            Bài chưa có file: mở bản mở, tải PDF về rồi kéo thả vào đúng dòng hoặc bấm Gắn PDF. PDF được đọc
+            trên máy của bạn; khi đăng nhập tài khoản lab, bản gốc được lưu thêm vào kho chung của lab.
           </p>
         </section>
       )}

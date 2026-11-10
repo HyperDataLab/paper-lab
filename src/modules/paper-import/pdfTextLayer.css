@@ -1,0 +1,39 @@
+/*
+ * The selectable text that pdf.js lays over each rendered page. pdf.js sizes and places the spans itself
+ * from --total-scale-factor; these rules only make the text invisible and selectable over the canvas.
+ * Global on purpose: pdf.js writes plain class names, not CSS-module ones.
+ */
+.pl-text-layer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  text-align: initial;
+  transform-origin: 0 0;
+  z-index: 1;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+.pl-text-layer :is(span, br) {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text;
+}
+.pl-text-layer > :not(.markedContent),
+.pl-text-layer .markedContent span:not(.markedContent) {
+  --font-height: 0;
+  --scale-x: 1;
+  --rotate: 0deg;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+.pl-text-layer .markedContent {
+  display: contents;
+}
+.pl-text-layer ::selection {
+  background: rgb(0 100 255 / 25%);
+}

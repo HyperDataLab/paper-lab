@@ -49,6 +49,7 @@ import { createLibraryRepository } from './library';
 import { createStanceRepository } from './stance';
 import { createPaperInsightsRepository } from './paperInsights';
 import { createExtractionRepository } from './extractionProjects';
+import { createPdfFilesRepository } from './pdfFiles';
 export class SourceImmutableError extends Error {
   override name = 'SourceImmutableError';
 }
@@ -685,6 +686,7 @@ export function createRepositories(
   const stance = createStanceRepository(db, now, makeAudit);
   const paperInsights = createPaperInsightsRepository(db, now, makeAudit);
   const extraction = createExtractionRepository(db, now, makeAudit);
+  const pdfFiles = createPdfFilesRepository(db, now);
   // A cheap lookup that can be repeated, so like paper runs it is not part of the export.
   const paperContext = {
     async get(paperId: string) {
@@ -1051,6 +1053,7 @@ export function createRepositories(
     paperContext,
     paperInsights,
     extraction,
+    pdfFiles,
     calibrationLabels,
     transfer,
   };
