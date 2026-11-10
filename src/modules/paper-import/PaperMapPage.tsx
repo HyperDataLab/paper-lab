@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { type Paper, type Section, type Finding, type PaperChecksRecord } from '@/core/schemas';
 import { runPaperChecks } from '@/core/paperChecks';
 import type { ProfileView } from '@/core/paperProfile';
@@ -134,6 +134,7 @@ function BatchWorkspace({
 
 export default function PaperMapPage() {
   const { id } = useParams();
+  const [query] = useSearchParams();
   const repo = useRepositories();
   const [paper, setPaper] = useState<Paper | null>(null);
   const [selected, setSelected] = useState('');
@@ -175,7 +176,20 @@ export default function PaperMapPage() {
       .then((value) => {
         if (!active) return;
         setPaper(value ?? null);
-        setSelected(value?.sections[0]?.id ?? '');
+        // A link from a grounded citation (?p=&s=&e=) opens the reader on that passage.
+        const linked = value?.paragraphs.find((item) => item.id === query.get('p'));
+        const start = Number(query.get('s'));
+        const end = Number(query.get('e'));
+        setSelected(linked?.sectionId ?? value?.sections[0]?.id ?? '');
+        if (linked) {
+          const whole = !Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start;
+          setHighlight({
+            paragraphId: linked.id,
+            start: whole ? 0 : start,
+            end: whole ? Math.max(1, Array.from(linked.text).length) : end,
+          });
+          setTab('map');
+        }
         setLoading(false);
         if (value)
           void Promise.all(
@@ -210,7 +224,7 @@ export default function PaperMapPage() {
     return () => {
       active = false;
     };
-  }, [id, repo]);
+  }, [id, repo, query]);
   async function editRole(role: Section['role']) {
     if (!paper) return;
     try {

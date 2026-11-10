@@ -7,10 +7,12 @@ import type {
   ScreeningOutput,
   ScreeningStatus,
   SearchPlan,
+  GroundedCitation,
   Synthesis,
+  SynthesisClaim,
   SynthesisOutput,
 } from '../schemas/deepResearch';
-import type { ExtractionProject, ProjectPaper } from '../schemas/extraction';
+import type { ExtractionCell, ExtractionProject, ProjectPaper } from '../schemas/extraction';
 
 export const emptyDeep = (): DeepResearch => ({ plan: null, rounds: [], candidates: [], syntheses: [] });
 export const SCREENING_BATCH = 10;
@@ -145,50 +147,103 @@ export function papersFromCandidates(candidates: Candidate[]): ProjectPaper[] {
 }
 
 /**
- * What synthesis may read: the matrix values only, each paper under a short label (P1, P2, …) that the model
- * copies back reliably. Withheld values and conflicts stay out.
+ * What synthesis may read: the matrix values only. Each paper gets a short label (P1, P2, …) and each value
+ * its own (P1.1, P1.2, …), which the model copies back reliably. Withheld values and conflicts stay out.
  */
 function synthesisRows(project: ExtractionProject) {
   const fields = project.fields.filter((field) => !field.hidden);
-  const rows: { label: string; key: string; text: string }[] = [];
+  const rows: { label: string; key: string; text: string; values: Map<string, ExtractionCell> }[] = [];
   let size = 0;
   for (const paper of project.papers.filter((item) => item.screening === 'included')) {
-    const values = fields.flatMap((field) => {
-      const cell = project.cells.find((item) => item.paperKey === paper.key && item.fieldKey === field.key);
-      return cell?.value && cell.status !== 'CONFLICT' ? [`  ${field.label}: ${cell.value}`] : [];
-    });
-    if (!values.length) continue;
     const label = `P${rows.length + 1}`;
-    const text = `[${label}] ${paper.title}${paper.year ? ` (${paper.year})` : ''} · source: ${paper.access}\n${values.join('\n')}`;
+    const values = new Map<string, ExtractionCell>();
+    const lines: string[] = [];
+    for (const field of fields) {
+      const cell = project.cells.find((item) => item.paperKey === paper.key && item.fieldKey === field.key);
+      if (!cell?.value || cell.status === 'CONFLICT') continue;
+      const ref = `${label}.${values.size + 1}`;
+      values.set(ref.toLowerCase(), cell);
+      lines.push(`  [${ref}] ${field.label}: ${cell.value}`);
+    }
+    if (!lines.length) continue;
+    const text = `[${label}] ${paper.title}${paper.year ? ` (${paper.year})` : ''} · source: ${paper.access}\n${lines.join('\n')}`;
     if (size + text.length > SYNTHESIS_CHARS) break;
-    rows.push({ label, key: paper.key, text });
+    rows.push({ label, key: paper.key, text, values });
     size += text.length;
   }
   return rows;
 }
 export const synthesisInput = (project: ExtractionProject) => synthesisRows(project).map((row) => row.text);
 
+function citationOf(cell: ExtractionCell, project: ExtractionProject): GroundedCitation {
+  return {
+    paperKey: cell.paperKey,
+    fieldKey: cell.fieldKey,
+    fieldLabel: project.fields.find((field) => field.key === cell.fieldKey)?.label ?? cell.fieldKey,
+    value: cell.value ?? '',
+    fullText: cell.sourceAccess === 'FULL_TEXT',
+    humanVerified: cell.verification === 'HUMAN',
+    quotes: cell.evidence
+      .filter((item) => item.stance === 'supports')
+      .map(({ paragraphId, section, page, start, end, quote }) => ({
+        paragraphId,
+        section,
+        page,
+        start,
+        end,
+        quote,
+      })),
+  };
+}
+
 /**
- * A claim keeps only references to papers the model was shown, by label or by key; a claim other than a gap
- * with none left is marked unsupported.
+ * Citation grounding. A reference to a value (P1.2) becomes a citation carrying the passages code found in
+ * the paper for that value; a reference to a whole paper (P1) or by key names the paper only. References
+ * to anything the model was not shown are dropped. A claim other than a gap with no paper left is marked
+ * unsupported.
  */
 export function verifySynthesis(output: SynthesisOutput, project: ExtractionProject) {
   const shown = synthesisRows(project);
   const byLabel = new Map(shown.map((row) => [row.label.toLowerCase(), row.key]));
   const keys = new Set(shown.map((row) => row.key));
+  const cells = new Map(shown.flatMap((row) => [...row.values]));
   let dropped = 0;
   const claims = output.claims.map((claim) => {
-    const resolved = claim.paperKeys.flatMap((raw) => {
+    const papers: string[] = [];
+    const citations: GroundedCitation[] = [];
+    for (const raw of claim.paperKeys) {
       const ref = raw.trim().replace(/^\[|\]$/g, '');
-      const key = byLabel.get(ref.toLowerCase()) ?? (keys.has(ref) ? ref : undefined);
-      if (!key) dropped++;
-      return key ? [key] : [];
-    });
-    const paperKeys = [...new Set(resolved)];
+      const cell = cells.get(ref.toLowerCase());
+      const key = cell?.paperKey ?? byLabel.get(ref.toLowerCase()) ?? (keys.has(ref) ? ref : undefined);
+      if (!key) {
+        dropped++;
+        continue;
+      }
+      papers.push(key);
+      if (cell && !citations.some((item) => item.paperKey === key && item.fieldKey === cell.fieldKey))
+        citations.push(citationOf(cell, project));
+    }
+    const paperKeys = [...new Set(papers)];
     // A gap is about what the matrix lacks, so it needs no source.
-    return { ...claim, paperKeys, supported: paperKeys.length > 0 || claim.kind === 'gap' };
+    return { ...claim, paperKeys, citations, supported: paperKeys.length > 0 || claim.kind === 'gap' };
   });
   return { claims, dropped };
+}
+
+/** Grounded means at least one citation shows a passage found in its paper. */
+export const isGrounded = (claim: SynthesisClaim) => claim.citations.some((item) => item.quotes.length > 0);
+
+/** Every quote a synthesis used from one paper, each with the claims that rest on it. */
+export function paperEvidence(synthesis: Synthesis, paperKey: string) {
+  const items: { citation: GroundedCitation; claims: string[] }[] = [];
+  for (const claim of synthesis.claims)
+    for (const citation of claim.citations) {
+      if (citation.paperKey !== paperKey) continue;
+      const found = items.find((item) => item.citation.fieldKey === citation.fieldKey);
+      if (found) found.claims.push(claim.text);
+      else items.push({ citation, claims: [claim.text] });
+    }
+  return items;
 }
 
 const KIND_TITLES = {
@@ -220,10 +275,15 @@ export function synthesisMarkdown(project: ExtractionProject, synthesis: Synthes
   lines.push('', '## Tài liệu');
   for (const key of synthesis.paperKeys) {
     const paper = titleOf(key);
-    if (paper)
-      lines.push(
-        `${numbers.get(key)}. ${paper.title}${paper.year ? ` (${paper.year})` : ''}${paper.doi ? `. https://doi.org/${paper.doi}` : ''}`,
-      );
+    if (!paper) continue;
+    lines.push(
+      `${numbers.get(key)}. ${paper.title}${paper.year ? ` (${paper.year})` : ''}${paper.doi ? `. https://doi.org/${paper.doi}` : ''}`,
+    );
+    for (const { citation } of paperEvidence(synthesis, key))
+      for (const quote of citation.quotes)
+        lines.push(
+          `   - ${citation.fieldLabel}: “${quote.quote}”${quote.page ? ` (tr. ${quote.page})` : ''}${citation.fullText ? '' : ' (tóm tắt)'}`,
+        );
   }
   return lines.filter((line, index) => line !== '' || index > 0).join('\n');
 }

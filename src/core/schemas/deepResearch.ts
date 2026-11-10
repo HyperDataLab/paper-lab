@@ -49,6 +49,31 @@ export const CandidateSchema = z.object({
 });
 export type Candidate = z.infer<typeof CandidateSchema>;
 
+export const GroundingQuoteSchema = z.object({
+  paragraphId: z.string().nullable(),
+  section: z.string().nullable(),
+  page: z.number().int().nullable(),
+  start: z.number().int().nonnegative(),
+  end: z.number().int().positive(),
+  quote: z.string(),
+});
+/**
+ * One citation of a claim, grounded in the matrix value it rests on. The quotes are the passages code
+ * found in the paper for that value, copied when the synthesis was made.
+ */
+export const GroundedCitationSchema = z.object({
+  paperKey: z.string(),
+  fieldKey: z.string(),
+  fieldLabel: z.string(),
+  value: z.string(),
+  /** True when the value was read from the full text, false when only the abstract was available. */
+  fullText: z.boolean(),
+  /** True when a person verified the value in the matrix. */
+  humanVerified: z.boolean(),
+  quotes: z.array(GroundingQuoteSchema),
+});
+export type GroundedCitation = z.infer<typeof GroundedCitationSchema>;
+
 export const SynthesisClaimSchema = z.object({
   kind: z.enum(['theme', 'agreement', 'disagreement', 'gap']),
   text: z.string(),
@@ -56,6 +81,8 @@ export const SynthesisClaimSchema = z.object({
   caveat: z.string().nullable(),
   /** False when none of the cited papers is in the matrix; such a claim is shown as unsupported. */
   supported: z.boolean(),
+  /** Empty for a synthesis made before citation grounding. */
+  citations: z.array(GroundedCitationSchema).default([]),
 });
 export type SynthesisClaim = z.infer<typeof SynthesisClaimSchema>;
 
