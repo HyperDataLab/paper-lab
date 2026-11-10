@@ -109,7 +109,7 @@ it('P4 runs local checks, navigates to evidence, reviews and shows overview coun
   );
   fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
   expect(await screen.findByText('Hình và bảng cần kiểm tra')).toBeInTheDocument();
-  expect(screen.getByRole('tab', { name: 'B. Lập luận' })).toBeDisabled();
+  expect(screen.getByRole('tab', { name: 'B. Lập luận' })).toBeEnabled();
   const context = screen.getByRole('article', { name: 'Bối cảnh học thuật và Nguồn gốc' });
   fireEvent.click(within(context).getByRole('button', { name: 'Xem chi tiết' }));
   expect(screen.getByRole('tab', { name: 'E. Bối cảnh' })).toHaveAttribute('aria-selected', 'true');

@@ -1,8 +1,11 @@
 import {
+  ArgumentRunSchema,
   AuditEventSchema,
   InsightDecisionSchema,
   PaperInsightsRecordSchema,
   RhetoricRunSchema,
+  type ArgumentPending,
+  type ArgumentRun,
   type AuditEvent,
   type InsightDecision,
   type PaperInsightsRecord,
@@ -26,6 +29,8 @@ export function createPaperInsightsRepository(
     updatedAt: now(),
     rhetoricRuns: [],
     rhetoricPending: null,
+    argumentRuns: [],
+    argumentPending: null,
     decisions: [],
   });
   async function requirePaper(paperId: string) {
@@ -40,7 +45,7 @@ export function createPaperInsightsRepository(
   ) {
     await db.auditEvents.add(
       AuditEventSchema.parse({
-        ...makeAudit(paperId, action, action === 'run_rhetoric' ? 'model' : 'human'),
+        ...makeAudit(paperId, action, action.startsWith('run_') ? 'model' : 'human'),
         at,
         ...(issueId ? { issueId } : {}),
         after,
@@ -78,11 +83,43 @@ export function createPaperInsightsRepository(
         return value;
       });
     },
+    async saveArgumentPending(paperId: string, pending: ArgumentPending | null) {
+      return db.transaction('rw', [db.papers, db.paperInsights], async () => {
+        await requirePaper(paperId);
+        const value = PaperInsightsRecordSchema.parse({
+          ...((await get(paperId)) ?? empty(paperId)),
+          updatedAt: now(),
+          argumentPending: pending,
+        });
+        await db.paperInsights.put(value);
+        return value;
+      });
+    },
+    async saveArgumentRun(paperId: string, input: ArgumentRun, pending: ArgumentPending | null = null) {
+      const run = ArgumentRunSchema.parse(input);
+      return db.transaction('rw', [db.papers, db.paperInsights, db.auditEvents], async () => {
+        await requirePaper(paperId);
+        const previous = (await get(paperId)) ?? empty(paperId);
+        const at = now();
+        const value = PaperInsightsRecordSchema.parse({
+          ...previous,
+          updatedAt: at,
+          argumentPending: pending,
+          argumentRuns: [...previous.argumentRuns, run],
+        });
+        await db.paperInsights.put(value);
+        await audit(paperId, 'run_argument', at, { runId: run.id });
+        return value;
+      });
+    },
     async decide(paperId: string, input: Omit<InsightDecision, 'at'>) {
       return db.transaction('rw', [db.papers, db.paperInsights, db.auditEvents], async () => {
         await requirePaper(paperId);
         const previous = await get(paperId);
-        if (!previous?.rhetoricRuns.some((run) => run.id === input.run_id)) throw new Error('Run not found');
+        if (!previous) throw new Error('Run not found');
+        const isArgument = previous.argumentRuns.some((run) => run.id === input.run_id);
+        if (!isArgument && !previous.rhetoricRuns.some((run) => run.id === input.run_id))
+          throw new Error('Run not found');
         const at = now();
         const decision = InsightDecisionSchema.parse({ ...input, at });
         const value = PaperInsightsRecordSchema.parse({
@@ -91,7 +128,13 @@ export function createPaperInsightsRepository(
           decisions: [...previous.decisions, decision],
         });
         await db.paperInsights.put(value);
-        await audit(paperId, 'review_rhetoric', at, { decision: decision.decision }, decision.item_id);
+        await audit(
+          paperId,
+          isArgument ? 'review_argument' : 'review_rhetoric',
+          at,
+          { decision: decision.decision },
+          decision.item_id,
+        );
         return value;
       });
     },

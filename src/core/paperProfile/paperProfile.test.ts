@@ -126,6 +126,50 @@ const find = (dimensions: ReturnType<typeof buildPaperProfile>, id: DimensionId)
 };
 
 describe('D0 paper profile', () => {
+  it('summarises arguments once analysed and flags claims without premises', () => {
+    const span = { paragraphId: 'p1', sectionId: 'i', page: 1, start: 0, end: 1, excerpt: 'x' };
+    const argument = (id: string, data: (typeof span)[], start = 0) => ({
+      id,
+      importance: 'main',
+      claim: { ...span, start, end: start + 1 },
+      data,
+      statedWarrant: null,
+      inferredWarrant: null,
+      backing: [],
+      qualifier: null,
+      rebuttals: [],
+    });
+    const run = (failed: string[]) => ({
+      id: runId,
+      createdAt: at,
+      model: 'm',
+      promptVersion: 'p',
+      callsUsed: 1,
+      sectionIds: ['i'],
+      failedSectionIds: failed,
+      arguments: [argument('a', [{ ...span, start: 9, end: 10 }]), argument('b', [], 20)],
+      discarded: { claim_not_found: 0, element_not_found: 0, duplicate: 0 },
+    });
+    const insights = (failed: string[]) =>
+      ({
+        schemaVersion: 1,
+        paperId,
+        updatedAt: at,
+        rhetoricRuns: [],
+        rhetoricPending: null,
+        argumentRuns: [run(failed)],
+        argumentPending: null,
+        decisions: [],
+      }) as unknown as Parameters<typeof buildPaperProfile>[0]['insights'];
+    const ready = find(buildPaperProfile({ paper, analyses: [], insights: insights([]) }), 'argument');
+    expect(ready.state).toBe('ready');
+    expect(ready.value('main_claims')).toBe('2');
+    expect(ready.value('with_data')).toBe('1/2');
+    expect(ready.attention).toContain('1 luận điểm');
+    expect(
+      find(buildPaperProfile({ paper, analyses: [], insights: insights(['i']) }), 'argument').state,
+    ).toBe('partial');
+  });
   it('shows validity, availability, moves and abstract support once analysed', () => {
     const span = { sectionId: 'i', page: 1, start: 0, end: 1, excerpt: 'x', rationale: 'r' };
     const item = (id: string, category: string) => ({ ...span, id, paragraphId: 'p1', category });
@@ -134,6 +178,8 @@ describe('D0 paper profile', () => {
       paperId,
       updatedAt: at,
       rhetoricPending: null,
+      argumentRuns: [],
+      argumentPending: null,
       decisions: [],
       rhetoricRuns: [
         {
@@ -203,13 +249,13 @@ describe('D0 paper profile', () => {
     expect(clean.value('retracted')).toBe('0');
     expect(clean.attention).toBeNull();
   });
-  it('reports nothing it has not measured, and marks argumentation as not built', () => {
+  it('reports nothing it has not measured', () => {
     const profile = buildPaperProfile({ paper, analyses: [] });
     expect(profile.map((item) => item.letter)).toEqual(['A', 'B', 'C', 'D', 'E']);
     expect(find(profile, 'science').state).toBe('empty');
     expect(find(profile, 'science').value('claims_linked')).toBeNull();
-    expect(find(profile, 'argument').state).toBe('not_built');
-    expect(find(profile, 'argument').target).toBeNull();
+    expect(find(profile, 'argument').state).toBe('empty');
+    expect(find(profile, 'argument').value('main_claims')).toBeNull();
     expect(find(profile, 'writing').value('passive_rate')).toBeNull();
     expect(find(profile, 'context').value('citations_open')).toBeNull();
   });

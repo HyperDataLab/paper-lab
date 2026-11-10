@@ -57,3 +57,24 @@ Never paraphrase a quote.`,
     user: `<abstract>\n${documentBody(abstract)}\n</abstract>\n<document>\n<body>\n${documentBody(body)}\n</body>\n</document>`,
   };
 }
+
+export function buildArgumentPrompt(paragraphs: PaperParagraph[]) {
+  return {
+    system: `You map the arguments an academic paper makes, using Toulmin's model. You describe the argument's structure; you do not judge whether it is correct.
+${UNTRUSTED}
+
+Return the arguments the authors themselves make, at most 8. Ignore positions they only report from other work.
+For each argument:
+- claim: the position argued for.
+- importance: "main" for a central claim of the paper, otherwise "supporting".
+- data: the evidence or premises given for it.
+- statedWarrant: a passage that explicitly says why the data support the claim. Use null if there is none.
+- inferredWarrant: only when statedWarrant is null and the link can be read from the text, one short sentence in Vietnamese giving that link. Otherwise null.
+- backing: passages that justify the warrant itself.
+- qualifier: a passage limiting how strongly or how widely the claim holds. Use null if there is none.
+- rebuttals: passages stating objections, exceptions or counter-evidence.
+Every reference is {paragraphId, quote}: the id at the start of the line and one clause copied exactly from that paragraph.
+An empty list or null is the right answer for anything the text does not give. Never fill a slot to make the structure complete.`,
+    user: `<document>\n${documentBody(paragraphs)}\n</document>`,
+  };
+}

@@ -10,6 +10,7 @@ import { Button } from '@/shared/ui/Button';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { Tabs } from '@/shared/ui/Tabs';
 import { EvidencePanel } from './EvidencePanel';
+import { PaperArguments } from './PaperArguments';
 import { PaperProfile } from './PaperProfile';
 import { PaperReferences } from './PaperReferences';
 import { PaperRhetoric } from './PaperRhetoric';
@@ -37,6 +38,14 @@ const GROUPS: { id: string; label: string; views: { id: ProfileView; label: stri
       { id: 'measure', label: 'Đo lường' },
       { id: 'reporting', label: 'Validity và dữ liệu' },
       { id: 'science-checks', label: 'Kiểm tra số liệu' },
+    ],
+  },
+  {
+    id: 'argument',
+    label: 'B. Lập luận',
+    views: [
+      { id: 'toulmin', label: 'Toulmin' },
+      { id: 'aif', label: 'Sơ đồ AIF' },
     ],
   },
   {
@@ -75,6 +84,9 @@ const CHECKS_OF: Partial<Record<ViewId, string[]>> = {
   'context-checks': ['citations_references'],
 };
 const VIEW_HELP: Record<ViewId, string> = {
+  toulmin:
+    'Luận điểm của tác giả và các thành phần theo Toulmin. Mô tả cấu trúc, không kết luận đúng hay sai.',
+  aif: 'Tiền đề dẫn tới kết luận qua bước suy luận nào, và bị phản bác ở đâu.',
   profile:
     'Mỗi chiều trả lời một câu hỏi riêng nên không có điểm tổng. Số có ghi “AI” là ứng viên từ mô hình, bạn có thể bác bỏ khi xem chi tiết.',
   map: 'Đọc bài theo mục lục, xem bảng và đoạn gốc.',
@@ -258,20 +270,7 @@ export default function PaperMapPage() {
                 {tabButton('profile', 'Hồ sơ')}
                 {tabButton('map', 'Đọc bài')}
                 <span className={styles.tabDivider} aria-hidden="true" />
-                {GROUPS.slice(0, 1).map((group) => (
-                  <Button
-                    key={group.id}
-                    role="tab"
-                    aria-selected={activeGroup?.id === group.id}
-                    onClick={() => setTab(group.views[0]?.id ?? 'profile')}
-                  >
-                    {group.label}
-                  </Button>
-                ))}
-                <Button role="tab" aria-selected={false} disabled title="Sắp có">
-                  B. Lập luận
-                </Button>
-                {GROUPS.slice(1).map((group) => (
+                {GROUPS.map((group) => (
                   <Button
                     key={group.id}
                     role="tab"
@@ -303,6 +302,8 @@ export default function PaperMapPage() {
             />
             {tab === 'profile' ? (
               <PaperProfile paper={paper} analyses={batch.analyses} checks={checks} onOpen={setTab} />
+            ) : tab === 'toulmin' || tab === 'aif' ? (
+              <PaperArguments paper={paper} view={tab} onLocation={openLocation} key={tab} />
             ) : tab === 'reporting' || tab === 'moves' ? (
               <PaperRhetoric paper={paper} focus={tab} onLocation={openLocation} key={tab} />
             ) : tab === 'vocabulary' ? (
