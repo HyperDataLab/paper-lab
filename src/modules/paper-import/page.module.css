@@ -296,3 +296,61 @@
   margin: 0;
   overflow-wrap: anywhere;
 }
+.libraryHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.libraryHead h2 {
+  margin: 0;
+}
+.libraryTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+.libraryScroll {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.library {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.library th,
+.library td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+.library thead th {
+  color: var(--text-muted);
+  font-weight: 500;
+  background: var(--soft);
+}
+.library tbody tr:last-child th,
+.library tbody tr:last-child td {
+  border-bottom: 0;
+}
+.library tbody tr:hover {
+  background: var(--soft);
+}
+.library tbody th {
+  min-width: calc(var(--space-10) * 7);
+  font-weight: 400;
+  white-space: normal;
+}
+.library tbody th > * {
+  display: block;
+}
+.library .paperTitle {
+  font-size: var(--text-base);
+}

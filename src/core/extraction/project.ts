@@ -1,3 +1,5 @@
+import { paperIdentity } from '../paperIdentity';
+import type { PaperMetadata } from '../schemas/paperContext';
 import type { LibraryItem } from '../schemas/library';
 import type { Paper } from '../schemas/paper';
 import type { ExtractionProject, FieldDefinition, ProjectField, ProjectPaper } from '../schemas/extraction';
@@ -33,15 +35,20 @@ export function newProject(input: {
   };
 }
 
-export function projectPaperFromPaper(paper: Paper, library?: LibraryItem): ProjectPaper {
+export function projectPaperFromPaper(
+  paper: Paper,
+  library?: LibraryItem,
+  metadata?: PaperMetadata | null,
+): ProjectPaper {
+  const identity = paperIdentity(paper, { metadata, library });
   return {
     key: `paper:${paper.id}`,
     source: { kind: 'paper', paperId: paper.id },
-    title: library?.title ?? paper.title,
-    authors: library?.authors ?? [],
-    year: library?.year ?? null,
-    venue: library?.venue ?? null,
-    doi: library?.doi ?? null,
+    title: identity.title,
+    authors: identity.authors,
+    year: identity.year,
+    venue: identity.venue,
+    doi: library?.doi ?? metadata?.doi ?? null,
     access: 'FULL_TEXT',
     abstract: null,
     revision: fingerprint(paper.paragraphs.map((paragraph) => paragraph.textHash).join('|')),

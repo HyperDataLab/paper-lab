@@ -691,6 +691,9 @@ export function createRepositories(
       const row = await db.paperContext.get(paperId);
       return row ? PaperContextRecordSchema.parse(row) : undefined;
     },
+    async list() {
+      return (await db.paperContext.toArray()).map((row) => PaperContextRecordSchema.parse(row));
+    },
     async save(input: PaperContextRecord) {
       const value = PaperContextRecordSchema.parse(input);
       await db.paperContext.put(value);

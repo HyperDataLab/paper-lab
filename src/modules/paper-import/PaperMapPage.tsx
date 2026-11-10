@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { paperIdentity } from '@/core/paperIdentity';
 import { type Paper, type Section, type Finding, type PaperChecksRecord } from '@/core/schemas';
 import { runPaperChecks } from '@/core/paperChecks';
 import type { ProfileView } from '@/core/paperProfile';
@@ -147,6 +148,7 @@ export default function PaperMapPage() {
   const [filter, setFilter] = useState<string[] | null>(null);
   const [checks, setChecks] = useState<PaperChecksRecord>();
   const [highlight, setHighlight] = useState<Finding['locations'][number] | null>(null);
+  const [shownTitle, setShownTitle] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
     if (id)
@@ -176,6 +178,13 @@ export default function PaperMapPage() {
       .then((value) => {
         if (!active) return;
         setPaper(value ?? null);
+        if (value)
+          void repo.paperContext
+            .get(value.id)
+            .then((context) => {
+              if (active) setShownTitle(paperIdentity(value, { metadata: context?.metadata }).title);
+            })
+            .catch(() => undefined);
         // A link from a grounded citation (?p=&s=&e=) opens the reader on that passage.
         const linked = value?.paragraphs.find((item) => item.id === query.get('p'));
         const start = Number(query.get('s'));
@@ -280,7 +289,7 @@ export default function PaperMapPage() {
       <header className={styles.paperHead}>
         <Link to="/papers">← Bài báo đã nhập</Link>
         <div className={styles.titleRow}>
-          <h1>{paper.title}</h1>
+          <h1>{shownTitle ?? paperIdentity(paper).title}</h1>
           <Transparency paper={paper} />
         </div>
         <p className={styles.paperMeta}>

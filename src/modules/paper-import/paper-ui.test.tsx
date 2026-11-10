@@ -62,7 +62,7 @@ it('requires confirmation before deleting a paper', async () => {
   fireEvent.click(screen.getByRole('tab', { name: 'D. Viết học thuật' }));
   fireEvent.click(screen.getByRole('link', { name: /Bài báo đã nhập/ }));
   await screen.findByRole('link', { name: 'study' });
-  fireEvent.click(screen.getByRole('button', { name: 'Xoá' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Xoá / }));
   const dialog = screen.getByRole('alertdialog');
   expect(await repo.papers.list()).toHaveLength(1);
   fireEvent.click(within(dialog).getByRole('button', { name: 'Xoá bài báo' }));
