@@ -122,6 +122,17 @@ function paperSteps(
       sections: sections(run.sectionIds),
       calibration: run.calibrationSnapshot ?? null,
     })),
+    ...(insights?.argumentRuns ?? []).map((run): Step => ({
+      step: 'Lập luận',
+      model: run.model,
+      prompt: run.promptVersion,
+      rubric: null,
+      detectors: null,
+      date: run.createdAt,
+      calls: run.callsUsed,
+      sections: sections(run.sectionIds),
+      calibration: null,
+    })),
     ...(insights?.rhetoricRuns ?? []).map((run): Step => ({
       step: 'Tu từ và mức độ báo cáo',
       model: run.model,

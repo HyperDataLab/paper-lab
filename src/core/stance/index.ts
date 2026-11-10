@@ -35,12 +35,12 @@ export function defaultStanceSections(paper: Paper) {
 }
 
 /** Chunks break between paragraphs, so a marker is never read without its sentence. */
-export function planStance(paper: Paper, sectionIds: string[]): StanceChunk[] {
+export function planStance(paper: Paper, sectionIds: string[], chunkChars = CHUNK_CHARS): StanceChunk[] {
   const chunks: StanceChunk[] = [];
   let current: StanceChunk | undefined;
   let size = 0;
   for (const paragraph of proseOf(paper, sectionIds)) {
-    if (!current || size + paragraph.text.length > CHUNK_CHARS) {
+    if (!current || size + paragraph.text.length > chunkChars) {
       current = { id: `chunk-${chunks.length + 1}`, paragraphs: [] };
       chunks.push(current);
       size = 0;

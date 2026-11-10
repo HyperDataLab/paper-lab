@@ -20,7 +20,6 @@ const STATES: Record<DimensionState, { label: string; tone: 'neutral' | 'warning
   empty: { label: 'Chưa phân tích', tone: 'neutral' },
   partial: { label: 'Một phần', tone: 'warning' },
   ready: { label: 'Đã phân tích', tone: 'success' },
-  not_built: { label: 'Sắp có', tone: 'neutral' },
 };
 
 /** The five questions a reader brings to a paper, each answered from what has been analysed so far. */

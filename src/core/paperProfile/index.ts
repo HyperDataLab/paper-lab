@@ -10,6 +10,7 @@ import type {
   StanceRecord,
 } from '../schemas';
 import { languageMetrics, proseParagraphs } from '../academicLanguage';
+import { argumentMetrics } from '../argument';
 import { CARS_MOVES, rhetoricMetrics, VALIDITY_THREATS } from '../rhetoric';
 import { RECENT_YEARS, referenceList, referenceStats } from '../scholarlyContext';
 import { stanceMetrics } from '../stance';
@@ -28,10 +29,12 @@ export type ProfileView =
   | 'context-checks'
   | 'context-references'
   | 'reporting'
-  | 'moves';
+  | 'moves'
+  | 'toulmin'
+  | 'aif';
 
 export type DimensionId = 'science' | 'argument' | 'discourse' | 'writing' | 'context';
-export type DimensionState = 'empty' | 'partial' | 'ready' | 'not_built';
+export type DimensionState = 'empty' | 'partial' | 'ready';
 
 export interface ProfileIndicator {
   id: string;
@@ -159,18 +162,41 @@ function science({ measurement, checks, insights }: ProfileInput): ProfileDimens
   };
 }
 
-const argument: ProfileDimension = {
-  id: 'argument',
-  letter: 'B',
-  title: 'Lập luận',
-  question: 'Các luận điểm có đứng vững về mặt cấu trúc không?',
-  state: 'not_built',
-  coverage: null,
-  indicators: [],
-  attention: null,
-  planned: ['Phủ Toulmin', 'Kết luận không có tiền đề', 'Tiền đề bị bỏ rơi', 'Xử lý phản biện'],
-  target: null,
-};
+function argument({ insights }: ProfileInput): ProfileDimension {
+  const run = insights?.argumentRuns.at(-1);
+  const metrics = run && insights ? argumentMetrics(run, insights.decisions) : null;
+  const ratio = (value: { count: number; total: number } | undefined) =>
+    value && value.total ? `${value.count}/${value.total}` : null;
+  return {
+    id: 'argument',
+    letter: 'B',
+    title: 'Lập luận',
+    question: 'Các luận điểm có đứng vững về mặt cấu trúc không?',
+    state: !run ? 'empty' : run.failedSectionIds.length ? 'partial' : 'ready',
+    coverage: run ? `Đã đọc ${run.sectionIds.length} mục` : null,
+    indicators: [
+      {
+        id: 'main_claims',
+        label: 'Luận điểm chính',
+        value: metrics ? String(metrics.main.length) : null,
+        source: 'ai',
+      },
+      { id: 'with_data', label: 'Luận điểm có dữ liệu', value: ratio(metrics?.withData), source: 'ai' },
+      {
+        id: 'warrant_stated',
+        label: 'Warrant do tác giả nêu',
+        value: ratio(metrics?.statedWarrant),
+        source: 'ai',
+      },
+      { id: 'with_rebuttal', label: 'Có xử lý phản biện', value: ratio(metrics?.withRebuttal), source: 'ai' },
+    ],
+    attention: metrics?.unsupported.length
+      ? `${metrics.unsupported.length} luận điểm chính chưa thấy tiền đề.`
+      : null,
+    planned: [],
+    target: 'toulmin',
+  };
+}
 
 const IMRAD = ['introduction', 'methods', 'results', 'discussion'];
 const openIssues = (analyses: Analysis[], categories: string[]) =>
@@ -354,5 +380,5 @@ function context({ paper, checks, scholarly }: ProfileInput): ProfileDimension {
 
 /** One overview per dimension. There is deliberately no total: the dimensions do not share a scale. */
 export function buildPaperProfile(input: ProfileInput): ProfileDimension[] {
-  return [science(input), argument, discourse(input), writing(input), context(input)];
+  return [science(input), argument(input), discourse(input), writing(input), context(input)];
 }

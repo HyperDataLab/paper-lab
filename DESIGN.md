@@ -228,4 +228,5 @@ The page opens on **Hồ sơ**: five dimensions (Khoa học, Lập luận, Diễ
 - No total score and no radar chart: the dimensions do not share a scale.
 - An indicator that has not been measured shows `—`, never zero.
 - Every AI-derived number says so.
+- A Toulmin slot with nothing behind it reads "Chưa xác định". An inferred warrant is labelled as inferred and never shown as the authors' own.
 - A finding's source opens beside the current screen in the evidence drawer; reading it does not lose the reader's place.
