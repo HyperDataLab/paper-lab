@@ -29,6 +29,7 @@ import {
   StanceRecordSchema,
   PaperContextRecordSchema,
   PaperInsightsRecordSchema,
+  ExtractionProjectSchema,
   type PaperContextRecord,
   CalibrationLabelsSchema,
   CalibrationLabelSetSchema,
@@ -47,6 +48,7 @@ import { createMeasurementsRepository } from './measurements';
 import { createLibraryRepository } from './library';
 import { createStanceRepository } from './stance';
 import { createPaperInsightsRepository } from './paperInsights';
+import { createExtractionRepository } from './extractionProjects';
 export class SourceImmutableError extends Error {
   override name = 'SourceImmutableError';
 }
@@ -682,6 +684,7 @@ export function createRepositories(
   const library = createLibraryRepository(db, now, ids);
   const stance = createStanceRepository(db, now, makeAudit);
   const paperInsights = createPaperInsightsRepository(db, now, makeAudit);
+  const extraction = createExtractionRepository(db, now, makeAudit);
   // A cheap lookup that can be repeated, so like paper runs it is not part of the export.
   const paperContext = {
     async get(paperId: string) {
@@ -754,6 +757,7 @@ export function createRepositories(
         await library.list(),
         (await db.stance.toArray()).map((value) => StanceRecordSchema.parse(value)),
         (await db.paperInsights.toArray()).map((value) => PaperInsightsRecordSchema.parse(value)),
+        (await db.extractionProjects.toArray()).map((value) => ExtractionProjectSchema.parse(value)),
       );
     },
     async previewImport(raw: unknown) {
@@ -834,6 +838,7 @@ export function createRepositories(
           db.library,
           db.stance,
           db.paperInsights,
+          db.extractionProjects,
           db.reviewNgrams,
           db.calibrationLabels,
         ],
@@ -997,6 +1002,11 @@ export function createRepositories(
             if (!existing || record.updatedAt > existing.updatedAt)
               await db.paperInsights.put(PaperInsightsRecordSchema.parse(record));
           }
+          for (const record of plan.extractionProjects) {
+            const existing = await db.extractionProjects.get(record.id);
+            if (!existing || record.updatedAt > existing.updatedAt)
+              await db.extractionProjects.put(ExtractionProjectSchema.parse(record));
+          }
           for (const record of plan.library) {
             const existing = await db.library.where('doi').equals(record.doi).first();
             if (existing && record.updatedAt <= existing.updatedAt) continue;
@@ -1037,6 +1047,7 @@ export function createRepositories(
     stance,
     paperContext,
     paperInsights,
+    extraction,
     calibrationLabels,
     transfer,
   };

@@ -167,6 +167,7 @@ export function planImport(
     library: parsed.data.library,
     stance: parsed.data.stance.filter((record) => eligiblePapers.has(record.paperId)),
     paperInsights: parsed.data.paperInsights.filter((record) => eligiblePapers.has(record.paperId)),
+    extractionProjects: parsed.data.extractionProjects,
     skipped,
     suppressed,
     auditEvents,

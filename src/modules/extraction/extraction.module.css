@@ -1,0 +1,166 @@
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+.page h1 {
+  margin: 0;
+}
+.note {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+.form {
+  display: grid;
+  gap: var(--space-3);
+  max-width: calc(var(--space-10) * 16);
+}
+.list {
+  display: grid;
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.title {
+  font-weight: 600;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.scroll {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  max-height: 70vh;
+  overflow: auto;
+}
+.matrix {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--text-sm);
+}
+.matrix th,
+.matrix td {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  min-width: calc(var(--space-10) * 6);
+  max-width: calc(var(--space-10) * 8);
+  padding: var(--space-2);
+  text-align: left;
+  vertical-align: top;
+}
+.matrix thead th {
+  background: var(--soft);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.sticky {
+  left: 0;
+  position: sticky;
+  z-index: 1;
+}
+.matrix thead .sticky {
+  z-index: 3;
+}
+.matrix tbody th {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+}
+.paperTitle {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.columnHead {
+  align-items: center;
+  display: flex;
+  gap: var(--space-1);
+  justify-content: space-between;
+}
+.cell {
+  align-items: start;
+  display: grid;
+  gap: var(--space-1);
+  height: auto;
+  justify-items: start;
+  padding: var(--space-1);
+  text-align: left;
+  white-space: normal;
+  width: 100%;
+}
+.cellValue {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  color: var(--text);
+  display: -webkit-box;
+  line-clamp: 4;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.dim {
+  opacity: 0.35;
+}
+.missing {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.drawer {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+.drawerHead {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+.drawerHead h2 {
+  margin: 0;
+}
+.value {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.evidence {
+  display: grid;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+}
+.evidence blockquote {
+  border-left: 3px solid var(--accent);
+  font-family: var(--font-reading);
+  margin: 0;
+  overflow-wrap: anywhere;
+  padding-left: var(--space-3);
+}
+.flags {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.history {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.modes {
+  display: grid;
+  gap: var(--space-2);
+}

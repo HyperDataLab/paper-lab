@@ -23,6 +23,7 @@ export const PROMPT_VERSIONS = {
   abstractAlignment: 'abstract-align-1',
   argument: 'argument-1',
   snapshot: 'snapshot-1',
+  extraction: 'extraction-1',
 } as const;
 export const CONNECTION_TEST_SYSTEM = 'You are a connection test. Return the requested JSON object.';
 export const CONNECTION_TEST_USER =
@@ -40,3 +41,4 @@ export * from './styleProbe';
 export * from './measurement';
 export * from './stance';
 export * from './rhetoric';
+export * from './extraction';

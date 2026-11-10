@@ -6,5 +6,16 @@ import transfer from '@/modules/transfer';
 import calibration from '@/modules/calibration';
 import settings from '@/modules/settings';
 import paperImport from '@/modules/paper-import';
+import extraction from '@/modules/extraction';
 
-export const modules = [evaluate, revise, generate, paperImport, history, transfer, calibration, settings];
+export const modules = [
+  evaluate,
+  revise,
+  generate,
+  paperImport,
+  extraction,
+  history,
+  transfer,
+  calibration,
+  settings,
+];

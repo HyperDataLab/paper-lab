@@ -139,3 +139,12 @@ it('asks OpenAlex for one paper by DOI and reports an unknown DOI as null', asyn
   const missing = setup({});
   expect(await client(missing).paperMetadata('10.1/y')).toBeNull();
 });
+
+it('rebuilds an abstract from OpenAlex word positions and sends only the DOI', async () => {
+  const s = setup({ openalex: () => json({ abstract_inverted_index: { world: [1], Hello: [0] } }) });
+  expect(await client(s, 'me@example.org').workAbstract('10.1/x')).toBe('Hello world');
+  expect(s.calls[0]).toContain('select=abstract_inverted_index');
+  expect(s.calls[0]).not.toContain('example.org');
+  const empty = setup({ openalex: () => json({}) });
+  expect(await client(empty).workAbstract('10.1/y')).toBeNull();
+});

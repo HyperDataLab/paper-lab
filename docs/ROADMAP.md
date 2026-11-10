@@ -68,6 +68,16 @@ Hồ sơ organises the paper page by question: Khoa học, Lập luận, Diễn 
 | D5  | Measure indicator quality against human labels                                          | ⬜     |
 | SM  | Snapshot (7 attributes with verified quotes) and Metadata (OpenAlex or the DOI library) | ✅     |
 
+## Paper Extraction (`docs/PRD_Extraction.md`)
+
+A separate menu: one matrix per project, rows are papers, columns are fields, every cell carries evidence.
+
+| #   | Slice                                                                                     | Status |
+| --- | ----------------------------------------------------------------------------------------- | ------ |
+| X1  | Projects, 50 suggested and custom columns, Standard mode, evidence drawer, review, export | ✅     |
+| X2  | High Quality: verification pass per cell, conflicts, selective rerun                      | ⬜     |
+| X3  | Deep Research: search plan, OpenAlex discovery, screening, cross-paper synthesis          | ⬜     |
+
 ## Open decisions
 
 - Hosting: Firebase Hosting (ADR-0001) or an Oracle Cloud Always Free VM (ADR-0005, proposed). Keep the app
