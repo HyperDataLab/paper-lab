@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Search, X } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
+import { IconButton } from '@/shared/ui/IconButton';
 import { TextField } from '@/shared/ui/TextField';
 import type { ModuleDefinition } from './moduleTypes';
 import { modules } from './modules';
@@ -66,14 +67,15 @@ export function CommandPalette() {
             <h2 id="palette-title">Tìm chức năng</h2>
             <p>Đi nhanh đến trang hoặc công cụ bạn cần.</p>
           </div>
-          <button
-            type="button"
+          <IconButton
+            variant="ghost"
+            size="sm"
             className={styles.paletteClose}
-            aria-label="Đóng"
+            label="Đóng"
             onClick={() => setOpen(false)}
           >
             <X size={17} aria-hidden="true" />
-          </button>
+          </IconButton>
         </header>
 
         <div className={styles.paletteSearch}>
