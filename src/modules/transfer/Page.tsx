@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { getStorageStatus, requestPersistentStorage } from '@/shared/storage/persistence';
+import { Download, HardDrive, Upload } from 'lucide-react';
+import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
+import { PageHeader } from '@/shared/ui/PageHeader';
 import { Card } from '@/shared/ui/Card';
 import { useToast } from '@/shared/ui/toastContext';
 import type { ImportPlan } from '@/core/transfer/planImport';
@@ -72,90 +75,129 @@ export default function Page() {
   }
   return (
     <div className={styles.page}>
-      <h1>Xuất/Nhập</h1>
-      <Card>
-        <h2>Xuất</h2>
-        <p>Tải về toàn bộ dữ liệu trong trình duyệt này để sao lưu hoặc chuyển máy.</p>
-        <Button onClick={() => void download()}>Xuất toàn bộ (JSON)</Button>
-      </Card>
-      <Card>
-        <h2>Nhập</h2>
-        <div className={styles.file}>
-          <input
-            className={styles.hidden}
-            ref={fileInput}
-            aria-label="Nhập từ tệp"
-            type="file"
-            accept=".json,application/json"
-            onChange={(event) => void read(event)}
-          />
-          <Button onClick={() => fileInput.current?.click()}>Chọn tệp JSON</Button>
-          <span>{filename || 'Chưa chọn tệp'}</span>
-        </div>
-        {error && (
-          <div role="alert">
-            Không thể xử lý tệp.{' '}
-            <details>
-              <summary>Chi tiết kỹ thuật</summary>
-              {error}
-            </details>
-          </div>
-        )}
-        {plan && !plan.ok && <p role="alert">Tệp không hợp lệ: {plan.error}</p>}
-        {plan?.ok && (
-          <>
-            <table>
-              <tbody>
-                <tr>
-                  <th>Mới</th>
-                  <td>{plan.toInsert.length}</td>
-                </tr>
-                <tr>
-                  <th>Cập nhật</th>
-                  <td>{plan.toUpdate.length}</td>
-                </tr>
-                <tr>
-                  <th>Bản sửa mới</th>
-                  <td>{plan.revisionsToInsert.length}</td>
-                </tr>
-                <tr>
-                  <th>Đoạn soạn mới</th>
-                  <td>{plan.generationsToInsert.length}</td>
-                </tr>
-                <tr>
-                  <th>Bỏ qua</th>
-                  <td>
-                    {plan.skipped.length} {plan.skipped.map((x) => `${x.id}: ${x.reason}`).join('; ')}
-                  </td>
-                </tr>
-                <tr>
-                  <th>Span bị loại</th>
-                  <td>
-                    {plan.suppressed.length} {plan.suppressed.map((x) => x.path).join('; ')}
-                  </td>
-                </tr>
-                <tr>
-                  <th>Nhật ký bị bỏ qua</th>
-                  <td>{plan.auditSkipped}</td>
-                </tr>
-              </tbody>
-            </table>
-            <Button variant="primary" onClick={() => void apply()}>
-              Nhập
+      <PageHeader
+        title="Xuất/Nhập"
+        lead="Dữ liệu PaperLab chỉ nằm trong trình duyệt này. Xuất một tệp JSON để sao lưu hoặc chuyển sang máy khác."
+      />
+      <div className={styles.columns}>
+        <Card>
+          <div className={styles.section}>
+            <h2>
+              <Download size={18} aria-hidden="true" /> Xuất
+            </h2>
+            <p>Tải về toàn bộ dữ liệu trong trình duyệt này để sao lưu hoặc chuyển máy.</p>
+            <Button variant="primary" onClick={() => void download()}>
+              Xuất toàn bộ (JSON)
             </Button>
-          </>
-        )}
-        {done && <p role="status">Đã nhập dữ liệu.</p>}
-      </Card>
+          </div>
+        </Card>
+        <Card>
+          <div className={styles.section}>
+            <h2>
+              <Upload size={18} aria-hidden="true" /> Nhập
+            </h2>
+            <p>Chọn tệp đã xuất từ PaperLab. Bạn xem trước những gì sẽ thay đổi rồi mới nhập.</p>
+            <div className={styles.file}>
+              <input
+                className={styles.hidden}
+                ref={fileInput}
+                aria-label="Nhập từ tệp"
+                type="file"
+                accept=".json,application/json"
+                onChange={(event) => void read(event)}
+              />
+              <Button onClick={() => fileInput.current?.click()}>Chọn tệp JSON</Button>
+              <span>{filename || 'Chưa chọn tệp'}</span>
+            </div>
+            {error && (
+              <div role="alert">
+                Không thể xử lý tệp.{' '}
+                <details>
+                  <summary>Chi tiết kỹ thuật</summary>
+                  {error}
+                </details>
+              </div>
+            )}
+            {plan && !plan.ok && <p role="alert">Tệp không hợp lệ: {plan.error}</p>}
+            {plan?.ok && (
+              <>
+                <table>
+                  <tbody>
+                    <tr>
+                      <th scope="row">Mới</th>
+                      <td>{plan.toInsert.length}</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Cập nhật</th>
+                      <td>{plan.toUpdate.length}</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Bản sửa mới</th>
+                      <td>{plan.revisionsToInsert.length}</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Đoạn soạn mới</th>
+                      <td>{plan.generationsToInsert.length}</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Bỏ qua</th>
+                      <td>
+                        {plan.skipped.length} {plan.skipped.map((x) => `${x.id}: ${x.reason}`).join('; ')}
+                      </td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Span bị loại</th>
+                      <td>
+                        {plan.suppressed.length} {plan.suppressed.map((x) => x.path).join('; ')}
+                      </td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Nhật ký bị bỏ qua</th>
+                      <td>{plan.auditSkipped}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <Button variant="primary" onClick={() => void apply()}>
+                  Nhập
+                </Button>
+              </>
+            )}
+            {done && <p role="status">Đã nhập dữ liệu.</p>}
+          </div>
+        </Card>
+      </div>
       <Card>
-        <h2>Lưu trữ</h2>
-        <p>
-          Đã dùng: {formatSize(storage?.usage)} / {formatSize(storage?.quota)}. Lưu trữ bền vững:{' '}
-          {storage?.persisted == null ? 'không rõ' : storage.persisted ? 'đã cấp' : 'chưa cấp'}.
-        </p>
-        <Button onClick={() => void requestPersistentStorage().then(setStorage)}>
-          Yêu cầu lưu trữ bền vững
-        </Button>
+        <div className={styles.section}>
+          <h2>
+            <HardDrive size={18} aria-hidden="true" /> Lưu trữ
+          </h2>
+          {storage?.usage != null && storage.quota ? (
+            <progress
+              className={styles.meter}
+              value={storage.usage}
+              max={storage.quota}
+              aria-label="Dung lượng đã dùng"
+            />
+          ) : null}
+          <div className={styles.statusRow}>
+            <span>
+              Đã dùng: {formatSize(storage?.usage)} / {formatSize(storage?.quota)}
+            </span>
+            <Badge tone={storage?.persisted ? 'success' : 'neutral'}>
+              Lưu trữ bền vững:{' '}
+              {storage?.persisted == null ? 'không rõ' : storage.persisted ? 'đã cấp' : 'chưa cấp'}
+            </Badge>
+          </div>
+          <p>
+            Khi chưa được cấp lưu trữ bền vững, trình duyệt có thể tự xoá dữ liệu lúc máy thiếu dung lượng.
+          </p>
+          <Button
+            disabled={storage?.persisted === true}
+            onClick={() => void requestPersistentStorage().then(setStorage)}
+          >
+            Yêu cầu lưu trữ bền vững
+          </Button>
+        </div>
       </Card>
     </div>
   );

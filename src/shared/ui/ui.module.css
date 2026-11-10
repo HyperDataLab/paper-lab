@@ -175,13 +175,6 @@
   padding: var(--space-3);
   box-shadow: var(--shadow-overlay);
 }
-.empty {
-  max-width: 640px;
-}
-.empty p {
-  color: var(--text-muted);
-  line-height: 1.6;
-}
 .detail {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
@@ -565,4 +558,25 @@
 .emptyNote strong {
   color: var(--text);
   font-weight: 600;
+}
+.pageHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+}
+.pageHeader h1 {
+  margin: 0;
+}
+.pageHeader p {
+  max-width: 720px;
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+}
+.pageActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
 }

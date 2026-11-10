@@ -88,6 +88,7 @@ it('WR-01 WR-08 validates, asks consent, displays provenance and confirms before
       </StorageProvider>
     </MemoryRouter>,
   );
+  fireEvent.click(await screen.findByRole('radio', { name: 'Đoạn đã soạn (1)' }));
   await waitFor(() =>
     expect(screen.getByRole('link', { name: 'Growth improved' })).toHaveAttribute(
       'href',
