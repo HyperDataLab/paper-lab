@@ -440,3 +440,33 @@
   background: var(--soft);
   font-size: var(--text-sm);
 }
+.runAll {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.runAll h2,
+.runAll p {
+  margin: 0;
+}
+.runAll > div {
+  flex: 1 1 320px;
+  display: grid;
+  gap: var(--space-1);
+}
+.runAllList {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.runAllList li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--border);
+}

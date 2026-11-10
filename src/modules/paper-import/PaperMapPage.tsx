@@ -24,7 +24,15 @@ import { ReadingPane } from './ReadingPane';
 import { PaperMeasurement } from './PaperMeasurement';
 import { PaperStance } from './PaperStance';
 import styles from './page.module.css';
-import { JobsContext, type JobId, type JobReport, type JobReporter } from './paperJobs';
+import {
+  JobsContext,
+  RUN_ALL,
+  type JobFacts,
+  type JobId,
+  type JobReport,
+  type JobReporter,
+} from './paperJobs';
+import { RunAllCard } from './RunAllCard';
 import { BatchPanel } from './BatchPanel';
 import { useBatchRun } from './useBatchRun';
 import { PaperOverview } from './PaperOverview';
@@ -139,7 +147,6 @@ const JOBS: Record<JobId, { label: string; views: ViewId[] }> = {
 const JOB_IDS = Object.keys(JOBS) as JobId[];
 const jobOf = (view: ViewId) => JOB_IDS.find((id) => JOBS[id].views.includes(view));
 const isView = (value: string | null): value is ViewId => value !== null && value in VIEW_HELP;
-type JobFacts = Omit<JobReport, 'start'>;
 
 const WIDE = '(min-width: 1280px)';
 /** True on screens wide enough to show the paper beside its analysis. */
@@ -209,11 +216,12 @@ export default function PaperMapPage() {
         before.running === report.running &&
         before.done === report.done &&
         before.estimate === report.estimate &&
-        before.ready === report.ready
+        before.ready === report.ready &&
+        before.startable === (report.start !== null)
       )
         return old;
       const { running, done, estimate, ready } = report;
-      return { ...old, [jobId]: { running, done, estimate, ready } };
+      return { ...old, [jobId]: { running, done, estimate, ready, startable: report.start !== null } };
     });
   }, []);
   /** Opens a view and records it in the address, so a reload or a shared link lands on the same view. */
@@ -380,6 +388,21 @@ export default function PaperMapPage() {
       {label}
     </Button>
   );
+  const runChecks = () => {
+    void captureCalibration(repo)
+      .then((calibrationSnapshot) =>
+        repo.paperChecks.save({
+          schemaVersion: 1,
+          paperId: paper.id,
+          report: runPaperChecks(paper),
+          decisions: [],
+          calibrationSnapshot,
+        }),
+      )
+      .then(setChecks)
+      .catch((cause: unknown) => setError(String(cause)));
+  };
+  const jobLabels = Object.fromEntries(JOB_IDS.map((job) => [job, JOBS[job].label])) as Record<JobId, string>;
   const shown = (job: JobId) => opened.includes(job) || jobOf(tab) === job;
   const elsewhere = JOB_IDS.filter((job) => jobFacts[job]?.running && jobOf(tab) !== job);
   const activeGroup = GROUPS.find((group) => group.views.some((view) => view.id === tab));
@@ -539,8 +562,27 @@ export default function PaperMapPage() {
                     <PaperReview paper={paper} checks={checks} onLocation={openLocation} />
                   </div>
                 )}
+                <div hidden={tab !== 'profile'}>
+                  <RunAllCard
+                    jobs={jobs}
+                    facts={jobFacts}
+                    labels={jobLabels}
+                    onPrepare={() => setOpened((old) => [...new Set([...old, ...RUN_ALL])])}
+                    onOpen={(job) => setTab(JOBS[job].views[0] ?? 'profile')}
+                    onRunChecks={() => {
+                      if (!checks) runChecks();
+                    }}
+                  />
+                </div>
                 {tab === 'profile' ? (
-                  <PaperProfile paper={paper} analyses={batch.analyses} checks={checks} onOpen={setTab} />
+                  <PaperProfile
+                    // A finished analysis changes what the cards can show, so they are read again.
+                    key={JOB_IDS.filter((job) => jobFacts[job]?.done).join(',')}
+                    paper={paper}
+                    analyses={batch.analyses}
+                    checks={checks}
+                    onOpen={setTab}
+                  />
                 ) : tab === 'metadata' ? (
                   <PaperMetadata paper={paper} />
                 ) : tab === 'vocabulary' ? (
@@ -569,20 +611,7 @@ export default function PaperMapPage() {
                       only={checkIds}
                       paper={paper}
                       record={checks}
-                      onRun={() => {
-                        void captureCalibration(repo)
-                          .then((calibrationSnapshot) =>
-                            repo.paperChecks.save({
-                              schemaVersion: 1,
-                              paperId: paper.id,
-                              report: runPaperChecks(paper),
-                              decisions: [],
-                              calibrationSnapshot,
-                            }),
-                          )
-                          .then(setChecks)
-                          .catch((cause: unknown) => setError(String(cause)));
-                      }}
+                      onRun={runChecks}
                       onReview={(findingId, status) => {
                         void repo.paperChecks
                           .review(paper.id, findingId, status)

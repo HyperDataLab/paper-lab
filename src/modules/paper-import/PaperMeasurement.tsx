@@ -186,6 +186,7 @@ export function PaperMeasurement({
     estimate,
     ready: !loading,
     start: () => start(null),
+    stop: () => controller.current?.abort(),
   });
   if (loading) return <Loading label="Đang tải hồ sơ đo lường…" />;
   const pending = record?.pending ?? null;

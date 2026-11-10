@@ -118,6 +118,7 @@ export function PaperArguments({
     estimate,
     ready: !loading,
     start: () => start(false),
+    stop: () => controller.current?.abort(),
   });
   if (loading) return <Loading label="Đang tải lập luận…" />;
   const open = (span: Span) =>
