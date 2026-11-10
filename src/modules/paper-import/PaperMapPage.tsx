@@ -12,6 +12,7 @@ import { Tabs } from '@/shared/ui/Tabs';
 import { EvidencePanel } from './EvidencePanel';
 import { PaperProfile } from './PaperProfile';
 import { PaperReferences } from './PaperReferences';
+import { PaperVocabulary } from './PaperVocabulary';
 import { PaperProbe } from './PaperProbe';
 import { PaperReader } from './PaperReader';
 import { PaperMeasurement } from './PaperMeasurement';
@@ -50,6 +51,7 @@ const GROUPS: { id: string; label: string; views: { id: ProfileView; label: stri
     views: [
       { id: 'language', label: 'Câu và từ' },
       { id: 'stance', label: 'Giọng văn' },
+      { id: 'vocabulary', label: 'Từ vựng và cụm từ' },
       { id: 'writing-checks', label: 'Viết tắt và khẳng định' },
       { id: 'probe', label: 'Độ bền điểm' },
     ],
@@ -80,6 +82,7 @@ const VIEW_HELP: Record<ViewId, string> = {
   language: 'Cấu trúc câu và lựa chọn từ theo từng mục. Không phải điểm của bài báo.',
   stance:
     'Cách tác giả thể hiện lập trường và tương tác với người đọc. Đây là số liệu mô tả, không phải điểm.',
+  vocabulary: 'Từ vựng, cụm từ lặp lại và so sánh với các bài khác. Không dùng AI.',
   'writing-checks': 'Kiểm tra tự động chữ viết tắt và mức độ khẳng định. Không dùng AI.',
   probe: 'Đo xem điểm của AI có đổi khi chỉ đổi văn phong hay không.',
   'context-checks': 'Trích dẫn trong bài có tài liệu tham khảo tương ứng không. Không dùng AI.',
@@ -294,6 +297,8 @@ export default function PaperMapPage() {
             />
             {tab === 'profile' ? (
               <PaperProfile paper={paper} analyses={batch.analyses} checks={checks} onOpen={setTab} />
+            ) : tab === 'vocabulary' ? (
+              <PaperVocabulary paper={paper} onLocation={openLocation} />
             ) : tab === 'context-references' ? (
               <PaperReferences paper={paper} onLocation={openLocation} />
             ) : tab === 'organization' || tab === 'language' ? (

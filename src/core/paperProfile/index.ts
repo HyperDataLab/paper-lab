@@ -8,6 +8,7 @@ import type {
   PaperContextRecord,
   StanceRecord,
 } from '../schemas';
+import { languageMetrics, proseParagraphs } from '../academicLanguage';
 import { RECENT_YEARS, referenceList, referenceStats } from '../scholarlyContext';
 import { stanceMetrics } from '../stance';
 
@@ -19,6 +20,7 @@ export type ProfileView =
   | 'discourse-checks'
   | 'language'
   | 'stance'
+  | 'vocabulary'
   | 'writing-checks'
   | 'probe'
   | 'context-checks'
@@ -211,6 +213,7 @@ function writing({ paper, analyses, stance }: ProfileInput): ProfileDimension {
     0,
   );
   const issues = openIssues(selected, ['structure', 'word']);
+  const density = languageMetrics(proseParagraphs(paper)).lexicalDensity;
   const run = stance?.runs.at(-1);
   const rates = run && stance ? stanceMetrics(run, stance.decisions).stance.rows : null;
   const rate = (category: string) => {
@@ -251,9 +254,15 @@ function writing({ paper, analyses, stance }: ProfileInput): ProfileDimension {
         value: rates ? `${rate('hedges')} / ${rate('boosters')}` : null,
         source: 'ai',
       },
+      {
+        id: 'lexical_density',
+        label: 'Mật độ từ nội dung',
+        value: density === null ? null : `${decimal.format(density * 100)} %`,
+        source: 'count',
+      },
     ],
     attention: null,
-    planned: ['Từ vựng học thuật', 'Cụm từ lặp lại', 'Mốc so sánh cùng lĩnh vực'],
+    planned: ['Danh sách từ học thuật'],
     target: 'language',
   };
 }

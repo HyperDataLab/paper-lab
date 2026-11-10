@@ -62,7 +62,7 @@ Hồ sơ organises the paper page by question: Khoa học, Lập luận, Diễn 
 | --- | --------------------------------------------------------------------------- | ------ |
 | D0  | Hồ sơ from existing data, tabs by dimension, evidence drawer                | ✅     |
 | D1  | Bối cảnh: reference age and retraction status from metadata                 | ✅     |
-| D2  | Viết học thuật: vocabulary, repeated phrases, comparison baseline           | ⬜     |
+| D2  | Viết học thuật: vocabulary, repeated phrases, comparison baseline           | ✅     |
 | D3  | Khoa học: validity threats, data and code; Diễn ngôn: moves, Abstract match | ⬜     |
 | D4  | Lập luận: Toulmin and AIF, built natively in PaperLab                       | ⬜     |
 | D5  | Measure indicator quality against human labels                              | ⬜     |
