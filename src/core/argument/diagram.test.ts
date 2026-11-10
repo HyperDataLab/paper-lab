@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 import type { Argument } from '../schemas';
-import { aifDiagram, edgePath, toulminDiagram } from './diagram';
+import { aifDiagram, edgePath, paperDiagram, toulminDiagram } from './diagram';
+import { buildArgumentGraph } from './index';
 
 const span = (excerpt: string) => ({
   paragraphId: 'p1',
@@ -114,4 +115,58 @@ it('R4 edges are elbow paths between the facing sides of two nodes', () => {
   expect(edgePath(backing, warrant).d).toBe(
     `M ${backing.x + backing.width / 2} ${backing.y} V ${warrant.y + warrant.height}`,
   );
+});
+
+it('R5 routed edges avoid the interiors of other cards in both orientations', () => {
+  for (const orientation of ['horizontal', 'vertical'] as const) {
+    for (let count = 1; count <= 5; count++) {
+      const argument = {
+        ...full,
+        data: Array.from({ length: count }, (_, i) => span(`data ${i}`)),
+        rebuttals: [span('first'), span('second')],
+      };
+      for (const diagram of [toulminDiagram(argument, orientation), aifDiagram(argument, orientation)]) {
+        for (const edge of diagram.edges) {
+          const from = diagram.nodes.find((node) => node.id === edge.from);
+          const to = diagram.nodes.find((node) => node.id === edge.to);
+          if (!from || !to) throw new Error('missing endpoint');
+          const tokens = edgePath(from, to, diagram.nodes).d.split(' ');
+          let x = Number(tokens[1]),
+            y = Number(tokens[2]);
+          for (let i = 3; i < tokens.length; i += 2) {
+            const nextX = tokens[i] === 'H' ? Number(tokens[i + 1]) : x;
+            const nextY = tokens[i] === 'V' ? Number(tokens[i + 1]) : y;
+            for (const node of diagram.nodes.filter((n) => n !== from && n !== to)) {
+              const crosses =
+                x === nextX
+                  ? x > node.x &&
+                    x < node.x + node.width &&
+                    Math.max(y, nextY) > node.y &&
+                    Math.min(y, nextY) < node.y + node.height
+                  : y > node.y &&
+                    y < node.y + node.height &&
+                    Math.max(x, nextX) > node.x &&
+                    Math.min(x, nextX) < node.x + node.width;
+              expect(crosses).toBe(false);
+            }
+            x = nextX;
+            y = nextY;
+          }
+        }
+      }
+    }
+  }
+});
+
+it('R5 whole-paper layers shared statements and filters conflicts', () => {
+  const second = { ...full, id: 'a2', claim: { ...span('next'), paragraphId: 'p2' }, data: [full.claim] };
+  const graph = buildArgumentGraph([full, second]);
+  const diagram = paperDiagram(graph);
+  const shared = diagram.nodes.find((node) => node.span?.excerpt === full.claim.excerpt);
+  const conclusion = diagram.nodes.find((node) => node.span?.excerpt === 'next');
+  expect(shared && conclusion && conclusion.x > shared.x).toBe(true);
+  const conflicts = paperDiagram(graph, true);
+  expect(conflicts.nodes.some((node) => node.role === 'ca')).toBe(true);
+  expect(conflicts.nodes.some((node) => node.role === 'ra')).toBe(false);
+  expect(conflicts.edges.every((edge) => edge.dashed)).toBe(true);
 });
