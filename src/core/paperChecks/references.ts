@@ -22,7 +22,7 @@ function key(text: string) {
   const m = new RegExp(authorYear.source, 'iu').exec(text);
   return m ? `${normalize(m[1] ?? '')}:${m[2]?.toLowerCase()}` : '';
 }
-function referenceEntries(refs: Paper['paragraphs']) {
+export function referenceEntries(refs: Paper['paragraphs']) {
   const entries: { paragraphs: Paper['paragraphs']; sectionId: string }[] = [];
   for (const p of refs) {
     if (!p.text.trim()) continue;
@@ -53,6 +53,7 @@ function referenceEntries(refs: Paper['paragraphs']) {
         keys: [...(number ? [`n:${number[1] ?? number[2]}`] : []), ...(authorKey ? [authorKey] : [])],
         locs,
         index,
+        text,
         clean:
           /^\s*[\p{L}\p{M}'’.-]+(?:\s+[\p{L}\p{M}'’.-]+)*,\s*\p{L}\./u.test(text) &&
           /(?<!\d)(?:19|20)\d{2}[a-z]?[.\s]*$/iu.test(text),
@@ -100,9 +101,11 @@ function tableLine(location: Located) {
   const nonletters = line.match(/[^\p{L}\p{M}\s]/gu)?.length ?? 0;
   return symbols >= 2 || (visible > 0 && nonletters > visible / 2);
 }
+export const paperReferenceParagraphs = (paper: Paper) =>
+  paper.paragraphs.filter((p) => p.kind === 'reference' || role(paper, p) === 'references');
 export function citationsReferences(paper: Paper) {
   const id = 'citations_references';
-  const refs = paper.paragraphs.filter((p) => p.kind === 'reference' || role(paper, p) === 'references');
+  const refs = paperReferenceParagraphs(paper);
   const body = paper.paragraphs.filter((p) => !refs.includes(p) && p.kind === 'body');
   const unchecked: { text: string; loc: Located }[] = [];
   const cited = body.flatMap((p) => [

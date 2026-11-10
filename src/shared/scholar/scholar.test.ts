@@ -110,3 +110,20 @@ it('F2 stores the Unpaywall email only when valid and clears it when empty', () 
   expect(saveScholarEmail('')).toBe(true);
   expect(getScholarEmail()).toBeNull();
 });
+
+it('D1 asks OpenAlex for DOIs only, in batches, and never sends the email', async () => {
+  const s = setup({
+    openalex: () =>
+      json({
+        results: [
+          { doi: 'https://doi.org/10.1000/a', title: 'A', publication_year: 2020, is_retracted: true },
+        ],
+      }),
+  });
+  const dois = Array.from({ length: 51 }, (_, index) => `10.1000/${index}`);
+  const statuses = await client(s, 'me@example.org').workStatuses(dois);
+  expect(s.calls).toHaveLength(2);
+  expect(s.calls[0]).toContain('filter=doi:10.1000%2F0|');
+  expect(s.calls.join('')).not.toContain('example.org');
+  expect(statuses[0]).toEqual({ doi: '10.1000/a', title: 'A', year: 2020, isRetracted: true });
+});

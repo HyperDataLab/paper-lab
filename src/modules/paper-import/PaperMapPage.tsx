@@ -11,6 +11,7 @@ import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { Tabs } from '@/shared/ui/Tabs';
 import { EvidencePanel } from './EvidencePanel';
 import { PaperProfile } from './PaperProfile';
+import { PaperReferences } from './PaperReferences';
 import { PaperProbe } from './PaperProbe';
 import { PaperReader } from './PaperReader';
 import { PaperMeasurement } from './PaperMeasurement';
@@ -53,7 +54,14 @@ const GROUPS: { id: string; label: string; views: { id: ProfileView; label: stri
       { id: 'probe', label: 'Độ bền điểm' },
     ],
   },
-  { id: 'context', label: 'E. Bối cảnh', views: [{ id: 'context-checks', label: 'Trích dẫn' }] },
+  {
+    id: 'context',
+    label: 'E. Bối cảnh',
+    views: [
+      { id: 'context-references', label: 'Tài liệu tham khảo' },
+      { id: 'context-checks', label: 'Trích dẫn' },
+    ],
+  },
 ];
 const CHECKS_OF: Partial<Record<ViewId, string[]>> = {
   'science-checks': ['numbers_consistency', 'unsupported_claims'],
@@ -75,6 +83,7 @@ const VIEW_HELP: Record<ViewId, string> = {
   'writing-checks': 'Kiểm tra tự động chữ viết tắt và mức độ khẳng định. Không dùng AI.',
   probe: 'Đo xem điểm của AI có đổi khi chỉ đổi văn phong hay không.',
   'context-checks': 'Trích dẫn trong bài có tài liệu tham khảo tương ứng không. Không dùng AI.',
+  'context-references': 'Độ mới của danh sách tài liệu và tình trạng rút bài. Không dùng AI.',
   review: 'Các góc nhìn phản biện của AI, kèm câu trích trong bài. Xuyên suốt các chiều.',
 };
 
@@ -285,6 +294,8 @@ export default function PaperMapPage() {
             />
             {tab === 'profile' ? (
               <PaperProfile paper={paper} analyses={batch.analyses} checks={checks} onOpen={setTab} />
+            ) : tab === 'context-references' ? (
+              <PaperReferences paper={paper} onLocation={openLocation} />
             ) : tab === 'organization' || tab === 'language' ? (
               <>
                 <BatchPanel paper={paper} batch={batch} />

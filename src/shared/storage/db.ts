@@ -1,3 +1,4 @@
+import type { PaperContextRecord } from '@/core/schemas';
 import Dexie, { type Table } from 'dexie';
 import type {
   Analysis,
@@ -30,6 +31,7 @@ export class ParagraphDb extends Dexie {
   measurements!: Table<MeasurementsRecord, string>;
   library!: Table<LibraryItem, string>;
   stance!: Table<StanceRecord, string>;
+  paperContext!: Table<PaperContextRecord, string>;
   reviewNgrams!: Table<ReviewNgram, [string, string]>;
   calibrationLabels!: Table<CalibrationLabelSet, string>;
   constructor(name = 'paragraph-lab') {
@@ -56,6 +58,7 @@ export class ParagraphDb extends Dexie {
     this.version(11).stores({ measurements: 'paperId' });
     this.version(12).stores({ library: 'id, &doi, paper_id' });
     this.version(13).stores({ stance: 'paperId' });
+    this.version(14).stores({ paperContext: 'paperId' });
   }
 }
 export function createDb(name?: string) {
