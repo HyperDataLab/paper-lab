@@ -10,6 +10,7 @@ import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
+import { chooseSelectOption } from '@/test/selectOption';
 import PaperMapPage from './PaperMapPage';
 import { PaperReview } from './PaperReview';
 
@@ -140,10 +141,10 @@ it('P5 reveals reviews after skip, filters and audits decisions, and navigates t
   fireEvent.click(screen.getByRole('button', { name: 'Điểm mạnh' }));
   expect(screen.getByText('Không có nhận xét phù hợp.')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Điểm yếu' }));
-  fireEvent.change(screen.getByLabelText('Khía cạnh'), { target: { value: 'clarity' } });
+  chooseSelectOption('Khía cạnh', 'Độ rõ ràng');
   expect(screen.getByText('Không có nhận xét phù hợp.')).toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText('Khía cạnh'), { target: { value: 'soundness' } });
-  fireEvent.change(screen.getByLabelText('Góc nhìn'), { target: { value: 'methods_skeptic' } });
+  chooseSelectOption('Khía cạnh', 'Độ vững của khoa học');
+  chooseSelectOption('Góc nhìn', 'Phương pháp');
   fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
   await screen.findByText('Đã xác nhận');
   fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }));

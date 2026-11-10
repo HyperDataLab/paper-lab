@@ -42,8 +42,7 @@ export function CommandPalette() {
 
   const items = modules.filter(
     (item) =>
-      !item.hiddenFromSearch &&
-      item.label.toLocaleLowerCase('vi').includes(query.toLocaleLowerCase('vi')),
+      !item.hiddenFromSearch && item.label.toLocaleLowerCase('vi').includes(query.toLocaleLowerCase('vi')),
   );
 
   function go(path: string) {
@@ -115,14 +114,14 @@ export function CommandPalette() {
               </Button>
             );
           })}
-          {items.length === 0 && (
-            <p className={styles.paletteEmpty}>Không tìm thấy chức năng phù hợp.</p>
-          )}
+          {items.length === 0 && <p className={styles.paletteEmpty}>Không tìm thấy chức năng phù hợp.</p>}
         </div>
 
         <footer className={styles.paletteFooter}>
           <span>Chọn một mục để mở</span>
-          <span><kbd>Esc</kbd> Đóng</span>
+          <span>
+            <kbd>Esc</kbd> Đóng
+          </span>
         </footer>
       </div>
     </div>

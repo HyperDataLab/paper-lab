@@ -6,6 +6,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories, type Repositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
+import { chooseSelectOption } from '@/test/selectOption';
 import { LibraryPanel } from './LibraryPanel';
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
@@ -101,11 +102,12 @@ it('F3 filters by status and by a taxonomy that narrows itself', async () => {
   await setup();
   paste('10.1000/open\n10.1000/closed');
   await screen.findByRole('link', { name: 'Closed clinical trial' });
-  await waitFor(() => expect(screen.getByLabelText('Lĩnh vực lớn')).toHaveTextContent('Health (1)'));
-  fireEvent.change(screen.getByLabelText('Lĩnh vực lớn'), { target: { value: 'Health' } });
+  fireEvent.click(screen.getByRole('combobox', { name: 'Lĩnh vực lớn' }));
+  fireEvent.click(await screen.findByRole('option', { name: 'Health (1)' }));
   expect(screen.queryByRole('link', { name: 'Open paper about learning' })).toBeNull();
-  expect(screen.getByLabelText('Ngành')).not.toHaveTextContent('Computer');
-  fireEvent.change(screen.getByLabelText('Lĩnh vực lớn'), { target: { value: '' } });
+  fireEvent.click(screen.getByRole('combobox', { name: 'Ngành' }));
+  expect(screen.queryByRole('option', { name: /Computer/ })).toBeNull();
+  chooseSelectOption('Lĩnh vực lớn', 'Tất cả');
   fireEvent.click(screen.getByRole('button', { name: 'Có bản mở (1)' }));
   expect(screen.queryByRole('link', { name: 'Closed clinical trial' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Tất cả (2)' }));

@@ -264,7 +264,9 @@
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  transition: border-color 180ms ease, box-shadow 180ms ease;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease;
 }
 .paletteSearch:focus-within {
   border-color: var(--accent);
@@ -341,7 +343,9 @@
 .palette .paletteItem > svg:last-child {
   flex: none;
   color: var(--text-muted);
-  transition: transform 180ms ease, color 180ms ease;
+  transition:
+    transform 180ms ease,
+    color 180ms ease;
 }
 .palette .paletteItem:hover:not(:disabled),
 .palette .paletteItem:focus-visible {

@@ -169,10 +169,7 @@ export function Select({
     }
     if (open && event.key === 'End') {
       event.preventDefault();
-      const lastEnabled = options.reduce(
-        (last, option, index) => (option.disabled ? last : index),
-        -1,
-      );
+      const lastEnabled = options.reduce((last, option, index) => (option.disabled ? last : index), -1);
       setActiveIndex(lastEnabled);
       return;
     }

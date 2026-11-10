@@ -45,8 +45,10 @@ it('imports a paper, persists and audits role edits, then prefills Evaluate', as
   const repo = setup();
   await importPaper();
   expect(await screen.findByText('0 ứng viên cục bộ')).toBeInTheDocument();
-  expect(screen.getByRole('option', { name: 'Phương pháp' })).toHaveAttribute('title', 'methods');
-  fireEvent.change(screen.getByLabelText('Vai trò của mục'), { target: { value: 'methods' } });
+  fireEvent.click(screen.getByRole('combobox', { name: 'Vai trò của mục' }));
+  const methodsOption = screen.getByRole('option', { name: 'Phương pháp' });
+  expect(methodsOption).toHaveAttribute('title', 'methods');
+  fireEvent.click(methodsOption);
   await waitFor(async () => expect((await repo.papers.list())[0]?.sections[0]?.role).toBe('methods'));
   const paper = (await repo.papers.list())[0];
   if (!paper) throw new Error('Paper missing');

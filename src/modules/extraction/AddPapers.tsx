@@ -39,9 +39,7 @@ export function AddPapers({
   }, [repo]);
   const paperInProject = (key: string) => project.papers.find((paper) => paper.key === key);
   const inProject = (key: string) => Boolean(paperInProject(key));
-  const retryCount = chosen.filter(
-    (key) => paperInProject(key)?.access === 'METADATA_ONLY',
-  ).length;
+  const retryCount = chosen.filter((key) => paperInProject(key)?.access === 'METADATA_ONLY').length;
   const toggle = (key: string, on: boolean) =>
     setChosen((old) => (on ? [...old, key] : old.filter((item) => item !== key)));
   const linked = (paper: Paper) => library.find((item) => item.paper_id === paper.id);
@@ -132,9 +130,7 @@ export function AddPapers({
                   const alreadyAvailable = Boolean(existingPaper) && !abstractMissing;
                   return (
                     <li
-                      className={`${styles.paperOption} ${
-                        abstractMissing ? styles.paperOptionWarning : ''
-                      }`}
+                      className={`${styles.paperOption} ${abstractMissing ? styles.paperOptionWarning : ''}`}
                       key={key}
                     >
                       <Checkbox

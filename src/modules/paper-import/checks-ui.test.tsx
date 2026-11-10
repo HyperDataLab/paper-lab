@@ -235,7 +235,7 @@ it('on a wide screen the paper stays beside the analysis and a finding is marked
   fireEvent.click(quote.closest('article')?.querySelector('button') as HTMLElement);
   // The finding is marked in the paper beside it: no drawer, and the analysis tab stays open.
   expect(within(pane).getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
-  expect(within(pane).getByLabelText('Mục đang đọc')).toHaveValue('b');
+  expect(within(pane).getByRole('combobox', { name: 'Mục đang đọc' })).toHaveTextContent('Results');
   expect(screen.queryByRole('dialog')).toBeNull();
   expect(screen.getByRole('tab', { name: 'C. Diễn ngôn' })).toHaveAttribute('aria-selected', 'true');
 

@@ -9,6 +9,7 @@ import { detectCandidates, DETECTOR_VERSION } from '@/core/detectors';
 import type { LlmClient } from '@/shared/llm';
 import { LlmConfigError } from '@/shared/llm/errors';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
+import { chooseSelectOption } from '@/test/selectOption';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories, type Repositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
@@ -214,7 +215,7 @@ it('EV-11 AC-05 AC-06 AC-12 audits unsaved and later saved decisions and restore
   fireEvent.click(screen.getByRole('tab', { name: /Đã xử lý/ }));
   expect(await screen.findByText('Chưa hiệu chuẩn (n=1)')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /Từ ngữ.*Very/ }));
-  fireEvent.change(screen.getByLabelText('Mức độ'), { target: { value: 'major' } });
+  chooseSelectOption('Mức độ', 'Lớn');
   await waitFor(async () => expect((await repo.analyses.get(item.id))?.issues[0]?.severity).toBe('major'));
   expect(spy).toHaveBeenCalledWith(item.id, expect.any(String), { severity: 'major' });
   view.unmount();
@@ -258,7 +259,7 @@ it('EV-11 AC-05 AC-06 calls reviewIssue for saved confirm, undo, dismiss and sev
   await waitFor(async () => expect((await repo.analyses.get(saved.id))?.issues[0]?.status).toBe('candidate'));
   fireEvent.click(screen.getByRole('tab', { name: /Cần xem/ }));
   fireEvent.click(screen.getByRole('button', { name: /Từ ngữ.*Very/ }));
-  fireEvent.change(screen.getByLabelText('Mức độ'), { target: { value: 'moderate' } });
+  chooseSelectOption('Mức độ', 'Vừa');
   await waitFor(async () =>
     expect((await repo.analyses.get(saved.id))?.issues[0]?.severity).toBe('moderate'),
   );

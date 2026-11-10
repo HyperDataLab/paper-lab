@@ -1,13 +1,7 @@
 import { useState, type FocusEvent, type PointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './ui.module.css';
-export function Tooltip({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+export function Tooltip({ label, children }: { label: string; children: ReactNode }) {
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
   const show = (event: PointerEvent<HTMLSpanElement> | FocusEvent<HTMLSpanElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
