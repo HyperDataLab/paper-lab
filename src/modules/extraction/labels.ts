@@ -41,4 +41,16 @@ export const FLAGS: Record<string, string> = {
   MISSING_IN_OUTPUT: 'Mô hình không trả về trường này',
   HUMAN_EDITED: 'Người duyệt đã sửa',
   REJECTED_BY_REVIEWER: 'Người duyệt đã bác bỏ',
+  CONFLICTING_PASSAGES: 'Bài có đoạn nói khác, cần người chọn',
+  VERIFIER_PARTIALLY_SUPPORTED: 'Bước kiểm chứng: chỉ một phần được nguồn hỗ trợ',
+  VERIFIER_CONTRADICTED: 'Bước kiểm chứng: nguồn nói khác',
+  VERIFIER_INDETERMINATE: 'Bước kiểm chứng: nguồn chưa đủ để kết luận',
+  VERIFIER_SKIPPED: 'Bước kiểm chứng không trả lời cho ô này',
+};
+
+export const VERDICTS: Record<string, string> = {
+  SUPPORTED: 'Nguồn hỗ trợ',
+  PARTIALLY_SUPPORTED: 'Hỗ trợ một phần',
+  CONTRADICTED: 'Nguồn nói khác',
+  INDETERMINATE: 'Chưa kết luận được',
 };

@@ -6,11 +6,12 @@ import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Drawer } from '@/shared/ui/Drawer';
 import { TextField } from '@/shared/ui/TextField';
-import { ACCESS, FLAGS, STATUS } from './labels';
+import { ACCESS, FLAGS, STATUS, VERDICTS } from './labels';
 import styles from './extraction.module.css';
 
 const ACTIONS: Record<string, string> = {
   extract: 'AI trích',
+  verify: 'AI kiểm chứng',
   approve: 'Xác nhận',
   edit: 'Sửa',
   reject: 'Bác bỏ',
@@ -53,6 +54,11 @@ export function CellDrawer({
           <Badge tone={STATUS[cell.status].tone}>{STATUS[cell.status].label}</Badge>
           <Badge>{ACCESS[cell.sourceAccess]}</Badge>
           {cell.assertion === 'INFERRED' && <Badge tone="warning">AI suy ra</Badge>}
+          {cell.verdict && (
+            <Badge tone={cell.verdict === 'SUPPORTED' ? 'success' : 'warning'}>
+              Kiểm chứng tự động: {VERDICTS[cell.verdict]}
+            </Badge>
+          )}
           {stale && <Badge tone="warning">Đã cũ, nên chạy lại</Badge>}
         </div>
         <section>
@@ -98,6 +104,7 @@ export function CellDrawer({
             <ul className={styles.evidence}>
               {cell.evidence.map((item) => (
                 <li key={`${item.paragraphId}:${item.start}`}>
+                  {item.stance === 'conflicts' && <Badge tone="danger">Đoạn nói khác</Badge>}
                   <blockquote>{item.quote}</blockquote>
                   <span className={styles.note}>
                     {[item.page ? `Tr. ${item.page}` : null, item.section].filter(Boolean).join(' · ') ||
@@ -109,6 +116,7 @@ export function CellDrawer({
           )}
           {paper.source.kind === 'paper' && <Link to={`/papers/${paper.source.paperId}`}>Mở bài báo</Link>}
         </section>
+        {cell.verifierNote && <p className={styles.note}>Ghi chú kiểm chứng: {cell.verifierNote}</p>}
         {cell.flags.length > 0 && (
           <section>
             <h3>Lưu ý</h3>

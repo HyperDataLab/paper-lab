@@ -6,10 +6,14 @@ import {
   fieldBatches,
   insufficientCells,
   mergeCells,
+  applyVerification,
+  needsRetry,
+  verifiable,
 } from '@/core/extraction';
-import { buildMatrixPrompt, PROMPT_VERSIONS } from '@/core/prompts';
+import { buildMatrixPrompt, buildVerifyPrompt, PROMPT_VERSIONS } from '@/core/prompts';
 import {
   MatrixOutputSchema,
+  VerifyOutputSchema,
   type ExtractionMode,
   type ExtractionProject,
   type ExtractionRun,
@@ -58,7 +62,10 @@ export async function llmExtraction(
     finishedAt: null,
     status: 'RUNNING',
     model: options.config.model,
-    promptVersion: PROMPT_VERSIONS.extraction,
+    promptVersion:
+      options.mode === 'HIGH_QUALITY'
+        ? `${PROMPT_VERSIONS.extraction}+${PROMPT_VERSIONS.extractionVerify}`
+        : PROMPT_VERSIONS.extraction,
     callsUsed: 0,
     paperKeys: options.paperKeys,
     fieldKeys: options.fieldKeys,
@@ -85,32 +92,82 @@ export async function llmExtraction(
         target.source.kind === 'paper' ? papers.get(target.source.paperId) : undefined,
       );
       let cells = source.length ? [] : insufficientCells(fields, context);
+      const ask = async (request: Omit<Parameters<LlmClient['completeJson']>[0], 'temperature'>) => {
+        const result = await client.completeJson({
+          ...request,
+          temperature: 0,
+          timeoutMs: TIMEOUT_MS,
+          signal: options.signal,
+          onRequest: async () => {
+            requirePaperConsent(options.config);
+            if (run.callsUsed >= options.budget) throw new BatchBudgetExceededError();
+            update({ callsUsed: run.callsUsed + 1 });
+          },
+        });
+        update({ model: result.meta.model });
+        return result.data as unknown;
+      };
+      const failure = (cause: unknown) => {
+        if (fatal(cause)) throw cause;
+        const message = describeLlmError(cause) ?? 'Lỗi không xác định';
+        update({ errors: [...run.errors, { paperKey: target.key, message }] });
+        return message;
+      };
       for (const batch of source.length ? fieldBatches(fields) : []) {
         try {
-          const result = await client.completeJson({
+          const output = await ask({
             ...buildMatrixPrompt(source, batch, target.access),
             schema: MatrixOutputSchema,
             schemaName: 'extraction_matrix',
             promptVersion: PROMPT_VERSIONS.extraction,
-            temperature: 0,
-            timeoutMs: TIMEOUT_MS,
-            signal: options.signal,
-            onRequest: async () => {
-              requirePaperConsent(options.config);
-              if (run.callsUsed >= options.budget) throw new BatchBudgetExceededError();
-              update({ callsUsed: run.callsUsed + 1 });
-            },
           });
-          update({ model: result.meta.model });
-          cells = [
-            ...cells,
-            ...cellsFromOutput(MatrixOutputSchema.parse(result.data), batch, source, context),
-          ];
+          cells = [...cells, ...cellsFromOutput(MatrixOutputSchema.parse(output), batch, source, context)];
         } catch (cause) {
-          if (fatal(cause)) throw cause;
-          const message = describeLlmError(cause) ?? 'Lỗi không xác định';
-          update({ errors: [...run.errors, { paperKey: target.key, message }] });
-          cells = [...cells, ...failedCells(batch, context, message)];
+          cells = [...cells, ...failedCells(batch, context, failure(cause))];
+        }
+      }
+      if (options.mode === 'HIGH_QUALITY' && source.length) {
+        // One targeted retry for values that came back without usable evidence.
+        const retry = fields.filter((field) =>
+          cells.some((cell) => cell.fieldKey === field.key && needsRetry(cell)),
+        );
+        if (retry.length) {
+          try {
+            const output = await ask({
+              ...buildMatrixPrompt(source, retry, target.access),
+              schema: MatrixOutputSchema,
+              schemaName: 'extraction_matrix',
+              promptVersion: PROMPT_VERSIONS.extraction,
+            });
+            const again = cellsFromOutput(MatrixOutputSchema.parse(output), retry, source, context).filter(
+              (cell) => !needsRetry(cell),
+            );
+            cells = cells.map((cell) => again.find((next) => next.fieldKey === cell.fieldKey) ?? cell);
+          } catch (cause) {
+            failure(cause);
+          }
+        }
+        for (const batch of fieldBatches(cells.filter(verifiable))) {
+          try {
+            const output = await ask({
+              ...buildVerifyPrompt(
+                source,
+                batch.map((cell) => ({
+                  key: cell.fieldKey,
+                  label: fields.find((field) => field.key === cell.fieldKey)?.label ?? cell.fieldKey,
+                  value: cell.aiValue ?? '',
+                  quotes: cell.evidence.map((item) => item.quote),
+                })),
+              ),
+              schema: VerifyOutputSchema,
+              schemaName: 'extraction_verify',
+              promptVersion: PROMPT_VERSIONS.extractionVerify,
+            });
+            const checked = applyVerification(batch, VerifyOutputSchema.parse(output), source, now());
+            cells = cells.map((cell) => checked.find((next) => next.fieldKey === cell.fieldKey) ?? cell);
+          } catch (cause) {
+            failure(cause);
+          }
         }
       }
       current = {
