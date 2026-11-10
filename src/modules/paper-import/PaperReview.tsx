@@ -15,6 +15,7 @@ import { LENS_DESCRIPTIONS } from './reviewLabels';
 import { ReviewResults } from './ReviewResults';
 import { usePaperScope, useRunBudget } from './paperScope';
 import { SectionPicker } from './SectionPicker';
+import { useReportJob } from './paperJobs';
 import styles from './review.module.css';
 import { captureCalibration } from '@/shared/calibration/data';
 import { Loading } from '@/shared/ui/StateNote';
@@ -150,6 +151,14 @@ export function PaperReview({
       setError(String(cause));
     }
   }
+  // The reader's own notes come first, so this analysis is never started from outside.
+  useReportJob('review', {
+    running,
+    done: Boolean(run),
+    estimate: lenses.length,
+    ready: !loading,
+    start: null,
+  });
   if (loading) return <Loading label="Đang tải phản biện…" />;
   const notesPanel = (
     <Card>
@@ -171,6 +180,11 @@ export function PaperReview({
   return (
     <div className={styles.panel}>
       {!revealed && notesPanel}
+      {!revealed && !running && (record?.runs.length ?? 0) > 0 && (
+        <p role="status">
+          Đã có kết quả phản biện của AI. Lưu nhận xét của bạn hoặc bấm “Bỏ qua bước này” ở trên để xem.
+        </p>
+      )}
       <Card>
         <h2>Thiết lập phản biện AI</h2>
         {running ? (

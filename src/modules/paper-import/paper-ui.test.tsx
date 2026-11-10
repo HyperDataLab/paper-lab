@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
@@ -295,4 +295,42 @@ it('P2 pauses after the current call and resumes the remaining step', async () =
   await waitFor(() => expect(completeJson).toHaveBeenCalledTimes(2));
   fireEvent.click(screen.getByRole('tab', { name: 'Đọc bài' }));
   expect(await screen.findByText('Hoàn tất')).toBeInTheDocument();
+});
+it('P2 a run keeps going when the reader opens another tab, and the view is kept in the address', async () => {
+  localStorage.clear();
+  const repo = createRepositories(createDb(`keep-ui-${crypto.randomUUID()}`));
+  // Never answers: the run stays in flight for the whole test.
+  const completeJson = vi.fn(() => new Promise(() => {})) as unknown as LlmClient['completeJson'];
+  let search = '';
+  function Where() {
+    search = useLocation().search;
+    return null;
+  }
+  render(
+    <MemoryRouter initialEntries={['/papers']}>
+      <StorageProvider repositories={repo}>
+        <LlmProvider innerClient={{ completeJson }}>
+          <Where />
+          <Routes>
+            <Route path="/papers" element={<Page />} />
+            <Route path="/papers/:id" element={<PaperMapPage />} />
+          </Routes>
+        </LlmProvider>
+      </StorageProvider>
+    </MemoryRouter>,
+  );
+  await importPaper();
+  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Snapshot' }));
+  expect(search).toContain('view=snapshot');
+  fireEvent.click(screen.getByRole('button', { name: 'Tạo snapshot (AI)' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
+  await waitFor(() => expect(completeJson).toHaveBeenCalledTimes(1));
+  fireEvent.click(screen.getByRole('tab', { name: 'Đọc bài' }));
+  expect(search).toContain('view=map');
+  const strip = await screen.findByText(/Đang chạy ở tab khác/);
+  fireEvent.click(within(strip).getByRole('button', { name: 'Snapshot' }));
+  // Still the same run: the panel was hidden, not unmounted, so nothing was restarted.
+  expect(screen.getByText('Đang đọc bài…')).toBeVisible();
+  expect(completeJson).toHaveBeenCalledTimes(1);
 });

@@ -15,6 +15,7 @@ import { Select } from '@/shared/ui/Select';
 import { TextField } from '@/shared/ui/TextField';
 import { getRunDefaults } from '@/shared/llm/runDefaults';
 import { useRunBudget } from './paperScope';
+import { useReportJob } from './paperJobs';
 import styles from './probe.module.css';
 import { captureCalibration } from '@/shared/calibration/data';
 
@@ -127,6 +128,8 @@ export function PaperProbe({ paper, analyses }: { paper: Paper; analyses: Analys
         })),
       ]
     : [];
+  // Needs scored paragraphs first, so it is never started from outside.
+  useReportJob('probe', { running, done: false, estimate: 0, ready: true, start: null });
   return (
     <>
       <Card>

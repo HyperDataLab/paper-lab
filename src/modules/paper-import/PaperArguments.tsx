@@ -15,6 +15,7 @@ import { FindingCard, ReviewActions } from '@/shared/ui/FindingCard';
 import { placeLabel } from './paperLabels';
 import { usePaperScope, useRunBudget } from './paperScope';
 import { RunSetup } from './RunSetup';
+import { useReportJob } from './paperJobs';
 import styles from './argument.module.css';
 import { Loading } from '@/shared/ui/StateNote';
 
@@ -111,6 +112,13 @@ export function PaperArguments({
   const run = record?.argumentRuns.at(-1);
   const decisions = useMemo(() => record?.decisions ?? [], [record]);
   const metrics = useMemo(() => (run ? argumentMetrics(run, decisions) : undefined), [run, decisions]);
+  useReportJob('arguments', {
+    running,
+    done: Boolean(run) && !record?.argumentPending,
+    estimate,
+    ready: !loading,
+    start: () => start(false),
+  });
   if (loading) return <Loading label="Đang tải lập luận…" />;
   const open = (span: Span) =>
     onLocation({ paragraphId: span.paragraphId, start: span.start, end: span.end });

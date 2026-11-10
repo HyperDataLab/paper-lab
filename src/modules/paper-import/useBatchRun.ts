@@ -25,6 +25,7 @@ export function useBatchRun(paper: Paper) {
   const [run, setRun] = useState<PaperRun | null>(null);
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [error, setError] = useState('');
+  const [loaded, setLoaded] = useState(false);
   const signal = useRef<BatchSignal>({});
   const busy = useRef(false);
   const refresh = useCallback(
@@ -49,6 +50,7 @@ export function useBatchRun(paper: Paper) {
         if (active) {
           setRun(latest);
           setAnalyses(saved);
+          setLoaded(true);
         }
       })
       .catch((cause: unknown) => {
@@ -164,6 +166,7 @@ export function useBatchRun(paper: Paper) {
   }
   return {
     run,
+    loaded,
     analyses,
     error,
     start,

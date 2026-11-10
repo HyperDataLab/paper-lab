@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { paperIdentity } from '@/core/paperIdentity';
 import { type Paper, type Section, type Finding, type PaperChecksRecord } from '@/core/schemas';
@@ -24,6 +24,7 @@ import { ReadingPane } from './ReadingPane';
 import { PaperMeasurement } from './PaperMeasurement';
 import { PaperStance } from './PaperStance';
 import styles from './page.module.css';
+import { JobsContext, type JobId, type JobReport, type JobReporter } from './paperJobs';
 import { BatchPanel } from './BatchPanel';
 import { useBatchRun } from './useBatchRun';
 import { PaperOverview } from './PaperOverview';
@@ -124,6 +125,22 @@ const VIEW_HELP: Record<ViewId, string> = {
   review: 'Các góc nhìn phản biện của AI, kèm câu trích trong bài. Xuyên suốt các chiều.',
 };
 
+/** Where each AI analysis lives, and what it is called in the running-work strip. */
+const JOBS: Record<JobId, { label: string; views: ViewId[] }> = {
+  snapshot: { label: 'Snapshot', views: ['snapshot'] },
+  measure: { label: 'Đo lường', views: ['measure'] },
+  rhetoric: { label: 'Validity và Moves', views: ['reporting', 'moves'] },
+  arguments: { label: 'Lập luận', views: ['toulmin', 'aif'] },
+  batch: { label: 'Chất lượng viết', views: ['organization', 'language'] },
+  stance: { label: 'Giọng văn', views: ['stance'] },
+  probe: { label: 'Độ bền điểm', views: ['probe'] },
+  review: { label: 'Phản biện AI', views: ['review'] },
+};
+const JOB_IDS = Object.keys(JOBS) as JobId[];
+const jobOf = (view: ViewId) => JOB_IDS.find((id) => JOBS[id].views.includes(view));
+const isView = (value: string | null): value is ViewId => value !== null && value in VIEW_HELP;
+type JobFacts = Omit<JobReport, 'start'>;
+
 const WIDE = '(min-width: 1280px)';
 /** True on screens wide enough to show the paper beside its analysis. */
 function useWide() {
@@ -160,7 +177,7 @@ function BatchWorkspace({
 
 export default function PaperMapPage() {
   const { id } = useParams();
-  const [query] = useSearchParams();
+  const [query, setQuery] = useSearchParams();
   const repo = useRepositories();
   const [paper, setPaper] = useState<Paper | null>(null);
   const [selected, setSelected] = useState('');
@@ -168,7 +185,55 @@ export default function PaperMapPage() {
   const [error, setError] = useState('');
   const [counts, setCounts] = useState<{ sentences: number; words: number } | null>(null);
   const [candidateCounts, setCandidateCounts] = useState<Record<string, number>>({});
-  const [tab, setTab] = useState<ViewId>('profile');
+  const [tab, setTabState] = useState<ViewId>(() => {
+    const view = query.get('view');
+    return isView(view) ? view : 'profile';
+  });
+  // An AI panel stays mounted once opened, so its run keeps going while the reader looks elsewhere.
+  const [opened, setOpened] = useState<JobId[]>([]);
+  const jobs = useRef<Partial<Record<JobId, JobReport>>>({});
+  const [jobFacts, setJobFacts] = useState<Partial<Record<JobId, JobFacts>>>({});
+  const reportJob = useCallback<JobReporter>((jobId, report) => {
+    if (report) jobs.current[jobId] = report;
+    else delete jobs.current[jobId];
+    setJobFacts((old) => {
+      const before = old[jobId];
+      if (!report) {
+        if (!before) return old;
+        const next = { ...old };
+        delete next[jobId];
+        return next;
+      }
+      if (
+        before &&
+        before.running === report.running &&
+        before.done === report.done &&
+        before.estimate === report.estimate &&
+        before.ready === report.ready
+      )
+        return old;
+      const { running, done, estimate, ready } = report;
+      return { ...old, [jobId]: { running, done, estimate, ready } };
+    });
+  }, []);
+  /** Opens a view and records it in the address, so a reload or a shared link lands on the same view. */
+  const setTab = (view: ViewId) => {
+    setTabState(view);
+    // Keep the panel being left as well as the one being opened.
+    const keep = [jobOf(tab), jobOf(view)].filter((job): job is JobId => job !== undefined);
+    setOpened((old) => [...new Set([...old, ...keep])]);
+    setQuery(
+      (old) => {
+        const next = new URLSearchParams(old);
+        next.set('view', view);
+        return next;
+      },
+      { replace: true },
+    );
+  };
+  const linkP = query.get('p');
+  const linkS = query.get('s');
+  const linkE = query.get('e');
   const [evidence, setEvidence] = useState<Finding['locations'][number] | null>(null);
   const [filter, setFilter] = useState<string[] | null>(null);
   const [checks, setChecks] = useState<PaperChecksRecord>();
@@ -213,9 +278,9 @@ export default function PaperMapPage() {
             })
             .catch(() => undefined);
         // A link from a grounded citation (?p=&s=&e=) opens the reader on that passage.
-        const linked = value?.paragraphs.find((item) => item.id === query.get('p'));
-        const start = Number(query.get('s'));
-        const end = Number(query.get('e'));
+        const linked = value?.paragraphs.find((item) => item.id === linkP);
+        const start = Number(linkS);
+        const end = Number(linkE);
         setSelected(linked?.sectionId ?? value?.sections[0]?.id ?? '');
         if (linked) {
           const whole = !Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start;
@@ -224,7 +289,7 @@ export default function PaperMapPage() {
             start: whole ? 0 : start,
             end: whole ? Math.max(1, Array.from(linked.text).length) : end,
           });
-          setTab('map');
+          setTabState('map');
         }
         setLoading(false);
         if (value)
@@ -260,7 +325,7 @@ export default function PaperMapPage() {
     return () => {
       active = false;
     };
-  }, [id, repo, query]);
+  }, [id, repo, linkP, linkS, linkE]);
   async function editRole(role: Section['role']) {
     if (!paper) return;
     try {
@@ -315,6 +380,8 @@ export default function PaperMapPage() {
       {label}
     </Button>
   );
+  const shown = (job: JobId) => opened.includes(job) || jobOf(tab) === job;
+  const elsewhere = JOB_IDS.filter((job) => jobFacts[job]?.running && jobOf(tab) !== job);
   const activeGroup = GROUPS.find((group) => group.views.some((view) => view.id === tab));
   const checkIds = CHECKS_OF[tab];
   const errorBox = (title: string) =>
@@ -350,7 +417,7 @@ export default function PaperMapPage() {
       </header>
       <BatchWorkspace paper={paper}>
         {(batch) => (
-          <>
+          <JobsContext.Provider value={reportJob}>
             <div className={styles.paperTabs}>
               <Tabs label="Bài báo">
                 {GROUPS.slice(0, 1).map((group) => (
@@ -388,6 +455,21 @@ export default function PaperMapPage() {
                 />
               </div>
             )}
+            {elsewhere.length > 0 && (
+              <p role="status" className={styles.runStrip}>
+                Đang chạy ở tab khác:{' '}
+                {elsewhere.map((job) => (
+                  <Button
+                    key={job}
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setTab(JOBS[job].views[0] ?? 'profile')}
+                  >
+                    {JOBS[job].label}
+                  </Button>
+                ))}
+              </p>
+            )}
             <p className={styles.tabHelp}>{VIEW_HELP[tab]}</p>
             <EvidencePanel
               paper={paper}
@@ -409,23 +491,64 @@ export default function PaperMapPage() {
                 />
               )}
               <div className={styles.splitMain}>
+                {shown('snapshot') && (
+                  <div hidden={tab !== 'snapshot'}>
+                    <PaperSnapshot paper={paper} onLocation={openLocation} />
+                  </div>
+                )}
+                {shown('arguments') && (
+                  <div hidden={jobOf(tab) !== 'arguments'}>
+                    <PaperArguments
+                      paper={paper}
+                      view={tab === 'aif' ? 'aif' : 'toulmin'}
+                      onLocation={openLocation}
+                    />
+                  </div>
+                )}
+                {shown('rhetoric') && (
+                  <div hidden={jobOf(tab) !== 'rhetoric'}>
+                    <PaperRhetoric
+                      paper={paper}
+                      focus={tab === 'moves' ? 'moves' : 'reporting'}
+                      onLocation={openLocation}
+                    />
+                  </div>
+                )}
+                {shown('batch') && (
+                  <div hidden={jobOf(tab) !== 'batch'}>
+                    <BatchPanel paper={paper} batch={batch} />
+                  </div>
+                )}
+                {shown('stance') && (
+                  <div hidden={tab !== 'stance'}>
+                    <PaperStance paper={paper} onLocation={openLocation} />
+                  </div>
+                )}
+                {shown('measure') && (
+                  <div hidden={tab !== 'measure'}>
+                    <PaperMeasurement paper={paper} onLocation={openLocation} />
+                  </div>
+                )}
+                {shown('probe') && (
+                  <div hidden={tab !== 'probe'}>
+                    <PaperProbe paper={paper} analyses={batch.analyses} />
+                  </div>
+                )}
+                {shown('review') && (
+                  <div hidden={tab !== 'review'}>
+                    <PaperReview paper={paper} checks={checks} onLocation={openLocation} />
+                  </div>
+                )}
                 {tab === 'profile' ? (
                   <PaperProfile paper={paper} analyses={batch.analyses} checks={checks} onOpen={setTab} />
-                ) : tab === 'snapshot' ? (
-                  <PaperSnapshot paper={paper} onLocation={openLocation} />
                 ) : tab === 'metadata' ? (
                   <PaperMetadata paper={paper} />
-                ) : tab === 'toulmin' || tab === 'aif' ? (
-                  <PaperArguments paper={paper} view={tab} onLocation={openLocation} key={tab} />
-                ) : tab === 'reporting' || tab === 'moves' ? (
-                  <PaperRhetoric paper={paper} focus={tab} onLocation={openLocation} key={tab} />
                 ) : tab === 'vocabulary' ? (
                   <PaperVocabulary paper={paper} onLocation={openLocation} />
                 ) : tab === 'context-references' ? (
                   <PaperReferences paper={paper} onLocation={openLocation} />
                 ) : tab === 'organization' || tab === 'language' ? (
                   <>
-                    <BatchPanel paper={paper} batch={batch} />
                     <PaperOverview
                       paper={paper}
                       analyses={batch.analyses}
@@ -469,15 +592,7 @@ export default function PaperMapPage() {
                       onLocation={openLocation}
                     />
                   </>
-                ) : tab === 'stance' ? (
-                  <PaperStance paper={paper} onLocation={openLocation} />
-                ) : tab === 'measure' ? (
-                  <PaperMeasurement paper={paper} onLocation={openLocation} />
-                ) : tab === 'probe' ? (
-                  <PaperProbe paper={paper} analyses={batch.analyses} />
-                ) : tab === 'review' ? (
-                  <PaperReview paper={paper} checks={checks} onLocation={openLocation} />
-                ) : (
+                ) : jobOf(tab) ? null : (
                   <>
                     {errorBox('Không thể xử lý bài báo.')}
                     <PaperReader
@@ -495,7 +610,7 @@ export default function PaperMapPage() {
                 )}
               </div>
             </div>
-          </>
+          </JobsContext.Provider>
         )}
       </BatchWorkspace>
     </div>

@@ -32,6 +32,7 @@ import type { Decide, ItemContext, Location } from './MeasurementItems';
 import { MeasurementDetail } from './MeasurementViews';
 import { usePaperScope, useRunBudget } from './paperScope';
 import { RunSetup } from './RunSetup';
+import { useReportJob } from './paperJobs';
 import styles from './measurement.module.css';
 import { Loading } from '@/shared/ui/StateNote';
 
@@ -179,6 +180,13 @@ export function PaperMeasurement({
   const exportName = `measurement-${paper.id.slice(0, 8)}`;
   const exported = (current: MeasurementRun) =>
     reviewedProfile(current.profile, record?.decisions ?? [], current.id);
+  useReportJob('measure', {
+    running,
+    done: Boolean(run) && !record?.pending,
+    estimate,
+    ready: !loading,
+    start: () => start(null),
+  });
   if (loading) return <Loading label="Đang tải hồ sơ đo lường…" />;
   const pending = record?.pending ?? null;
   const setup = (

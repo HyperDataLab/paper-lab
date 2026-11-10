@@ -21,6 +21,7 @@ import { FindingCard, ReviewActions } from '@/shared/ui/FindingCard';
 import { placeLabel } from './paperLabels';
 import { usePaperScope, useRunBudget } from './paperScope';
 import { RunSetup } from './RunSetup';
+import { useReportJob } from './paperJobs';
 import styles from './measurement.module.css';
 import { Loading } from '@/shared/ui/StateNote';
 
@@ -141,6 +142,13 @@ export function PaperRhetoric({
   const run = record?.rhetoricRuns.at(-1);
   const decisions = useMemo(() => record?.decisions ?? [], [record]);
   const metrics = useMemo(() => (run ? rhetoricMetrics(run, decisions) : undefined), [run, decisions]);
+  useReportJob('rhetoric', {
+    running,
+    done: Boolean(run) && !record?.rhetoricPending,
+    estimate,
+    ready: !loading,
+    start: () => start(false),
+  });
   if (loading) return <Loading label="Đang tải phân tích…" />;
   const decide = (itemId: string, decision: 'confirm' | 'dismiss' | 'reopen') => {
     if (!run) return;
