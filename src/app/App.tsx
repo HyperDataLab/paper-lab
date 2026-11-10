@@ -101,7 +101,7 @@ export function App() {
             </div>
           </header>
           <main
-            className={`${styles.content} ${location.pathname === '/evaluate' || location.pathname.startsWith('/extraction/') ? styles.wideContent : ''}`}
+            className={`${styles.content} ${location.pathname === '/evaluate' || location.pathname.startsWith('/extraction/') || location.pathname.startsWith('/papers/') ? styles.wideContent : ''}`}
           >
             <StorageProvider>
               <LlmProvider>

@@ -354,3 +354,52 @@
 .library .paperTitle {
   font-size: var(--text-base);
 }
+.narrow {
+  max-width: 1200px;
+}
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  align-items: start;
+  gap: var(--space-4);
+}
+.splitMain {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  min-width: 0;
+}
+.pane {
+  position: sticky;
+  top: calc(var(--space-10) * 3);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  height: calc(100vh - var(--space-10) * 6);
+  min-height: calc(var(--space-10) * 8);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.paneHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.paneHead label {
+  min-width: 0;
+  flex: 1;
+}
+.paneBody {
+  overflow: auto;
+  padding-right: var(--space-2);
+}
+.paneParagraph {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-3) 0;
+}
+.paneParagraph p {
+  margin: 0;
+}
