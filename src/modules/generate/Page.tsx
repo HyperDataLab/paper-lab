@@ -169,7 +169,7 @@ export default function Page() {
           )}
         </ActionBar>
       )}
-      <div className={styles.grid}>
+      <div className={generation ? styles.grid : styles.setup}>
         <GenerationForm
           key={restored}
           input={input}
@@ -182,7 +182,7 @@ export default function Page() {
           finishVariant={generation ? 'secondary' : 'primary'}
           onFinish={() => void generate()}
         />
-        <GenerationResult generation={generation} highlight={setHighlighted} />
+        {generation && <GenerationResult generation={generation} highlight={setHighlighted} />}
       </div>
       {error && (
         <div role="alert">

@@ -80,7 +80,7 @@ export function ScoresView({
             {dimension.score !== null && (
               <progress max={100} value={dimension.score} aria-label={dimension.label} />
             )}
-            {!dimension.applicable && (
+            {!dimension.applicable && !readOnly && (
               <span>
                 {' '}
                 ·{' '}

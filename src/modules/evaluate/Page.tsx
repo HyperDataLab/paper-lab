@@ -86,6 +86,7 @@ export default function Page() {
   const [selectedSentence, setSelectedSentence] = useState<string | null>(null);
   const [previousIssueIds, setPreviousIssueIds] = useState('[]');
   const [editing, setEditing] = useState(false);
+  const [contextLimited, setContextLimited] = useState(true);
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!id) return;
@@ -116,6 +117,7 @@ export default function Page() {
           });
         setText(value.text.sourceText);
         setResult(value.text);
+        setContextLimited(value.contextLimited);
         loadSyntax(value.sentenceAnnotations, value.versions);
         loadJudge(value.issues, value.versions);
         loadParagraph(value);
@@ -315,7 +317,7 @@ export default function Page() {
           <Link to={`/evaluate?id=${parent.id}`}>Bản sửa của {parent.title}</Link>
         </p>
       )}
-      {(!result || editing) && (
+      {(!result || editing) && (!id || error) && (
         <Card>
           <TextField
             label="Dán một đoạn văn tiếng Anh"
@@ -359,7 +361,7 @@ export default function Page() {
           )}
         </Card>
       )}
-      {loading ? (
+      {loading || (id && !result && !error) ? (
         <Skeleton />
       ) : error ? (
         <Card>
@@ -611,7 +613,9 @@ export default function Page() {
             </Card>
           )}
           <p className={styles.meta}>
-            Chỉ phân tích riêng đoạn này, không có ngữ cảnh của đoạn trước và sau.
+            {contextLimited
+              ? 'Chỉ phân tích riêng đoạn này, không có ngữ cảnh của đoạn trước và sau.'
+              : 'Đã xét cùng đoạn trước và đoạn sau.'}
           </p>
           <Tabs label="Chế độ xem">
             <Button
