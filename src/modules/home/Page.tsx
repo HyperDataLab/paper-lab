@@ -2,6 +2,7 @@ import { ArrowRight, FileText, PenLine, Search, Table2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { newProject } from '@/core/extraction';
+import { paperIdentity } from '@/core/paperIdentity';
 import type { ExtractionProject, Paper } from '@/core/schemas';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
@@ -45,9 +46,19 @@ export default function Page() {
   const [projects, setProjects] = useState<ExtractionProject[] | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
-    void Promise.all([repo.papers.list(), repo.extraction.list()])
-      .then(([savedPapers, savedProjects]) => {
-        setPapers([...savedPapers].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, RECENT));
+    void Promise.all([repo.papers.list(), repo.extraction.list(), repo.paperContext.list()])
+      .then(([savedPapers, savedProjects, contexts]) => {
+        setPapers(
+          [...savedPapers]
+            .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+            .slice(0, RECENT)
+            .map((paper) => ({
+              ...paper,
+              title: paperIdentity(paper, {
+                metadata: contexts.find((item) => item.paperId === paper.id)?.metadata,
+              }).title,
+            })),
+        );
         setProjects(savedProjects.slice(0, RECENT));
       })
       .catch((cause: unknown) => setError(String(cause)));

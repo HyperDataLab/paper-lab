@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { projectPaperFromLibrary, projectPaperFromPaper } from '@/core/extraction';
-import type { ExtractionProject, LibraryItem, Paper, ProjectPaper } from '@/core/schemas';
+import type { ExtractionProject, LibraryItem, Paper, PaperMetadata, ProjectPaper } from '@/core/schemas';
 import { createScholarClient } from '@/shared/scholar/client';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { ActionBar } from '@/shared/ui/ActionBar';
@@ -22,14 +22,18 @@ export function AddPapers({
   const repo = useRepositories();
   const [papers, setPapers] = useState<Paper[]>([]);
   const [library, setLibrary] = useState<LibraryItem[]>([]);
+  const [metadata, setMetadata] = useState(new Map<string, PaperMetadata | null>());
   const [chosen, setChosen] = useState<string[]>([]);
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState('');
   useEffect(() => {
-    void Promise.all([repo.papers.list(), repo.library.list()]).then(([savedPapers, items]) => {
-      setPapers(savedPapers);
-      setLibrary(items);
-    });
+    void Promise.all([repo.papers.list(), repo.library.list(), repo.paperContext.list()]).then(
+      ([savedPapers, items, contexts]) => {
+        setPapers(savedPapers);
+        setLibrary(items);
+        setMetadata(new Map(contexts.map((item) => [item.paperId, item.metadata])));
+      },
+    );
   }, [repo]);
   const inProject = (key: string) => project.papers.some((paper) => paper.key === key);
   const toggle = (key: string, on: boolean) =>
@@ -43,7 +47,8 @@ export function AddPapers({
     const result: ProjectPaper[] = [];
     let missing = 0;
     for (const paper of papers)
-      if (chosen.includes(`paper:${paper.id}`)) result.push(projectPaperFromPaper(paper, linked(paper)));
+      if (chosen.includes(`paper:${paper.id}`))
+        result.push(projectPaperFromPaper(paper, linked(paper), metadata.get(paper.id)));
     for (const item of fileless) {
       if (!chosen.includes(`library:${item.id}`)) continue;
       let abstract: string | null;
@@ -81,7 +86,7 @@ export function AddPapers({
                 checked={inProject(key) || chosen.includes(key)}
                 onChange={(event) => toggle(key, event.target.checked)}
               >
-                {linked(paper)?.title ?? paper.title}
+                {projectPaperFromPaper(paper, linked(paper), metadata.get(paper.id)).title}
               </Checkbox>
             );
           })}
