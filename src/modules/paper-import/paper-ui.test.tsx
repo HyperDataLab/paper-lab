@@ -345,6 +345,8 @@ it('P2 a run keeps going when the reader opens another tab, and the view is kept
   await importPaper();
   fireEvent.click(screen.getByRole('tab', { name: 'Tóm lược' }));
   expect(search).toContain('view=profile');
+  // The snapshot table is folded under the summary tiles; its block is opened to run it.
+  fireEvent.click(screen.getByRole('button', { name: 'Mở Thông tin cốt lõi' }));
   fireEvent.click(screen.getByRole('button', { name: 'Tạo snapshot (AI)' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
   await waitFor(() => expect(completeJson).toHaveBeenCalledTimes(1));
