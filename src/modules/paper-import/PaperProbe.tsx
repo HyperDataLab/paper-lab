@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, HelpCircle } from 'lucide-react';
-import { estimateProbe, PROBE_DEFAULT, PROBE_MAXIMUM, PROBE_MINIMUM } from '@/core/probe';
+import { estimateProbe, PROBE_MAXIMUM, PROBE_MINIMUM } from '@/core/probe';
 import type { Analysis, Paper, PaperProbeRun, PaperProbesRecord } from '@/core/schemas';
 import { DIMENSIONS } from '@/core/scoring/rubric';
 import { describeLlmError } from '@/shared/llm';
@@ -13,6 +13,8 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Select } from '@/shared/ui/Select';
 import { TextField } from '@/shared/ui/TextField';
+import { getRunDefaults } from '@/shared/llm/runDefaults';
+import { useRunBudget } from './paperScope';
 import styles from './probe.module.css';
 import { captureCalibration } from '@/shared/calibration/data';
 
@@ -34,8 +36,9 @@ export function PaperProbe({ paper, analyses }: { paper: Paper; analyses: Analys
   const repo = useRepositories();
   const llm = useLlm();
   const [record, setRecord] = useState<PaperProbesRecord>();
-  const [n, setN] = useState(PROBE_DEFAULT);
-  const [budget, setBudget] = useState(150);
+  const [n, setN] = useState(() => getRunDefaults().probeParagraphs);
+  // The probe has no per-run estimate; 75 keeps the automatic ceiling at the former 150.
+  const { budget, setBudget } = useRunBudget(75);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState('');
   const controller = useRef<AbortController | null>(null);
@@ -147,7 +150,7 @@ export function PaperProbe({ paper, analyses }: { paper: Paper; analyses: Analys
             type="number"
             min={1}
             value={budget}
-            onChange={(event) => setBudget(Number(event.target.value))}
+            onChange={(event) => setBudget(event.target.value)}
           />
         </div>
         <ActionBar

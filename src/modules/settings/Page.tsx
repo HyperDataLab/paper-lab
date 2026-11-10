@@ -18,6 +18,8 @@ import { Card } from '@/shared/ui/Card';
 import { TextField } from '@/shared/ui/TextField';
 import { useToast } from '@/shared/ui/toastContext';
 import { getScholarEmail, saveScholarEmail } from '@/shared/scholar/settings';
+import { getRunDefaults, saveRunDefaults } from '@/shared/llm/runDefaults';
+import { Select } from '@/shared/ui/Select';
 import styles from './page.module.css';
 export default function Page() {
   const toast = useToast();
@@ -31,6 +33,8 @@ export default function Page() {
   const [busy, setBusy] = useState(false);
   const [scholarEmail, setScholarEmail] = useState(() => getScholarEmail() ?? '');
   const [scholarMessage, setScholarMessage] = useState('');
+  const [runs, setRuns] = useState(getRunDefaults);
+  const [runsMessage, setRunsMessage] = useState('');
   const proxy = isProxyBaseUrl(baseUrl);
   const save = () => {
     try {
@@ -173,6 +177,77 @@ export default function Page() {
               {detail}
             </details>
           )}
+        </div>
+      </Card>
+      <Card>
+        <div className={styles.section}>
+          <header>
+            <h2>Giới hạn chạy</h2>
+            <p>
+              Trần số lượt gọi AI cho mỗi lần phân tích bài báo. Đặt một lần ở đây; từng phân tích vẫn cho đổi
+              riêng trong phần Tuỳ chọn.
+            </p>
+          </header>
+          <Select
+            label="Cách đặt trần"
+            value={runs.mode}
+            onChange={(event) =>
+              setRuns({ ...runs, mode: event.target.value === 'fixed' ? 'fixed' : 'auto' })
+            }
+          >
+            <option value="auto">Tự động theo ước lượng của từng lần chạy</option>
+            <option value="fixed">Một số cố định cho mọi lần chạy</option>
+          </Select>
+          {runs.mode === 'auto' ? (
+            <TextField
+              label="Hệ số so với ước lượng"
+              type="number"
+              min={1}
+              max={10}
+              step={1}
+              value={String(runs.factor)}
+              onChange={(event) => setRuns({ ...runs, factor: Math.floor(Number(event.target.value)) })}
+            />
+          ) : (
+            <TextField
+              label="Trần cố định (lượt gọi)"
+              type="number"
+              min={1}
+              step={1}
+              value={String(runs.fixed)}
+              onChange={(event) => setRuns({ ...runs, fixed: Math.floor(Number(event.target.value)) })}
+            />
+          )}
+          <p className={styles.hint}>
+            {runs.mode === 'auto'
+              ? 'Ví dụ: ước lượng 40 lượt, hệ số 2 thì trần là 80. Phần dư dành cho các lượt thử lại.'
+              : 'Lần chạy nào ước lượng vượt số này sẽ không bắt đầu được cho tới khi bạn nâng trần.'}
+          </p>
+          <Select
+            label="Số đoạn cho Độ bền điểm"
+            value={String(runs.probeParagraphs)}
+            onChange={(event) => setRuns({ ...runs, probeParagraphs: Number(event.target.value) })}
+          >
+            {[3, 4, 5, 6, 7, 8, 9, 10].map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </Select>
+          <div className={styles.start}>
+            <Button
+              onClick={() =>
+                setRunsMessage(
+                  saveRunDefaults(runs)
+                    ? 'Đã lưu giới hạn chạy.'
+                    : 'Giá trị chưa hợp lệ: hệ số từ 1 đến 10, trần cố định từ 1 trở lên.',
+                )
+              }
+            >
+              Lưu giới hạn chạy
+            </Button>
+          </div>
+          {runsMessage && <p role="status">{runsMessage}</p>}
         </div>
       </Card>
       <Card>
