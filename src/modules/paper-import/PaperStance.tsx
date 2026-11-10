@@ -141,6 +141,7 @@ export function PaperStance({
     estimate,
     ready: !loading,
     start: () => start(false),
+    stop: () => controller.current?.abort(),
   });
   if (loading) return <Loading label="Đang tải phân tích giọng văn…" />;
 

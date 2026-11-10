@@ -148,6 +148,7 @@ export function PaperRhetoric({
     estimate,
     ready: !loading,
     start: () => start(false),
+    stop: () => controller.current?.abort(),
   });
   if (loading) return <Loading label="Đang tải phân tích…" />;
   const decide = (itemId: string, decision: 'confirm' | 'dismiss' | 'reopen') => {
