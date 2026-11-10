@@ -144,8 +144,8 @@ it('P5 reveals reviews after skip, filters and audits decisions, and navigates t
   fireEvent.click(screen.getByRole('button', { name: 'Điểm yếu' }));
   chooseSelectOption('Khía cạnh', 'Độ rõ ràng');
   expect(screen.getByText('Không có nhận xét phù hợp.')).toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText('Khía cạnh'), { target: { value: 'soundness' } });
-  fireEvent.change(screen.getByLabelText('Góc nhìn'), { target: { value: 'methods_skeptic' } });
+  chooseSelectOption('Khía cạnh', 'Độ vững của khoa học');
+  chooseSelectOption('Góc nhìn', 'Phương pháp');
   // The unified list above shows the same points; these are the controls inside the review block.
   const block = within(screen.getByRole('region', { name: 'Phản biện AI' }));
   fireEvent.click(block.getByRole('button', { name: 'Xác nhận' }));
