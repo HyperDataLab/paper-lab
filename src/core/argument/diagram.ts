@@ -1,4 +1,5 @@
 import type { Argument } from '../schemas';
+import type { ArgumentNode, ArgumentEdge } from './index';
 
 /**
  * Geometry for drawing one argument as a diagram. The layout is computed, not dragged: the same argument
@@ -89,7 +90,7 @@ const size = (nodes: DiagramNode[]) => ({
  * Toulmin: data on the left support the claim on the right; the qualifier sits above the link, the warrant
  * and its backing below it, rebuttals under the claim. A slot with nothing behind it is drawn as missing.
  */
-export function toulminDiagram(argument: Argument): Diagram {
+export function toulminDiagram(argument: Argument, orientation: Orientation = 'horizontal'): Diagram {
   const nodes: DiagramNode[] = [];
   const edges: DiagramEdge[] = [];
   const link = (from: string, to: string, label: string, tone: DiagramEdge['tone'] = 'support') =>
@@ -136,6 +137,7 @@ export function toulminDiagram(argument: Argument): Diagram {
     Boolean(argument.qualifier),
     argument.rebuttals.length > 0,
   ].filter(Boolean).length;
+  if (orientation === 'vertical') verticalToulmin(nodes);
   return { nodes, edges, ...size(nodes), identified };
 }
 
@@ -143,7 +145,7 @@ export function toulminDiagram(argument: Argument): Diagram {
  * AIF: statements never touch directly. Premises reach the conclusion through an RA node, and a rebuttal
  * through a CA node; the scheme nodes carry no passage of the paper.
  */
-export function aifDiagram(argument: Argument): Diagram {
+export function aifDiagram(argument: Argument, orientation: Orientation = 'horizontal'): Diagram {
   const nodes: DiagramNode[] = [];
   const edges: DiagramEdge[] = [];
   const premises = [
@@ -214,11 +216,17 @@ export function aifDiagram(argument: Argument): Diagram {
       tone: 'conflict',
     });
   });
+  if (orientation === 'vertical') verticalAif(nodes);
   return { nodes, edges, ...size(nodes), identified: 0 };
 }
 
 /** An elbow path from the right or bottom of one node to the left or top of another. */
-export function edgePath(from: DiagramNode, to: DiagramNode): { d: string; labelX: number; labelY: number } {
+export function edgePath(
+  from: DiagramNode,
+  to: DiagramNode,
+  obstacles?: DiagramNode[],
+): { d: string; labelX: number; labelY: number } {
+  if (obstacles) return routeEdge(from, to, obstacles);
   const sameColumn = Math.abs(from.x + from.width / 2 - (to.x + to.width / 2)) < 1;
   if (sameColumn) {
     const x = from.x + from.width / 2;
@@ -238,4 +246,214 @@ export function edgePath(from: DiagramNode, to: DiagramNode): { d: string; label
     labelX: midX,
     labelY: (startY + endY) / 2,
   };
+}
+
+export type Orientation = 'horizontal' | 'vertical';
+
+function verticalToulmin(nodes: DiagramNode[]) {
+  nodes.forEach((node) => {
+    node.width = 200;
+  });
+  const data = nodes.filter((n) => n.role === 'data');
+  const backing = nodes.filter((n) => n.role === 'backing');
+  const rebuttals = nodes.filter((n) => n.role === 'rebuttal');
+  for (const node of nodes) {
+    if (node.role === 'qualifier') {
+      node.x = column(0);
+      node.y = row(0);
+    }
+    if (node.role === 'data') {
+      node.x = column(0);
+      node.y = row(1 + data.indexOf(node));
+    }
+    if (node.role === 'claim') {
+      node.x = column(0);
+      node.y = row(1 + data.length);
+    }
+    if (node.role === 'warrant') {
+      node.x = 240;
+      node.y = row(1 + data.length);
+    }
+    if (node.role === 'backing') {
+      node.x = 240;
+      node.y = row(2 + data.length + backing.indexOf(node));
+    }
+    if (node.role === 'rebuttal') {
+      node.x = column(0);
+      node.y = row(2 + data.length + rebuttals.indexOf(node));
+    }
+  }
+}
+
+function verticalAif(nodes: DiagramNode[]) {
+  nodes
+    .filter((node) => node.kind === 'statement')
+    .forEach((node) => {
+      node.width = 200;
+    });
+  const premises = nodes.filter((n) => n.role === 'premise');
+  const rebuttals = nodes.filter((n) => n.role === 'rebuttal');
+  for (const node of nodes) {
+    if (node.role === 'premise') {
+      node.x = 0;
+      node.y = row(premises.indexOf(node));
+    }
+    if (node.role === 'ra') {
+      node.x = (200 - node.width) / 2;
+      node.y = row(premises.length);
+    }
+    if (node.role === 'conclusion') {
+      node.x = 0;
+      node.y = row(premises.length + 1);
+    }
+    if (node.role === 'rebuttal') {
+      node.x = 240;
+      node.y = row(rebuttals.indexOf(node) * 2);
+    }
+    if (node.role === 'ca') {
+      node.x = 240 + (200 - node.width) / 2;
+      node.y = row(rebuttals.findIndex((n) => n.id.replace('rebuttal-', 'ca-') === node.id) * 2 + 1);
+    }
+  }
+}
+
+/** Layer the graph by dependency; cycles are kept in a bounded set of layers. */
+export function paperDiagram(
+  graph: { nodes: ArgumentNode[]; edges: ArgumentEdge[] },
+  conflictsOnly = false,
+): Diagram {
+  const ca = new Set(graph.nodes.filter((n) => n.kind === 'CA').map((n) => n.id));
+  const edges = conflictsOnly ? graph.edges.filter((e) => ca.has(e.from) || ca.has(e.to)) : graph.edges;
+  const included = new Set(edges.flatMap((e) => [e.from, e.to]));
+  const source = conflictsOnly ? graph.nodes.filter((n) => included.has(n.id)) : graph.nodes;
+  const layers = new Map(source.map((n) => [n.id, 0]));
+  // Relax only acyclic dependencies; a back edge remains visible without unbounded growth.
+  const reaches = (from: string, target: string, seen = new Set<string>()): boolean => {
+    if (from === target) return true;
+    if (seen.has(from)) return false;
+    seen.add(from);
+    return edges.some((e) => e.from === from && reaches(e.to, target, seen));
+  };
+  for (let i = 0; i < source.length; i++)
+    for (const edge of edges) {
+      if (reaches(edge.to, edge.from)) continue;
+      layers.set(edge.to, Math.max(layers.get(edge.to) ?? 0, (layers.get(edge.from) ?? 0) + 1));
+    }
+  const counts = new Map<number, number>();
+  const nodes = source.map((n): DiagramNode => {
+    const layer = layers.get(n.id) ?? 0;
+    const position = counts.get(layer) ?? 0;
+    counts.set(layer, position + 1);
+    if (n.kind === 'I') return statement(n.id, 'premise', n.span, column(layer), row(position));
+    return {
+      id: n.id,
+      role: n.kind === 'RA' ? 'ra' : 'ca',
+      kind: 'scheme',
+      text: null,
+      span: null,
+      inferred: false,
+      missing: false,
+      x: column(layer),
+      y: row(position),
+      width: SCHEME,
+      height: SCHEME,
+    };
+  });
+  const renderedEdges: DiagramEdge[] = edges.map((e, i) => {
+    const conflict = ca.has(e.from) || ca.has(e.to);
+    return {
+      ...e,
+      id: `${e.from}>${e.to}-${i}`,
+      label: ca.has(e.from) ? 'Phản bác' : '',
+      dashed: conflict,
+      tone: conflict ? 'conflict' : 'support',
+    };
+  });
+  return {
+    nodes,
+    edges: renderedEdges,
+    width: nodes.length ? size(nodes).width : 0,
+    height: nodes.length ? size(nodes).height : 0,
+    identified: 0,
+  };
+}
+
+function routeEdge(from: DiagramNode, to: DiagramNode, nodes: DiagramNode[]) {
+  const ports = (n: DiagramNode) => [
+    { x: n.x, y: n.y + n.height / 2 },
+    { x: n.x + n.width, y: n.y + n.height / 2 },
+    { x: n.x + n.width / 2, y: n.y },
+    { x: n.x + n.width / 2, y: n.y + n.height },
+  ];
+  const starts = ports(from),
+    ends = ports(to);
+  const all = [...nodes];
+  const xs = [
+    ...new Set(
+      [...starts, ...ends].map((p) => p.x).concat(all.flatMap((n) => [n.x - 12, n.x + n.width + 12])),
+    ),
+  ].sort((a, b) => a - b);
+  const ys = [
+    ...new Set(
+      [...starts, ...ends].map((p) => p.y).concat(all.flatMap((n) => [n.y - 12, n.y + n.height + 12])),
+    ),
+  ].sort((a, b) => a - b);
+  const blocked = (x1: number, y1: number, x2: number, y2: number) =>
+    nodes.some((n) =>
+      x1 === x2
+        ? x1 > n.x && x1 < n.x + n.width && Math.max(y1, y2) > n.y && Math.min(y1, y2) < n.y + n.height
+        : y1 > n.y && y1 < n.y + n.height && Math.max(x1, x2) > n.x && Math.min(x1, x2) < n.x + n.width,
+    );
+  const key = (x: number, y: number) => `${x},${y}`;
+  const dist = new Map<string, number>(),
+    previous = new Map<string, string>();
+  const queue: { x: number; y: number; cost: number }[] = [];
+  for (const p of starts) {
+    dist.set(key(p.x, p.y), 0);
+    queue.push({ ...p, cost: 0 });
+  }
+  const targets = new Set(ends.map((p) => key(p.x, p.y)));
+  let finish = '';
+  while (queue.length) {
+    queue.sort((a, b) => a.cost - b.cost);
+    const current = queue.shift();
+    if (!current) break;
+    const id = key(current.x, current.y);
+    if (current.cost !== dist.get(id)) continue;
+    if (targets.has(id)) {
+      finish = id;
+      break;
+    }
+    const xi = xs.indexOf(current.x),
+      yi = ys.indexOf(current.y);
+    const neighbours = [
+      [xs[xi - 1], current.y],
+      [xs[xi + 1], current.y],
+      [current.x, ys[yi - 1]],
+      [current.x, ys[yi + 1]],
+    ];
+    for (const [x, y] of neighbours) {
+      if (x === undefined || y === undefined || blocked(current.x, current.y, x, y)) continue;
+      const next = key(x, y),
+        cost = current.cost + Math.abs(x - current.x) + Math.abs(y - current.y);
+      if (cost < (dist.get(next) ?? Infinity)) {
+        dist.set(next, cost);
+        previous.set(next, id);
+        queue.push({ x, y, cost });
+      }
+    }
+  }
+  if (!finish) return edgePath(from, to);
+  const points: string[] = [];
+  for (let at: string | undefined = finish; at; at = previous.get(at)) points.unshift(at);
+  const coordinates = points.map((p) => p.split(',').map(Number));
+  const first = coordinates[0] ?? [0, 0];
+  const d =
+    `M ${first[0]} ${first[1]}` +
+    coordinates
+      .slice(1)
+      .map((p, i) => (p[0] === coordinates[i]?.[0] ? ` V ${p[1]}` : ` H ${p[0]}`))
+      .join('');
+  const middle = coordinates[Math.floor(coordinates.length / 2)] ?? first;
+  return { d, labelX: middle[0] ?? 0, labelY: middle[1] ?? 0 };
 }

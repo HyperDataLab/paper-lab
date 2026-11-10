@@ -218,3 +218,26 @@
   font-size: var(--text-xl);
   font-weight: 700;
 }
+
+.dViewport {
+  position: relative;
+  min-width: 0;
+}
+.dMinimap {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  width: 150px;
+  max-height: 120px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  cursor: pointer;
+}
+.dMiniNode {
+  fill: var(--border-strong);
+}
+.dMiniViewport {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 4;
+}

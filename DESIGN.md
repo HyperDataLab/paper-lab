@@ -214,13 +214,7 @@ saved or skipped their own notes. Descriptions (claims, stance markers, snapshot
 (Cách viết starts off) and a margin mark names the criteria present in each paragraph. Pressing a marked stretch opens its finding in
 the list, or the block that described it.
 
-**Arguments are drawn as diagrams.** Lập luận shows one argument at a time (`ArgumentDiagram`): a `Select` and previous / next step
-through them, with zoom and "Vừa khung". Thẻ luận điểm is the Toulmin layout: data on the left, the claim on the right, the qualifier
-above the link, the warrant and its backing below, rebuttals under the claim. Chuỗi suy luận is the AIF layout: statements (I) on
-the left reach the conclusion only through an RA circle, a rebuttal only through a CA circle. Each box names its role in words; a
-limit or a conflict is a dashed line with a label as well as a colour. A Toulmin slot with nothing behind it is a dashed box reading
-"Chưa xác định"; a warrant the model inferred carries "AI suy ra" and "Không phải lời tác giả" and has no place in the paper. The
-layout is computed, so the same argument always draws the same way. "Danh sách" keeps every argument on one page.
+**Arguments are drawn as diagrams.** Lập luận shows one argument at a time with previous / next, zoom and “Vừa khung”. The canvas chooses a vertical layout below 720px, and the reader can choose its orientation. Cards and scheme nodes can be moved by pointer or arrow keys; “Bố cục lại” restores their computed positions. A minimap shows the visible area when the drawing overflows. “Toàn bài” in Chuỗi suy luận lays out the live argument network with shared statements once, and “Chỉ hiện xung đột” isolates conflict steps. Thẻ luận điểm uses Toulmin slots; empty slots read “Chưa xác định” and inferred warrants are labelled “AI suy ra” and “Không phải lời tác giả”. In AIF, statements connect through RA or CA nodes, which have no passage. Limits and conflicts use dashed, labelled lines. “Danh sách” keeps every argument on one page.
 
 There is no second level of tabs and no theory name in navigation (Toulmin, AIF, CARS stay inside their block). Each analysis is one
 **block** (`SectionBlock`): a row with its criterion mark, a plain title, the question it answers, its state as a `Badge`, and its

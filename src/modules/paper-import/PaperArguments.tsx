@@ -260,6 +260,7 @@ export function PaperArguments({
           {layout === 'diagram' && (
             <ArgumentDiagram
               paper={paper}
+              graph={metrics.graph}
               items={ordered}
               states={metrics.states}
               view={view}
