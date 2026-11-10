@@ -20,6 +20,7 @@ import { PaperRhetoric } from './PaperRhetoric';
 import { PaperVocabulary } from './PaperVocabulary';
 import { PaperProbe } from './PaperProbe';
 import { PaperReader } from './PaperReader';
+import { ReadingPane } from './ReadingPane';
 import { PaperMeasurement } from './PaperMeasurement';
 import { PaperStance } from './PaperStance';
 import styles from './page.module.css';
@@ -122,6 +123,29 @@ const VIEW_HELP: Record<ViewId, string> = {
   review: 'Các góc nhìn phản biện của AI, kèm câu trích trong bài. Xuyên suốt các chiều.',
 };
 
+const WIDE = '(min-width: 1280px)';
+/** True on screens wide enough to show the paper beside its analysis. */
+function useWide() {
+  const [wide, setWide] = useState(
+    () => typeof window.matchMedia === 'function' && window.matchMedia(WIDE).matches,
+  );
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia(WIDE);
+    const update = () => setWide(query.matches);
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  return wide;
+}
+function readSplit() {
+  try {
+    return localStorage.getItem('paper-split') !== 'false';
+  } catch {
+    return true;
+  }
+}
+
 function BatchWorkspace({
   paper,
   children,
@@ -149,6 +173,8 @@ export default function PaperMapPage() {
   const [checks, setChecks] = useState<PaperChecksRecord>();
   const [highlight, setHighlight] = useState<Finding['locations'][number] | null>(null);
   const [shownTitle, setShownTitle] = useState<string | null>(null);
+  const wide = useWide();
+  const [splitWanted, setSplitWanted] = useState(readSplit);
   useEffect(() => {
     let active = true;
     if (id)
@@ -266,7 +292,23 @@ export default function PaperMapPage() {
     setEvidence(null);
     setTab('map');
   };
-  const openLocation = setEvidence;
+  // Beside the analysis the paper is already on screen, so a finding is shown there, not in a drawer.
+  const split = wide && splitWanted && tab !== 'map';
+  const openLocation = (location: Finding['locations'][number]) => {
+    const paragraph = paper.paragraphs.find((item) => item.id === location.paragraphId);
+    if (!split || !paragraph) return setEvidence(location);
+    setSelected(paragraph.sectionId);
+    setHighlight(location);
+  };
+  const toggleSplit = () => {
+    const next = !splitWanted;
+    setSplitWanted(next);
+    try {
+      localStorage.setItem('paper-split', String(next));
+    } catch {
+      /* Storage may be unavailable. */
+    }
+  };
   const tabButton = (id: ViewId, label: string) => (
     <Button role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>
       {label}
@@ -285,12 +327,19 @@ export default function PaperMapPage() {
       </div>
     );
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${split ? '' : styles.narrow}`}>
       <header className={styles.paperHead}>
         <Link to="/papers">← Bài báo đã nhập</Link>
         <div className={styles.titleRow}>
           <h1>{shownTitle ?? paperIdentity(paper).title}</h1>
-          <Transparency paper={paper} />
+          <div className={styles.row}>
+            {wide && (
+              <Button size="sm" aria-pressed={splitWanted} onClick={toggleSplit}>
+                Đọc song song
+              </Button>
+            )}
+            <Transparency paper={paper} />
+          </div>
         </div>
         <p className={styles.paperMeta}>
           {paper.source.pageCount ?? 'Không rõ'} trang · {paper.sections.length} mục · {bodyCount} đoạn nội
@@ -345,90 +394,106 @@ export default function PaperMapPage() {
               onClose={() => setEvidence(null)}
               onOpenReader={openInReader}
             />
-            {tab === 'profile' ? (
-              <PaperProfile paper={paper} analyses={batch.analyses} checks={checks} onOpen={setTab} />
-            ) : tab === 'snapshot' ? (
-              <PaperSnapshot paper={paper} onLocation={openLocation} />
-            ) : tab === 'metadata' ? (
-              <PaperMetadata paper={paper} />
-            ) : tab === 'toulmin' || tab === 'aif' ? (
-              <PaperArguments paper={paper} view={tab} onLocation={openLocation} key={tab} />
-            ) : tab === 'reporting' || tab === 'moves' ? (
-              <PaperRhetoric paper={paper} focus={tab} onLocation={openLocation} key={tab} />
-            ) : tab === 'vocabulary' ? (
-              <PaperVocabulary paper={paper} onLocation={openLocation} />
-            ) : tab === 'context-references' ? (
-              <PaperReferences paper={paper} onLocation={openLocation} />
-            ) : tab === 'organization' || tab === 'language' ? (
-              <>
-                <BatchPanel paper={paper} batch={batch} />
-                <PaperOverview
-                  paper={paper}
-                  analyses={batch.analyses}
-                  run={batch.run}
-                  focus={tab === 'organization' ? 'discourse' : 'writing'}
-                  onFilter={(ids) => {
-                    setFilter(ids);
-                    const first = paper.paragraphs.find((paragraph) => ids.includes(paragraph.id));
-                    if (first) setSelected(first.sectionId);
-                    setTab('map');
-                  }}
-                />
-              </>
-            ) : checkIds ? (
-              <>
-                {errorBox('Không thể xử lý kiểm tra.')}
-                <PaperChecks
-                  only={checkIds}
-                  paper={paper}
-                  record={checks}
-                  onRun={() => {
-                    void captureCalibration(repo)
-                      .then((calibrationSnapshot) =>
-                        repo.paperChecks.save({
-                          schemaVersion: 1,
-                          paperId: paper.id,
-                          report: runPaperChecks(paper),
-                          decisions: [],
-                          calibrationSnapshot,
-                        }),
-                      )
-                      .then(setChecks)
-                      .catch((cause: unknown) => setError(String(cause)));
-                  }}
-                  onReview={(findingId, status) => {
-                    void repo.paperChecks
-                      .review(paper.id, findingId, status)
-                      .then(setChecks)
-                      .catch((cause: unknown) => setError(String(cause)));
-                  }}
-                  onLocation={openLocation}
-                />
-              </>
-            ) : tab === 'stance' ? (
-              <PaperStance paper={paper} onLocation={openLocation} />
-            ) : tab === 'measure' ? (
-              <PaperMeasurement paper={paper} onLocation={openLocation} />
-            ) : tab === 'probe' ? (
-              <PaperProbe paper={paper} analyses={batch.analyses} />
-            ) : tab === 'review' ? (
-              <PaperReview paper={paper} checks={checks} onLocation={openLocation} />
-            ) : (
-              <>
-                {errorBox('Không thể xử lý bài báo.')}
-                <PaperReader
+            <div className={split ? styles.split : undefined}>
+              {split && (
+                <ReadingPane
                   paper={paper}
                   selected={selected}
-                  onSelect={setSelected}
-                  filter={filter}
-                  onClearFilter={() => setFilter(null)}
+                  onSelect={(sectionId) => {
+                    setSelected(sectionId);
+                    setHighlight(null);
+                  }}
                   highlight={highlight}
-                  candidateCounts={candidateCounts}
-                  batch={batch}
-                  onEditRole={(role) => void editRole(role)}
+                  onOpenFull={() => setTab('map')}
                 />
-              </>
-            )}
+              )}
+              <div className={styles.splitMain}>
+                {tab === 'profile' ? (
+                  <PaperProfile paper={paper} analyses={batch.analyses} checks={checks} onOpen={setTab} />
+                ) : tab === 'snapshot' ? (
+                  <PaperSnapshot paper={paper} onLocation={openLocation} />
+                ) : tab === 'metadata' ? (
+                  <PaperMetadata paper={paper} />
+                ) : tab === 'toulmin' || tab === 'aif' ? (
+                  <PaperArguments paper={paper} view={tab} onLocation={openLocation} key={tab} />
+                ) : tab === 'reporting' || tab === 'moves' ? (
+                  <PaperRhetoric paper={paper} focus={tab} onLocation={openLocation} key={tab} />
+                ) : tab === 'vocabulary' ? (
+                  <PaperVocabulary paper={paper} onLocation={openLocation} />
+                ) : tab === 'context-references' ? (
+                  <PaperReferences paper={paper} onLocation={openLocation} />
+                ) : tab === 'organization' || tab === 'language' ? (
+                  <>
+                    <BatchPanel paper={paper} batch={batch} />
+                    <PaperOverview
+                      paper={paper}
+                      analyses={batch.analyses}
+                      run={batch.run}
+                      focus={tab === 'organization' ? 'discourse' : 'writing'}
+                      onFilter={(ids) => {
+                        setFilter(ids);
+                        const first = paper.paragraphs.find((paragraph) => ids.includes(paragraph.id));
+                        if (first) setSelected(first.sectionId);
+                        setTab('map');
+                      }}
+                    />
+                  </>
+                ) : checkIds ? (
+                  <>
+                    {errorBox('Không thể xử lý kiểm tra.')}
+                    <PaperChecks
+                      only={checkIds}
+                      paper={paper}
+                      record={checks}
+                      onRun={() => {
+                        void captureCalibration(repo)
+                          .then((calibrationSnapshot) =>
+                            repo.paperChecks.save({
+                              schemaVersion: 1,
+                              paperId: paper.id,
+                              report: runPaperChecks(paper),
+                              decisions: [],
+                              calibrationSnapshot,
+                            }),
+                          )
+                          .then(setChecks)
+                          .catch((cause: unknown) => setError(String(cause)));
+                      }}
+                      onReview={(findingId, status) => {
+                        void repo.paperChecks
+                          .review(paper.id, findingId, status)
+                          .then(setChecks)
+                          .catch((cause: unknown) => setError(String(cause)));
+                      }}
+                      onLocation={openLocation}
+                    />
+                  </>
+                ) : tab === 'stance' ? (
+                  <PaperStance paper={paper} onLocation={openLocation} />
+                ) : tab === 'measure' ? (
+                  <PaperMeasurement paper={paper} onLocation={openLocation} />
+                ) : tab === 'probe' ? (
+                  <PaperProbe paper={paper} analyses={batch.analyses} />
+                ) : tab === 'review' ? (
+                  <PaperReview paper={paper} checks={checks} onLocation={openLocation} />
+                ) : (
+                  <>
+                    {errorBox('Không thể xử lý bài báo.')}
+                    <PaperReader
+                      paper={paper}
+                      selected={selected}
+                      onSelect={setSelected}
+                      filter={filter}
+                      onClearFilter={() => setFilter(null)}
+                      highlight={highlight}
+                      candidateCounts={candidateCounts}
+                      batch={batch}
+                      onEditRole={(role) => void editRole(role)}
+                    />
+                  </>
+                )}
+              </div>
+            </div>
           </>
         )}
       </BatchWorkspace>
