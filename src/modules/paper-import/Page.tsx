@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowDownUp, Search } from 'lucide-react';
 import { authorsShort, paperIdentity, type PaperIdentity } from '@/core/paperIdentity';
 import type { Paper } from '@/core/schemas';
 import { PaperSizeError } from '@/shared/paper/sizeGuard';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
-import { DataTable } from '@/shared/ui/DataTable';
 import { Dialog } from '@/shared/ui/Dialog';
 import { Select } from '@/shared/ui/Select';
 import { TextField } from '@/shared/ui/TextField';
@@ -40,7 +38,6 @@ export default function Page() {
   const [trigger, setTrigger] = useState<HTMLElement | null>(null);
   const [view, setView] = useState<'papers' | 'library'>('papers');
   const load = useCallback(() => {
-    setLoading(true);
     void Promise.all([repo.papers.list(), repo.paperContext.list(), repo.library.list()])
       .then(([saved, contexts, library]) => {
         setPapers(saved);
@@ -61,8 +58,7 @@ export default function Page() {
         setLoaded(true);
         setError('Không thể tải danh sách bài báo.');
         setDetail(String(cause));
-      })
-      .finally(() => setLoading(false));
+      });
   }, [repo]);
   useEffect(() => {
     load();
@@ -137,7 +133,7 @@ export default function Page() {
       {view === 'library' && <LibraryPanel />}
       {view === 'papers' && (
         <>
-          <Card padding="md">
+          <Card>
             <div
               className={styles.drop}
               onDragOver={(event) => event.preventDefault()}
@@ -265,9 +261,9 @@ export default function Page() {
                     </tr>
                   ))}
                 </tbody>
-              </DataTable>
-            )}
-          </section>
+              </table>
+            </div>
+          )}
         </>
       )}
       {deleting && (

@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, LoaderCircle, Plus } from 'lucide-react';
 import { newProject } from '@/core/extraction';
 import type { ExtractionProject } from '@/core/schemas';
 import { useRepositories } from '@/shared/storage/StorageProvider';
@@ -16,28 +15,14 @@ export default function Page() {
   const [projects, setProjects] = useState<ExtractionProject[] | null>(null);
   const [title, setTitle] = useState('');
   const [question, setQuestion] = useState('');
-  const [titleError, setTitleError] = useState('');
-  const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
-  const titleInput = useRef<HTMLInputElement>(null);
-  const submitting = useRef(false);
   useEffect(() => {
     void repo.extraction
       .list()
       .then(setProjects)
       .catch((cause: unknown) => setError(String(cause)));
   }, [repo]);
-  async function create(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (submitting.current) return;
-    if (!title.trim()) {
-      setTitleError('Vui lòng nhập tên project.');
-      titleInput.current?.focus();
-      return;
-    }
-    submitting.current = true;
-    setCreating(true);
-    setError('');
+  async function create() {
     try {
       const project = await repo.extraction.save(
         newProject({
@@ -50,27 +35,30 @@ export default function Page() {
       navigate(`/extraction/${project.id}`);
     } catch (cause) {
       setError(String(cause));
-    } finally {
-      submitting.current = false;
-      setCreating(false);
     }
   }
   return (
     <div className={styles.page}>
-      <header className={styles.pageHeader}>
-        <h1>Trích xuất</h1>
-        <p className={styles.note}>
-          So sánh nhiều bài báo trong một bảng; mỗi ô dữ liệu đều có trích dẫn để bạn kiểm chứng.
-        </p>
-      </header>
-
-      <div className={styles.createPanel}>
-        <Card padding="md">
-          <div className={styles.createHead}>
-            <div>
-              <h2>Project mới</h2>
-              <p className={styles.note}>Đặt tên và xác định câu hỏi dẫn dắt việc trích xuất.</p>
-            </div>
+      <h1>Trích xuất</h1>
+      <p className={styles.note}>
+        So sánh nhiều bài báo trong một bảng: mỗi hàng là một bài, mỗi cột là một thông tin cần trích, mỗi ô
+        kèm trích dẫn trong bài để kiểm chứng.
+      </p>
+      <Card>
+        <h2>Project mới</h2>
+        <div className={styles.form}>
+          <TextField label="Tên project" value={title} onChange={(event) => setTitle(event.target.value)} />
+          <TextField
+            label="Câu hỏi nghiên cứu (không bắt buộc)"
+            multiline
+            rows={2}
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+          />
+          <div>
+            <Button variant="primary" disabled={!title.trim()} onClick={() => void create()}>
+              Tạo project
+            </Button>
           </div>
         </div>
       </Card>
@@ -101,40 +89,6 @@ export default function Page() {
           ))}
         </ul>
       )}
-
-      <section className={styles.projectSection} aria-labelledby="extraction-projects-title">
-        <header className={styles.sectionHead}>
-          <h2 id="extraction-projects-title">Các project</h2>
-          {projects && <span className={styles.projectCount}>{projects.length}</span>}
-        </header>
-        {!projects ? (
-          <p className={styles.stateMessage} role="status">
-            Đang tải project…
-          </p>
-        ) : projects.length === 0 ? (
-          <p className={styles.stateMessage}>Chưa có project nào. Tạo project đầu tiên ở phía trên.</p>
-        ) : (
-          <ul className={styles.list}>
-            {projects.map((project) => (
-              <li key={project.id}>
-                <Link className={styles.projectRow} to={`/extraction/${project.id}`}>
-                  <span className={styles.projectCopy}>
-                    <span className={styles.projectTitle}>{project.title}</span>
-                    <span className={styles.projectSummary}>
-                      {project.papers.length} bài · {project.fields.filter((field) => !field.hidden).length}{' '}
-                      cột · {project.cells.filter((cell) => cell.status === 'VERIFIED').length} ô đã xác nhận
-                    </span>
-                  </span>
-                  <span className={styles.projectMeta}>
-                    <span>Cập nhật {new Date(project.updatedAt).toLocaleString('vi-VN')}</span>
-                    <ArrowRight size={17} aria-hidden="true" />
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
     </div>
   );
 }
