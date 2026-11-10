@@ -150,7 +150,10 @@ it('Deep Research waits for an approved plan and leaves screening decisions to a
   const item = screen.getByText('Edge offloading study').closest('li') as HTMLElement;
   fireEvent.click(within(item).getByRole('button', { name: 'Chọn' }));
   fireEvent.click(await screen.findByRole('button', { name: /Đưa 1 bài/ }));
-  expect(await screen.findByText('Edge offloading study')).toBeInTheDocument();
+  await waitFor(() =>
+    expect(screen.getByRole('radio', { name: 'Ma trận' })).toHaveAttribute('aria-checked', 'true'),
+  );
+  expect(screen.getByText(/^1 bài · /)).toBeInTheDocument();
   const stored = await repo.extraction.get(saved.id);
   expect(stored?.papers.map((paper) => [paper.key, paper.access])).toEqual([['search:W9', 'METADATA_ONLY']]);
   expect(stored?.deep?.candidates[0]).toMatchObject({ status: 'included', reason: 'Đúng chủ đề' });
