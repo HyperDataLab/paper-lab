@@ -74,6 +74,26 @@ Color is never the only signal (WCAG 1.4.1). Each category has a color **and** a
 | Paragraph organization                            | `--hl-org`       | teal `#0F766E` / `#2DD4BF`   | left border on the sentence       |
 | Meaning risk (critical only)                      | `--hl-critical`  | red `#B91C1C` / `#F87171`    | double underline + ⚠ icon         |
 
+### Criterion marks
+
+A paper analysis belongs to one of four criteria. Each has one colour, one shape and one letter, used wherever the criterion is named
+(block headers, jump and filter chips, the layer switches and margin marks beside the paper, the left edge of a finding card).
+
+| Criterion  | Token             | Light / dark          | Mark                 |
+| ---------- | ----------------- | --------------------- | -------------------- |
+| Luận điểm  | `--crit-claim`    | `#1D4ED8` / `#60A5FA` | circle, letter L     |
+| Bằng chứng | `--crit-evidence` | `#7E22CE` / `#C084FC` | square, letter B     |
+| Cách viết  | `--crit-writing`  | `#A21CAF` / `#F0ABFC` | dashed box, letter V |
+| Bối cảnh   | `--crit-context`  | `#475569` / `#CBD5E1` | double box, letter C |
+
+On the paper's text a criterion is an underline in its colour **and** its own line style: Luận điểm solid, Bằng chứng double,
+Cách viết dotted, Bối cảnh dashed. A finding's underline is thicker than a descriptive mark's. The passage the reader just opened is a
+`<mark>` on `--soft`. Overlapping marks show the finding first and a small `+n`; the title lists them all.
+
+Criterion colour marks only the mark and the underline: never quote text, numbers, headings or card backgrounds.
+Two of these hues match `--hl-word` and `--hl-flow` above. The two sets never share a screen: the sentence-level colours belong to
+Đánh giá, the criterion marks to the paper page.
+
 - Severity changes weight, not hue: `info` outline only, `minor` 1px, `moderate` 2px, `major` 3px, `critical` double.
 - Status: `candidate` = 60 % opacity; `confirmed_*` = full; `dismissed_by_human` = strikethrough in the list,
   hidden in the text by default.
@@ -172,9 +192,34 @@ prompt versions accompany the advisory banner.
 
 ## 9. Paper workspace
 
-The header (title, page, section and word counts) and the tabs come first on the page, and the tabs stay visible while scrolling.
-Setup never sits above them. Tabs follow what a researcher does, in two groups: **Hiểu bài** (Đọc bài, Đo lường) and **Đánh giá**
-(Chất lượng viết, Kiểm tra, Phản biện AI, Độ bền điểm). One muted line under the tabs says what the current tab is for.
+The header (title, page, section and word counts) and the mode tabs come first on the page, and the tabs stay visible while scrolling.
+The paper is the constant: from 1280 px it sits beside the analysis, and a finding marks its passage there. Beside it the page has three
+modes, named for the reader's question, plus the full reader:
+
+| Mode          | Answers                   | Holds                                                                                     |
+| ------------- | ------------------------- | ----------------------------------------------------------------------------------------- |
+| **Tóm lược**  | What does the paper say?  | "Phân tích toàn bài", Thông tin cốt lõi (snapshot), progress by dimension                 |
+| **Phát hiện** | What needs a second look? | One list of every finding, then its sources: Kiểm tra tự động, Phản biện AI               |
+| **Hồ sơ**     | The descriptive detail    | Phương pháp và số liệu, Giới hạn và cách dẫn dắt, Lập luận, Chất lượng viết, Giọng văn, … |
+| Đọc bài       | The text itself           | Outline tree and reading column                                                           |
+
+**Findings are one list in one card shape**, whatever found them (rule checks, AI review, sentence-level writing issues, paragraph
+transitions, measurement findings). A card reads: criterion mark, the point in bold, `Badge`s for severity (Cao / Vừa / Thấp), origin
+(AI đề xuất / Quy tắc) and decision, the quote, the reason, the place, then actions. Filters are `Chip`s with counts for criterion and
+status, plus a section `Select`; Cách viết starts off when anything else exists. The table of sections by criteria is folded and only
+filters. The list is read from what each analysis stored and changes none of it; the AI review's points stay out until the reader has
+saved or skipped their own notes. Descriptions (claims, stance markers, snapshot sources) are marks on the text, not findings.
+
+**Findings are drawn on the paper's words** in the reading pane and in Đọc bài, by layer; the pane's chips switch layers on and off
+(Cách viết starts off) and a margin mark names the criteria present in each paragraph. Pressing a marked stretch opens its finding in
+the list, or the block that described it.
+
+There is no second level of tabs and no theory name in navigation (Toulmin, AIF, CARS stay inside their block). Each analysis is one
+**block** (`SectionBlock`): a row with its criterion mark, a plain title, the question it answers, its state as a `Badge`, and its
+content folded underneath. A block that has not run is that row plus one `Phân tích (~N lượt)` button; it is never an empty card.
+A block with two readings of one analysis switches between them inside the block. Jump `Chip`s at the top of a mode open a block and
+scroll to it. Every former `?view=` id still opens its block. AI panels stay mounted while folded or in another mode, so a run is not
+interrupted; a strip names what is running out of sight.
 
 Anything with more than a screenful of items is a tree or folds:
 
@@ -211,7 +256,7 @@ The Giọng văn tab reports Hyland's stance and engagement markers as a tree of
 
 These are checked on each screen, by looking at it, before a change is accepted.
 
-- **Setup is a wizard** when AI work needs more than one kind of choice: choose, configure, confirm. The cost estimate stays visible on every step, and only the last step has the action that runs. A setup with only a few numbers stays on one screen, with the estimate and the action in an `ActionBar`.
+- **Setup is a default, not a question.** A paper analysis starts from one button: the sections are the paper's remembered scope and the call ceiling comes from Cài đặt › Giới hạn chạy (`RunSetup`). The estimate and the ceiling are stated beside the button; the choices sit behind `Tuỳ chọn`. A wizard remains only where a step must come before the run for a reason of substance, as with the reader's own notes before Phản biện AI.
 - **One primary button per view,** named for what it does. `Dừng` and permanent deletion use danger. Undo, dismiss and links to sources are ghost.
 - **Status left, actions right** in `ActionBar`. Several actions of one kind, such as exports, go in one `ActionMenu`.
 - **Every finding is a `FindingCard`,** in a fixed order: labels, quote, explanation, source, then actions. A message repeated on many findings is said once above them.

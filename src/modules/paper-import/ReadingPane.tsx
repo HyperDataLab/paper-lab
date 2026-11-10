@@ -1,9 +1,13 @@
 import { useEffect, useRef } from 'react';
+import type { Criterion, PaperMark } from '@/core/paperFindings';
 import type { Finding, Paper } from '@/core/schemas';
-import { sliceCp } from '@/core/text/offsets';
+import { Chip } from '@/shared/ui/Chip';
 import { Button } from '@/shared/ui/Button';
 import { Select } from '@/shared/ui/Select';
+import { CRITERIA } from './criteria';
+import { MarkedText } from './MarkedText';
 import { PaperTableView } from './PaperTableView';
+import { CriterionMark } from './SectionBlock';
 import styles from './page.module.css';
 
 type Location = Finding['locations'][number];
@@ -18,12 +22,21 @@ export function ReadingPane({
   onSelect,
   highlight,
   onOpenFull,
+  marks = [],
+  layers = [],
+  onLayers,
+  onMark,
 }: {
   paper: Paper;
   selected: string;
   onSelect: (id: string) => void;
   highlight: Location | null;
   onOpenFull: () => void;
+  /** Everything marked on the paper; the pane shows the layers that are switched on. */
+  marks?: PaperMark[];
+  layers?: Criterion[];
+  onLayers?: (layers: Criterion[]) => void;
+  onMark?: (mark: PaperMark) => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const index = paper.sections.findIndex((item) => item.id === selected);
@@ -59,6 +72,23 @@ export function ReadingPane({
           Mở rộng
         </Button>
       </div>
+      {onLayers && marks.length > 0 && (
+        <div className={styles.blockChips} role="group" aria-label="Lớp đánh dấu trên bài">
+          {(Object.keys(CRITERIA) as Criterion[]).map((id) => (
+            <Chip
+              key={id}
+              aria-pressed={layers.includes(id)}
+              count={marks.filter((mark) => mark.criterion === id).length}
+              onClick={() =>
+                onLayers(layers.includes(id) ? layers.filter((item) => item !== id) : [...layers, id])
+              }
+            >
+              <CriterionMark criterion={id} />
+              {CRITERIA[id].label}
+            </Chip>
+          ))}
+        </div>
+      )}
       <div ref={scroller} className={styles.paneBody} tabIndex={0}>
         {!section ? (
           <p className={styles.muted}>Không có mục nào.</p>
@@ -67,6 +97,12 @@ export function ReadingPane({
         ) : (
           paragraphs.map((item) => {
             const marked = highlight?.paragraphId === item.id ? highlight : null;
+            const own = marks.filter(
+              (mark) => mark.paragraphId === item.id && layers.includes(mark.criterion),
+            );
+            const present = (Object.keys(CRITERIA) as Criterion[]).filter((id) =>
+              own.some((mark) => mark.criterion === id),
+            );
             return (
               <div
                 key={item.id}
@@ -80,17 +116,16 @@ export function ReadingPane({
                   />
                 )}
                 {(!item.table || marked) && (
-                  <p className={styles.reading}>
-                    {marked ? (
-                      <>
-                        {sliceCp(item.text, 0, marked.start)}
-                        <mark>{sliceCp(item.text, marked.start, marked.end)}</mark>
-                        {sliceCp(item.text, marked.end, Array.from(item.text).length)}
-                      </>
-                    ) : (
-                      item.text
-                    )}
-                  </p>
+                  <div className={styles.markedRow}>
+                    <span className={styles.gutter}>
+                      {present.map((id) => (
+                        <CriterionMark key={id} criterion={id} />
+                      ))}
+                    </span>
+                    <p className={styles.reading}>
+                      <MarkedText text={item.text} marks={own} selected={marked} onMark={onMark} />
+                    </p>
+                  </div>
                 )}
               </div>
             );

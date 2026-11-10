@@ -169,7 +169,9 @@ async function setup() {
 }
 it('P3 shows distributions, recurring filters, transition review and stale notice', async () => {
   const { repo, paper } = await setup();
-  fireEvent.click(screen.getByRole('tab', { name: 'D. Viết học thuật' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Câu và từ' }));
   fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
@@ -178,7 +180,9 @@ it('P3 shows distributions, recurring filters, transition review and stale notic
   fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc đoạn' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chấm điểm' }));
   expect(screen.getByText('Chuyển đoạn: ~1 lượt gọi AI')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('tab', { name: 'C. Diễn ngôn' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Cấu trúc và mạch' }));
   expect(await screen.findByText('Đã phân tích 3/4 đoạn (75 %)')).toBeInTheDocument();
   expect(screen.getByText(/Kết quả chuyển đoạn đã cũ/)).toBeInTheDocument();
   expect(screen.getAllByText('Chưa đủ dữ liệu').length).toBeGreaterThan(0);
@@ -197,7 +201,9 @@ it('P3 shows distributions, recurring filters, transition review and stale notic
   expect(
     (await repo.audit.listByAnalysis(paper.id)).items.filter((e) => e.action === 'review_transition'),
   ).toHaveLength(3);
-  fireEvent.click(screen.getByRole('tab', { name: 'D. Viết học thuật' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Câu và từ' }));
   expect(await screen.findByText('62,5 (56,25–68,75, n = 2)')).toBeInTheDocument();
   fireEvent.click(await screen.findByRole('button', { name: /Động từ chưa cụ thể · 3 lần/ }));
   expect(screen.getByRole('tab', { name: 'Đọc bài' })).toHaveAttribute('aria-selected', 'true');
@@ -207,7 +213,7 @@ it('P3 shows distributions, recurring filters, transition review and stale notic
   expect(screen.queryByText('Paragraph 4.')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ lọc' }));
   expect(screen.getByText('Paragraph 4.')).toBeInTheDocument();
-  expect(within(screen.getByRole('tablist', { name: 'Bài báo' })).getAllByRole('tab')).toHaveLength(8);
+  expect(within(screen.getByRole('tablist', { name: 'Bài báo' })).getAllByRole('tab')).toHaveLength(4);
 });
 it('P3 marks a transition unavailable when its annotations disappear', async () => {
   const { repo, paper } = await setup();
@@ -215,7 +221,9 @@ it('P3 marks a transition unavailable when its annotations disappear', async () 
   const first = analyses.find((item) => item.origin?.kind === 'paper' && item.origin.paragraphId === 'p1');
   if (!first) throw new Error('Missing analysis');
   await repo.analyses.update(first.id, { sentenceAnnotations: [] });
-  fireEvent.click(screen.getByRole('tab', { name: 'C. Diễn ngôn' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Cấu trúc và mạch' }));
   expect(await screen.findByText('Không còn hợp lệ')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeDisabled();
 });

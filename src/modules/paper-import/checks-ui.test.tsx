@@ -64,7 +64,10 @@ it('P4 runs local checks, navigates to evidence, reviews and shows overview coun
     </MemoryRouter>,
   );
   const openChecks = () => {
-    fireEvent.click(screen.getByRole('tab', { name: 'C. Diễn ngôn' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Cấu trúc và mạch' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Phát hiện' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Hình và bảng' }));
   };
   await screen.findByRole('tab', { name: 'Đọc bài' });
@@ -82,7 +85,7 @@ it('P4 runs local checks, navigates to evidence, reviews and shows overview coun
   fireEvent.click(
     within(card).getByText('“Figure 2”').closest('article')?.querySelector('button') as HTMLElement,
   );
-  expect(screen.getByRole('tab', { name: 'C. Diễn ngôn' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'Phát hiện' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Mở trong Đọc bài' }));
   expect(screen.getByRole('tab', { name: 'Đọc bài' })).toHaveAttribute('aria-selected', 'true');
@@ -107,12 +110,17 @@ it('P4 runs local checks, navigates to evidence, reviews and shows overview coun
       (await repo.audit.listByAnalysis(paper.id)).items.filter((e) => e.action === 'review_check'),
     ).toHaveLength(4),
   );
-  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Tóm lược' }));
   expect(await screen.findByText('Hình và bảng cần kiểm tra')).toBeInTheDocument();
-  expect(screen.getByRole('tab', { name: 'B. Lập luận' })).toBeEnabled();
+  expect(screen.getByRole('tab', { name: 'Hồ sơ' })).toBeEnabled();
   const context = screen.getByRole('article', { name: 'Bối cảnh học thuật và Nguồn gốc' });
   fireEvent.click(within(context).getByRole('button', { name: 'Xem chi tiết' }));
-  expect(screen.getByRole('tab', { name: 'E. Bối cảnh' })).toHaveAttribute('aria-selected', 'true');
+  // The card opens its block in Hồ sơ, already unfolded.
+  expect(screen.getByRole('tab', { name: 'Hồ sơ' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('button', { name: 'Thu gọn Tài liệu tham khảo' })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
   expect(await screen.findByRole('heading', { name: 'Tình trạng rút bài' })).toBeInTheDocument();
   expect(completeJson).not.toHaveBeenCalled();
 });
@@ -228,16 +236,42 @@ it('on a wide screen the paper stays beside the analysis and a finding is marked
   );
   const pane = await screen.findByRole('complementary', { name: 'Bài báo' });
   expect(within(pane).getByText('An introduction.')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('tab', { name: 'C. Diễn ngôn' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Chất lượng viết' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Cấu trúc và mạch' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Phát hiện' }));
   fireEvent.click(screen.getByRole('radio', { name: 'Hình và bảng' }));
   fireEvent.click(screen.getByRole('button', { name: 'Chạy kiểm tra' }));
-  const quote = await screen.findByText('“Figure 2”');
+  // The same quote also heads its card in the unified list; this is the one in the checks block.
+  const quote = await within(screen.getByRole('region', { name: 'Kiểm tra tự động' })).findByText(
+    '“Figure 2”',
+  );
   fireEvent.click(quote.closest('article')?.querySelector('button') as HTMLElement);
   // The finding is marked in the paper beside it: no drawer, and the analysis tab stays open.
   expect(within(pane).getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
   expect(within(pane).getByRole('combobox', { name: 'Mục đang đọc' })).toHaveTextContent('Results');
   expect(screen.queryByRole('dialog')).toBeNull();
-  expect(screen.getByRole('tab', { name: 'C. Diễn ngôn' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'Phát hiện' })).toHaveAttribute('aria-selected', 'true');
+
+  // R2: the same finding heads a card in the one list, in the one card shape.
+  const list = screen.getByRole('region', { name: 'Danh sách phát hiện' });
+  expect(within(list).getByText('Quy tắc')).toBeInTheDocument();
+  expect(within(list).getByText(/^Mức /)).toBeInTheDocument();
+  // R2: it is drawn on the words of the paper, as a control and not by colour alone.
+  const underlined = within(pane).getByRole('button', { name: 'Figure 2' });
+  expect(underlined).toHaveAttribute('data-finding', 'true');
+  expect(underlined.getAttribute('title')).toContain('Bằng chứng');
+  fireEvent.click(underlined);
+  expect(list.querySelector('[data-focus="true"]')).not.toBeNull();
+  // Deciding in the list is the same decision as in the block.
+  fireEvent.click(within(list).getByRole('button', { name: 'Xác nhận' }));
+  expect(await within(list).findByText('Đã xác nhận', { selector: 'span' })).toBeInTheDocument();
+  // A layer can be switched off; the passage the reader opened stays marked.
+  const layer = within(pane).getByRole('button', { name: /Bằng chứng/ });
+  expect(layer).toHaveAttribute('aria-pressed', 'true');
+  fireEvent.click(layer);
+  expect(within(pane).queryByRole('button', { name: 'Figure 2' })).toBeNull();
+  expect(within(pane).getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
 
   // Turning it off brings back the single-column page and remembers the choice.
   fireEvent.click(screen.getByRole('button', { name: 'Đọc song song' }));
