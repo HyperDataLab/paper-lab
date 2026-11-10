@@ -125,6 +125,41 @@ export function createScholarClient(options: { email?: string | null }, deps: De
     )) as { abstract_inverted_index?: unknown } | null;
     return abstractFromIndex(work?.abstract_inverted_index);
   }
-  return { lookupDoi, downloadArxivPdf, workStatuses, paperMetadata, workAbstract };
+  const SEARCH_FIELDS =
+    'id,doi,display_name,publication_year,authorships,primary_location,abstract_inverted_index,cited_by_count';
+  /** Only the query text and filters leave the browser. */
+  async function searchWorks(
+    query: string,
+    options: { fromYear: number | null; toYear: number | null; perPage: number },
+    signal?: AbortSignal,
+  ) {
+    const filters = [
+      options.fromYear ? `from_publication_date:${options.fromYear}-01-01` : null,
+      options.toYear ? `to_publication_date:${options.toYear}-12-31` : null,
+    ].filter(Boolean);
+    const url = `https://api.openalex.org/works?search=${encodeURIComponent(query)}${filters.length ? `&filter=${filters.join(',')}` : ''}&per-page=${options.perPage}&select=${SEARCH_FIELDS}`;
+    const body = (await getJson(url, signal)) as { results?: unknown[]; meta?: { count?: number } } | null;
+    return { results: body?.results ?? [], total: body?.meta?.count ?? 0 };
+  }
+  /** One hop along the citation graph: works citing this one, or works it cites. */
+  async function citationWorks(
+    openalexId: string,
+    direction: 'cites' | 'cited_by',
+    perPage: number,
+    signal?: AbortSignal,
+  ) {
+    const url = `https://api.openalex.org/works?filter=${direction}:${encodeURIComponent(openalexId)}&sort=cited_by_count:desc&per-page=${perPage}&select=${SEARCH_FIELDS}`;
+    const body = (await getJson(url, signal)) as { results?: unknown[] } | null;
+    return body?.results ?? [];
+  }
+  return {
+    lookupDoi,
+    downloadArxivPdf,
+    workStatuses,
+    paperMetadata,
+    workAbstract,
+    searchWorks,
+    citationWorks,
+  };
 }
 export type ScholarClient = ReturnType<typeof createScholarClient>;

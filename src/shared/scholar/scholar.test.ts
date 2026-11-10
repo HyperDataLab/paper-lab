@@ -148,3 +148,27 @@ it('rebuilds an abstract from OpenAlex word positions and sends only the DOI', a
   const empty = setup({ openalex: () => json({}) });
   expect(await client(empty).workAbstract('10.1/y')).toBeNull();
 });
+
+it('searches OpenAlex with the query and year filters only, and follows one citation hop', async () => {
+  const s = setup({ openalex: () => json({ results: [{ id: 'W1' }], meta: { count: 7 } }) });
+  const found = await client(s, 'me@example.org').searchWorks('edge fog latency', {
+    fromYear: 2020,
+    toYear: null,
+    perPage: 5,
+  });
+  expect(found).toEqual({ results: [{ id: 'W1' }], total: 7 });
+  expect(s.calls[0]).toContain(
+    'search=edge%20fog%20latency&filter=from_publication_date:2020-01-01&per-page=5',
+  );
+  expect(s.calls[0]).not.toContain('example.org');
+  await client(s).searchWorks('x', { fromYear: null, toYear: 2024, perPage: 5 });
+  expect(s.calls[1]).toContain('filter=to_publication_date:2024-12-31');
+  expect(await client(s).citationWorks('W9', 'cites', 3)).toEqual([{ id: 'W1' }]);
+  expect(s.calls[2]).toContain('filter=cites:W9&sort=cited_by_count:desc&per-page=3');
+  const empty = setup({});
+  expect(await client(empty).searchWorks('x', { fromYear: null, toYear: null, perPage: 5 })).toEqual({
+    results: [],
+    total: 0,
+  });
+  expect(await client(empty).citationWorks('W9', 'cited_by', 3)).toEqual([]);
+});

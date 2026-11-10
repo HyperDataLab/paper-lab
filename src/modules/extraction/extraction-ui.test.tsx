@@ -3,8 +3,15 @@ import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { expect, it, vi } from 'vitest';
-import { cellsFromOutput, extractionSource, catalogField, projectPaperFromPaper } from '@/core/extraction';
-import type { Paper, ProjectField } from '@/core/schemas';
+import {
+  candidateFromWork,
+  cellsFromOutput,
+  extractionSource,
+  catalogField,
+  newProject,
+  projectPaperFromPaper,
+} from '@/core/extraction';
+import type { Candidate, Paper, ProjectField } from '@/core/schemas';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
@@ -98,4 +105,57 @@ it('creates a project, adds a template of columns and reviews a cell with its ev
   expect(
     (await repo.audit.listByAnalysis(project.id)).items.some((event) => event.action === 'review_extraction'),
   ).toBe(true);
+});
+
+it('Deep Research waits for an approved plan and leaves screening decisions to a person', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const repo = createRepositories(createDb(`extraction-deep-${crypto.randomUUID()}`));
+  const base = newProject({
+    id: crypto.randomUUID(),
+    title: 'Tìm bài',
+    researchQuestion: 'Độ trễ edge?',
+    now: at,
+  });
+  const candidate = candidateFromWork(
+    { id: 'https://openalex.org/W9', display_name: 'Edge offloading study', publication_year: 2024 },
+    'edge latency',
+  ) as Candidate;
+  const saved = await repo.extraction.save({
+    ...base,
+    deep: {
+      plan: {
+        concepts: [],
+        queries: ['edge latency'],
+        inclusion: [],
+        exclusion: [],
+        fromYear: null,
+        toYear: null,
+        perQuery: 15,
+        approvedAt: null,
+      },
+      rounds: [],
+      candidates: [{ ...candidate, suggestion: { decision: 'included', reason: 'Đúng chủ đề' } }],
+      syntheses: [],
+    },
+  });
+  mount(repo, `/extraction/${saved.id}`);
+  fireEvent.click(await screen.findByRole('radio', { name: 'Deep Research' }));
+  expect(screen.getByRole('button', { name: 'Tìm theo kế hoạch' })).toBeDisabled();
+  expect(screen.getByText('AI gợi ý: Chọn')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Đưa 0 bài/ })).toBeDisabled();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Duyệt kế hoạch' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Tìm theo kế hoạch' })).toBeEnabled());
+
+  const item = screen.getByText('Edge offloading study').closest('li') as HTMLElement;
+  fireEvent.click(within(item).getByRole('button', { name: 'Chọn' }));
+  fireEvent.click(await screen.findByRole('button', { name: /Đưa 1 bài/ }));
+  await waitFor(() =>
+    expect(screen.getByRole('radio', { name: 'Ma trận' })).toHaveAttribute('aria-checked', 'true'),
+  );
+  expect(screen.getByText(/^1 bài · /)).toBeInTheDocument();
+  const stored = await repo.extraction.get(saved.id);
+  expect(stored?.papers.map((paper) => [paper.key, paper.access])).toEqual([['search:W9', 'METADATA_ONLY']]);
+  expect(stored?.deep?.candidates[0]).toMatchObject({ status: 'included', reason: 'Đúng chủ đề' });
+  expect(stored?.deep?.plan?.approvedAt).not.toBeNull();
 });

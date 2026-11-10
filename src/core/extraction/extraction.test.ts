@@ -264,6 +264,7 @@ describe('extraction', () => {
     fields: [field('results'), { ...field('dataset'), hidden: true }],
     runs: [],
     cells: [base],
+    deep: null,
   };
   it('marks a cell stale when its field or source changes', () => {
     expect(isStale(base, project)).toBe(false);

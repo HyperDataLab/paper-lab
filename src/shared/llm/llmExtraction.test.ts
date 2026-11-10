@@ -74,6 +74,7 @@ const project = (): ExtractionProject => ({
   fields,
   runs: [],
   cells: [],
+  deep: null,
 });
 const answer = {
   fields: [

@@ -76,7 +76,7 @@ A separate menu: one matrix per project, rows are papers, columns are fields, ev
 | --- | ----------------------------------------------------------------------------------------- | ------ |
 | X1  | Projects, 50 suggested and custom columns, Standard mode, evidence drawer, review, export | ✅     |
 | X2  | High Quality: verification pass per cell, conflicts, selective rerun                      | ✅     |
-| X3  | Deep Research: search plan, OpenAlex discovery, screening, cross-paper synthesis          | ⬜     |
+| X3  | Deep Research: search plan, OpenAlex discovery, screening, cross-paper synthesis          | ✅     |
 
 ## Open decisions
 

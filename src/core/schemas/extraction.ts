@@ -1,3 +1,4 @@
+import { DeepResearchSchema } from './deepResearch';
 import { z } from 'zod';
 
 export const FieldDefinitionSchema = z.object({
@@ -25,6 +26,7 @@ export const ProjectPaperSchema = z.object({
   source: z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('paper'), paperId: z.uuid() }),
     z.object({ kind: z.literal('library'), libraryId: z.uuid() }),
+    z.object({ kind: z.literal('search'), candidateKey: z.string() }),
   ]),
   title: z.string(),
   authors: z.array(z.string()),
@@ -130,6 +132,7 @@ export const ExtractionProjectSchema = z.object({
   fields: z.array(ProjectFieldSchema),
   runs: z.array(ExtractionRunSchema),
   cells: z.array(ExtractionCellSchema),
+  deep: DeepResearchSchema.nullable().default(null),
 });
 export type ExtractionProject = z.infer<typeof ExtractionProjectSchema>;
 
