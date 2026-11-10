@@ -1,3 +1,5 @@
+import { PROMPT_VERSIONS } from '@/core/prompts';
+import { runFreshness } from '@/core/runFreshness';
 import { useStoredChanged } from './paperJobs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { argumentMetrics, planArguments } from '@/core/argument';
@@ -18,7 +20,7 @@ import { placeLabel } from './paperLabels';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { usePaperScope, useRunBudget } from './paperScope';
 import { RunSetup } from './RunSetup';
-import { useReportJob } from './paperJobs';
+import { acceptsSectionRun, useReportJob } from './paperJobs';
 import styles from './argument.module.css';
 import { Loading } from '@/shared/ui/StateNote';
 
@@ -70,7 +72,7 @@ export function PaperArguments({
       controller.current?.abort();
     };
   }, [paper.id, repo]);
-  async function start(resume: boolean) {
+  async function start(resume: boolean, only: string[] | null = null) {
     const abort = new AbortController();
     controller.current = abort;
     setRunning(true);
@@ -81,23 +83,26 @@ export function PaperArguments({
       setUsed(pending?.callsUsed ?? 0);
       setCap((pending?.callsUsed ?? 0) + budget);
       const result = await llmArgument(llm.client, paper, {
-        sectionIds: pending?.sectionIds ?? sections,
+        sectionIds: only ?? pending?.sectionIds ?? sections,
         config: llm.config,
         budget: (pending?.callsUsed ?? 0) + budget,
         pending,
         signal: abort.signal,
         onRequest: setUsed,
         onProgress: async (state) => {
-          await repo.paperInsights.saveArgumentPending(paper.id, state);
+          // A section run is short and merged at the end; it leaves no resumable state behind.
+          if (!only) await repo.paperInsights.saveArgumentPending(paper.id, state);
         },
       });
       if (abort.signal.aborted) return;
       setRecord(
-        await repo.paperInsights.saveArgumentRun(
-          paper.id,
-          result.run,
-          result.incomplete ? result.state : null,
-        ),
+        only
+          ? await repo.paperInsights.saveArgumentSectionRun(paper.id, result.run, only)
+          : await repo.paperInsights.saveArgumentRun(
+              paper.id,
+              result.run,
+              result.incomplete ? result.state : null,
+            ),
       );
       setShowSetup(false);
       notifyStoredChanged();
@@ -119,12 +124,30 @@ export function PaperArguments({
   const run = record?.argumentRuns.at(-1);
   const decisions = useMemo(() => record?.decisions ?? [], [record]);
   const metrics = useMemo(() => (run ? argumentMetrics(run, decisions) : undefined), [run, decisions]);
+  const sectionChoices = paper.sections
+    .map((section) => ({ id: section.id, estimate: planArguments(paper, [section.id]).length }))
+    .filter((choice) => choice.estimate > 0);
+  const staleness = run
+    ? runFreshness(
+        { sectionIds: run.sectionIds, promptVersions: { main: run.promptVersion }, model: run.model },
+        {
+          sectionIds: sections,
+          promptVersions: { main: PROMPT_VERSIONS.argument },
+          model: llm.config.model,
+        },
+      )
+    : null;
   useReportJob('arguments', {
+    stale: staleness,
     running,
     done: Boolean(run) && !record?.argumentPending,
     estimate,
     ready: !loading,
     start: () => start(false),
+    sectionRun:
+      run && acceptsSectionRun(staleness)
+        ? { sections: sectionChoices, start: (sectionId: string) => start(false, [sectionId]) }
+        : null,
     stop: () => controller.current?.abort(),
   });
   if (loading) return <Loading label="Đang tải lập luận…" />;

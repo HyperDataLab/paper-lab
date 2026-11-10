@@ -206,9 +206,19 @@ modes, named for the reader's question, plus the full reader:
 **Findings are one list in one card shape**, whatever found them (rule checks, AI review, sentence-level writing issues, paragraph
 transitions, measurement findings). A card reads: criterion mark, the point in bold, `Badge`s for severity (Cao / Vừa / Thấp), origin
 (AI đề xuất / Quy tắc) and decision, the quote, the reason, the place, then actions. Filters are `Chip`s with counts for criterion and
-status, plus a section `Select`; Cách viết starts off when anything else exists. The table of sections by criteria is folded and only
-filters. Every card can be confirmed, dismissed or reopened, with the decision saved to its source; the AI review's points stay out until the reader has
+status, plus a section `Select`; Cách viết starts off when anything else exists. The table of sections by criteria is folded; a count filters
+the list, and a cell's menu runs that criterion's analyses for that section alone. Every card can be confirmed, dismissed or reopened, with the decision saved to its source; the AI review's points stay out until the reader has
 saved or skipped their own notes. Descriptions (claims, stance markers, snapshot sources) are marks on the text, not findings.
+
+**A section run merges, it does not replace.** Lập luận, Giới hạn và cách dẫn dắt, Giọng văn and Chất lượng viết can be run for one
+section, from the block header ("Chạy cho một mục") or from a cell of the findings table. Items of other sections stay as they were,
+the rerun section's items are replaced, and a person's decisions on kept items carry over to the merged run (the previous run stays in
+the history unchanged). The abstract comparison is whole-paper and is kept. A result made with another prompt or model takes no section
+run; Phương pháp và số liệu, Phản biện AI and Thông tin cốt lõi always run for the whole paper.
+
+**A finished result can be out of date.** It is "Kết quả cũ" when the reader now asks for a section it did not read, when its prompt has
+changed, or when it was made with another model; the block says which. "Phân tích toàn bài" runs such results again instead of
+skipping them.
 
 **Findings are drawn on the paper's words** in the reading pane and in Đọc bài, by layer; both readers' chips switch layers on and off
 (Cách viết starts off) and a margin mark names the criteria present in each paragraph. Pressing a marked stretch opens its finding in

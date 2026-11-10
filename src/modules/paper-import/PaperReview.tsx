@@ -1,3 +1,4 @@
+import { runFreshness } from '@/core/runFreshness';
 import { useStoredChanged } from './paperJobs';
 import { useEffect, useRef, useState } from 'react';
 import { LENSES, LensSchema, PROMPT_VERSIONS, type Lens } from '@/core/prompts';
@@ -158,6 +159,16 @@ export function PaperReview({
   }
   // The reader's own notes come first, so this analysis is never started from outside.
   useReportJob('review', {
+    stale: run
+      ? runFreshness(
+          { sectionIds: run.sectionIds, promptVersions: { main: run.promptVersion }, model: run.model },
+          {
+            sectionIds: sections,
+            promptVersions: { main: PROMPT_VERSIONS.paperReview },
+            model: llm.config.model,
+          },
+        )
+      : null,
     running,
     done: Boolean(run),
     estimate: lenses.length,

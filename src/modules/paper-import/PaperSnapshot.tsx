@@ -1,3 +1,5 @@
+import { PROMPT_VERSIONS } from '@/core/prompts';
+import { runFreshness } from '@/core/runFreshness';
 import { useStoredChanged } from './paperJobs';
 import { useEffect, useMemo, useState } from 'react';
 import { insightStates } from '@/core/rhetoric';
@@ -79,7 +81,19 @@ export function PaperSnapshot({
       })
       .catch((cause: unknown) => setError(String(cause)));
   };
-  useReportJob('snapshot', { running, done: Boolean(run), estimate: 1, ready: loaded, start });
+  useReportJob('snapshot', {
+    stale: run
+      ? runFreshness(
+          { sectionIds: run.sectionIds, promptVersions: { main: run.promptVersion }, model: run.model },
+          { promptVersions: { main: PROMPT_VERSIONS.snapshot }, model: llm.config.model },
+        )
+      : null,
+    running,
+    done: Boolean(run),
+    estimate: 1,
+    ready: loaded,
+    start,
+  });
   return (
     <Card>
       <h2>Snapshot</h2>
