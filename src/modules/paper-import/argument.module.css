@@ -53,3 +53,168 @@
 .node {
   overflow-wrap: anywhere;
 }
+.layoutHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.layoutHead h2 {
+  margin: 0;
+  font-size: var(--text-md);
+}
+.diagram {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+}
+.dBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+.dBar label {
+  flex: 1 1 220px;
+  max-width: 360px;
+}
+.dCount {
+  align-self: center;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.dSpacer {
+  flex: 1;
+}
+.dCanvas {
+  overflow: auto;
+  max-height: 85vh;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+}
+.dCanvas svg {
+  display: block;
+}
+.dFit {
+  width: 100%;
+  height: auto;
+}
+.dNode {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--space-1);
+  justify-items: start;
+  height: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-left: 4px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-sm);
+  overflow: hidden;
+}
+.dNode[data-role='claim'],
+.dNode[data-role='conclusion'] {
+  border-left-color: var(--crit-claim);
+}
+.dNode[data-role='data'],
+.dNode[data-role='premise'] {
+  border-left-color: var(--crit-evidence);
+}
+.dNode[data-role='warrant'] {
+  border-left-color: var(--accent);
+}
+.dNode[data-role='backing'] {
+  border-left-color: var(--crit-context);
+}
+.dNode[data-role='qualifier'] {
+  border-left-color: var(--warning);
+}
+.dNode[data-role='rebuttal'] {
+  border-left-color: var(--danger);
+}
+.dNode[data-missing='true'] {
+  border-style: dashed;
+  background: transparent;
+}
+.dHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+}
+.dRole {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.dKind {
+  padding: 0 var(--space-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+.dText {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--font-reading);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+.dMissing,
+.dNote {
+  margin: 0;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.dEdge {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 2;
+}
+.dEdge[data-tone='limit'] {
+  stroke: var(--warning);
+}
+.dEdge[data-tone='conflict'] {
+  stroke: var(--danger);
+}
+.dEdge[data-dashed='true'] {
+  stroke-dasharray: 7 5;
+}
+.dArrow {
+  fill: var(--text-muted);
+}
+.dLabel {
+  fill: var(--text-muted);
+  font-size: var(--text-xs);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 4;
+}
+.dScheme {
+  fill: var(--surface);
+  stroke: var(--success);
+  stroke-width: 2;
+}
+.dScheme[data-role='ca'] {
+  stroke: var(--danger);
+  stroke-dasharray: 7 5;
+}
+.dSchemeCode {
+  fill: var(--text);
+  font-size: var(--text-xl);
+  font-weight: 700;
+}

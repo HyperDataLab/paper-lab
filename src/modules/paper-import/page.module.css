@@ -372,8 +372,9 @@
 .pane {
   position: sticky;
   top: calc(var(--space-10) * 3);
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  /* A column, so only the text grows however many bars sit above it. */
+  display: flex;
+  flex-direction: column;
   gap: var(--space-2);
   height: calc(100vh - var(--space-10) * 6);
   min-height: calc(var(--space-10) * 8);
@@ -393,6 +394,8 @@
   flex: 1;
 }
 .paneBody {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   padding-right: var(--space-2);
 }

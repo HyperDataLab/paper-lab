@@ -12,7 +12,9 @@ import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { FindingCard, ReviewActions } from '@/shared/ui/FindingCard';
+import { ArgumentDiagram } from './ArgumentDiagram';
 import { placeLabel } from './paperLabels';
+import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { usePaperScope, useRunBudget } from './paperScope';
 import { RunSetup } from './RunSetup';
 import { useReportJob } from './paperJobs';
@@ -45,6 +47,8 @@ export function PaperArguments({
   const [running, setRunning] = useState(false);
   const [error, setError] = useState('');
   const [showSetup, setShowSetup] = useState(false);
+  // A diagram is the default reading; the list keeps every argument on one page for scanning.
+  const [layout, setLayout] = useState('diagram');
   const controller = useRef<AbortController | null>(null);
   useEffect(() => {
     let active = true;
@@ -170,6 +174,10 @@ export function PaperArguments({
       : same(item.statedWarrant, span)
         ? 'warrant'
         : 'backing';
+  const ordered =
+    run && metrics
+      ? [...metrics.live, ...run.arguments.filter((item) => metrics.states.get(item.id) === 'dismissed')]
+      : [];
   const nodeText = (id: string) => metrics?.graph.nodes.find((node) => node.id === id)?.span;
   return (
     <div className={styles.panel}>
@@ -225,6 +233,36 @@ export function PaperArguments({
           </p>
         )}
       </Card>
+      {run && metrics && (
+        <Card padding="md">
+          <div className={styles.layoutHead}>
+            <h2>
+              {view === 'toulmin'
+                ? 'Từng luận điểm và các thành phần của nó'
+                : 'Tiền đề dẫn tới kết luận thế nào'}
+            </h2>
+            <SegmentedControl
+              label="Cách xem lập luận"
+              value={layout}
+              options={[
+                { value: 'diagram', label: 'Lược đồ' },
+                { value: 'list', label: 'Danh sách' },
+              ]}
+              onChange={setLayout}
+            />
+          </div>
+          {layout === 'diagram' && (
+            <ArgumentDiagram
+              paper={paper}
+              items={ordered}
+              states={metrics.states}
+              view={view}
+              onLocation={open}
+              onDecide={decide}
+            />
+          )}
+        </Card>
+      )}
       {run && metrics && view === 'toulmin' && (
         <>
           <Card>
@@ -240,71 +278,72 @@ export function PaperArguments({
               <Stat value={metrics.dangling.length} label="Luận điểm phụ chưa nối vào đâu" />
             </StatGrid>
           </Card>
-          {[
-            ...metrics.live,
-            ...run.arguments.filter((item) => metrics.states.get(item.id) === 'dismissed'),
-          ].map((item) => {
-            const state = metrics.states.get(item.id);
-            return (
-              <FindingCard
-                key={item.id}
-                state={state ?? 'open'}
-                labels={
-                  <>
-                    <Badge tone={item.importance === 'main' ? 'accent' : 'neutral'}>
-                      {item.importance === 'main' ? 'Luận điểm chính' : 'Luận điểm phụ'}
-                    </Badge>
-                    {state && (
-                      <Badge tone={state === 'confirmed' ? 'success' : 'danger'}>
-                        {state === 'confirmed' ? 'Đã xác nhận' : 'Đã loại'}
+          {layout === 'list' &&
+            ordered.map((item) => {
+              const state = metrics.states.get(item.id);
+              return (
+                <FindingCard
+                  key={item.id}
+                  state={state ?? 'open'}
+                  labels={
+                    <>
+                      <Badge tone={item.importance === 'main' ? 'accent' : 'neutral'}>
+                        {item.importance === 'main' ? 'Luận điểm chính' : 'Luận điểm phụ'}
                       </Badge>
-                    )}
-                  </>
-                }
-                quote={item.claim.excerpt}
-                source={{ label: placeLabel(paper, item.claim.paragraphId), onOpen: () => open(item.claim) }}
-                actions={
-                  <ReviewActions
-                    decided={Boolean(state)}
-                    dismissLabel="Loại bỏ"
-                    onConfirm={() => decide(item.id, 'confirm')}
-                    onDismiss={() => decide(item.id, 'dismiss')}
-                    onUndo={() => decide(item.id, 'reopen')}
-                  />
-                }
-              >
-                <dl className={styles.slots}>
-                  <dt>Dữ liệu</dt>
-                  <dd>{quotes(item.data)}</dd>
-                  <dt>Warrant</dt>
-                  <dd>
-                    {item.statedWarrant ? (
-                      quotes([item.statedWarrant])
-                    ) : item.inferredWarrant ? (
-                      <>
-                        <Badge tone="warning">AI suy ra, tác giả không nêu</Badge> {item.inferredWarrant}
-                      </>
-                    ) : (
-                      <span className={styles.empty}>{NOT_IDENTIFIED}</span>
-                    )}
-                  </dd>
-                  <dt>Backing</dt>
-                  <dd>{quotes(item.backing)}</dd>
-                  <dt>Giới hạn</dt>
-                  <dd>{quotes(item.qualifier ? [item.qualifier] : [])}</dd>
-                  <dt>Phản biện</dt>
-                  <dd>{quotes(item.rebuttals)}</dd>
-                </dl>
-              </FindingCard>
-            );
-          })}
+                      {state && (
+                        <Badge tone={state === 'confirmed' ? 'success' : 'danger'}>
+                          {state === 'confirmed' ? 'Đã xác nhận' : 'Đã loại'}
+                        </Badge>
+                      )}
+                    </>
+                  }
+                  quote={item.claim.excerpt}
+                  source={{
+                    label: placeLabel(paper, item.claim.paragraphId),
+                    onOpen: () => open(item.claim),
+                  }}
+                  actions={
+                    <ReviewActions
+                      decided={Boolean(state)}
+                      dismissLabel="Loại bỏ"
+                      onConfirm={() => decide(item.id, 'confirm')}
+                      onDismiss={() => decide(item.id, 'dismiss')}
+                      onUndo={() => decide(item.id, 'reopen')}
+                    />
+                  }
+                >
+                  <dl className={styles.slots}>
+                    <dt>Dữ liệu</dt>
+                    <dd>{quotes(item.data)}</dd>
+                    <dt>Warrant</dt>
+                    <dd>
+                      {item.statedWarrant ? (
+                        quotes([item.statedWarrant])
+                      ) : item.inferredWarrant ? (
+                        <>
+                          <Badge tone="warning">AI suy ra, tác giả không nêu</Badge> {item.inferredWarrant}
+                        </>
+                      ) : (
+                        <span className={styles.empty}>{NOT_IDENTIFIED}</span>
+                      )}
+                    </dd>
+                    <dt>Backing</dt>
+                    <dd>{quotes(item.backing)}</dd>
+                    <dt>Giới hạn</dt>
+                    <dd>{quotes(item.qualifier ? [item.qualifier] : [])}</dd>
+                    <dt>Phản biện</dt>
+                    <dd>{quotes(item.rebuttals)}</dd>
+                  </dl>
+                </FindingCard>
+              );
+            })}
           <p className={styles.note}>
             Đã bỏ {run.discarded.claim_not_found} luận điểm và {run.discarded.element_not_found} thành phần
             không tìm thấy trong bài, {run.discarded.duplicate} luận điểm trùng. Chưa qua hiệu chuẩn.
           </p>
         </>
       )}
-      {run && metrics && view === 'aif' && (
+      {run && metrics && view === 'aif' && layout === 'list' && (
         <Card>
           <h2>Sơ đồ lập luận</h2>
           <p className={styles.note}>
