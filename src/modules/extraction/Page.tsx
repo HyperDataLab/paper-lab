@@ -46,16 +46,22 @@ export default function Page() {
       </p>
       <Card>
         <h2>Project mới</h2>
-        <div className={styles.form}>
-          <TextField label="Tên project" value={title} onChange={(event) => setTitle(event.target.value)} />
+        <div className={styles.projectForm}>
+          <TextField
+            label="Tên project"
+            placeholder="Ví dụ: AI trong giáo dục"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+          />
           <TextField
             label="Câu hỏi nghiên cứu (không bắt buộc)"
+            placeholder="Bạn muốn tìm hiểu điều gì qua các bài báo?"
             multiline
             rows={2}
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
           />
-          <div>
+          <div className={styles.formFooter}>
             <Button variant="primary" disabled={!title.trim()} onClick={() => void create()}>
               Tạo project
             </Button>
