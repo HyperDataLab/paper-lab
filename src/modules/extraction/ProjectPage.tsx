@@ -26,9 +26,11 @@ import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Chip } from '@/shared/ui/Chip';
+import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { AddColumns } from './AddColumns';
 import { AddPapers } from './AddPapers';
 import { CellDrawer } from './CellDrawer';
+import { DeepResearch } from './DeepResearch';
 import { ACCESS, STATUS } from './labels';
 import { RunPanel, type RunChoice } from './RunPanel';
 import styles from './extraction.module.css';
@@ -47,6 +49,7 @@ export default function ProjectPage() {
   const [panel, setPanel] = useState<Panel>(null);
   const [open, setOpen] = useState<{ paperKey: string; fieldKey: string } | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
+  const [view, setView] = useState<'matrix' | 'deep'>('matrix');
   const [progress, setProgress] = useState('');
   const [running, setRunning] = useState(false);
   const [error, setError] = useState('');
@@ -140,186 +143,213 @@ export default function ProjectPage() {
           <p className={styles.note}>Câu hỏi nghiên cứu: {project.researchQuestion}</p>
         )}
       </header>
-      <ActionBar
-        status={
-          running ? (
-            <span role="status">Đang trích xuất… {progress}</span>
-          ) : (
-            `${project.papers.length} bài · ${visible.length} cột · ${counts?.counts.VERIFIED ?? 0} ô đã xác nhận`
-          )
-        }
-      >
-        {running ? (
-          <Button variant="danger" onClick={() => controller.current?.abort()}>
-            Dừng
-          </Button>
-        ) : (
-          <>
-            <Button onClick={() => setPanel('papers')}>Thêm bài</Button>
-            <Button onClick={() => setPanel('columns')}>Thêm cột</Button>
-            <ActionMenu
-              label="Xuất"
-              items={[
-                {
-                  label: 'CSV',
-                  onSelect: () =>
-                    downloadText(
-                      `${exportName}.csv`,
-                      BOM + matrixCsv(project, { verifiedOnly: false }),
-                      'text/csv;charset=utf-8',
-                    ),
-                },
-                {
-                  label: 'CSV chỉ ô đã xác nhận',
-                  onSelect: () =>
-                    downloadText(
-                      `${exportName}-verified.csv`,
-                      BOM + matrixCsv(project, { verifiedOnly: true }),
-                      'text/csv;charset=utf-8',
-                    ),
-                },
-                {
-                  label: 'JSON kèm bằng chứng',
-                  onSelect: () =>
-                    downloadJson(`${exportName}.json`, matrixJson(project, { verifiedOnly: false })),
-                },
-                {
-                  label: 'JSON chỉ ô đã xác nhận',
-                  onSelect: () =>
-                    downloadJson(`${exportName}-verified.json`, matrixJson(project, { verifiedOnly: true })),
-                },
-              ]}
-            />
-            <Button
-              variant="primary"
-              disabled={!project.papers.length || !visible.length}
-              onClick={() => setPanel('run')}
-            >
-              Chạy trích xuất
-            </Button>
-          </>
-        )}
-      </ActionBar>
-      {error && <p role="alert">{error}</p>}
-      <div className={styles.chips}>
-        <Chip aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>
-          Tất cả
-        </Chip>
-        <Chip aria-pressed={filter === 'review'} count={attention} onClick={() => setFilter('review')}>
-          Cần xem lại
-        </Chip>
-        <Chip
-          aria-pressed={filter === 'verified'}
-          count={counts?.counts.VERIFIED ?? 0}
-          onClick={() => setFilter('verified')}
-        >
-          Đã xác nhận
-        </Chip>
-        {hidden.map((field) => (
-          <Chip key={field.key} onClick={() => void save(updateField(project, field.key, { hidden: false }))}>
-            Hiện cột {field.label}
-          </Chip>
-        ))}
-      </div>
-      {!project.papers.length || !visible.length ? (
-        <Card>
-          <h2>Bắt đầu</h2>
-          <p>
-            {!project.papers.length ? 'Thêm các bài cần so sánh. ' : ''}
-            {!visible.length ? 'Thêm các cột cần trích, hoặc chọn một mẫu theo loại bài.' : ''}
-          </p>
-        </Card>
+      <SegmentedControl
+        label="Chế độ xem"
+        value={view}
+        options={[
+          { value: 'matrix', label: 'Ma trận' },
+          { value: 'deep', label: 'Deep Research' },
+        ]}
+        onChange={(value) => setView(value as 'matrix' | 'deep')}
+      />
+      {view === 'deep' ? (
+        <DeepResearch project={project} onSave={save} onOpenMatrix={() => setView('matrix')} />
       ) : (
-        <div className={styles.scroll}>
-          <table className={styles.matrix}>
-            <thead>
-              <tr>
-                <th scope="col" className={styles.sticky}>
-                  Bài báo
-                </th>
-                {visible.map((field) => (
-                  <th scope="col" key={field.key} title={field.instruction}>
-                    <div className={styles.columnHead}>
-                      <span>{field.label}</span>
-                      <ActionMenu
-                        label={`Tuỳ chọn cột ${field.label}`}
-                        items={[
-                          {
-                            label: 'Sang trái',
-                            onSelect: () => void save(moveField(project, field.key, -1)),
-                          },
-                          { label: 'Sang phải', onSelect: () => void save(moveField(project, field.key, 1)) },
-                          {
-                            label: 'Ẩn cột',
-                            onSelect: () => void save(updateField(project, field.key, { hidden: true })),
-                          },
-                          { label: 'Xoá cột', onSelect: () => void save(removeField(project, field.key)) },
-                        ]}
-                      />
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((paper) => (
-                <tr key={paper.key}>
-                  <th scope="row" className={styles.sticky}>
-                    <span className={styles.paperTitle}>{paper.title}</span>
-                    <span className={styles.note}>
-                      {[paper.year, ACCESS[paper.access]].filter(Boolean).join(' · ')}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => void save(removePaper(project, paper.key))}
-                    >
-                      Bỏ khỏi project
-                    </Button>
-                  </th>
-                  {visible.map((field) => {
-                    const cell = cellOf(paper.key, field.key);
-                    const stale = Boolean(cell && isStale(cell, project));
-                    return (
-                      <td key={field.key} className={matches(cell) ? undefined : styles.dim}>
-                        {cell ? (
-                          <Button
-                            variant="ghost"
-                            className={styles.cell}
-                            aria-label={`${paper.title} · ${field.label}`}
-                            onClick={() => setOpen({ paperKey: paper.key, fieldKey: field.key })}
-                          >
-                            <span className={styles.badges}>
-                              <Badge tone={STATUS[cell.status].tone}>{STATUS[cell.status].label}</Badge>
-                              {stale && <Badge tone="warning">Đã cũ</Badge>}
-                            </span>
-                            {cell.value && <span className={styles.cellValue}>{cell.value}</span>}
-                          </Button>
-                        ) : (
-                          <span className={styles.missing}>Chưa chạy</span>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {project.runs.length > 0 && (
-        <details>
-          <summary>Lịch sử chạy ({project.runs.length})</summary>
-          <ul className={styles.history}>
-            {[...project.runs].reverse().map((item) => (
-              <li key={item.id}>
-                {new Date(item.createdAt).toLocaleString('vi-VN')} · {item.mode} · {item.status} ·{' '}
-                {item.callsUsed} lượt gọi · {item.model} · {item.promptVersion}
-                {item.errors.length > 0 && ` · ${item.errors.length} lỗi`}
-              </li>
+        <>
+          <ActionBar
+            status={
+              running ? (
+                <span role="status">Đang trích xuất… {progress}</span>
+              ) : (
+                `${project.papers.length} bài · ${visible.length} cột · ${counts?.counts.VERIFIED ?? 0} ô đã xác nhận`
+              )
+            }
+          >
+            {running ? (
+              <Button variant="danger" onClick={() => controller.current?.abort()}>
+                Dừng
+              </Button>
+            ) : (
+              <>
+                <Button onClick={() => setPanel('papers')}>Thêm bài</Button>
+                <Button onClick={() => setPanel('columns')}>Thêm cột</Button>
+                <ActionMenu
+                  label="Xuất"
+                  items={[
+                    {
+                      label: 'CSV',
+                      onSelect: () =>
+                        downloadText(
+                          `${exportName}.csv`,
+                          BOM + matrixCsv(project, { verifiedOnly: false }),
+                          'text/csv;charset=utf-8',
+                        ),
+                    },
+                    {
+                      label: 'CSV chỉ ô đã xác nhận',
+                      onSelect: () =>
+                        downloadText(
+                          `${exportName}-verified.csv`,
+                          BOM + matrixCsv(project, { verifiedOnly: true }),
+                          'text/csv;charset=utf-8',
+                        ),
+                    },
+                    {
+                      label: 'JSON kèm bằng chứng',
+                      onSelect: () =>
+                        downloadJson(`${exportName}.json`, matrixJson(project, { verifiedOnly: false })),
+                    },
+                    {
+                      label: 'JSON chỉ ô đã xác nhận',
+                      onSelect: () =>
+                        downloadJson(
+                          `${exportName}-verified.json`,
+                          matrixJson(project, { verifiedOnly: true }),
+                        ),
+                    },
+                  ]}
+                />
+                <Button
+                  variant="primary"
+                  disabled={!project.papers.length || !visible.length}
+                  onClick={() => setPanel('run')}
+                >
+                  Chạy trích xuất
+                </Button>
+              </>
+            )}
+          </ActionBar>
+          {error && <p role="alert">{error}</p>}
+          <div className={styles.chips}>
+            <Chip aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>
+              Tất cả
+            </Chip>
+            <Chip aria-pressed={filter === 'review'} count={attention} onClick={() => setFilter('review')}>
+              Cần xem lại
+            </Chip>
+            <Chip
+              aria-pressed={filter === 'verified'}
+              count={counts?.counts.VERIFIED ?? 0}
+              onClick={() => setFilter('verified')}
+            >
+              Đã xác nhận
+            </Chip>
+            {hidden.map((field) => (
+              <Chip
+                key={field.key}
+                onClick={() => void save(updateField(project, field.key, { hidden: false }))}
+              >
+                Hiện cột {field.label}
+              </Chip>
             ))}
-          </ul>
-        </details>
+          </div>
+          {!project.papers.length || !visible.length ? (
+            <Card>
+              <h2>Bắt đầu</h2>
+              <p>
+                {!project.papers.length ? 'Thêm các bài cần so sánh. ' : ''}
+                {!visible.length ? 'Thêm các cột cần trích, hoặc chọn một mẫu theo loại bài.' : ''}
+              </p>
+            </Card>
+          ) : (
+            <div className={styles.scroll}>
+              <table className={styles.matrix}>
+                <thead>
+                  <tr>
+                    <th scope="col" className={styles.sticky}>
+                      Bài báo
+                    </th>
+                    {visible.map((field) => (
+                      <th scope="col" key={field.key} title={field.instruction}>
+                        <div className={styles.columnHead}>
+                          <span>{field.label}</span>
+                          <ActionMenu
+                            label={`Tuỳ chọn cột ${field.label}`}
+                            items={[
+                              {
+                                label: 'Sang trái',
+                                onSelect: () => void save(moveField(project, field.key, -1)),
+                              },
+                              {
+                                label: 'Sang phải',
+                                onSelect: () => void save(moveField(project, field.key, 1)),
+                              },
+                              {
+                                label: 'Ẩn cột',
+                                onSelect: () => void save(updateField(project, field.key, { hidden: true })),
+                              },
+                              {
+                                label: 'Xoá cột',
+                                onSelect: () => void save(removeField(project, field.key)),
+                              },
+                            ]}
+                          />
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((paper) => (
+                    <tr key={paper.key}>
+                      <th scope="row" className={styles.sticky}>
+                        <span className={styles.paperTitle}>{paper.title}</span>
+                        <span className={styles.note}>
+                          {[paper.year, ACCESS[paper.access]].filter(Boolean).join(' · ')}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => void save(removePaper(project, paper.key))}
+                        >
+                          Bỏ khỏi project
+                        </Button>
+                      </th>
+                      {visible.map((field) => {
+                        const cell = cellOf(paper.key, field.key);
+                        const stale = Boolean(cell && isStale(cell, project));
+                        return (
+                          <td key={field.key} className={matches(cell) ? undefined : styles.dim}>
+                            {cell ? (
+                              <Button
+                                variant="ghost"
+                                className={styles.cell}
+                                aria-label={`${paper.title} · ${field.label}`}
+                                onClick={() => setOpen({ paperKey: paper.key, fieldKey: field.key })}
+                              >
+                                <span className={styles.badges}>
+                                  <Badge tone={STATUS[cell.status].tone}>{STATUS[cell.status].label}</Badge>
+                                  {stale && <Badge tone="warning">Đã cũ</Badge>}
+                                </span>
+                                {cell.value && <span className={styles.cellValue}>{cell.value}</span>}
+                              </Button>
+                            ) : (
+                              <span className={styles.missing}>Chưa chạy</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {project.runs.length > 0 && (
+            <details>
+              <summary>Lịch sử chạy ({project.runs.length})</summary>
+              <ul className={styles.history}>
+                {[...project.runs].reverse().map((item) => (
+                  <li key={item.id}>
+                    {new Date(item.createdAt).toLocaleString('vi-VN')} · {item.mode} · {item.status} ·{' '}
+                    {item.callsUsed} lượt gọi · {item.model} · {item.promptVersion}
+                    {item.errors.length > 0 && ` · ${item.errors.length} lỗi`}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </>
       )}
       {panel === 'papers' && (
         <AddPapers

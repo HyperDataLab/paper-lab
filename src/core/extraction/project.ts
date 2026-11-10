@@ -29,6 +29,7 @@ export function newProject(input: {
     fields: [],
     runs: [],
     cells: [],
+    deep: null,
   };
 }
 

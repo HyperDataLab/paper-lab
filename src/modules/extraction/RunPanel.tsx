@@ -82,7 +82,7 @@ export function RunPanel({
                       onChange={() => setMode(key)}
                     >
                       {MODES[key].label}
-                      {!AVAILABLE.includes(key) && ' · Sắp có'} · {MODES[key].help}
+                      {!AVAILABLE.includes(key) && ' · dùng tab Deep Research'} · {MODES[key].help}
                     </Checkbox>
                   ))}
                 </fieldset>

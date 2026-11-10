@@ -164,3 +164,43 @@
   display: grid;
   gap: var(--space-2);
 }
+.deep {
+  display: grid;
+  gap: var(--space-4);
+}
+.deep h2 {
+  margin: 0 0 var(--space-2);
+}
+.deep h3 {
+  margin: var(--space-3) 0 var(--space-1);
+}
+.twoCols {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+.candidates {
+  display: grid;
+  gap: var(--space-3);
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+}
+.candidate {
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-3);
+}
+.candidate p,
+.synthesis p {
+  margin: 0;
+}
+.synthesis {
+  display: grid;
+  gap: var(--space-2);
+}
+.synthesis li {
+  display: grid;
+  gap: var(--space-1);
+}
