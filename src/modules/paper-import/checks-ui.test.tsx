@@ -112,10 +112,22 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
       (await repo.audit.listByAnalysis(paper.id)).items.filter((e) => e.action === 'review_check'),
     ).toHaveLength(4),
   );
-  fireEvent.click(screen.getByRole('tab', { name: 'Summary' }));
-  expect(await screen.findByText('Hình và bảng cần kiểm tra')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /^Arguments/ })).toBeEnabled();
-  const context = screen.getByRole('article', { name: 'Bối cảnh học thuật và Nguồn gốc' });
+  // Each space opens on the profile's dimensions it is about: discourse and writing in Writing style.
+  fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
+  const writing = screen.getByRole('region', { name: 'Writing overview' });
+  expect(await within(writing).findByText('Hình và bảng cần kiểm tra')).toBeInTheDocument();
+  expect(
+    within(writing)
+      .getAllByRole('article')
+      .map((card) => card.getAttribute('aria-label')),
+  ).toEqual(['Diễn ngôn và Tu từ', 'Viết học thuật']);
+  fireEvent.click(screen.getByRole('button', { name: '← Quay lại bài' }));
+  // The scholarly context leads the Citations tab.
+  fireEvent.click(screen.getByRole('tab', { name: 'Citations' }));
+  const context = await within(screen.getByRole('region', { name: 'Context overview' })).findByRole(
+    'article',
+    { name: 'Bối cảnh học thuật và Nguồn gốc' },
+  );
   fireEvent.click(within(context).getByRole('button', { name: 'Xem chi tiết' }));
   // References live in the Citations tab: the card opens that block there, already unfolded.
   expect(screen.getByRole('tab', { name: 'Citations' })).toHaveAttribute('aria-selected', 'true');

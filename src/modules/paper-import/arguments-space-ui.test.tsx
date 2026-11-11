@@ -117,3 +117,34 @@ it('R10b the Arguments space opens on gap, claims and atomic sentences, ahead of
   expect(screen.getByText('Chưa phân tích cách tác giả dẫn dắt.')).toBeInTheDocument();
   expect(screen.getByText('Chưa phân tích lập luận.')).toBeInTheDocument();
 });
+
+it('R10c the profile dimensions move from Summary into the spaces, and Writing style opens on vocabulary', async () => {
+  const { repo } = await seeded();
+  render(
+    <MemoryRouter initialEntries={[`/papers/${PAPER_ID}`]}>
+      <StorageProvider repositories={repo}>
+        <LlmProvider innerClient={{ completeJson: vi.fn() }}>
+          <Routes>
+            <Route path="/papers/:id" element={<PaperMapPage />} />
+          </Routes>
+        </LlmProvider>
+      </StorageProvider>
+    </MemoryRouter>,
+  );
+  fireEvent.click(await screen.findByRole('tab', { name: 'Summary' }));
+  expect(screen.queryByRole('region', { name: 'Hồ sơ bài báo' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Arguments →' }));
+  const args = await screen.findByRole('region', { name: 'Arguments overview' });
+  expect(
+    within(args)
+      .getAllByRole('article')
+      .map((card) => card.getAttribute('aria-label')),
+  ).toEqual(['Khoa học và Tri thức', 'Lập luận']);
+  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  const writing = await screen.findByRole('region', { name: 'Writing overview' });
+  expect(within(writing).getAllByRole('article')).toHaveLength(2);
+  expect(screen.getByRole('button', { name: 'Thu gọn Vocabulary & phrases' })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+});

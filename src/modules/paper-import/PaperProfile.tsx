@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { buildPaperProfile, type DimensionState, type ProfileView } from '@/core/paperProfile';
+import {
+  buildPaperProfile,
+  type DimensionId,
+  type DimensionState,
+  type ProfileView,
+} from '@/core/paperProfile';
 import type {
   Analysis,
   MeasurementsRecord,
@@ -28,11 +33,16 @@ export function PaperProfile({
   analyses,
   checks,
   onOpen,
+  only,
+  label = 'Hồ sơ bài báo',
 }: {
   paper: Paper;
   analyses: Analysis[];
   checks?: PaperChecksRecord;
   onOpen: (view: ProfileView) => void;
+  /** The dimensions to show; each space shows the ones it is about. */
+  only?: DimensionId[];
+  label?: string;
 }) {
   const repo = useRepositories();
   const [measurement, setMeasurement] = useState<MeasurementsRecord>();
@@ -63,11 +73,14 @@ export function PaperProfile({
     };
   }, [paper.id, repo]);
   const dimensions = useMemo(
-    () => buildPaperProfile({ paper, analyses, checks, measurement, stance, scholarly, insights }),
-    [paper, analyses, checks, measurement, stance, scholarly, insights],
+    () =>
+      buildPaperProfile({ paper, analyses, checks, measurement, stance, scholarly, insights }).filter(
+        (dimension) => !only || only.includes(dimension.id),
+      ),
+    [paper, analyses, checks, measurement, stance, scholarly, insights, only],
   );
   return (
-    <section aria-label="Hồ sơ bài báo" className={styles.profile}>
+    <section aria-label={label} className={styles.profile}>
       {error && <p role="alert">Không tải được một phần dữ liệu của hồ sơ.</p>}
       <div className={styles.grid}>
         {dimensions.map((dimension) => (
@@ -102,7 +115,7 @@ export function PaperProfile({
                 <span>{dimension.coverage}</span>
                 {dimension.target && (
                   <Button size="sm" onClick={() => dimension.target && onOpen(dimension.target)}>
-                    {dimension.state === 'empty' ? 'Bắt đầu phân tích' : 'Xem chi tiết'}
+                    {dimension.state === 'empty' ? 'Mở để phân tích' : 'Xem chi tiết'}
                   </Button>
                 )}
               </footer>
