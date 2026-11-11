@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/shared/ui/Button';
 import { Loading } from '@/shared/ui/StateNote';
 import { TextField } from '@/shared/ui/TextField';
+import { CRITERIA } from './criteria';
+import { findNeedle, type PdfMark, type PdfNeedle } from './pdfMarks';
 import './pdfTextLayer.css';
 import styles from './pdf.module.css';
 
@@ -23,6 +25,43 @@ async function loadPdfJs(): Promise<PdfJs> {
 
 const ZOOMS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
 
+/** A page to show; a new nonce shows it again. With a passage, the passage itself is outlined. */
+export interface PdfTarget {
+  page: number;
+  nonce: number;
+  passage?: PdfNeedle | null;
+}
+
+interface RenderedPage {
+  holder: HTMLElement;
+  items: string[];
+  divs: HTMLElement[];
+}
+
+/** Boxes over the words of a range of text items, in the page holder's coordinates. */
+function boxesFor(page: RenderedPage, ranges: { item: number; from: number; to: number }[]) {
+  const origin = page.holder.getBoundingClientRect();
+  const boxes: { left: number; top: number; width: number; height: number }[] = [];
+  for (const range of ranges) {
+    const node = page.divs[range.item]?.firstChild;
+    if (!node || node.nodeType !== Node.TEXT_NODE) continue;
+    const length = node.textContent?.length ?? 0;
+    const dom = document.createRange();
+    dom.setStart(node, Math.min(range.from, length));
+    dom.setEnd(node, Math.min(range.to, length));
+    for (const rect of dom.getClientRects()) {
+      if (rect.width < 1 || rect.height < 1) continue;
+      boxes.push({
+        left: rect.left - origin.left,
+        top: rect.top - origin.top,
+        width: rect.width,
+        height: rect.height,
+      });
+    }
+  }
+  return boxes;
+}
+
 /**
  * The original PDF, page under page, as the reader knows it. Pages are drawn when they come into view; a
  * text layer over each page keeps the text selectable. `target` scrolls to a page and marks it briefly.
@@ -30,10 +69,14 @@ const ZOOMS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
 export function PdfViewer({
   blob,
   target,
+  marks = [],
+  onMark,
 }: {
   blob: Blob;
-  /** A page to show; a new nonce scrolls again to the same page. */
-  target: { page: number; nonce: number } | null;
+  target: PdfTarget | null;
+  /** What was found in the paper, drawn on its words where the passage can be found on the page. */
+  marks?: PdfMark[];
+  onMark?: (id: string) => void;
 }) {
   const [doc, setDoc] = useState<PdfDocument | null>(null);
   const [error, setError] = useState('');
@@ -45,6 +88,11 @@ export function PdfViewer({
   const [flash, setFlash] = useState<number | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const rendered = useRef(new Map<number, number>());
+  const pages = useRef(new Map<number, RenderedPage>());
+  // The marks layer reads the latest props without re-rendering any page.
+  const latest = useRef({ marks, onMark, passage: null as PdfNeedle | null, nonce: 0 });
+  const pendingScroll = useRef(0);
+  const [missing, setMissing] = useState(false);
   const scale = zoom ?? fitScale;
 
   useEffect(() => {
@@ -81,6 +129,80 @@ export function PdfViewer({
     return () => observer.disconnect();
   }, [base]);
 
+  /**
+   * Draws the marks of one rendered page above its text: a box over the words of each passage that can be
+   * found there. A paragraph may run onto the next page, so marks of the page before are looked for too.
+   */
+  const drawMarks = useCallback((number: number) => {
+    const page = pages.current.get(number);
+    if (!page) return;
+    page.holder.querySelector('.pl-mark-layer')?.remove();
+    const { marks: all, passage, nonce } = latest.current;
+    const layer = document.createElement('div');
+    layer.className = 'pl-mark-layer';
+    const own = (needle: PdfNeedle) => needle.page === number || needle.page === number - 1;
+    for (const mark of all.filter(own)) {
+      const ranges = findNeedle(page.items, mark);
+      if (!ranges) continue;
+      for (const box of boxesFor(page, ranges)) {
+        const element = document.createElement('button');
+        element.type = 'button';
+        element.className = 'pl-mark';
+        element.dataset.criterion = mark.criterion;
+        element.dataset.strong = String(mark.strong);
+        element.title = `${CRITERIA[mark.criterion].label}: ${mark.title}`;
+        element.setAttribute('aria-label', element.title);
+        Object.assign(element.style, {
+          left: `${box.left}px`,
+          top: `${box.top}px`,
+          width: `${box.width}px`,
+          height: `${box.height}px`,
+        });
+        element.addEventListener('click', () => latest.current.onMark?.(mark.id));
+        layer.append(element);
+      }
+    }
+    if (passage && own(passage)) {
+      const ranges = findNeedle(page.items, passage);
+      const boxes = ranges ? boxesFor(page, ranges) : [];
+      boxes.forEach((box, index) => {
+        const element = document.createElement('div');
+        element.className = 'pl-passage';
+        element.dataset.first = String(index === 0);
+        Object.assign(element.style, {
+          left: `${box.left}px`,
+          top: `${box.top}px`,
+          width: `${box.width}px`,
+          height: `${box.height}px`,
+        });
+        layer.append(element);
+      });
+      if (pendingScroll.current === nonce) {
+        if (boxes.length) {
+          pendingScroll.current = 0;
+          setMissing(false);
+          // After the layer is in place: bring the passage to the upper part of the view.
+          window.requestAnimationFrame(() => {
+            const root = scroller.current;
+            const first = layer.querySelector('.pl-passage');
+            if (!root || !first) return;
+            const offset = first.getBoundingClientRect().top - root.getBoundingClientRect().top;
+            root.scrollTop += offset - root.clientHeight * 0.25;
+          });
+        } else if (passage.page === number) setMissing(true);
+      }
+    }
+    page.holder.append(layer);
+  }, []);
+
+  useEffect(() => {
+    latest.current.onMark = onMark;
+  }, [onMark]);
+  useEffect(() => {
+    latest.current = { ...latest.current, marks };
+    for (const number of pages.current.keys()) drawMarks(number);
+  }, [marks, drawMarks]);
+
   const renderPage = useCallback(
     async (number: number, holder: HTMLElement) => {
       if (!doc || rendered.current.get(number) === scale) return;
@@ -109,13 +231,21 @@ export function PdfViewer({
       holder.style.setProperty('--total-scale-factor', String(scale));
       holder.style.setProperty('--scale-round-x', '1px');
       holder.style.setProperty('--scale-round-y', '1px');
-      await new pdfjs.TextLayer({
+      const textLayer = new pdfjs.TextLayer({
         textContentSource: pdfPage.streamTextContent(),
         container: layer,
         viewport,
-      }).render();
+      });
+      await textLayer.render();
+      if (rendered.current.get(number) !== scale) return;
+      pages.current.set(number, {
+        holder,
+        items: textLayer.textContentItemsStr,
+        divs: textLayer.textDivs,
+      });
+      drawMarks(number);
     },
-    [doc, scale],
+    [doc, scale, drawMarks],
   );
 
   // Draw a page when it comes near the view; note which page is on screen for the page counter.
@@ -123,6 +253,7 @@ export function PdfViewer({
     const root = scroller.current;
     if (!root || !doc) return;
     rendered.current.clear();
+    pages.current.clear();
     const holders = [...root.querySelectorAll<HTMLElement>('[data-page]')];
     if (typeof IntersectionObserver !== 'function') return;
     const observer = new IntersectionObserver(
@@ -146,16 +277,21 @@ export function PdfViewer({
   useEffect(() => {
     if (!target || !doc) return;
     const number = Math.min(Math.max(1, target.page), doc.numPages);
+    latest.current = { ...latest.current, passage: target.passage ?? null, nonce: target.nonce };
+    pendingScroll.current = target.passage ? target.nonce : 0;
     const show = window.setTimeout(() => {
+      setMissing(false);
       goTo(number);
       setFlash(number);
+      // A page drawn already gets the passage now; one still to come draws it when it renders.
+      for (const drawn of pages.current.keys()) drawMarks(drawn);
     }, 0);
     const clear = window.setTimeout(() => setFlash(null), 1600);
     return () => {
       window.clearTimeout(show);
       window.clearTimeout(clear);
     };
-  }, [target, doc, goTo]);
+  }, [target, doc, goTo, drawMarks]);
 
   const step = (direction: 1 | -1) => {
     // The next preset above or below the current scale, which may sit between presets after fit width.
@@ -212,6 +348,11 @@ export function PdfViewer({
         <Button size="sm" variant="ghost" aria-pressed={zoom === null} onClick={() => setZoom(null)}>
           Vừa khung
         </Button>
+        {missing && (
+          <p className={styles.missing} role="status">
+            Không tìm thấy đúng đoạn trong PDF; đã mở trang chứa đoạn. Xem chính xác ở Text.
+          </p>
+        )}
       </div>
       <div
         ref={scroller}

@@ -74,3 +74,9 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+.missing {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--warning);
+  font-size: var(--text-sm);
+}

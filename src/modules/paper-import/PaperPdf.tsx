@@ -6,6 +6,8 @@ import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Loading } from '@/shared/ui/StateNote';
+import type { PdfMark } from './pdfMarks';
+import type { PdfTarget } from './PdfViewer';
 import styles from './pdf.module.css';
 
 const PdfViewer = lazy(() => import('./PdfViewer').then((module) => ({ default: module.PdfViewer })));
@@ -22,9 +24,13 @@ type State =
 export function PaperPdf({
   paper,
   target,
+  marks,
+  onMark,
 }: {
   paper: Paper;
-  target: { page: number; nonce: number } | null;
+  target: PdfTarget | null;
+  marks?: PdfMark[];
+  onMark?: (id: string) => void;
 }) {
   const repo = useRepositories();
   const { user, getIdToken, signIn } = useAuth();
@@ -148,11 +154,10 @@ export function PaperPdf({
         ) : (
           <Badge>{user ? 'Đang lưu lên kho lab…' : 'Chỉ trên máy này'}</Badge>
         )}{' '}
-        {target && 'Đang mở trang chứa đoạn trích; bấm Text để xem đoạn được tô sáng.'}
       </p>
       {message && <p role="alert">{message}</p>}
       <Suspense fallback={<Loading label="Đang mở PDF…" />}>
-        <PdfViewer key={sha} blob={state.blob} target={target} />
+        <PdfViewer key={sha} blob={state.blob} target={target} marks={marks} onMark={onMark} />
       </Suspense>
     </>
   );

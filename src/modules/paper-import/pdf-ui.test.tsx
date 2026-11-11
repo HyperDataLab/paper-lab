@@ -17,9 +17,25 @@ import PaperMapPage from './PaperMapPage';
 
 // jsdom has no canvas or pdf.js worker: the viewer is replaced by a stand-in that shows what it was given.
 vi.mock('./PdfViewer', () => ({
-  PdfViewer: ({ blob, target }: { blob: Blob; target: { page: number } | null }) => (
+  PdfViewer: ({
+    blob,
+    target,
+    marks = [],
+    onMark,
+  }: {
+    blob: Blob;
+    target: { page: number; passage?: { text: string } | null } | null;
+    marks?: { id: string; text: string; page: number }[];
+    onMark?: (id: string) => void;
+  }) => (
     <div data-testid="pdf-viewer">
       {blob.size} bytes{target ? `, page ${target.page}` : ''}
+      {target?.passage ? `, passage [${target.passage.text}]` : ''}
+      {marks.map((mark) => (
+        <span key={mark.id} role="button" tabIndex={0} onClick={() => onMark?.(mark.id)}>
+          mark {mark.text} p{mark.page}
+        </span>
+      ))}
     </div>
   ),
 }));
@@ -217,5 +233,43 @@ it('R8 opening a finding in a PDF paper turns the PDF to the page of its passage
   fireEvent.click(await screen.findByRole('button', { name: '1 cần duyệt' }));
   const issues = screen.getByRole('region', { name: 'Issues' });
   fireEvent.click(within(issues).getByRole('button', { name: 'Tr. 3 · Results' }));
-  expect(await screen.findByTestId('pdf-viewer')).toHaveTextContent('page 3');
+  expect(await screen.findByTestId('pdf-viewer')).toHaveTextContent('page 3, passage [Figure 2]');
+});
+
+it('R9 findings are drawn on the PDF, can be switched off by layer, and open the finding when pressed', async () => {
+  const repo = newRepo();
+  const base = paperFor(sha);
+  const paper: Paper = {
+    ...base,
+    sections: [{ id: 'b', heading: 'Results', role: 'results', level: 1, pageStart: 3 }],
+    paragraphs: [
+      { id: 'p2', sectionId: 'b', order: 0, kind: 'body', text: 'See Figure 2.', pageStart: 3, textHash: '' },
+    ],
+  };
+  await repo.papers.create(paper);
+  await repo.pdfFiles.put(sha, new Blob([bytes], { type: 'application/pdf' }));
+  await repo.paperChecks.save({
+    schemaVersion: 1,
+    paperId: paper.id,
+    report: runPaperChecks(paper),
+    decisions: [],
+  });
+  vi.stubGlobal('fetch', vi.fn());
+  render(
+    wrap(
+      repo,
+      signedOut(),
+      <Routes>
+        <Route path="/papers/:id" element={<PaperMapPage />} />
+      </Routes>,
+      `/papers/${paper.id}`,
+    ),
+  );
+  expect(await screen.findByRole('button', { name: 'mark Figure 2 p3' })).toBeInTheDocument();
+  const layers = screen.getByRole('group', { name: 'Lớp đánh dấu trên bài' });
+  fireEvent.click(within(layers).getByRole('button', { name: /Evidence/ }));
+  expect(screen.queryByRole('button', { name: 'mark Figure 2 p3' })).not.toBeInTheDocument();
+  fireEvent.click(within(layers).getByRole('button', { name: /Evidence/ }));
+  fireEvent.click(await screen.findByRole('button', { name: 'mark Figure 2 p3' }));
+  expect(screen.getByRole('tab', { name: 'Issues' })).toHaveAttribute('aria-selected', 'true');
 });

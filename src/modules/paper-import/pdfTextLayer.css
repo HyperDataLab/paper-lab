@@ -37,3 +37,71 @@
 .pl-text-layer ::selection {
   background: rgb(0 100 255 / 25%);
 }
+
+/* What was found in the paper, over its words. Above the text so a box can be pressed; text outside the
+ * boxes stays selectable. Each criterion keeps the underline style it has in the Text view. */
+.pl-mark-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.pl-mark,
+.pl-passage {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+}
+.pl-mark {
+  pointer-events: auto;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--mark-colour) 14%, transparent);
+  border-bottom: 2px solid var(--mark-colour);
+}
+.pl-mark[data-strong='true'] {
+  background: color-mix(in srgb, var(--mark-colour) 26%, transparent);
+  border-bottom-width: 3px;
+}
+.pl-mark:hover,
+.pl-mark:focus-visible {
+  background: color-mix(in srgb, var(--mark-colour) 40%, transparent);
+  outline: 2px solid var(--mark-colour);
+}
+.pl-mark[data-criterion='claim'] {
+  --mark-colour: var(--crit-claim);
+}
+.pl-mark[data-criterion='evidence'] {
+  --mark-colour: var(--crit-evidence);
+  border-bottom-style: double;
+  border-bottom-width: 3px;
+}
+.pl-mark[data-criterion='writing'] {
+  --mark-colour: var(--crit-writing);
+  border-bottom-style: dotted;
+}
+.pl-mark[data-criterion='context'] {
+  --mark-colour: var(--crit-context);
+  border-bottom-style: dashed;
+}
+/* The passage the reader opened from a finding. */
+.pl-passage {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  animation: pl-passage-pulse 1.2s ease-out 2;
+}
+@keyframes pl-passage-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 50%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pl-passage {
+    animation: none;
+  }
+}
