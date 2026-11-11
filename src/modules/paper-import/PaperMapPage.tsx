@@ -93,6 +93,7 @@ type BlockId =
   | 'snapshot'
   | 'checks'
   | 'citationChecks'
+  | 'argChecks'
   | 'review'
   | 'measure'
   | 'rhetoric'
@@ -124,6 +125,12 @@ const BLOCKS: Record<
     criterion: 'claim',
     views: [{ id: 'arguments-issues', label: 'Issues' }],
   },
+  argChecks: {
+    place: 'arguments',
+    title: 'Automated checks',
+    criterion: 'evidence',
+    views: [{ id: 'science-checks', label: 'Numbers & claims' }],
+  },
   gap: {
     place: 'arguments',
     title: 'Research gap & contribution',
@@ -143,7 +150,7 @@ const BLOCKS: Record<
     views: [{ id: 'atomics', label: 'Atomic sentences' }],
   },
   snapshot: {
-    place: 'info',
+    place: 'summary',
     title: 'Key facts',
     criterion: 'evidence',
     job: 'snapshot',
@@ -194,6 +201,15 @@ const BLOCKS: Record<
     criterion: 'writing',
     views: [{ id: 'writing-issues', label: 'Issues' }],
   },
+  checks: {
+    place: 'writing',
+    title: 'Automated checks',
+    criterion: 'writing',
+    views: [
+      { id: 'discourse-checks', label: 'Figures & tables' },
+      { id: 'writing-checks', label: 'Acronyms & claim strength' },
+    ],
+  },
   batch: {
     place: 'writing',
     title: 'Coherence & sentences',
@@ -223,16 +239,6 @@ const BLOCKS: Record<
     criterion: 'writing',
     job: 'probe',
     views: [{ id: 'probe', label: 'Score robustness' }],
-  },
-  checks: {
-    place: 'info',
-    title: 'Automated checks',
-    criterion: 'evidence',
-    views: [
-      { id: 'science-checks', label: 'Numbers & claims' },
-      { id: 'discourse-checks', label: 'Figures & tables' },
-      { id: 'writing-checks', label: 'Acronyms & claim strength' },
-    ],
   },
   citationIssues: {
     place: 'citations',
@@ -1156,7 +1162,17 @@ export default function PaperMapPage() {
                       />
                     )}
                     {/* A reader's summary written by AI from the whole paper, with one button to make it. */}
-                    {pane === 'summary' && <PaperDigest paper={paper} onLocation={openLocation} />}
+                    {shown('snapshot') && <PaperSnapshot compact paper={paper} onLocation={openLocation} />}
+                    {/* Kept mounted while another tab shows, so a summary being written is not lost. */}
+                    {
+                      <PaperDigest
+                        paper={paper}
+                        onLocation={openLocation}
+                        onStart={() => {
+                          if (!jobFacts.snapshot?.done) void jobs.current.snapshot?.start?.();
+                        }}
+                      />
+                    }
                   </div>
                 </section>
                 <section
@@ -1242,17 +1258,18 @@ export default function PaperMapPage() {
                       'metadata',
                       mode === 'info' && openBlocks.includes('metadata') && <PaperMetadata paper={paper} />,
                     )}
+                  </div>
+                  <div hidden={mode !== 'arguments'} className={styles.blocks}>
+                    {mode === 'arguments' && overview(['science', 'argument'], 'Arguments overview', batch)}
+                    {chips('arguments')}
+                    {issuesBlock('argIssues', ['claim', 'evidence'], mode === 'arguments')}
                     {block(
-                      'snapshot',
-                      shown('snapshot') && <PaperSnapshot paper={paper} onLocation={openLocation} />,
-                    )}
-                    {block(
-                      'checks',
-                      mode === 'info' && openBlocks.includes('checks') && (
+                      'argChecks',
+                      mode === 'arguments' && openBlocks.includes('argChecks') && (
                         <>
                           {errorBox('Không thể xử lý kiểm tra.')}
                           <PaperChecks
-                            only={checkIds}
+                            only={CHECKS_OF['science-checks'] ?? []}
                             paper={paper}
                             record={checks}
                             onRun={runChecks}
@@ -1267,11 +1284,6 @@ export default function PaperMapPage() {
                         </>
                       ),
                     )}
-                  </div>
-                  <div hidden={mode !== 'arguments'} className={styles.blocks}>
-                    {mode === 'arguments' && overview(['science', 'argument'], 'Arguments overview', batch)}
-                    {chips('arguments')}
-                    {issuesBlock('argIssues', ['claim', 'evidence'], mode === 'arguments')}
                     {block(
                       'gap',
                       mode === 'arguments' && openBlocks.includes('gap') && (
@@ -1342,6 +1354,27 @@ export default function PaperMapPage() {
                     {mode === 'writing' && overview(['discourse', 'writing'], 'Writing overview', batch)}
                     {chips('writing')}
                     {issuesBlock('writingIssues', ['writing'], mode === 'writing')}
+                    {block(
+                      'checks',
+                      mode === 'writing' && openBlocks.includes('checks') && (
+                        <>
+                          {errorBox('Không thể xử lý kiểm tra.')}
+                          <PaperChecks
+                            only={checkIds}
+                            paper={paper}
+                            record={checks}
+                            onRun={runChecks}
+                            onReview={(findingId, status) => {
+                              void repo.paperChecks
+                                .review(paper.id, findingId, status)
+                                .then(setChecks)
+                                .catch((cause: unknown) => setError(String(cause)));
+                            }}
+                            onLocation={openLocation}
+                          />
+                        </>
+                      ),
+                    )}
                     {block(
                       'batch',
                       <>

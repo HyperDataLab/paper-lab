@@ -30,9 +30,12 @@ const LABELS: Record<SnapshotField, string> = {
 export function PaperSnapshot({
   paper,
   onLocation,
+  compact = false,
 }: {
   paper: Paper;
   onLocation: (location: Finding['locations'][number]) => void;
+  /** The facts alone, as a strip above the summary; the summary's button makes them. */
+  compact?: boolean;
 }) {
   const repo = useRepositories();
   const notifyStoredChanged = useStoredChanged();
@@ -94,6 +97,55 @@ export function PaperSnapshot({
     ready: loaded,
     start,
   });
+  if (compact) {
+    const shown = (run?.values ?? []).filter(
+      (item) => item.status === 'reported' && states.get(item.id) !== 'dismissed',
+    );
+    if (running && !run) return <p role="status">Đang trích Key facts…</p>;
+    if (shown.length === 0) return error ? <p role="alert">{error}</p> : null;
+    return (
+      <section className={styles.strip} aria-label="Key facts">
+        <dl>
+          {shown.map((item) => (
+            <div key={item.id} className={styles.fact}>
+              <dt>{LABELS[item.field]}</dt>
+              <dd>
+                <span>{item.value}</span>
+                {item.source && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={styles.page}
+                    title={item.source.excerpt}
+                    onClick={() =>
+                      item.source &&
+                      onLocation({
+                        paragraphId: item.source.paragraphId,
+                        start: item.source.start,
+                        end: item.source.end,
+                      })
+                    }
+                  >
+                    {item.source.page ? `Tr. ${item.source.page}` : 'Câu gốc'}
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={styles.page}
+                  aria-label={`Bác bỏ ${LABELS[item.field]}`}
+                  title="Bác bỏ giá trị này"
+                  onClick={() => decide(item.id, 'dismiss')}
+                >
+                  ×
+                </Button>
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+    );
+  }
   return (
     <Card>
       <h2>Snapshot</h2>

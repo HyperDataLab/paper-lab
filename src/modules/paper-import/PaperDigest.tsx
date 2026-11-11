@@ -24,9 +24,12 @@ const FLAGS = {
 export function PaperDigest({
   paper,
   onLocation,
+  onStart,
 }: {
   paper: Paper;
   onLocation: (location: FindingLocation) => void;
+  /** Called once consent is given, so the key facts above are made by the same press. */
+  onStart?: () => void;
 }) {
   const repo = useRepositories();
   const llm = useLlm();
@@ -53,6 +56,7 @@ export function PaperDigest({
     setError('');
     try {
       if (!(await llm.ensureConsent('paper'))) return;
+      onStart?.();
       const result = await llmDigest(llm.client, paper, { config: llm.config });
       setRecord(await repo.paperInsights.saveDigestRun(paper.id, result));
       notifyStoredChanged();
@@ -104,7 +108,7 @@ export function PaperDigest({
           <Button variant="primary" disabled={running} onClick={() => void start()}>
             {running ? 'Đang tóm tắt…' : 'Tóm tắt bài (AI)'}
           </Button>
-          <span className={styles.note}>Ước tính 1 lượt gọi AI.</span>
+          <span className={styles.note}>Ước tính 2 lượt gọi AI: bản tóm tắt và Key facts.</span>
           {running && <span role="status">Đang đọc và tóm tắt bài…</span>}
           {error && <p role="alert">{error}</p>}
         </div>
