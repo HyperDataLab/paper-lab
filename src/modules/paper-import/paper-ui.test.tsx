@@ -61,8 +61,9 @@ it('imports a paper, persists and audits role edits, then prefills Evaluate', as
 it('requires confirmation before deleting a paper', async () => {
   const repo = setup();
   await importPaper();
-  fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Writing style/ }));
+  const openCoherence0 = screen.queryByRole('button', { name: 'Mở Coherence & sentences' });
+  if (openCoherence0) fireEvent.click(openCoherence0);
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   fireEvent.click(screen.getByRole('link', { name: /Bài báo đã nhập/ }));
   await screen.findByRole('link', { name: 'study' });
@@ -102,8 +103,9 @@ it('P2 estimates selected calls, asks manuscript consent and opens a completed a
     </MemoryRouter>,
   );
   await importPaper();
-  fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Writing style/ }));
+  const openCoherence1 = screen.queryByRole('button', { name: 'Mở Coherence & sentences' });
+  if (openCoherence1) fireEvent.click(openCoherence1);
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   // Sections and AI steps are preselected; the test narrows them to one paragraph and one step.
   fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn' }));
@@ -165,8 +167,9 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   );
   const view = render(tree('/papers'));
   await importPaper();
-  fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Writing style/ }));
+  const openCoherence2 = screen.queryByRole('button', { name: 'Mở Coherence & sentences' });
+  if (openCoherence2) fireEvent.click(openCoherence2);
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
@@ -191,8 +194,9 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   await repo.paperRuns.save({ ...run, status: 'running' });
   view.unmount();
   render(tree(`/papers/${paper.id}`));
-  fireEvent.click(await screen.findByRole('button', { name: /^Writing style/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(await screen.findByRole('tab', { name: /^Writing style/ }));
+  const openCoherence3 = screen.queryByRole('button', { name: 'Mở Coherence & sentences' });
+  if (openCoherence3) fireEvent.click(openCoherence3);
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   expect(await screen.findByRole('button', { name: 'Tiếp tục chạy' })).toBeInTheDocument();
   expect((await repo.paperRuns.get(run.id))?.status).toBe('paused');
@@ -214,8 +218,9 @@ it('P2 increases a budget on the same run when resuming', async () => {
     </MemoryRouter>,
   );
   await importPaper();
-  fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Writing style/ }));
+  const openCoherence4 = screen.queryByRole('button', { name: 'Mở Coherence & sentences' });
+  if (openCoherence4) fireEvent.click(openCoherence4);
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   const paper = (await repo.papers.list())[0];
   if (!paper) throw new Error('missing paper');
@@ -262,8 +267,9 @@ it('P2 increases a budget on the same run when resuming', async () => {
       </StorageProvider>
     </MemoryRouter>,
   );
-  fireEvent.click(await screen.findByRole('button', { name: /^Writing style/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(await screen.findByRole('tab', { name: /^Writing style/ }));
+  const openCoherence5 = screen.queryByRole('button', { name: 'Mở Coherence & sentences' });
+  if (openCoherence5) fireEvent.click(openCoherence5);
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   // The field moves once the paused run has loaded, so wait for that before typing.
   const resume = await screen.findByRole('button', { name: 'Tiếp tục chạy' });
@@ -307,8 +313,9 @@ it('P2 pauses after the current call and resumes the remaining step', async () =
     </MemoryRouter>,
   );
   await importPaper();
-  fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Writing style/ }));
+  const openCoherence6 = screen.queryByRole('button', { name: 'Mở Coherence & sentences' });
+  if (openCoherence6) fireEvent.click(openCoherence6);
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
@@ -383,8 +390,8 @@ it('R1 an old view link opens its block in the new three-mode page, and an analy
       </StorageProvider>
     </MemoryRouter>,
   );
-  expect(await screen.findByRole('tab', { name: 'Arguments' })).toHaveAttribute('aria-selected', 'true');
-  expect(within(screen.getByRole('tablist', { name: 'Bài báo' })).getAllByRole('tab')).toHaveLength(5);
+  expect(await screen.findByRole('tab', { name: /^Arguments/ })).toHaveAttribute('aria-selected', 'true');
+  expect(within(screen.getByRole('tablist', { name: 'Bài báo' })).getAllByRole('tab')).toHaveLength(4);
   const block = screen.getByRole('region', { name: 'Claims & reasoning' });
   expect(within(block).getByRole('button', { name: 'Thu gọn Claims & reasoning' })).toHaveAttribute(
     'aria-expanded',

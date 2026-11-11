@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { paperIdentity } from '@/core/paperIdentity';
-import { type Paper, type Section, type Finding, type PaperChecksRecord } from '@/core/schemas';
+import {
+  type Paper,
+  type Section,
+  type Finding,
+  type PaperChecksRecord,
+  type PaperMetadata as Metadata,
+} from '@/core/schemas';
 import { runPaperChecks } from '@/core/paperChecks';
 import {
   collectFindings,
@@ -49,9 +55,9 @@ import {
 import { RunAllCard } from './RunAllCard';
 import { FindingsList } from './FindingsList';
 import { PaperSummary } from './PaperSummary';
-import { CriterionMark, SectionBlock, type BlockStatus } from './SectionBlock';
+import { SectionBlock, type BlockStatus } from './SectionBlock';
 import type { Criterion } from './criteria';
-import { Chip } from '@/shared/ui/Chip';
+import { Drawer } from '@/shared/ui/Drawer';
 import { BatchPanel } from './BatchPanel';
 import { useBatchRun } from './useBatchRun';
 import { PaperOverview } from './PaperOverview';
@@ -284,7 +290,6 @@ const PANES: { id: Pane; label: string }[] = [
 const MODES: { id: Mode; label: string }[] = [
   { id: 'issues', label: 'Issues' },
   { id: 'citations', label: 'Citations' },
-  { id: 'info', label: 'Paper info' },
 ];
 const SPACES: { id: Space; label: string }[] = [
   { id: 'arguments', label: 'Arguments' },
@@ -367,7 +372,7 @@ const modeOf = (view: ViewId): Mode => {
   return isPane(place) ? 'issues' : place;
 };
 
-const WIDE = '(min-width: 1280px)';
+const WIDE = '(min-width: 1024px)';
 /** True on screens wide enough to show the paper and its analysis as two columns. */
 function useWide() {
   const [wide, setWide] = useState(
@@ -543,12 +548,15 @@ export default function PaperMapPage() {
   const [checks, setChecks] = useState<PaperChecksRecord>();
   const [highlight, setHighlight] = useState<Finding['locations'][number] | null>(null);
   const [shownTitle, setShownTitle] = useState<string | null>(null);
+  const [metadata, setMetadata] = useState<Metadata | null>(null);
+  const [infoOpen, setInfoOpen] = useState(false);
   // What the analyses have stored, read again whenever one of them finishes or a decision is made here.
   const [stored, setStored] = useState<Omit<FindingInputs, 'paper' | 'checks'>>({});
   const [storedTick, setStoredTick] = useState(0);
   const notifyStoredChanged = useCallback(() => setStoredTick((tick) => tick + 1), []);
   const [layers, setLayers] = useState<Criterion[]>(['claim', 'evidence', 'context']);
   const [focusFinding, setFocusFinding] = useState<string | null>(null);
+  const [markDrawer, setMarkDrawer] = useState<string | null>(null);
   const [pdfTarget, setPdfTarget] = useState<PdfTarget | null>(null);
   const wide = useWide();
   const [splitWanted, setSplitWanted] = useState(readSplit);
@@ -641,7 +649,10 @@ export default function PaperMapPage() {
           void repo.paperContext
             .get(value.id)
             .then((context) => {
-              if (active) setShownTitle(paperIdentity(value, { metadata: context?.metadata }).title);
+              if (active) {
+                setShownTitle(paperIdentity(value, { metadata: context?.metadata }).title);
+                setMetadata(context?.metadata ?? null);
+              }
             })
             .catch(() => undefined);
         // A link from a grounded citation (?p=&s=&e=) opens the reader on that passage.
@@ -872,11 +883,14 @@ export default function PaperMapPage() {
   /** A mark on the paper opens the finding it stands for, or the block that described it. */
   const openMark = (mark: PaperMark) => {
     if (!mark.findingId) return setTab(mark.view as ViewId);
+    if (!wide) {
+      setMarkDrawer(mark.findingId);
+      return;
+    }
     setFocusFinding(mark.findingId);
     setTab('issues');
-    if (!wide) setFocus('right');
     // With the analysis hidden the finding would open out of sight: show the column again.
-    else if (!splitWanted) toggleSplit();
+    if (!splitWanted) toggleSplit();
   };
   const sectionLabel = (sectionId: string) =>
     paper.sections.find((section) => section.id === sectionId)?.heading ?? sectionId;
@@ -959,17 +973,6 @@ export default function PaperMapPage() {
       </SectionBlock>
     );
   };
-  /** Jump chips for the blocks of a mode: one press opens the block and scrolls to it. */
-  const chips = (target: Place) => (
-    <div className={styles.blockChips} role="group" aria-label="Jump to">
-      {blocksIn(target).map((id) => (
-        <Chip key={id} aria-pressed={openBlocks.includes(id)} onClick={() => setTab(viewOf(id))}>
-          <CriterionMark criterion={BLOCKS[id].criterion} />
-          {BLOCKS[id].title}
-        </Chip>
-      ))}
-    </div>
-  );
   const errorBox = (title: string) =>
     error && (
       <div role="alert">
@@ -990,17 +993,6 @@ export default function PaperMapPage() {
       {item.label}
     </Button>
   );
-  const claimCount = marks.filter((item) => item.criterion === 'claim').length;
-  const evidenceCount = marks.filter((item) => item.criterion === 'evidence').length;
-  const writingCount = marks.filter((item) => item.criterion === 'writing').length;
-  const SPACE_LINE: Record<Space, string> = {
-    arguments:
-      claimCount + evidenceCount > 0
-        ? `${claimCount} claims · ${evidenceCount} evidence`
-        : 'Luận điểm, bằng chứng, Toulmin, AIF',
-    data: 'Columns',
-    writing: writingCount > 0 ? `${writingCount} ghi chú về cách viết` : 'Cấu trúc, mạch, câu chữ, giọng văn',
-  };
   const openSpace = (space: Space) => {
     // The parts that cost nothing are open on arrival.
     const free: BlockId[] = space === 'arguments' ? ['gap', 'mainClaims', 'atomics'] : ['vocabulary'];
@@ -1046,16 +1038,6 @@ export default function PaperMapPage() {
       label={label}
     />
   );
-  const spaceEntries = (
-    <nav className={styles.spaces} aria-label="Spaces">
-      {SPACES.map((item) => (
-        <Button key={item.id} className={styles.spaceEntry} onClick={() => openSpace(item.id)}>
-          <span className={styles.spaceName}>{item.label} →</span>
-          <span className={styles.spaceLine}>{SPACE_LINE[item.id]}</span>
-        </Button>
-      ))}
-    </nav>
-  );
   const modeTab = (item: { id: Mode; label: string }) => (
     <Button
       key={item.id}
@@ -1080,18 +1062,100 @@ export default function PaperMapPage() {
           <div className={styles.row}>
             {wide && (
               <Button size="sm" aria-pressed={!splitWanted} onClick={toggleSplit}>
-                Ẩn phân tích
+                {splitWanted ? 'Ẩn phân tích' : 'Hiện phân tích'}
               </Button>
             )}
-            <Transparency paper={paper} />
+            <Transparency
+              paper={paper}
+              parserCounts={`${paper.source.pageCount ?? 'Không rõ'} trang · ${paper.sections.length} mục · ${bodyCount} đoạn nội dung${counts ? ` · ${counts.sentences} câu · ${counts.words} từ` : ''}`}
+            />
+            <Button size="sm" onClick={() => setInfoOpen(true)}>
+              Thông tin xuất bản
+            </Button>
           </div>
         </div>
         <p className={styles.paperMeta}>
-          {paper.source.pageCount ?? 'Không rõ'} trang · {paper.sections.length} mục · {bodyCount} đoạn nội
-          dung
-          {counts ? ` · ${counts.sentences} câu · ${counts.words} từ` : ''}
+          {[
+            metadata?.authors[0] && `${metadata.authors[0]}${metadata.authors.length > 1 ? ' et al.' : ''}`,
+            metadata?.venue,
+            metadata?.year,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+          {metadata?.doi && (
+            <>
+              {' '}
+              ·{' '}
+              <a href={`https://doi.org/${metadata.doi}`} target="_blank" rel="noreferrer">
+                DOI↗
+              </a>
+            </>
+          )}
         </p>
       </header>
+      <div className={styles.spaceTabs}>
+        <Tabs label="Spaces">
+          <Button role="tab" aria-selected={!inSpace} onClick={() => setTab('map')}>
+            Bài báo
+          </Button>
+          {SPACES.map((item) => {
+            const count = findings.filter((finding) =>
+              item.id === 'arguments'
+                ? finding.criterion === 'claim' || finding.criterion === 'evidence'
+                : item.id === 'writing' && finding.criterion === 'writing',
+            ).length;
+            return (
+              <Button
+                key={item.id}
+                role="tab"
+                aria-selected={mode === item.id}
+                onClick={() => openSpace(item.id)}
+              >
+                {item.label}
+                {item.id !== 'data' && ` · ${count} issues`}
+              </Button>
+            );
+          })}
+        </Tabs>
+      </div>
+      <Drawer
+        open={infoOpen}
+        onClose={() => {
+          setInfoOpen(false);
+          void repo.paperContext.get(paper.id).then((context) => setMetadata(context?.metadata ?? null));
+        }}
+        side="right"
+        label="Thông tin xuất bản"
+      >
+        <Button
+          onClick={() => {
+            setInfoOpen(false);
+            void repo.paperContext.get(paper.id).then((context) => setMetadata(context?.metadata ?? null));
+          }}
+        >
+          Đóng
+        </Button>
+        {infoOpen && <PaperMetadata paper={paper} />}
+      </Drawer>
+      <Drawer open={markDrawer !== null} onClose={() => setMarkDrawer(null)} side="right" label="Issue">
+        <Button onClick={() => setMarkDrawer(null)}>Đóng</Button>
+        {markDrawer && (
+          <FindingsList
+            paper={paper}
+            findings={findings.filter((finding) => finding.id === markDrawer)}
+            focusId={markDrawer}
+            onLocation={(location) => {
+              setMarkDrawer(null);
+              openLocation(location);
+            }}
+            onOpenSource={(view) => {
+              setMarkDrawer(null);
+              setTab(view as ViewId);
+            }}
+            onDecide={decide}
+          />
+        )}
+      </Drawer>
       <StoredChangedContext.Provider value={notifyStoredChanged}>
         <BatchWorkspace paper={paper}>
           {(batch) => (
@@ -1103,16 +1167,6 @@ export default function PaperMapPage() {
                     <span className={styles.tabDivider} aria-hidden="true" />
                     {MODES.map(modeTab)}
                   </Tabs>
-                  {/* While the paper shows, the right column is hidden: the spaces stay one press away. */}
-                  {focus === 'centre' && !inSpace && (
-                    <div className={styles.spaceLinks}>
-                      {SPACES.map((item) => (
-                        <Button key={item.id} size="sm" variant="ghost" onClick={() => openSpace(item.id)}>
-                          {item.label} →
-                        </Button>
-                      ))}
-                    </div>
-                  )}
                 </div>
               )}
               {elsewhere.length > 0 && (
@@ -1253,22 +1307,9 @@ export default function PaperMapPage() {
                         ← Quay lại bài
                       </Button>
                       <h2>{SPACES.find((item) => item.id === mode)?.label}</h2>
-                      <Tabs label="Spaces">
-                        {SPACES.map((item) => (
-                          <Button
-                            key={item.id}
-                            role="tab"
-                            aria-selected={mode === item.id}
-                            onClick={() => openSpace(item.id)}
-                          >
-                            {item.label}
-                          </Button>
-                        ))}
-                      </Tabs>
                     </div>
                   ) : (
                     <>
-                      {spaceEntries}
                       {wide && (
                         <div className={styles.columnTabs}>
                           <Tabs label="Analysis">{MODES.map(modeTab)}</Tabs>
@@ -1290,14 +1331,13 @@ export default function PaperMapPage() {
                     )}
                   </div>
                   <div hidden={mode !== 'citations'} className={styles.blocks}>
-                    {mode === 'citations' && overview(['context'], 'Context overview', batch)}
+                    {issuesBlock('citationIssues', ['context'], mode === 'citations')}
                     {block(
                       'references',
                       mode === 'citations' && openBlocks.includes('references') && (
                         <PaperReferences paper={paper} onLocation={openLocation} />
                       ),
                     )}
-                    {issuesBlock('citationIssues', ['context'], mode === 'citations')}
                     {block(
                       'citationChecks',
                       mode === 'citations' && openBlocks.includes('citationChecks') && (
@@ -1316,6 +1356,7 @@ export default function PaperMapPage() {
                         />
                       ),
                     )}
+                    {mode === 'citations' && overview(['context'], 'Context overview', batch)}
                   </div>
                   <div hidden={mode !== 'info'} className={styles.blocks}>
                     {block(
@@ -1326,7 +1367,6 @@ export default function PaperMapPage() {
                   {mode === 'data' && <PaperDataTable paper={paper} />}
                   <div hidden={mode !== 'arguments'} className={styles.blocks}>
                     {mode === 'arguments' && overview(['science', 'argument'], 'Arguments overview', batch)}
-                    {chips('arguments')}
                     {issuesBlock('argIssues', ['claim', 'evidence'], mode === 'arguments')}
                     {block(
                       'argChecks',
@@ -1417,7 +1457,6 @@ export default function PaperMapPage() {
                   </div>
                   <div hidden={mode !== 'writing'} className={styles.blocks}>
                     {mode === 'writing' && overview(['discourse', 'writing'], 'Writing overview', batch)}
-                    {chips('writing')}
                     {issuesBlock('writingIssues', ['writing'], mode === 'writing')}
                     {block(
                       'checks',

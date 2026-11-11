@@ -90,6 +90,12 @@
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
+.spaceTabs {
+  position: sticky;
+  top: var(--header-height);
+  z-index: 4;
+  background: var(--surface);
+}
 .paperTabs {
   position: sticky;
   top: var(--header-height);
@@ -934,12 +940,12 @@ mark.textMark {
 }
 .column {
   position: sticky;
-  top: var(--space-2);
+  top: calc(var(--header-height) + 3rem);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--space-3);
-  max-height: calc(100vh - var(--space-4));
+  max-height: calc(100vh - var(--header-height) - 3rem);
   overflow-y: auto;
   padding: 0 var(--space-3) var(--space-4);
   background: var(--surface);

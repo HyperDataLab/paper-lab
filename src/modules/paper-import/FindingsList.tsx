@@ -57,6 +57,7 @@ export function FindingsList({
     chosen ??
     (findings.some((item) => item.criterion !== 'writing') ? ids.filter((id) => id !== 'writing') : ids);
   const [limit, setLimit] = useState(PAGE);
+  const [byPage, setByPage] = useState(false);
   const [applied, setApplied] = useState<string | null>(null);
   if (focusId && focusId !== applied) {
     setApplied(focusId);
@@ -76,7 +77,10 @@ export function FindingsList({
     .filter(({ item }) => criteria.includes(item.criterion))
     .sort(
       (a, b) =>
-        group(a.item) - group(b.item) ||
+        (byPage
+          ? (paper.paragraphs.find((p) => p.id === a.item.locations[0]?.paragraphId)?.pageStart ?? Infinity) -
+            (paper.paragraphs.find((p) => p.id === b.item.locations[0]?.paragraphId)?.pageStart ?? Infinity)
+          : group(a.item) - group(b.item)) ||
         SEVERITY_RANK[a.item.severity] - SEVERITY_RANK[b.item.severity] ||
         a.position - b.position,
     )
@@ -94,7 +98,7 @@ export function FindingsList({
   const visible = shown.slice(0, limit);
   return (
     <section className={styles.findings} aria-label="Issues">
-      {ids.length > 1 && (
+      {
         <div className={styles.blockChips} role="group" aria-label="Filter by criterion">
           {ids.map((id) => (
             <Chip
@@ -107,8 +111,11 @@ export function FindingsList({
               {CRITERIA[id].label}
             </Chip>
           ))}
+          <Chip aria-pressed={byPage} onClick={() => setByPage(!byPage)}>
+            Theo trang
+          </Chip>
         </div>
-      )}
+      }
       {shown.length === 0 && <Empty title="Không có phát hiện nào khớp bộ lọc." hint="Bật thêm tiêu chí." />}
       {visible.map((finding, index) => {
         const first = finding.locations[0];
@@ -119,7 +126,8 @@ export function FindingsList({
           (index === 0 || previous?.criterion !== finding.criterion) &&
           entry &&
           // A list about one kind of problem needs no heading for it.
-          ids.length > 1 ? (
+          ids.length > 1 &&
+          !byPage ? (
             <>
               <CriterionMark criterion={entry.id} /> {entry.label}{' '}
               <span className={styles.groupCount}>{groupCount(entry.id)}</span>

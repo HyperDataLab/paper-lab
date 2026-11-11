@@ -357,3 +357,7 @@ venue, volume, issue, pages, DOI, keywords separated by commas, and authors one 
 beside it. Under the table a quiet "Paper model" block gives one line of counts ("N câu · M tài liệu tham khảo")
 and "Tải paper-model.json", which downloads the whole model with today's rhetoric and stance labels and their
 review state.
+
+The paper header offers a switch between Bài báo, Arguments, Writing style and Data table. Arguments and Writing
+style show issue counts. Publication details open from the header, and the line beneath the title shows stored
+authors, venue, year and DOI. Parser counts belong in Minh bạch.

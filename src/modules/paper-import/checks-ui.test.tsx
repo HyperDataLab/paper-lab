@@ -65,7 +65,7 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
   );
   // Figures & tables is a check about writing: it lives in the Writing style space, and runs on open.
   const openChecks = () => {
-    const entry = screen.queryAllByRole('button', { name: /^Writing style/ })[0];
+    const entry = screen.queryAllByRole('tab', { name: /^Writing style/ })[0];
     if (entry) fireEvent.click(entry);
     const fold = screen.queryByRole('button', { name: 'Mở Automated checks' });
     if (fold) fireEvent.click(fold);
@@ -254,9 +254,10 @@ it('R7 on a wide screen the paper is the centre column beside the analysis, and 
     within(screen.getByRole('tablist', { name: 'Analysis' }))
       .getAllByRole('tab')
       .map((tab) => tab.textContent),
-  ).toEqual(['Issues', 'Citations', 'Paper info']);
-  fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  ).toEqual(['Issues', 'Citations']);
+  fireEvent.click(screen.getByRole('tab', { name: /^Writing style/ }));
+  const openCoherence0 = screen.queryByRole('button', { name: 'Mở Coherence & sentences' });
+  if (openCoherence0) fireEvent.click(openCoherence0);
   fireEvent.click(screen.getByRole('radio', { name: 'Paragraph structure & flow' }));
   // A space takes the whole width; going back shows the paper beside the right column again.
   expect(document.querySelector('section[aria-label="Paper"]')).not.toBeVisible();

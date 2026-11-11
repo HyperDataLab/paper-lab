@@ -58,7 +58,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-it('R7 an old view link opens its tab on the right while the paper stays in the centre, and what needs review is announced', async () => {
+it('R15 the page switch keeps every space reachable and the split label follows its state', async () => {
   const repo = createRepositories(createDb(`columns-${crypto.randomUUID()}`));
   await repo.papers.create(paper);
   await repo.paperChecks.save({
@@ -80,7 +80,7 @@ it('R7 an old view link opens its tab on the right while the paper stays in the 
   );
   // A Toulmin link opens the Arguments space, full width, with a way back to the paper.
   const spaces = await screen.findByRole('tablist', { name: 'Spaces' });
-  expect(within(spaces).getByRole('tab', { name: 'Arguments' })).toHaveAttribute('aria-selected', 'true');
+  expect(within(spaces).getByRole('tab', { name: /^Arguments/ })).toHaveAttribute('aria-selected', 'true');
   expect(document.querySelector('section[aria-label="Paper"]')).not.toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: '← Quay lại bài' }));
   const centre = await screen.findByRole('tablist', { name: 'Paper' });
@@ -90,11 +90,12 @@ it('R7 an old view link opens its tab on the right while the paper stays in the 
     within(right)
       .getAllByRole('tab')
       .map((tab) => tab.textContent?.replace(/\d+$/, '')),
-  ).toEqual(['Issues', 'Citations', 'Paper info']);
-  // Both spaces are entered from above the right column's tabs.
-  const entries = screen.getByRole('navigation', { name: 'Spaces' });
-  expect(within(entries).getByRole('button', { name: /^Arguments/ })).toBeInTheDocument();
-  expect(within(entries).getByRole('button', { name: /^Writing style/ })).toBeInTheDocument();
+  ).toEqual(['Issues', 'Citations']);
+  expect(within(spaces).getByRole('tab', { name: /^Writing style/ })).toBeInTheDocument();
+  expect(within(spaces).getByRole('tab', { name: 'Data table' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Ẩn phân tích' }));
+  expect(screen.getByRole('button', { name: 'Hiện phân tích' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Hiện phân tích' }));
   // Results are accepted by default, so nothing announces a queue to review.
   fireEvent.click(within(right).getByRole('tab', { name: 'Issues' }));
   expect(within(right).getByRole('tab', { name: 'Issues' })).toHaveTextContent(/^Issues$/);
@@ -105,6 +106,40 @@ it('R7 an old view link opens its tab on the right while the paper stays in the 
   expect(screen.queryByText(/Mọi phát hiện về bài ở một chỗ/)).toBeNull();
   expect(within(issues).queryByRole('group', { name: 'Filter by status' })).toBeNull();
   expect(within(issues).queryByText('Sections × criteria')).toBeNull();
+});
+
+it('R15 Theo trang sorts findings by their source page', () => {
+  const locatedPaper = { ...paper, paragraphs: paper.paragraphs.map((p, i) => ({ ...p, pageStart: i + 1 })) };
+  const finding = (id: string, paragraphId: string): PaperFinding => ({
+    id,
+    source: 'checks',
+    criterion: 'claim',
+    title: id,
+    code: null,
+    reason: null,
+    locations: [{ paragraphId, start: 0, end: 1 }],
+    sectionId: null,
+    severity: 'low',
+    origin: 'rule',
+    status: 'open',
+    view: 'science-checks',
+  });
+  render(
+    <FindingsList
+      paper={locatedPaper}
+      findings={[finding('Second', 'p2'), finding('First', 'p1')]}
+      focusId={null}
+      onLocation={vi.fn()}
+      onOpenSource={vi.fn()}
+      onDecide={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Theo trang' }));
+  expect(
+    [...screen.getByRole('region', { name: 'Issues' }).querySelectorAll('article strong')].map(
+      (node) => node.textContent,
+    ),
+  ).toEqual(['First', 'Second']);
 });
 
 it('R7 issues are grouped by type of problem, the most severe first, with rejections counted', () => {
@@ -193,16 +228,16 @@ it('R11 each space lists the issues of its own criteria, accepted until rejected
     </MemoryRouter>,
   );
   // The rule check found a figure that is cited but has no caption: an Evidence issue.
-  fireEvent.click(await screen.findByRole('button', { name: /^Arguments/ }));
+  fireEvent.click(await screen.findByRole('tab', { name: /^Arguments/ }));
   fireEvent.click(await screen.findByRole('button', { name: 'Mở Issues (1)' }));
   const list = screen.getByRole('region', { name: 'Issues' });
   expect(
     within(within(list).getByRole('group', { name: 'Filter by criterion' }))
       .getAllByRole('button')
       .map((chip) => chip.textContent),
-  ).toEqual(['CClaims (0)', 'EEvidence (1)']);
+  ).toEqual(['CClaims (0)', 'EEvidence (1)', 'Theo trang']);
   expect(within(list).getByRole('button', { name: 'Bác bỏ' })).toBeInTheDocument();
   // The Writing space has no writing issue yet.
-  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Writing style/ }));
   expect(await screen.findByRole('button', { name: 'Mở Issues (0)' })).toBeInTheDocument();
 });

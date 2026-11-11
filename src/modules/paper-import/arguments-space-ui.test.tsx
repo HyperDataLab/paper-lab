@@ -98,22 +98,33 @@ it('R10b the Arguments space opens on gap, claims and atomic sentences, ahead of
       </StorageProvider>
     </MemoryRouter>,
   );
-  fireEvent.click(await screen.findByRole('button', { name: 'Arguments →' }));
-  const jump = screen.getByRole('group', { name: 'Jump to' });
+  fireEvent.click(await screen.findByRole('tab', { name: /^Arguments/ }));
+  expect(screen.queryByRole('group', { name: 'Jump to' })).not.toBeInTheDocument();
   expect(
-    within(jump)
-      .getAllByRole('button')
-      .map((chip) => chip.textContent?.slice(1)),
+    screen
+      .getAllByRole('region')
+      .map((region) => region.getAttribute('aria-label'))
+      .filter(
+        (label) =>
+          label &&
+          [
+            'Research gap & contribution',
+            'Claims & grounds',
+            'Atomic sentences',
+            'Claims & reasoning',
+            'Evidence & measurement',
+            'Validity & rhetorical moves',
+            'AI peer review',
+          ].includes(label),
+      ),
   ).toEqual([
-    'Issues',
-    'Automated checks',
     'Research gap & contribution',
     'Claims & grounds',
     'Atomic sentences',
     'Claims & reasoning',
     'Evidence & measurement',
-    'Validity & rhetorical moves',
     'AI peer review',
+    'Validity & rhetorical moves',
   ]);
   expect(await screen.findByText('Accuracy is the share of correct predictions.')).toBeInTheDocument();
   // Parts with nothing stored yet say so and point to the analysis that fills them.
@@ -136,14 +147,14 @@ it('R10c the profile dimensions move from Summary into the spaces, and Writing s
   );
   fireEvent.click(await screen.findByRole('tab', { name: 'Summary' }));
   expect(screen.queryByRole('region', { name: 'Hồ sơ bài báo' })).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'Arguments →' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Arguments/ }));
   const args = await screen.findByRole('region', { name: 'Arguments overview' });
   expect(
     within(args)
       .getAllByRole('article')
       .map((card) => card.getAttribute('aria-label')),
   ).toEqual(['Khoa học và Tri thức', 'Lập luận']);
-  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Writing style/ }));
   const writing = await screen.findByRole('region', { name: 'Writing overview' });
   expect(within(writing).getAllByRole('article')).toHaveLength(2);
   expect(screen.getByRole('button', { name: 'Thu gọn Vocabulary & phrases' })).toHaveAttribute(

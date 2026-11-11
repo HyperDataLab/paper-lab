@@ -13,6 +13,10 @@ they belong.
 
 ## Decisions
 
+R15 implementation status: C1 (sticky space switch), A1 (split-toggle label), and E4.2 (Theo trang issue sort)
+are done. The other R15 rows remain open; parts of publication information, Citations, narrow-screen finding
+navigation and space cleanup have been implemented.
+
 | Id      | Part                       | Reviewer said                                                                                                              | Decision                                                                                                                                                                                                                                                                                            | Why                                                                                                                    | Pri | Slice |
 | ------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | --- | ----- |
 | E4.1    | Marks with analysis hidden | Pressing a PDF mark while "Ẩn phân tích" is on does nothing visible                                                        | **Accept.** Pressing a mark shows the right column again, then the finding                                                                                                                                                                                                                          | Verified: `openMark` never shows the column. A dead click                                                              | P1  | R14   |
