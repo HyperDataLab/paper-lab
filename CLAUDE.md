@@ -4,19 +4,22 @@
 
 The shared engineering rules above apply in full. This file adds Claude's role in this repo.
 
-## Roles: Codex develops, Claude tests and accepts
+## Roles (owner's decisions, 2026-11-11)
 
-- **Codex is the developer.** New features, fixes and refactors go to Codex through the Codex plugin
-  (`codex:codex-rescue` subagent / `/codex:rescue`). Each brief names: the PRD IDs (EV-xx, WR-xx, AC-xx), the files
-  and folders, the constraints from `AGENTS.md`, and a concrete definition of done with test names.
-- **Claude owns specs, docs and acceptance (nghiệm thu).** Claude may write and edit Markdown docs, ADRs,
-  `.github/` config and test fixtures, but not feature code. After Codex reports back, Claude:
-  1. Reviews `git status` / `git diff` against the brief, the PRD and the invariants. Codex's report is not proof.
-  2. Runs `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`.
-  3. Exercises the feature in the browser (`npm run dev`), with 9router via the dev proxy when AI is involved,
-     and checks the UI against `DESIGN.md`.
-  4. Accepts, or sends defects back to Codex with concrete failing inputs. Small mechanical fixes go back too.
-  5. Reports what passed, what failed and what was not verified; commits / opens the PR when asked.
+- **Codex first.** Implementation goes to Codex (`codex:codex-rescue` / the Codex companion) in its own worktree, with
+  a brief naming the PRD IDs, files, constraints from `AGENTS.md` and a definition of done with test names. When
+  Codex fails, stalls or is out of credits, a Claude Opus agent does the work from the same brief.
+- **Claude owns specs, docs, `.github/` and tooling, and acceptance (nghiệm thu).** After the developer reports:
+  1. Review `git status` / `git diff` against the brief, the PRD and the invariants. A report is not proof.
+  2. Run only cheap checks locally (`tsc -b`, `eslint`, `prettier --check`, the test files the change touched).
+     **Do not run the full test suite locally: push and let CI test.**
+  3. Exercise UI changes in the browser and check them against `DESIGN.md`.
+  4. Open the PR with a "Not verified" list, and merge only with `scripts/merge-when-green.sh <pr>`. Never pipe
+     `gh pr checks` into another command before a merge.
+  5. Report what passed, what failed and what was not verified.
+- **Deploy** only when the owner says "Deploy now", from a `main` commit whose CI run is green.
+- A red CI run that is not caused by the change (a flaky test) is still a defect: record it and fix it in its own PR;
+  do not merge over it.
 
 ## Working notes
 
