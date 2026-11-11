@@ -350,7 +350,7 @@ export function PdfViewer({
         </Button>
         {missing && (
           <p className={styles.missing} role="status">
-            Không tìm thấy đúng đoạn trong PDF; đã mở trang chứa đoạn. Xem chính xác ở Text.
+            Không tìm thấy đúng đoạn trong PDF; đã mở trang chứa đoạn.
           </p>
         )}
       </div>

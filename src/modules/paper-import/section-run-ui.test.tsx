@@ -60,7 +60,7 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-it('R6 a section run from the findings table reads only that section and keeps the other section and its decision', async () => {
+it('R6 a section run from the section menu of a block reads only that section and keeps the other section and its decision', async () => {
   const repo = createRepositories(createDb(`section-run-${crypto.randomUUID()}`));
   await repo.papers.create(paper);
   const config = getConfig();
@@ -104,7 +104,7 @@ it('R6 a section run from the findings table reads only that section and keeps t
     };
   });
   render(
-    <MemoryRouter initialEntries={[`/papers/${paper.id}?view=science-checks`]}>
+    <MemoryRouter initialEntries={[`/papers/${paper.id}?view=stance`]}>
       <StorageProvider repositories={repo}>
         <LlmProvider innerClient={{ completeJson } as unknown as LlmClient}>
           <Routes>
@@ -114,10 +114,9 @@ it('R6 a section run from the findings table reads only that section and keeps t
       </StorageProvider>
     </MemoryRouter>,
   );
-  const list = await screen.findByRole('region', { name: 'Issues' });
-  fireEvent.click(within(list).getByText('Sections × criteria'));
-  fireEvent.click(await within(list).findByRole('button', { name: 'Chạy cho mục Results: Writing' }));
-  fireEvent.click(await screen.findByRole('menuitem', { name: /^Stance & engagement cho mục này/ }));
+  const block = await screen.findByRole('region', { name: 'Stance & engagement' });
+  fireEvent.click(await within(block).findByRole('button', { name: 'Chạy cho một mục' }));
+  fireEvent.click(await screen.findByRole('menuitem', { name: /^Results/ }));
 
   await waitFor(async () => expect((await repo.stance.get(paper.id))?.runs).toHaveLength(2));
   // Only the Results section was sent to the model.

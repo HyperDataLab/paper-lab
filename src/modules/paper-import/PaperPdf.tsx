@@ -1,4 +1,13 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from 'react';
 import type { Paper } from '@/core/schemas';
 import { useAuth } from '@/shared/auth/authContext';
 import { paperSha, pdfRemote, sha256Hex } from '@/shared/pdfStore';
@@ -26,11 +35,14 @@ export function PaperPdf({
   target,
   marks,
   onMark,
+  fallback,
 }: {
   paper: Paper;
   target: PdfTarget | null;
   marks?: PdfMark[];
   onMark?: (id: string) => void;
+  /** The parsed text, shown under the attach box while the PDF is not on this machine or in the lab. */
+  fallback?: ReactNode;
 }) {
   const repo = useRepositories();
   const { user, getIdToken, signIn } = useAuth();
@@ -118,33 +130,36 @@ export function PaperPdf({
   if (state.kind === 'loading') return <Loading label="Đang tìm PDF…" />;
   if (state.kind === 'missing')
     return (
-      <div className={styles.attach}>
-        <p>{state.reason}</p>
-        {sha && (
-          <>
-            <input
-              ref={picker}
-              type="file"
-              accept="application/pdf,.pdf"
-              className={styles.hidden}
-              aria-label="Chọn PDF gốc"
-              onChange={(event) => void attach(event)}
-            />
-            <Button variant="primary" onClick={() => picker.current?.click()}>
-              Gắn PDF gốc
+      <>
+        <div className={styles.attach}>
+          <p>{state.reason}</p>
+          {sha && (
+            <>
+              <input
+                ref={picker}
+                type="file"
+                accept="application/pdf,.pdf"
+                className={styles.hidden}
+                aria-label="Chọn PDF gốc"
+                onChange={(event) => void attach(event)}
+              />
+              <Button variant="primary" onClick={() => picker.current?.click()}>
+                Gắn PDF gốc
+              </Button>
+              <p className={styles.note}>
+                Chọn đúng tệp đã dùng để nhập bài; app kiểm tra để không gắn nhầm bản khác.
+              </p>
+            </>
+          )}
+          {!user && (
+            <Button variant="ghost" onClick={() => void signIn()}>
+              Đăng nhập lab
             </Button>
-            <p className={styles.note}>
-              Chọn đúng tệp đã dùng để nhập bài; app kiểm tra để không gắn nhầm bản khác.
-            </p>
-          </>
-        )}
-        {!user && (
-          <Button variant="ghost" onClick={() => void signIn()}>
-            Đăng nhập lab
-          </Button>
-        )}
-        {message && <p role="alert">{message}</p>}
-      </div>
+          )}
+          {message && <p role="alert">{message}</p>}
+        </div>
+        {fallback}
+      </>
     );
   return (
     <>

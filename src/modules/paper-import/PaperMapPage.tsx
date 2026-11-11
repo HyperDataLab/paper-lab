@@ -29,10 +29,8 @@ import { PaperProbe } from './PaperProbe';
 import { PaperReader } from './PaperReader';
 import { PaperAtomics } from './PaperAtomics';
 import { PaperPdf } from './PaperPdf';
-import { LayerChips } from './ReaderMarks';
 import { pdfMarks, pdfNeedle } from './pdfMarks';
 import type { PdfTarget } from './PdfViewer';
-import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { PaperMeasurement } from './PaperMeasurement';
 import { PaperStance } from './PaperStance';
 import styles from './page.module.css';
@@ -73,6 +71,7 @@ type ViewId =
   | 'arguments-issues'
   | 'writing-issues'
   | 'citation-issues'
+  | 'issues'
   | ProfileView;
 /** The centre column holds the paper: its full text, or its summary. */
 type Pane = 'fulltext' | 'summary';
@@ -225,7 +224,7 @@ const BLOCKS: Record<
     views: [{ id: 'probe', label: 'Score robustness' }],
   },
   checks: {
-    place: 'issues',
+    place: 'info',
     title: 'Automated checks',
     criterion: 'evidence',
     views: [
@@ -247,7 +246,7 @@ const BLOCKS: Record<
     views: [{ id: 'context-checks', label: 'Citations ↔ references' }],
   },
   review: {
-    place: 'issues',
+    place: 'arguments',
     title: 'AI peer review',
     criterion: 'claim',
     job: 'review',
@@ -258,6 +257,7 @@ const BLOCK_IDS = Object.keys(BLOCKS) as BlockId[];
 const blockOf = (view: ViewId) => BLOCK_IDS.find((id) => BLOCKS[id].views.some((item) => item.id === view));
 /** Where a view opens: the centre column (full text or summary) or a tab of the right column. */
 const placeOf = (view: ViewId): Pane | Mode => {
+  if (view === 'issues') return 'issues';
   if (view === 'map') return 'fulltext';
   if (view === 'profile') return 'summary';
   const block = blockOf(view);
@@ -279,26 +279,10 @@ const SPACES: { id: Space; label: string }[] = [
   { id: 'writing', label: 'Writing style' },
 ];
 const isSpace = (mode: Mode): mode is Space => mode === 'arguments' || mode === 'writing';
-/** What a reader comes to each tab for, said once under the tab. */
-const PLACE_HELP: Record<Pane | Mode, string> = {
-  fulltext:
-    'Đọc bài gốc. Các đoạn được đánh dấu theo lớp; bấm vào chỗ đánh dấu để mở phát hiện hoặc phân tích tương ứng.',
-  summary:
-    'Nắm nhanh trước khi đọc kỹ: bài hỏi gì, đóng góp gì, làm thế nào, tìm ra gì và tự nhận giới hạn nào.',
-  arguments:
-    'Tác giả lập luận thế nào: luận điểm, bằng chứng, phép đo và giới hạn. Mỗi ý kèm câu trích để bạn kiểm.',
-  writing:
-    'Bài được viết ra sao: cấu trúc, mạch, câu chữ, giọng văn. Dùng để học cách viết, không phải để chấm bài.',
-  issues:
-    'Mọi phát hiện về bài ở một chỗ. Kết quả AI và quy tắc được chấp nhận mặc định; bạn bác bỏ những gì không đúng.',
-  citations:
-    'Bài trích dẫn những gì: danh sách tài liệu, độ mới, bài đã bị rút, và trích dẫn trong bài có khớp danh sách không.',
-  info: 'Thông tin về bài báo: nơi và năm xuất bản, tác giả, và các thông tin cốt lõi của nghiên cứu.',
-};
 const DEFAULT_VIEW: Record<Mode, ViewId> = {
   arguments: 'gap',
   writing: 'organization',
-  issues: 'science-checks',
+  issues: 'issues',
   citations: 'context-references',
   info: 'metadata',
 };
@@ -309,6 +293,7 @@ const CHECKS_OF: Partial<Record<ViewId, string[]>> = {
   'context-checks': ['citations_references'],
 };
 const VIEW_HELP: Record<ViewId, string> = {
+  issues: 'Mọi phát hiện về bài ở một chỗ.',
   'arguments-issues':
     'Phát hiện về luận điểm và bằng chứng của bài. Được chấp nhận mặc định; bác bỏ những gì không đúng.',
   'writing-issues': 'Phát hiện về cách viết của bài. Được chấp nhận mặc định; bác bỏ những gì không đúng.',
@@ -534,22 +519,6 @@ export default function PaperMapPage() {
   const notifyStoredChanged = useCallback(() => setStoredTick((tick) => tick + 1), []);
   const [layers, setLayers] = useState<Criterion[]>(['claim', 'evidence', 'context']);
   const [focusFinding, setFocusFinding] = useState<string | null>(null);
-  // Full text shows the original PDF, or the parsed text with its marks; the reader's choice is remembered.
-  const [fullView, setFullViewState] = useState<'pdf' | 'text'>(() => {
-    try {
-      return localStorage.getItem('paper-fulltext-view') === 'text' ? 'text' : 'pdf';
-    } catch {
-      return 'pdf';
-    }
-  });
-  const setFullView = (view: 'pdf' | 'text') => {
-    setFullViewState(view);
-    try {
-      localStorage.setItem('paper-fulltext-view', view);
-    } catch {
-      /* the choice then lasts for this visit only */
-    }
-  };
   const [pdfTarget, setPdfTarget] = useState<PdfTarget | null>(null);
   const wide = useWide();
   const [splitWanted, setSplitWanted] = useState(readSplit);
@@ -558,8 +527,20 @@ export default function PaperMapPage() {
     if (id)
       void repo.paperChecks
         .get(id)
-        .then((value) => {
-          if (active) setChecks(value);
+        .then(async (value) => {
+          if (!active) return;
+          if (value) return setChecks(value);
+          // Nothing checked yet: the rule checks use no AI, so they run on their own when the paper opens.
+          const stored = await repo.papers.get(id);
+          if (!stored || !active) return;
+          const saved = await repo.paperChecks.save({
+            schemaVersion: 1,
+            paperId: stored.id,
+            report: runPaperChecks(stored),
+            decisions: [],
+            calibrationSnapshot: await captureCalibration(repo),
+          });
+          if (active) setChecks(saved);
         })
         .catch((cause: unknown) => {
           if (active) setError(String(cause));
@@ -713,6 +694,9 @@ export default function PaperMapPage() {
     setSelected(paragraph.sectionId);
     setHighlight(location);
     setEvidence(null);
+    const page = paragraph.pageStart;
+    const passage = pdfNeedle(paper, location, '__selected');
+    if (page) setPdfTarget((old) => ({ page, nonce: (old?.nonce ?? 0) + 1, passage }));
     setTab('map');
   };
   // The paper is the centre of the page: on a wide screen it is always beside the analysis, so a quote opens
@@ -824,7 +808,7 @@ export default function PaperMapPage() {
   const openMark = (mark: PaperMark) => {
     if (!mark.findingId) return setTab(mark.view as ViewId);
     setFocusFinding(mark.findingId);
-    setTab(viewOf('checks'));
+    setTab('issues');
     if (!wide) setFocus('right');
   };
   const sectionLabel = (sectionId: string) =>
@@ -834,20 +818,6 @@ export default function PaperMapPage() {
     if (block) setOpenBlocks((old) => (old.includes(block) ? old : [...old, block]));
     void jobs.current[job]?.sectionRun?.start(sectionId);
   };
-  /** The analyses that can run one section on their own, by the criterion they answer to. */
-  const sectionRuns = JOB_IDS.flatMap((job) => {
-    const block = BLOCK_IDS.find((id) => BLOCKS[id].job === job);
-    const fact = jobFacts[job];
-    if (!block || !fact || fact.running || fact.sections.length === 0) return [];
-    return [
-      {
-        criterion: BLOCKS[block].criterion,
-        label: JOBS[job].label,
-        sections: fact.sections,
-        run: (sectionId: string) => runSection(job, sectionId),
-      },
-    ];
-  });
   const jobLabels = Object.fromEntries(JOB_IDS.map((job) => [job, JOBS[job].label])) as Record<JobId, string>;
   const mode = modeOf(tab);
   // The findings table offers section runs, so the analyses that can do one are mounted there too.
@@ -992,7 +962,6 @@ export default function PaperMapPage() {
           onLocation={openLocation}
           onOpenSource={(view) => setTab(view as ViewId)}
           onDecide={decide}
-          sectionRuns={sectionRuns.filter((item) => only.includes(item.criterion))}
         />
       ),
       `Issues (${own.length})`,
@@ -1026,10 +995,9 @@ export default function PaperMapPage() {
       role="tab"
       aria-selected={mode === item.id && (wide || focus === 'right')}
       onClick={() => {
-        setTab(
-          blockView[BLOCK_IDS.find((id) => BLOCKS[id].place === item.id) ?? 'checks'] ??
-            DEFAULT_VIEW[item.id],
-        );
+        // A tab reopens the view the reader last had in it; a tab with no blocks has just its own view.
+        const first = BLOCK_IDS.find((id) => BLOCKS[id].place === item.id);
+        setTab((first && blockView[first]) ?? DEFAULT_VIEW[item.id]);
         if (!splitWanted && wide) toggleSplit();
       }}
     >
@@ -1123,53 +1091,56 @@ export default function PaperMapPage() {
                       />
                     </div>
                   )}
-                  <p className={styles.tabHelp}>{PLACE_HELP[pane]}</p>
+                  {pane === 'fulltext' && errorBox('Không thể xử lý bài báo.')}
+                  {/* A PDF paper is read as its PDF; the parsed text is only shown when the PDF is not here. */}
                   {pane === 'fulltext' && paper.source.kind === 'pdf' && (
-                    <SegmentedControl
-                      label="Full text view"
-                      value={fullView}
-                      options={[
-                        { value: 'pdf', label: 'PDF' },
-                        { value: 'text', label: 'Text' },
-                      ]}
-                      onChange={(value) => setFullView(value === 'text' ? 'text' : 'pdf')}
+                    <PaperPdf
+                      paper={paper}
+                      target={pdfTarget}
+                      marks={marksOnPdf}
+                      onMark={(id) => {
+                        const mark = marks.find((item) => item.id === id);
+                        if (mark) openMark(mark);
+                      }}
+                      fallback={
+                        <PaperReader
+                          paper={paper}
+                          selected={selected}
+                          onSelect={setSelected}
+                          filter={filter}
+                          onClearFilter={() => setFilter(null)}
+                          highlight={highlight}
+                          candidateCounts={candidateCounts}
+                          batch={batch}
+                          onEditRole={(role) => void editRole(role)}
+                          marks={marks}
+                          layers={layers}
+                          onLayers={setLayers}
+                          onMark={openMark}
+                          outlineOpen={!(wide && showRight)}
+                        />
+                      }
                     />
                   )}
-                  {pane === 'fulltext' && paper.source.kind === 'pdf' && fullView === 'pdf' && (
-                    <>
-                      <LayerChips marks={marks} layers={layers} onLayers={setLayers} />
-                      <PaperPdf
-                        paper={paper}
-                        target={pdfTarget}
-                        marks={marksOnPdf}
-                        onMark={(id) => {
-                          const mark = marks.find((item) => item.id === id);
-                          if (mark) openMark(mark);
-                        }}
-                      />
-                    </>
+                  {pane === 'fulltext' && paper.source.kind !== 'pdf' && (
+                    <PaperReader
+                      paper={paper}
+                      selected={selected}
+                      onSelect={setSelected}
+                      filter={filter}
+                      onClearFilter={() => setFilter(null)}
+                      highlight={highlight}
+                      candidateCounts={candidateCounts}
+                      batch={batch}
+                      onEditRole={(role) => void editRole(role)}
+                      marks={marks}
+                      layers={layers}
+                      onLayers={setLayers}
+                      onMark={openMark}
+                      outlineOpen={!(wide && showRight)}
+                    />
                   )}
-                  {pane === 'fulltext' && (paper.source.kind !== 'pdf' || fullView === 'text') && (
-                    <>
-                      {errorBox('Không thể xử lý bài báo.')}
-                      <PaperReader
-                        paper={paper}
-                        selected={selected}
-                        onSelect={setSelected}
-                        filter={filter}
-                        onClearFilter={() => setFilter(null)}
-                        highlight={highlight}
-                        candidateCounts={candidateCounts}
-                        batch={batch}
-                        onEditRole={(role) => void editRole(role)}
-                        marks={marks}
-                        layers={layers}
-                        onLayers={setLayers}
-                        onMark={openMark}
-                        outlineOpen={!(wide && showRight)}
-                      />
-                    </>
-                  )}
+
                   <div hidden={pane !== 'summary'} className={styles.blocks}>
                     {!wide && (
                       <RunAllCard
@@ -1230,7 +1201,6 @@ export default function PaperMapPage() {
                       )}
                     </>
                   )}
-                  <p className={styles.tabHelp}>{PLACE_HELP[mode]}</p>
                   <div hidden={mode !== 'issues'} className={styles.blocks}>
                     {/* Rendered only while showing: hidden copies of its labels would shadow the blocks below. */}
                     {mode === 'issues' && (
@@ -1241,37 +1211,7 @@ export default function PaperMapPage() {
                         onLocation={openLocation}
                         onOpenSource={(view) => setTab(view as ViewId)}
                         onDecide={decide}
-                        sectionRuns={sectionRuns}
                       />
-                    )}
-                    <h2 className={styles.sourcesHead}>Sources of the issues</h2>
-                    {chips('issues')}
-                    {block(
-                      'checks',
-                      mode === 'issues' && openBlocks.includes('checks') && (
-                        <>
-                          {errorBox('Không thể xử lý kiểm tra.')}
-                          <PaperChecks
-                            only={checkIds}
-                            paper={paper}
-                            record={checks}
-                            onRun={runChecks}
-                            onReview={(findingId, status) => {
-                              void repo.paperChecks
-                                .review(paper.id, findingId, status)
-                                .then(setChecks)
-                                .catch((cause: unknown) => setError(String(cause)));
-                            }}
-                            onLocation={openLocation}
-                          />
-                        </>
-                      ),
-                    )}
-                    {block(
-                      'review',
-                      shown('review') && (
-                        <PaperReview paper={paper} checks={checks} onLocation={openLocation} />
-                      ),
                     )}
                   </div>
                   <div hidden={mode !== 'citations'} className={styles.blocks}>
@@ -1310,6 +1250,27 @@ export default function PaperMapPage() {
                     {block(
                       'snapshot',
                       shown('snapshot') && <PaperSnapshot paper={paper} onLocation={openLocation} />,
+                    )}
+                    {block(
+                      'checks',
+                      mode === 'info' && openBlocks.includes('checks') && (
+                        <>
+                          {errorBox('Không thể xử lý kiểm tra.')}
+                          <PaperChecks
+                            only={checkIds}
+                            paper={paper}
+                            record={checks}
+                            onRun={runChecks}
+                            onReview={(findingId, status) => {
+                              void repo.paperChecks
+                                .review(paper.id, findingId, status)
+                                .then(setChecks)
+                                .catch((cause: unknown) => setError(String(cause)));
+                            }}
+                            onLocation={openLocation}
+                          />
+                        </>
+                      ),
                     )}
                   </div>
                   <div hidden={mode !== 'arguments'} className={styles.blocks}>
@@ -1366,6 +1327,12 @@ export default function PaperMapPage() {
                       shown('measure') && <PaperMeasurement paper={paper} onLocation={openLocation} />,
                     )}
                     {block(
+                      'review',
+                      shown('review') && (
+                        <PaperReview paper={paper} checks={checks} onLocation={openLocation} />
+                      ),
+                    )}
+                    {block(
                       'rhetoric',
                       shown('rhetoric') && (
                         <PaperRhetoric
@@ -1394,6 +1361,8 @@ export default function PaperMapPage() {
                               setFilter(ids);
                               const first = paper.paragraphs.find((paragraph) => ids.includes(paragraph.id));
                               if (first) setSelected(first.sectionId);
+                              const page = first?.pageStart;
+                              if (page) setPdfTarget((old) => ({ page, nonce: (old?.nonce ?? 0) + 1 }));
                               setTab('map');
                             }}
                           />
