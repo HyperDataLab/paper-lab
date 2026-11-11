@@ -63,9 +63,10 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
       </StorageProvider>
     </MemoryRouter>,
   );
-  // The automated checks live, folded, in Paper info; they also run on their own when the paper opens.
+  // Figures & tables is a check about writing: it lives in the Writing style space, and runs on open.
   const openChecks = () => {
-    fireEvent.click(screen.getByRole('tab', { name: 'Paper info' }));
+    const entry = screen.queryAllByRole('button', { name: /^Writing style/ })[0];
+    if (entry) fireEvent.click(entry);
     const fold = screen.queryByRole('button', { name: 'Mở Automated checks' });
     if (fold) fireEvent.click(fold);
     fireEvent.click(screen.getByRole('radio', { name: 'Figures & tables' }));
@@ -85,7 +86,7 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
   fireEvent.click(
     within(card).getByText('“Figure 2”').closest('article')?.querySelector('button') as HTMLElement,
   );
-  expect(screen.getByRole('tab', { name: 'Paper info' })).toHaveAttribute('aria-selected', 'true');
+  // Inside a space the passage opens in the drawer, and from there in the reader.
   expect(screen.getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Mở trong Đọc bài' }));
   expect(screen.getByRole('tab', { name: 'Full text' })).toHaveAttribute('aria-selected', 'true');
@@ -108,8 +109,8 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
       (await repo.audit.listByAnalysis(paper.id)).items.filter((e) => e.action === 'review_check'),
     ).toHaveLength(2),
   );
-  // Each space opens on the profile's dimensions it is about: discourse and writing in Writing style.
-  fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
+  // Each space opens on the profile's dimensions it is about: discourse and writing in Writing style,
+  // where the reader already is.
   const writing = screen.getByRole('region', { name: 'Writing overview' });
   expect(await within(writing).findByText('Hình và bảng cần kiểm tra')).toBeInTheDocument();
   expect(
@@ -261,24 +262,20 @@ it('R7 on a wide screen the paper is the centre column beside the analysis, and 
   expect(document.querySelector('section[aria-label="Paper"]')).not.toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: '← Quay lại bài' }));
   expect(screen.getByRole('region', { name: 'Paper' })).toBeVisible();
-  fireEvent.click(screen.getByRole('tab', { name: 'Paper info' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Mở Automated checks' }));
-  fireEvent.click(screen.getByRole('radio', { name: 'Figures & tables' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Chạy kiểm tra' }));
-  // The same quote also heads its card in the unified list; this is the one in the checks block.
-  const quote = await within(screen.getByRole('region', { name: 'Automated checks' })).findByText(
-    '“Figure 2”',
-  );
-  fireEvent.click(quote.closest('article')?.querySelector('button') as HTMLElement);
+  // The rule checks ran when the paper opened: their finding is in the Issues list beside the paper.
+  fireEvent.click(screen.getByRole('tab', { name: 'Issues' }));
+  const list = await screen.findByRole('region', { name: 'Issues' });
+  const quote = await within(list).findByText('“Figure 2”');
+  const card = quote.closest('article');
+  if (!(card instanceof HTMLElement)) throw new Error('Missing card');
+  fireEvent.click(within(card).getByRole('button', { name: /Results/ }));
   // The finding is marked in the paper beside it: no drawer, and the analysis tab stays open.
   expect(within(pane).getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
   expect(within(pane).getByRole('heading', { name: 'Results' })).toBeInTheDocument();
   expect(screen.queryByRole('dialog')).toBeNull();
-  expect(screen.getByRole('tab', { name: 'Paper info' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'Issues' })).toHaveAttribute('aria-selected', 'true');
 
   // R2: the same finding heads a card in the one list, without labels that add nothing to read.
-  fireEvent.click(screen.getByRole('tab', { name: 'Issues' }));
-  const list = screen.getByRole('region', { name: 'Issues' });
   expect(within(list).getByText('Không tìm thấy chú thích tương ứng.')).toBeInTheDocument();
   expect(within(list).queryByText('Rule')).toBeNull();
   expect(within(list).queryByText(/^(High|Medium|Low)$/)).toBeNull();

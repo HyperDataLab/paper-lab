@@ -48,3 +48,35 @@
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
+/* Key facts above the summary: label over value, as many per row as fit. */
+.strip dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--space-10) * 4), 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+.fact {
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.fact dt {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.fact dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1);
+  margin: 0;
+}
+.page {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}

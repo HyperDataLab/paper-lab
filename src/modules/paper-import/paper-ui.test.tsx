@@ -351,19 +351,18 @@ it('P2 a run keeps going when the reader opens another tab, and the view is kept
   await importPaper();
   fireEvent.click(screen.getByRole('tab', { name: 'Summary' }));
   expect(search).toContain('view=profile');
-  // The snapshot table is folded under the summary tiles; its block is opened to run it.
-  fireEvent.click(screen.getByRole('tab', { name: 'Paper info' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Mở Key facts' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Tạo snapshot (AI)' }));
+  // One press on Summary writes the summary and makes the key facts: two requests.
+  fireEvent.click(screen.getByRole('button', { name: 'Tóm tắt bài (AI)' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
-  await waitFor(() => expect(completeJson).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(completeJson).toHaveBeenCalledTimes(2));
   fireEvent.click(screen.getByRole('tab', { name: 'Full text' }));
   expect(search).toContain('view=map');
   const strip = await screen.findByText(/Đang chạy ở chỗ khác/);
   fireEvent.click(within(strip).getByRole('button', { name: 'Key facts' }));
-  // Still the same run: the panel was hidden, not unmounted, so nothing was restarted.
-  expect(screen.getByText('Đang đọc bài…')).toBeVisible();
-  expect(completeJson).toHaveBeenCalledTimes(1);
+  // Still the same runs: the panels were hidden, not unmounted, so nothing was restarted.
+  expect(screen.getByText('Đang trích Key facts…')).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Đang tóm tắt…' })).toBeDisabled();
+  expect(completeJson).toHaveBeenCalledTimes(2);
 });
 it('R1 an old view link opens its block in the new three-mode page, and an analysis that has not run is one row', async () => {
   localStorage.clear();

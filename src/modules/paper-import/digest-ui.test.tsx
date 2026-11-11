@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { Paper } from '@/core/schemas';
 import type { LlmClient } from '@/shared/llm/client';
@@ -11,6 +11,7 @@ import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { PaperDigest } from './PaperDigest';
+import { PaperSnapshot } from './PaperSnapshot';
 
 const at = '2026-01-01T00:00:00.000Z';
 const paper: Paper = {
@@ -108,4 +109,43 @@ it('R12 one button writes the reader summary, section by section, each part open
   // The summary is kept: it is read back next time, and can be written again.
   expect((await repo.paperInsights.get(paper.id))?.digestRuns).toHaveLength(1);
   expect(screen.getByRole('button', { name: 'Tóm tắt lại' })).toBeInTheDocument();
+});
+
+it('R13 key facts sit above the summary as a strip, each with its page, and a rejected fact leaves', async () => {
+  const repo = createRepositories(createDb(`facts-${crypto.randomUUID()}`));
+  await repo.papers.create(paper);
+  await repo.paperInsights.saveSnapshotRun(paper.id, {
+    id: '00000000-0000-4000-8000-0000000000f1',
+    createdAt: at,
+    model: 'm',
+    promptVersion: 'snapshot-1',
+    callsUsed: 1,
+    sectionIds: ['r'],
+    values: [
+      {
+        id: 'snap-results',
+        field: 'results',
+        status: 'reported',
+        value: '69% more citations',
+        source: { paragraphId: 'r1', sectionId: 'r', page: 2, start: 0, end: 13, excerpt: 'Shared trials' },
+      },
+      { id: 'snap-duration', field: 'duration', status: 'not_reported', value: null, source: null },
+    ],
+  });
+  const onLocation = vi.fn();
+  render(
+    <StorageProvider repositories={repo}>
+      <LlmProvider innerClient={{ completeJson: vi.fn() } as unknown as LlmClient}>
+        <PaperSnapshot compact paper={paper} onLocation={onLocation} />
+      </LlmProvider>
+    </StorageProvider>,
+  );
+  const strip = await screen.findByRole('region', { name: 'Key facts' });
+  // Only what the paper states is shown; a field it does not state takes no room.
+  expect(within(strip).getByText('Results')).toBeInTheDocument();
+  expect(within(strip).queryByText('Duration')).toBeNull();
+  fireEvent.click(within(strip).getByRole('button', { name: 'Tr. 2' }));
+  expect(onLocation).toHaveBeenCalledWith({ paragraphId: 'r1', start: 0, end: 13 });
+  fireEvent.click(within(strip).getByRole('button', { name: 'Bác bỏ Results' }));
+  await waitFor(() => expect(screen.queryByRole('region', { name: 'Key facts' })).toBeNull());
 });

@@ -106,6 +106,7 @@ it('R10b the Arguments space opens on gap, claims and atomic sentences, ahead of
       .map((chip) => chip.textContent?.slice(1)),
   ).toEqual([
     'Issues',
+    'Automated checks',
     'Research gap & contribution',
     'Claims & grounds',
     'Atomic sentences',
