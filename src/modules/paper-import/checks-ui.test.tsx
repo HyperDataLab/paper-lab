@@ -96,21 +96,20 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
     screen.getByRole('heading', { name: 'Hình và bảng' }).closest('section') ??
     screen.getByRole('heading', { name: 'Hình và bảng' }).parentElement;
   if (!cardAgain) throw new Error('Missing card');
-  fireEvent.click(within(cardAgain).getByRole('button', { name: 'Xác nhận' }));
-  await within(cardAgain).findByText('Đã xác nhận');
-  const list = screen.getByRole('region', { name: 'Issues' });
-  await within(list).findByText('Đã xác nhận');
-  expect(await within(cardAgain).findByText('Chưa hiệu chuẩn (n=1)')).toBeInTheDocument();
-  fireEvent.click(within(cardAgain).getByRole('button', { name: 'Hoàn tác' }));
-  fireEvent.click(await within(cardAgain).findByRole('button', { name: 'Bỏ qua' }));
-  const dismissed = await within(cardAgain).findByText('Đã bỏ qua (1)');
+  // A check's finding counts as accepted: the only decision is to reject it, and it can be undone.
+  expect(within(cardAgain).queryByRole('button', { name: 'Xác nhận' })).toBeNull();
+  fireEvent.click(within(cardAgain).getByRole('button', { name: 'Bác bỏ' }));
+  const dismissed = await within(cardAgain).findByText('Đã bác bỏ (1)');
   expect(dismissed.parentElement).not.toHaveAttribute('open');
+  // The same decision shows in the list, which keeps the card with its undo.
+  const list = screen.getByRole('region', { name: 'Issues' });
+  await within(list).findByText('Đã bác bỏ');
   fireEvent.click(dismissed);
   fireEvent.click(within(cardAgain).getByRole('button', { name: 'Hoàn tác' }));
   await waitFor(async () =>
     expect(
       (await repo.audit.listByAnalysis(paper.id)).items.filter((e) => e.action === 'review_check'),
-    ).toHaveLength(4),
+    ).toHaveLength(2),
   );
   // Each space opens on the profile's dimensions it is about: discourse and writing in Writing style.
   fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
@@ -289,9 +288,9 @@ it('R7 on a wide screen the paper is the centre column beside the analysis, and 
   expect(underlined.getAttribute('title')).toContain('Evidence');
   fireEvent.click(underlined);
   expect(list.querySelector('[data-focus="true"]')).not.toBeNull();
-  // Deciding in the list is the same decision as in the block.
-  fireEvent.click(within(list).getByRole('button', { name: 'Xác nhận' }));
-  expect(await within(list).findByText('Đã xác nhận', { selector: 'span' })).toBeInTheDocument();
+  // Accepted by default: the list offers only to reject it.
+  expect(within(list).queryByRole('button', { name: 'Xác nhận' })).toBeNull();
+  expect(within(list).getByRole('button', { name: 'Bác bỏ' })).toBeInTheDocument();
   // A layer can be switched off; the passage the reader opened stays marked.
   const layer = within(pane).getByRole('button', { name: /Evidence/ });
   expect(layer).toHaveAttribute('aria-pressed', 'true');

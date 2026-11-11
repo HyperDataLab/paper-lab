@@ -148,16 +148,15 @@ it('P5 reveals reviews after skip, filters and audits decisions, and navigates t
   chooseSelectOption('Góc nhìn', 'Phương pháp');
   // The unified list above shows the same points; these are the controls inside the review block.
   const block = within(screen.getByRole('region', { name: 'AI peer review' }));
-  fireEvent.click(block.getByRole('button', { name: 'Xác nhận' }));
-  await block.findByText('Đã xác nhận');
+  expect(block.queryByRole('button', { name: 'Xác nhận' })).toBeNull();
+  fireEvent.click(block.getByRole('button', { name: 'Bác bỏ' }));
+  await block.findByText('Đã bác bỏ');
   fireEvent.click(block.getByRole('button', { name: 'Hoàn tác' }));
-  fireEvent.click(await block.findByRole('button', { name: 'Bỏ qua' }));
-  await block.findByText('Đã bỏ qua');
-  fireEvent.click(block.getByRole('button', { name: 'Hoàn tác' }));
+  await block.findByRole('button', { name: 'Bác bỏ' });
   await waitFor(async () =>
     expect(
       (await repo.audit.listByAnalysis(paper.id)).items.filter((event) => event.action === 'review_point'),
-    ).toHaveLength(4),
+    ).toHaveLength(2),
   );
   fireEvent.click(block.getByRole('button', { name: 'Methods' }));
   expect(

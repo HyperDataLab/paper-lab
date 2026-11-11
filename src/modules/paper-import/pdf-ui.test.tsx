@@ -230,8 +230,7 @@ it('R8 opening a finding in a PDF paper turns the PDF to the page of its passage
     ),
   );
   expect(await screen.findByTestId('pdf-viewer')).not.toHaveTextContent('page');
-  fireEvent.click(await screen.findByRole('button', { name: '1 cần duyệt' }));
-  const issues = screen.getByRole('region', { name: 'Issues' });
+  const issues = await screen.findByRole('region', { name: 'Issues' });
   fireEvent.click(within(issues).getByRole('button', { name: 'Tr. 3 · Results' }));
   expect(await screen.findByTestId('pdf-viewer')).toHaveTextContent('page 3, passage [Figure 2]');
 });

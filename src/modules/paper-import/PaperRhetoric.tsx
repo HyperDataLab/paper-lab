@@ -194,12 +194,13 @@ export function PaperRhetoric({
     const state = metrics?.states.get(id);
     return state ? (
       <Badge tone={state === 'confirmed' ? 'success' : 'danger'}>
-        {state === 'confirmed' ? 'Đã xác nhận' : 'Đã loại'}
+        {state === 'confirmed' ? 'Đã xác nhận' : 'Đã bác bỏ'}
       </Badge>
     ) : null;
   };
   const actions = (id: string) => (
     <ReviewActions
+      acceptByDefault
       decided={Boolean(metrics?.states.get(id))}
       dismissLabel="Loại bỏ"
       onConfirm={() => decide(id, 'confirm')}

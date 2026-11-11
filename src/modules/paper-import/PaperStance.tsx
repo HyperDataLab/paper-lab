@@ -440,7 +440,7 @@ export function PaperStance({
                             <Badge tone="accent">{LABELS[category].name}</Badge>
                             {state && (
                               <Badge tone={state === 'confirmed' ? 'success' : 'danger'}>
-                                {state === 'confirmed' ? 'Đã xác nhận' : 'Đã loại'}
+                                {state === 'confirmed' ? 'Đã xác nhận' : 'Đã bác bỏ'}
                               </Badge>
                             )}
                           </>
@@ -463,6 +463,7 @@ export function PaperStance({
                         }}
                         actions={
                           <ReviewActions
+                            acceptByDefault
                             decided={Boolean(state)}
                             dismissLabel="Loại bỏ"
                             onConfirm={() => decide(item, 'confirm')}

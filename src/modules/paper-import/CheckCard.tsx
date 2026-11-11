@@ -81,7 +81,7 @@ export function CheckCard({
       )}
       {dismissed.length > 0 && (
         <details>
-          <summary>Đã bỏ qua ({dismissed.length})</summary>
+          <summary>Đã bác bỏ ({dismissed.length})</summary>
           {rows(dismissed)}
         </details>
       )}

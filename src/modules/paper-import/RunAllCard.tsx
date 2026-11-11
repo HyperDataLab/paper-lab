@@ -124,7 +124,7 @@ export function RunAllCard({
   const dialog = phase.kind === 'confirm' && (
     <Dialog
       title="Phân tích toàn bài?"
-      description="Mỗi phân tích gửi các mục đã chọn của bài cho AI. Kết quả AI là ứng viên; bạn vẫn là người xác nhận."
+      description="Mỗi phân tích gửi các mục đã chọn của bài cho AI. Kết quả AI được chấp nhận mặc định; bạn bác bỏ những gì không đúng."
       onClose={() => setPhase({ kind: 'idle' })}
     >
       <ul className={styles.runAllList}>

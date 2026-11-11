@@ -98,17 +98,17 @@ it('F4 opens a category, shows the marker in its clause and links to the paper',
   expect(onLocation).toHaveBeenCalledWith({ paragraphId: 'p1', start: 14, end: 17 });
 });
 
-it('F4 confirms, dismisses and undoes, and dismissing changes the count', async () => {
+it('F4 an annotation is accepted until rejected; rejecting changes the count and can be undone', async () => {
   const { repo } = await setup();
   fireEvent.click(await screen.findByRole('button', { name: 'Rào đón (Hedges)' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Loại bỏ' }));
-  expect(await screen.findByText('Đã loại')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Xác nhận' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Bác bỏ' }));
+  expect(await screen.findByText('Đã bác bỏ')).toBeInTheDocument();
   await waitFor(() => expect(screen.getByRole('treeitem', { name: /Lập trường/ })).toHaveTextContent('1'));
   fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Xác nhận' }));
-  expect(await screen.findByText('Đã xác nhận')).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: 'Bác bỏ' })).toBeInTheDocument();
   const record = await repo.stance.get(paper.id);
-  expect(record?.decisions.map((item) => item.decision)).toEqual(['dismiss', 'reopen', 'confirm']);
+  expect(record?.decisions.map((item) => item.decision)).toEqual(['dismiss', 'reopen']);
   expect(record?.runs[0]?.annotations).toHaveLength(2);
 });
 

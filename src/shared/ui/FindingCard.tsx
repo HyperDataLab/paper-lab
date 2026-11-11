@@ -39,7 +39,10 @@ export function FindingCard({
   );
 }
 
-/** The same review controls everywhere: a clear first choice, a quiet second, and undo once decided. */
+/**
+ * The same review controls everywhere: a clear first choice, a quiet second, and undo once decided. With
+ * `acceptByDefault` a result counts as accepted until a person rejects it, so rejecting is the only choice.
+ */
 export function ReviewActions({
   decided,
   confirmLabel = 'Xác nhận',
@@ -47,6 +50,7 @@ export function ReviewActions({
   onConfirm,
   onDismiss,
   onUndo,
+  acceptByDefault = false,
 }: {
   decided: boolean;
   confirmLabel?: string;
@@ -54,11 +58,18 @@ export function ReviewActions({
   onConfirm: () => void;
   onDismiss: () => void;
   onUndo: () => void;
+  acceptByDefault?: boolean;
 }) {
   if (decided)
     return (
       <Button size="sm" variant="ghost" onClick={onUndo}>
         Hoàn tác
+      </Button>
+    );
+  if (acceptByDefault)
+    return (
+      <Button size="sm" variant="ghost" onClick={onDismiss}>
+        Bác bỏ
       </Button>
     );
   return (

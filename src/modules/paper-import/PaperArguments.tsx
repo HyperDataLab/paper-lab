@@ -322,7 +322,7 @@ export function PaperArguments({
                       </Badge>
                       {state && (
                         <Badge tone={state === 'confirmed' ? 'success' : 'danger'}>
-                          {state === 'confirmed' ? 'Đã xác nhận' : 'Đã loại'}
+                          {state === 'confirmed' ? 'Đã xác nhận' : 'Đã bác bỏ'}
                         </Badge>
                       )}
                     </>
@@ -334,6 +334,7 @@ export function PaperArguments({
                   }}
                   actions={
                     <ReviewActions
+                      acceptByDefault
                       decided={Boolean(state)}
                       dismissLabel="Loại bỏ"
                       onConfirm={() => decide(item.id, 'confirm')}
