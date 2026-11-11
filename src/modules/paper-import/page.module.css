@@ -1122,3 +1122,38 @@ mark.textMark {
 .section[data-role='conclusion'] {
   --sec-colour: var(--sec-conclusion);
 }
+/* The reference list: one entry per line, the whole text on hover. */
+.refList {
+  display: grid;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.refRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+.refNumber {
+  flex: none;
+  min-width: var(--space-5);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.refText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.refYear {
+  flex: none;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}

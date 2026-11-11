@@ -15,6 +15,7 @@ import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { FindingCard } from '@/shared/ui/FindingCard';
+import { PlaceText } from './PlaceText';
 import styles from './page.module.css';
 
 export function PaperReferences({
@@ -66,6 +67,7 @@ export function PaperReferences({
     }
   }
   const locationOf = (doi: string) => items.find((item) => item.doi === doi)?.location ?? null;
+  const retracted = new Set(record?.retracted.map((work) => work.doi) ?? []);
   return (
     <>
       <Card>
@@ -84,6 +86,35 @@ export function PaperReferences({
           Năm được ước tính từ nội dung từng mục. {stats.total - stats.withYear} mục không đọc được năm nên
           không tính vào tỷ lệ.
         </p>
+        {items.length > 0 && (
+          // Every reference on its own line; the whole entry shows on hover.
+          <ol className={styles.refList} aria-label="Tài liệu tham khảo">
+            {items.map((item, index) => (
+              <li key={index} className={styles.refRow}>
+                <span className={styles.refNumber}>{index + 1}</span>
+                <span className={styles.refText} title={item.text}>
+                  {item.text.replace(/^\s*(?:\[\d+\]|\d+[.)])\s*/u, '')}
+                </span>
+                {item.doi && retracted.has(item.doi) && <Badge tone="danger">Đã bị rút</Badge>}
+                {item.year && <span className={styles.refYear}>{item.year}</span>}
+                {item.doi && (
+                  <a href={`https://doi.org/${item.doi}`} target="_blank" rel="noreferrer">
+                    DOI
+                  </a>
+                )}
+                {item.location && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => item.location && onLocation(item.location)}
+                  >
+                    <PlaceText paper={paper} paragraphId={item.location.paragraphId} />
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ol>
+        )}
         {stats.buckets.length > 0 && (
           <table className={styles.table}>
             <thead>

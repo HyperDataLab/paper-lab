@@ -343,3 +343,8 @@ coloured badge (Abstract, Introduction, Related work, Methods, Results, Discussi
 short form of their heading), then "· Tr. N". The full heading shows on hover. Pressing it opens the passage. Colours
 come from the `--sec-*` tokens in `theme.css`, with light and dark values; the colour is never the only cue, the name is
 always written.
+
+**Reference list.** Citations lists every reference of the paper, one per line: its number, the entry cut to one
+line (the whole text on hover), "Đã bị rút" when OpenAlex reports a retraction, the year, a DOI link, and its place.
+Numbered entries that a two-column PDF joins into one paragraph are cut where the numbers follow each other; a
+numbered entry always starts a new reference.
