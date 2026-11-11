@@ -11,7 +11,7 @@ import {
   type PaperFinding,
   type PaperMark,
 } from '@/core/paperFindings';
-import type { ProfileView } from '@/core/paperProfile';
+import type { DimensionId, ProfileView } from '@/core/paperProfile';
 import { analyzeText } from '@/core/text';
 import { detectCandidates } from '@/core/detectors';
 import { useRepositories } from '@/shared/storage/StorageProvider';
@@ -403,6 +403,7 @@ export default function PaperMapPage() {
   const jobs = useRef<Partial<Record<JobId, JobReport>>>({});
   // Leaving a space returns to the tab of the right column the reader came from.
   const beforeSpace = useRef<ViewId>(DEFAULT_VIEW.issues);
+  const rightColumn = useRef<HTMLElement>(null);
   const [jobFacts, setJobFacts] = useState<Partial<Record<JobId, JobFacts>>>({});
   const reportJob = useCallback<JobReporter>((jobId, report) => {
     if (report) jobs.current[jobId] = report;
@@ -926,13 +927,32 @@ export default function PaperMapPage() {
     writing: writingCount > 0 ? `${writingCount} ghi chú về cách viết` : 'Cấu trúc, mạch, câu chữ, giọng văn',
   };
   const openSpace = (space: Space) => {
-    // The overview of a space is open on arrival: its parts read what is stored and run nothing.
-    if (space === 'arguments')
-      setOpenBlocks((old) => [...new Set<BlockId>([...old, 'gap', 'mainClaims', 'atomics'])]);
+    // The parts that cost nothing are open on arrival.
+    const free: BlockId[] = space === 'arguments' ? ['gap', 'mainClaims', 'atomics'] : ['vocabulary'];
+    setOpenBlocks((old) => [...new Set<BlockId>([...old, ...free])]);
     setTab(
       blockView[BLOCK_IDS.find((id) => BLOCKS[id].place === space) ?? 'arguments'] ?? DEFAULT_VIEW[space],
     );
+    // A space is entered at its top, where its overview is; after setTab's own scroll to the block.
+    window.setTimeout(() => {
+      const column = rightColumn.current;
+      // On a wide screen the column scrolls on its own; on a narrow one the page does.
+      if (wide) column?.scrollTo?.({ top: 0 });
+      else column?.scrollIntoView?.({ block: 'start' });
+    }, 0);
   };
+  /** The profile's dimensions that answer what a tab or space is about, read again when an analysis ends. */
+  const overview = (only: DimensionId[], label: string, batch: ReturnType<typeof useBatchRun>) => (
+    <PaperProfile
+      key={JOB_IDS.filter((job) => jobFacts[job]?.done).join(',')}
+      paper={paper}
+      analyses={batch.analyses}
+      checks={checks}
+      onOpen={setTab}
+      only={only}
+      label={label}
+    />
+  );
   const spaceEntries = (
     <nav className={styles.spaces} aria-label="Spaces">
       {SPACES.map((item) => (
@@ -1132,19 +1152,10 @@ export default function PaperMapPage() {
                         onOpen={setTab}
                       />
                     )}
-                    {pane === 'summary' && (
-                      <PaperProfile
-                        // A finished analysis changes what the cards can show, so they are read again.
-                        key={JOB_IDS.filter((job) => jobFacts[job]?.done).join(',')}
-                        paper={paper}
-                        analyses={batch.analyses}
-                        checks={checks}
-                        onOpen={setTab}
-                      />
-                    )}
                   </div>
                 </section>
                 <section
+                  ref={rightColumn}
                   className={wide ? styles.column : undefined}
                   aria-label={
                     inSpace ? (SPACES.find((item) => item.id === mode)?.label ?? 'Space') : 'Analysis'
@@ -1225,6 +1236,7 @@ export default function PaperMapPage() {
                     )}
                   </div>
                   <div hidden={mode !== 'citations'} className={styles.blocks}>
+                    {mode === 'citations' && overview(['context'], 'Context overview', batch)}
                     {block(
                       'references',
                       mode === 'citations' && openBlocks.includes('references') && (
@@ -1261,6 +1273,7 @@ export default function PaperMapPage() {
                     )}
                   </div>
                   <div hidden={mode !== 'arguments'} className={styles.blocks}>
+                    {mode === 'arguments' && overview(['science', 'argument'], 'Arguments overview', batch)}
                     {chips('arguments')}
                     {block(
                       'gap',
@@ -1323,6 +1336,7 @@ export default function PaperMapPage() {
                     )}
                   </div>
                   <div hidden={mode !== 'writing'} className={styles.blocks}>
+                    {mode === 'writing' && overview(['discourse', 'writing'], 'Writing overview', batch)}
                     {chips('writing')}
                     {block(
                       'batch',
