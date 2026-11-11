@@ -69,3 +69,61 @@ a development script against public gold labels:
   every span.
 - **Protocol.** A fixed split before the first run (5 development papers, the rest held out), the threshold fixed
   before looking at held-out numbers, and no prompt changes in the same slice as the measurement.
+
+Run `npm run bench:arguments -- --corpus <local-directory> --dry-run` to plan the development split A01–A05;
+omit `--dry-run` to use the running development proxy. `--papers A06,A07` selects other papers, `--model` and
+`--base-url` select the model and proxy, and `--out` changes the output directory (default `.bench/`). The script
+does not load credentials. Completed papers are checkpointed; changed input, model, endpoint or prompt version
+requires a new output directory. Keep corpus files and per-paper output local.
+
+Offsets count Unicode code points in the raw XML, including tags. Each prediction is assigned to the single gold
+span with the greatest positive character overlap (ties go to the first annotation); no overlap is `none`. Recall
+counts a gold span if any prediction of its corresponding kind overlaps it. The majority baseline chooses the most
+frequent gold label and reports its share among all predictions, including unmatched predictions in the denominator.
+Empty denominators are reported as not assessable. Planned calls exclude client retries and JSON repair.
+
+## 4. First results (development split, 2026-11-12)
+
+Papers A01–A05 of the Dr. Inventor corpus, model `cx/gpt-6-luna`, prompt `argument-1`, 18 planned calls.
+
+| Predicted | own_claim (C) | background_claim (S) | data (E) | none |
+| --------- | ------------: | -------------------: | -------: | ---: |
+| claim     |            63 |                    3 |        1 |   10 |
+| data      |            96 |                   15 |        8 |   40 |
+
+| Measure                       | Value |
+| ----------------------------- | ----: |
+| Claim precision               | 81.8% |
+| Data precision                |  5.0% |
+| Own claim recall              |  9.8% |
+| Data recall                   | 10.9% |
+| Majority baseline (own_claim) | 67.4% |
+
+What it says:
+
+- **Claims are mostly right.** 63 of 77 returned claims overlap an annotated own claim, above the 67.4 % a
+  label-everything-as-claim baseline would get.
+- **"Data" is mostly wrong.** 96 of 159 spans PaperLab returns as data are annotated as **claims**, and only 8 as
+  data. PaperLab's prompt asks for "the evidence or premises given for it", so the model returns reasons: statements
+  that themselves need support (Booth's reasons, Toulmin's sub-claims). The annotators' DATA is short and factual
+  (median 3 words: a measurement, an observation, a reference such as "Figure 4"). This is the cause of E marks the
+  owner judged wrong.
+- **Part of it is granularity.** PaperLab returns one clause; a gold data span is often a few words inside a clause
+  that is otherwise a claim. Overlap scoring then credits the clause to the claim. The next slice reports both
+  readings.
+- **Recall is low by design**: the run returns a few arguments per section, not every span.
+
+## 5. The form of a claim
+
+Neither Toulmin nor Booth constrain a claim's length or wording: a claim is defined by what it does. The gold
+annotations give its usual form (all 40 papers, aggregate counts only):
+
+| Label            | Spans | Words, median (10–90 %) | Starts a sentence | Common cue just before                         |
+| ---------------- | ----: | ----------------------- | ----------------: | ---------------------------------------------- |
+| own claim        | 6,004 | 12 (5–22)               |             ~40 % | that, however, because, since, therefore, thus |
+| background claim | 3,291 | 10 (4–20)               |             ~42 % | however, that, because                         |
+| data             | 4,297 | 3 (1–10)                |              ~9 % | because, since, that                           |
+
+So a claim is usually **one clause**, not a whole sentence, of about 5 to 22 words, often after "that",
+"however", "because" or "therefore". Data are short and often a pointer ("Figure 4", "Section 3"). These are soft
+expectations used as warnings, not filters; cue words are hints, present in under 10 % of claims.

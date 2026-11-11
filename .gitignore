@@ -10,6 +10,7 @@ coverage
 firebase-debug.log*
 .DS_Store
 .tmp
+.bench/
 .vscode/*
 !.vscode/extensions.json
 *.pdf
