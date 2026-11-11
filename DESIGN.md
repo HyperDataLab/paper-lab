@@ -361,3 +361,10 @@ review state.
 The paper header offers a switch between Bài báo, Arguments, Writing style and Data table. Arguments and Writing
 style show issue counts. Publication details open from the header, and the line beneath the title shows stored
 authors, venue, year and DOI. Parser counts belong in Minh bạch.
+
+# Paper page patterns
+
+- Look up publication metadata once when a DOI is known and metadata is absent; send only the DOI.
+- Put automatic checks in Issues as a filter with a secondary re-run action.
+- Keep run progress in the sticky centre tabs; the completion chip opens Issues and can be dismissed.
+- Show the whole-paper action as secondary with the number of remaining analyses, including the summary; hide it when none remain.

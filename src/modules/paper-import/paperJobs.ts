@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect } from 'react';
 
 /** The AI analyses of one paper. Each one is a panel that stays mounted while the reader visits other tabs. */
 export type JobId =
-  'snapshot' | 'measure' | 'rhetoric' | 'arguments' | 'batch' | 'stance' | 'probe' | 'review';
+  'digest' | 'snapshot' | 'measure' | 'rhetoric' | 'arguments' | 'batch' | 'stance' | 'probe' | 'review';
 
 /** One section an analysis can be run for on its own, with what that run would cost. */
 export interface SectionChoice {
@@ -56,7 +56,7 @@ export function useReportJob(id: JobId, report: JobReport) {
  * The analyses "Phân tích toàn bài" runs, in order. AI review and the style probe are left out:
  * the first waits for the reader's own notes, the second needs scored paragraphs.
  */
-export const RUN_ALL: JobId[] = ['snapshot', 'measure', 'rhetoric', 'arguments', 'batch', 'stance'];
+export const RUN_ALL: JobId[] = ['digest', 'snapshot', 'measure', 'rhetoric', 'arguments', 'batch', 'stance'];
 
 /** Notify the paper page after a stored result changes; standalone panels need no provider. */
 export const StoredChangedContext = createContext<() => void>(() => {});

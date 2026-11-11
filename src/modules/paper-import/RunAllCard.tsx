@@ -22,6 +22,7 @@ export function RunAllCard({
   onPrepare,
   onOpen,
   onRunChecks,
+  onProgress,
   compact = false,
 }: {
   /** The panels' latest reports, including the functions that start and stop them. */
@@ -33,6 +34,7 @@ export function RunAllCard({
   onOpen: (job: JobId) => void;
   /** Runs the checks that use no AI, when the paper has none yet. */
   onRunChecks: () => void;
+  onProgress?: (progress: { label: string; index: number; total: number } | null) => void;
   /** Only the button and its status, for a toolbar; the explanation is in the confirmation. */
   compact?: boolean;
 }) {
@@ -40,6 +42,7 @@ export function RunAllCard({
   const stopping = useRef(false);
   const rows = RUN_ALL.map((id) => ({ id, fact: facts[id] }));
   const loading = rows.some((row) => !row.fact?.ready);
+  const remaining = rows.filter((row) => row.fact?.ready && (!row.fact.done || row.fact.stale)).length;
   const todo = rows.filter(
     (row) => row.fact?.ready && (!row.fact.done || row.fact.stale) && !row.fact.running && row.fact.startable,
   );
@@ -55,6 +58,7 @@ export function RunAllCard({
       const job = jobs.current[id];
       if (!job?.start || (job.done && !job.stale) || job.running) continue;
       last = id;
+      onProgress?.({ label: labels[id], index: index + 1, total: ids.length });
       setPhase({ kind: 'running', current: id, index, total: ids.length });
       await job.start();
       // The panel reports its new state on its next render; give it a moment, then wait out the run.
@@ -62,9 +66,13 @@ export function RunAllCard({
       while (jobs.current[id]?.running) await wait(100);
       if (stopping.current) break;
       // Declined consent, a reached ceiling or an error: stop here rather than spend on the rest.
-      if (!jobs.current[id]?.done || jobs.current[id]?.stale) return setPhase({ kind: 'stopped', at: id });
+      if (!jobs.current[id]?.done || jobs.current[id]?.stale) {
+        onProgress?.(null);
+        return setPhase({ kind: 'stopped', at: id });
+      }
       ran += 1;
     }
+    onProgress?.(null);
     setPhase(stopping.current && last ? { kind: 'stopped', at: last } : { kind: 'finished', ran });
   }
   const status = (fact: JobFacts | undefined) =>
@@ -92,13 +100,14 @@ export function RunAllCard({
       </Button>
     ) : (
       <Button
-        variant="primary"
+        disabled={loading}
+        hidden={!loading && remaining === 0}
         onClick={() => {
           onPrepare();
           setPhase({ kind: 'confirm' });
         }}
       >
-        Phân tích toàn bài
+        Phân tích toàn bài · còn {loading ? '…' : remaining}
       </Button>
     );
   const progress = (

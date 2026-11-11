@@ -9,7 +9,7 @@ import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Loading } from '@/shared/ui/StateNote';
-import { useStoredChanged } from './paperJobs';
+import { useReportJob, useStoredChanged } from './paperJobs';
 import styles from './digest.module.css';
 
 const FLAGS = {
@@ -51,12 +51,12 @@ export function PaperDigest({
   }, [paper.id, repo]);
   const run = record?.digestRuns.at(-1);
 
-  async function start() {
+  async function start(runKeyFacts = true) {
     setRunning(true);
     setError('');
     try {
       if (!(await llm.ensureConsent('paper'))) return;
-      onStart?.();
+      if (runKeyFacts) onStart?.();
       const result = await llmDigest(llm.client, paper, { config: llm.config });
       setRecord(await repo.paperInsights.saveDigestRun(paper.id, result));
       notifyStoredChanged();
@@ -66,6 +66,7 @@ export function PaperDigest({
       setRunning(false);
     }
   }
+  useReportJob('digest', { running, done: !!run, estimate: 1, ready: loaded, start: () => start(false) });
 
   /** The pages a part comes from, each opening its paragraph; and what code could not check. */
   const sources = (part: DigestText | DigestItem) => (

@@ -142,6 +142,25 @@ it('R15 Theo trang sorts findings by their source page', () => {
   ).toEqual(['First', 'Second']);
 });
 
+it('R15 checks are a filter inside Issues', () => {
+  const run = vi.fn();
+  render(
+    <FindingsList
+      paper={paper}
+      findings={[]}
+      focusId={null}
+      onLocation={vi.fn()}
+      onOpenSource={vi.fn()}
+      onDecide={vi.fn()}
+      onRunChecks={run}
+    />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra tự động' }));
+  expect(screen.getByRole('button', { name: 'Kiểm tra tự động' })).toHaveAttribute('aria-pressed', 'true');
+  fireEvent.click(screen.getByRole('button', { name: 'Chạy lại kiểm tra' }));
+  expect(run).toHaveBeenCalledOnce();
+});
+
 it('R7 issues are grouped by type of problem, the most severe first, with rejections counted', () => {
   const finding = (
     id: string,
@@ -235,9 +254,9 @@ it('R11 each space lists the issues of its own criteria, accepted until rejected
     within(within(list).getByRole('group', { name: 'Filter by criterion' }))
       .getAllByRole('button')
       .map((chip) => chip.textContent),
-  ).toEqual(['CClaims (0)', 'EEvidence (1)', 'Theo trang']);
+  ).toEqual(['CClaims (0)', 'EEvidence (1)', 'Theo trang', 'Kiểm tra tự động']);
   expect(within(list).getByRole('button', { name: 'Bác bỏ' })).toBeInTheDocument();
-  // The Writing space has no writing issue yet.
+  // Figure checks are also available in Writing, even though their criterion is evidence.
   fireEvent.click(screen.getByRole('tab', { name: /^Writing style/ }));
-  expect(await screen.findByRole('button', { name: 'Mở Issues (0)' })).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: 'Mở Issues (1)' })).toBeInTheDocument();
 });

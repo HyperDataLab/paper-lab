@@ -67,25 +67,20 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
   const openChecks = () => {
     const entry = screen.queryAllByRole('tab', { name: /^Writing style/ })[0];
     if (entry) fireEvent.click(entry);
-    const fold = screen.queryByRole('button', { name: 'Mở Automated checks' });
+    const fold = screen.queryByRole('button', { name: /Mở Issues/ });
     if (fold) fireEvent.click(fold);
-    fireEvent.click(screen.getByRole('radio', { name: 'Figures & tables' }));
+    const chip = screen.getByRole('button', { name: 'Kiểm tra tự động' });
+    if (chip.getAttribute('aria-pressed') !== 'true') fireEvent.click(chip);
   };
   await screen.findByRole('tab', { name: 'Full text' });
   expect(screen.getByText('Minh bạch')).toBeInTheDocument();
   openChecks();
-  expect(screen.getByText(/Các kiểm tra tự động là thử nghiệm/)).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Chạy kiểm tra' }));
-  const heading = await screen.findByRole('heading', { name: 'Hình và bảng' });
-  const card = heading.closest('section') ?? heading.parentElement;
-  if (!card) throw new Error('Missing card');
-  expect(within(card).getByText('Cảnh báo')).toBeInTheDocument();
-  expect(screen.getAllByText(/Chưa hiệu chuẩn/)).toHaveLength(1);
-  expect(screen.getByLabelText('Ẩn mục chưa đáng tin')).not.toBeChecked();
-  expect(screen.getByText(/Lần chạy gần nhất/)).toBeInTheDocument();
-  fireEvent.click(
-    within(card).getByText('“Figure 2”').closest('article')?.querySelector('button') as HTMLElement,
-  );
+  fireEvent.click(screen.getByRole('button', { name: 'Chạy lại kiểm tra' }));
+  const list = await screen.findByRole('region', { name: 'Issues' });
+  const quote = await within(list).findByText(/Figure 2/);
+  const article = quote.closest('article');
+  if (!article) throw new Error('Missing finding');
+  fireEvent.click(within(article).getAllByRole('button')[0] as HTMLElement);
   // Inside a space the passage opens in the drawer, and from there in the reader.
   expect(screen.getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Mở trong bài' }));
@@ -93,17 +88,11 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
   expect(screen.getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
   expect(scroll).toHaveBeenCalled();
   openChecks();
-  const cardAgain =
-    screen.getByRole('heading', { name: 'Hình và bảng' }).closest('section') ??
-    screen.getByRole('heading', { name: 'Hình và bảng' }).parentElement;
-  if (!cardAgain) throw new Error('Missing card');
+  const cardAgain = screen.getByRole('region', { name: 'Issues' });
   // A check's finding counts as accepted: the only decision is to reject it, and it can be undone.
   expect(within(cardAgain).queryByRole('button', { name: 'Xác nhận' })).toBeNull();
   fireEvent.click(within(cardAgain).getByRole('button', { name: 'Bác bỏ' }));
-  const dismissed = await within(cardAgain).findByText('Đã bác bỏ (1)');
-  expect(dismissed.parentElement).not.toHaveAttribute('open');
-  fireEvent.click(dismissed);
-  fireEvent.click(within(cardAgain).getByRole('button', { name: 'Hoàn tác' }));
+  fireEvent.click(await within(cardAgain).findByRole('button', { name: 'Hoàn tác' }));
   await waitFor(async () =>
     expect(
       (await repo.audit.listByAnalysis(paper.id)).items.filter((e) => e.action === 'review_check'),

@@ -37,6 +37,7 @@ export function FindingsList({
   onOpenSource,
   onDecide,
   only,
+  onRunChecks,
 }: {
   paper: Paper;
   findings: PaperFinding[];
@@ -48,6 +49,7 @@ export function FindingsList({
   onDecide: (finding: PaperFinding, status: FindingStatus) => void;
   /** The criteria this list is about, when it sits in a space or tab about them. */
   only?: Criterion[];
+  onRunChecks?: () => void;
 }) {
   const ids = only ?? CRITERION_IDS;
   // Sentence-level writing issues can outnumber everything else, so they start switched off when there is
@@ -58,6 +60,7 @@ export function FindingsList({
     (findings.some((item) => item.criterion !== 'writing') ? ids.filter((id) => id !== 'writing') : ids);
   const [limit, setLimit] = useState(PAGE);
   const [byPage, setByPage] = useState(false);
+  const [checksOnly, setChecksOnly] = useState(false);
   const [applied, setApplied] = useState<string | null>(null);
   if (focusId && focusId !== applied) {
     setApplied(focusId);
@@ -74,7 +77,7 @@ export function FindingsList({
   const group = (item: PaperFinding) => GROUPS.findIndex((entry) => entry.id === item.criterion);
   const shown = findings
     .map((item, position) => ({ item, position }))
-    .filter(({ item }) => criteria.includes(item.criterion))
+    .filter(({ item }) => (checksOnly ? item.source === 'checks' : criteria.includes(item.criterion)))
     .sort(
       (a, b) =>
         (byPage
@@ -94,7 +97,7 @@ export function FindingsList({
   const toggle = (id: Criterion) =>
     setCriteria(criteria.includes(id) ? criteria.filter((item) => item !== id) : [...criteria, id]);
 
-  if (findings.length === 0) return <Empty title="Chưa có phát hiện nào." />;
+  if (findings.length === 0 && !onRunChecks) return <Empty title="Chưa có phát hiện nào." />;
   const visible = shown.slice(0, limit);
   return (
     <section className={styles.findings} aria-label="Issues">
@@ -114,8 +117,18 @@ export function FindingsList({
           <Chip aria-pressed={byPage} onClick={() => setByPage(!byPage)}>
             Theo trang
           </Chip>
+          {onRunChecks && (
+            <Chip aria-pressed={checksOnly} onClick={() => setChecksOnly(!checksOnly)}>
+              Kiểm tra tự động
+            </Chip>
+          )}
         </div>
       }
+      {onRunChecks && (
+        <Button size="sm" onClick={onRunChecks}>
+          Chạy lại kiểm tra
+        </Button>
+      )}
       {shown.length === 0 && <Empty title="Không có phát hiện nào khớp bộ lọc." hint="Bật thêm tiêu chí." />}
       {visible.map((finding, index) => {
         const first = finding.locations[0];
@@ -162,9 +175,11 @@ export function FindingsList({
                 }
                 actions={
                   <>
-                    <Button size="sm" variant="ghost" onClick={() => onOpenSource(finding.view)}>
-                      Chi tiết
-                    </Button>
+                    {finding.source !== 'checks' && (
+                      <Button size="sm" variant="ghost" onClick={() => onOpenSource(finding.view)}>
+                        Chi tiết
+                      </Button>
+                    )}
                     <ReviewActions
                       acceptByDefault
                       decided={finding.status === 'dismissed'}
