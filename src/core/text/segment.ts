@@ -1,7 +1,7 @@
 import type { Sentence, Token } from '../schemas/text';
 import { createOffsetIndex } from './offsets';
 import { tokenize } from './tokenize';
-export const SEGMENTER_VERSION = 'pl-seg-2' as const;
+export const SEGMENTER_VERSION = 'pl-seg-3' as const;
 export const SENTENCE_STARTERS = [
   'The',
   'This',
@@ -87,8 +87,32 @@ function initial(prefix: string, following: string): boolean {
   );
   return previousInitial || nextCapital || !starter;
 }
+const OPENERS: Record<string, string> = { '(': ')', '[': ']', '{': '}' };
+const CLOSERS = new Set([')', ']', '}']);
+/**
+ * UTF-16 indexes of brackets that have a partner. PDF text often loses a closer, and an
+ * unmatched opener would otherwise hold every later full stop in the paragraph open.
+ */
+function matchedBrackets(text: string): Set<number> {
+  const matched = new Set<number>();
+  const stack: number[] = [];
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i] ?? '';
+    if (OPENERS[char]) stack.push(i);
+    else if (CLOSERS.has(char)) {
+      // Pop to the nearest opener of the same kind; openers skipped on the way have no closer.
+      let at = stack.length - 1;
+      while (at >= 0 && OPENERS[text[stack[at] ?? -1] ?? ''] !== char) at--;
+      if (at < 0) continue;
+      matched.add(stack[at] ?? -1).add(i);
+      stack.length = at;
+    }
+  }
+  return matched;
+}
 export function segmentSentences(text: string, tokens: Token[] = tokenize(text)): Sentence[] {
   const offsets = createOffsetIndex(text);
+  const matched = matchedBrackets(text);
   const sentences: Sentence[] = [];
   let start = 0,
     depth = 0,
@@ -108,8 +132,10 @@ export function segmentSentences(text: string, tokens: Token[] = tokenize(text))
   };
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
-    if (char === '(' || char === '[' || char === '{') depth++;
-    if (char === ')' || char === ']' || char === '}') depth = Math.max(0, depth - 1);
+    if (matched.has(i)) {
+      if (char === '(' || char === '[' || char === '{') depth++;
+      else depth = Math.max(0, depth - 1);
+    }
     if (char !== '.' && char !== '?' && char !== '!') continue;
     if (char === '.' && /\d/u.test(text[i - 1] ?? '') && /\d/u.test(text[i + 1] ?? '')) continue;
     if (char === '.' && text[i + 1] === '.') continue;
@@ -117,7 +143,8 @@ export function segmentSentences(text: string, tokens: Token[] = tokenize(text))
     while (/^[)\]}"'”’]$/u.test(text[end] ?? '')) end++;
     const next = /^\s+([\s\S])/u.exec(text.slice(end))?.[1] ?? '';
     if (!next || !/^[\p{Lu}\d("'“‘\u005b{]/u.test(next)) continue;
-    const closingBrackets = (text.slice(i + 1, end).match(/[)\]}]/gu) ?? []).length;
+    let closingBrackets = 0;
+    for (let j = i + 1; j < end; j++) if (matched.has(j)) closingBrackets++;
     if (depth > closingBrackets) continue;
     if (
       char === '.' &&

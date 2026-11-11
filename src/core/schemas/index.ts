@@ -22,3 +22,4 @@ export * from './calibration';
 export * from './measurement';
 export * from './library';
 export * from './stance';
+export * from './paperModel';

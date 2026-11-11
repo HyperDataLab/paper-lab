@@ -348,3 +348,10 @@ always written.
 line (the whole text on hover), "Đã bị rút" when OpenAlex reports a retraction, the year, a DOI link, and its place.
 Numbered entries that a two-column PDF joins into one paragraph are cut where the numbers follow each other; a
 numbered entry always starts a new reference.
+
+**Publication info.** "Sửa thông tin" turns the metadata table into a form (shared `TextField`s): title, year,
+venue, volume, issue, pages, DOI, keywords separated by commas, and authors one per line as the paper writes them.
+"Lưu" stores it with source "Nhập tay"; "Huỷ" changes nothing. It works without a DOI, and the DOI lookup stays
+beside it. Under the table a quiet "Paper model" block gives one line of counts ("N câu · M tài liệu tham khảo")
+and "Tải paper-model.json", which downloads the whole model with today's rhetoric and stance labels and their
+review state.

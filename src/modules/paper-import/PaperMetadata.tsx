@@ -1,13 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { normalizeDoi } from '@/core/library/doi';
+import { buildPaperModel, sentenceIndex } from '@/core/paperModel';
 import type { Paper, PaperContextRecord, PaperMetadata as Metadata } from '@/core/schemas';
-import { arxivDoiFromFileName, metadataFromLibrary, paperDoi } from '@/core/scholarlyContext';
+import { arxivDoiFromFileName, metadataFromLibrary, paperDoi, referenceList } from '@/core/scholarlyContext';
+import { downloadJson } from '@/shared/calibration/download';
 import { createScholarClient } from '@/shared/scholar/client';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { ActionBar } from '@/shared/ui/ActionBar';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { TextField } from '@/shared/ui/TextField';
+import {
+  draftFrom,
+  metadataFromDraft,
+  paperModelFileName,
+  SOURCE_LABELS,
+  type MetadataDraft,
+} from './metadataForm';
 import styles from './snapshot.module.css';
 
 const FORMATS: Record<Paper['source']['kind'], string> = {
@@ -16,6 +25,16 @@ const FORMATS: Record<Paper['source']['kind'], string> = {
   markdown: 'Markdown',
   text: 'Văn bản',
 };
+const FIELDS: { name: Exclude<keyof MetadataDraft, 'authors'>; label: string; hint?: string }[] = [
+  { name: 'title', label: 'Tên' },
+  { name: 'year', label: 'Năm' },
+  { name: 'venue', label: 'Tạp chí / Nơi đăng' },
+  { name: 'volume', label: 'Tập' },
+  { name: 'issue', label: 'Số' },
+  { name: 'pages', label: 'Trang' },
+  { name: 'doi', label: 'DOI' },
+  { name: 'keywords', label: 'Từ khoá', hint: 'Cách nhau bằng dấu phẩy.' },
+];
 const TYPES: Record<string, string> = {
   article: 'Bài báo',
   preprint: 'Bản thảo (preprint)',
@@ -32,6 +51,12 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
   const [doi, setDoi] = useState(() => paperDoi(paper) ?? arxivDoiFromFileName(paper.source.fileName) ?? '');
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState('');
+  const [draft, setDraft] = useState<MetadataDraft | null>(null);
+  const [formError, setFormError] = useState('');
+  const counts = useMemo(
+    () => ({ sentences: sentenceIndex(paper).length, references: referenceList(paper).length }),
+    [paper],
+  );
   useEffect(() => {
     let active = true;
     void Promise.all([repo.paperContext.get(paper.id), repo.library.list()]).then(([saved, items]) => {
@@ -49,6 +74,52 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
     };
   }, [paper.id, repo]);
   const metadata = record?.metadata ?? library;
+  async function save(next: Metadata, checkedDoi: string | null = next.doi) {
+    // Same record the DOI lookup writes; a paper with no lookup yet gets a fresh one.
+    const at = next.fetchedAt;
+    setRecord(
+      await repo.paperContext.save({
+        schemaVersion: 1,
+        paperId: paper.id,
+        checkedAt: record?.checkedAt ?? at,
+        paperDoi: checkedDoi ?? record?.paperDoi ?? null,
+        checked: record?.checked ?? 0,
+        found: record?.found ?? 0,
+        retracted: record?.retracted ?? [],
+        retractionChecked: record?.retractionChecked ?? false,
+        metadata: next,
+      }),
+    );
+  }
+  async function submit() {
+    if (!draft) return;
+    const result = metadataFromDraft(draft, metadata, new Date().toISOString());
+    if ('error' in result) {
+      setFormError(result.error);
+      return;
+    }
+    try {
+      await save(result.metadata);
+      if (result.metadata.doi) setDoi(result.metadata.doi);
+      setDraft(null);
+      setFormError('');
+    } catch {
+      setFormError('Không lưu được thông tin. Vui lòng thử lại.');
+    }
+  }
+  async function downloadModel() {
+    // Read at click time so the file carries the labels as they stand now, decisions included.
+    try {
+      const [insights, stance] = await Promise.all([
+        repo.paperInsights.get(paper.id),
+        repo.stance.get(paper.id),
+      ]);
+      const model = buildPaperModel({ paper, metadata, insights, stance, now: new Date() });
+      downloadJson(paperModelFileName(model.document.metadata.title), model);
+    } catch {
+      setMessage('Không tạo được paper-model.json. Vui lòng thử lại.');
+    }
+  }
   async function lookup() {
     const value = normalizeDoi(doi);
     if (!value) {
@@ -64,19 +135,7 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
         setMessage('OpenAlex không có bản ghi cho DOI này.');
         return;
       }
-      setRecord(
-        await repo.paperContext.save({
-          schemaVersion: 1,
-          paperId: paper.id,
-          checkedAt: record?.checkedAt ?? found.fetchedAt,
-          paperDoi: value,
-          checked: record?.checked ?? 0,
-          found: record?.found ?? 0,
-          retracted: record?.retracted ?? [],
-          retractionChecked: record?.retractionChecked ?? false,
-          metadata: found,
-        }),
-      );
+      await save(found, value);
     } catch {
       setMessage('Không tra cứu được OpenAlex. Vui lòng thử lại.');
     } finally {
@@ -104,6 +163,7 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
       metadata?.citedBy === null || metadata?.citedBy === undefined ? null : String(metadata.citedBy),
     ],
     ['Chủ đề', metadata?.topic ?? null],
+    ['Từ khoá', metadata?.keywords.length ? metadata.keywords.join(', ') : null],
   ];
   return (
     <Card>
@@ -113,7 +173,7 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
           running ? (
             <span role="status">Đang tra cứu…</span>
           ) : metadata ? (
-            `Nguồn: ${metadata.source === 'openalex' ? 'OpenAlex' : 'Thư viện DOI'} · ${new Date(metadata.fetchedAt).toLocaleString('vi-VN')}`
+            `Nguồn: ${SOURCE_LABELS[metadata.source]} · ${new Date(metadata.fetchedAt).toLocaleString('vi-VN')}`
           ) : (
             'Chưa có metadata. Chỉ DOI được gửi tới OpenAlex.'
           )
@@ -123,6 +183,15 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
         <Button variant="primary" disabled={running || !doi.trim()} onClick={() => void lookup()}>
           {record?.metadata ? 'Tra cứu lại' : 'Tra cứu metadata'}
         </Button>
+        <Button
+          disabled={running || !!draft}
+          onClick={() => {
+            setFormError('');
+            setDraft(draftFrom(metadata, paper.title, doi));
+          }}
+        >
+          Sửa thông tin
+        </Button>
       </ActionBar>
       {message && <p role="alert">{message}</p>}
       {!doi && (
@@ -130,34 +199,89 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
           Không tìm thấy DOI trong bài hoặc tên tệp. Bạn có thể nhập DOI để tra cứu.
         </p>
       )}
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th scope="col">Trường</th>
-            <th scope="col">Giá trị</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(([label, value]) => (
-            <tr key={label}>
-              <th scope="row">{label}</th>
-              <td>{value ?? <span className={styles.missing}>Chưa có</span>}</td>
+      {draft ? (
+        <form
+          className={styles.form}
+          aria-label="Sửa thông tin bài báo"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submit();
+          }}
+        >
+          <div className={styles.formGrid}>
+            {FIELDS.map(({ name, label, hint }) => (
+              <TextField
+                key={name}
+                label={label}
+                hint={hint}
+                inputMode={name === 'year' ? 'numeric' : undefined}
+                value={draft[name]}
+                onChange={(event) => setDraft({ ...draft, [name]: event.target.value })}
+              />
+            ))}
+          </div>
+          <TextField
+            multiline
+            label="Tác giả"
+            hint="Mỗi dòng một tác giả, viết như trong bài."
+            rows={4}
+            value={draft.authors}
+            onChange={(event) => setDraft({ ...draft, authors: event.target.value })}
+          />
+          {formError && <p role="alert">{formError}</p>}
+          <div className={styles.formActions}>
+            <Button type="submit" variant="primary">
+              Lưu
+            </Button>
+            <Button
+              onClick={() => {
+                setDraft(null);
+                setFormError('');
+              }}
+            >
+              Huỷ
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th scope="col">Trường</th>
+              <th scope="col">Giá trị</th>
             </tr>
-          ))}
-          <tr>
-            <th scope="row">DOI</th>
-            <td>
-              {metadata?.doi ? (
-                <a href={`https://doi.org/${metadata.doi}`} target="_blank" rel="noreferrer">
-                  {metadata.doi}
-                </a>
-              ) : (
-                <span className={styles.missing}>Chưa có</span>
-              )}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map(([label, value]) => (
+              <tr key={label}>
+                <th scope="row">{label}</th>
+                <td>{value ?? <span className={styles.missing}>Chưa có</span>}</td>
+              </tr>
+            ))}
+            <tr>
+              <th scope="row">DOI</th>
+              <td>
+                {metadata?.doi ? (
+                  <a href={`https://doi.org/${metadata.doi}`} target="_blank" rel="noreferrer">
+                    {metadata.doi}
+                  </a>
+                ) : (
+                  <span className={styles.missing}>Chưa có</span>
+                )}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      )}
+      <section className={styles.model} aria-label="Paper model">
+        <h3>Paper model</h3>
+        <p className={styles.note}>
+          {counts.sentences} câu · {counts.references} tài liệu tham khảo
+        </p>
+        <Button size="sm" onClick={() => void downloadModel()}>
+          Tải paper-model.json
+        </Button>
+      </section>
     </Card>
   );
 }

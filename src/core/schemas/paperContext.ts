@@ -8,13 +8,16 @@ export const RetractedWorkSchema = z.object({
   isPaper: z.boolean(),
 });
 export const PaperMetadataSchema = z.object({
-  source: z.enum(['openalex', 'library']),
+  source: z.enum(['manual', 'openalex', 'library']),
   fetchedAt: z.iso.datetime(),
   doi: z.string().nullable(),
   title: z.string().nullable(),
   type: z.string().nullable(),
   year: z.number().int().nullable(),
   authors: z.array(z.string()),
+  // Added in R17a; defaults keep records saved before then valid.
+  affiliations: z.array(z.string()).default([]),
+  keywords: z.array(z.string()).default([]),
   venue: z.string().nullable(),
   volume: z.string().nullable(),
   issue: z.string().nullable(),
@@ -39,3 +42,4 @@ export const PaperContextRecordSchema = z.object({
 });
 export type RetractedWork = z.infer<typeof RetractedWorkSchema>;
 export type PaperContextRecord = z.infer<typeof PaperContextRecordSchema>;
+export type PaperContextRecordInput = z.input<typeof PaperContextRecordSchema>;

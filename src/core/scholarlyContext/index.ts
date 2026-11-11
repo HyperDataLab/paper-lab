@@ -146,6 +146,8 @@ export function mapPaperMetadata(raw: unknown, fetchedAt: string): PaperMetadata
     title: text(work.display_name) ?? text(work.title),
     type: text(work.type),
     year: typeof work.publication_year === 'number' ? work.publication_year : null,
+    affiliations: [],
+    keywords: [],
     authors: authorships.flatMap((entry: Record<string, unknown>) => {
       const name = text((entry.author as Record<string, unknown> | undefined)?.display_name);
       return name ? [name] : [];
@@ -169,6 +171,8 @@ export function metadataFromLibrary(item: LibraryItem, fetchedAt: string): Paper
     type: null,
     year: item.year,
     authors: item.authors,
+    affiliations: [],
+    keywords: [],
     venue: item.venue,
     volume: null,
     issue: null,
