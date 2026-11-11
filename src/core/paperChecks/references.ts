@@ -1,4 +1,5 @@
-import type { Finding, Paper } from '../schemas';
+import type { Finding, Paper, PaperParagraph } from '../schemas';
+import { createOffsetIndex } from '../text/offsets';
 import { finding, matches, result, role, type Located } from './common';
 
 const normalize = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
@@ -22,23 +23,67 @@ function key(text: string) {
   const m = new RegExp(authorYear.source, 'iu').exec(text);
   return m ? `${normalize(m[1] ?? '')}:${m[2]?.toLowerCase()}` : '';
 }
+type Piece = { paragraph: PaperParagraph; start: number; end: number; text: string; split: boolean };
+const BRACKET = /(?:^|\s)\[(\d{1,3})\]\s/gu;
+
+/**
+ * A paragraph of the reference list cut where its numbered entries start. Two-column PDFs often join several
+ * entries into one paragraph; "[12] … [13] …" is cut only where the numbers follow each other, so a "[3]"
+ * quoted inside an entry does not cut it.
+ */
+function pieces(paragraph: PaperParagraph): Piece[] {
+  const text = paragraph.text;
+  const marks = [...text.matchAll(BRACKET)].map((m) => ({
+    at: m.index + m[0].indexOf('['),
+    number: Number(m[1]),
+  }));
+  const cuts: number[] = [];
+  let last: number | null = null;
+  for (const mark of marks) {
+    if (last === null || mark.number === last + 1) {
+      if (last !== null || mark.at > 0) cuts.push(mark.at);
+      last = mark.number;
+    }
+  }
+  const bounds = [0, ...cuts.filter((at) => at > 0), text.length];
+  const result: Piece[] = [];
+  for (let i = 0; i < bounds.length - 1; i++) {
+    const start = bounds[i] ?? 0;
+    const end = bounds[i + 1] ?? text.length;
+    const piece = text.slice(start, end);
+    if (piece.trim()) result.push({ paragraph, start, end, text: piece.trim(), split: i > 0 });
+  }
+  return result;
+}
+
 export function referenceEntries(refs: Paper['paragraphs']) {
-  const entries: { paragraphs: Paper['paragraphs']; sectionId: string }[] = [];
+  const entries: { pieces: Piece[]; sectionId: string }[] = [];
   for (const p of refs) {
     if (!p.text.trim()) continue;
-    const start =
-      /^\s*(?:\[\d+\]|\d+[.)])\s*/u.test(p.text) ||
-      /^\s*[\p{L}\p{M}'’.-]+(?:\s+[\p{L}\p{M}'’.-]+)*,\s*\p{L}\./iu.test(p.text);
-    const previous = entries[entries.length - 1];
-    if (!previous || previous.sectionId !== p.sectionId || start)
-      entries.push({ paragraphs: [p], sectionId: p.sectionId });
-    else previous.paragraphs.push(p);
+    for (const piece of pieces(p)) {
+      const start =
+        piece.split ||
+        /^\s*(?:\[\d+\]|\d+[.)])\s*/u.test(piece.text) ||
+        /^\s*[\p{L}\p{M}'’.-]+(?:\s+[\p{L}\p{M}'’.-]+)*,\s*\p{L}\./iu.test(piece.text);
+      const previous = entries[entries.length - 1];
+      if (!previous || previous.sectionId !== p.sectionId || start)
+        entries.push({ pieces: [piece], sectionId: p.sectionId });
+      else previous.pieces.push(piece);
+    }
   }
-  return entries.flatMap(({ paragraphs }, index) => {
-    const first = paragraphs[0];
+  return entries.flatMap(({ pieces: parts }, index) => {
+    const first = parts[0];
     if (!first) return [];
-    const locs = paragraphs.flatMap((p) => matches(p, /[\s\S]+/gu));
-    const text = paragraphs.map((p) => p.text).join(' ');
+    const locs: Located[] = parts.map((part) => {
+      const offsets = createOffsetIndex(part.paragraph.text);
+      return {
+        paragraph: part.paragraph,
+        text: part.paragraph.text.slice(part.start, part.end),
+        start: offsets.utf16ToCp(part.start),
+        end: offsets.utf16ToCp(part.end),
+      };
+    });
+    const text = parts.map((part) => part.text).join(' ');
     const number = /^\s*(?:\[(\d+)\]|(\d+)[.)])/u.exec(text);
     const withoutNumber = text.replace(/^\s*(?:\[\d+\]|\d+[.)])\s*/u, '');
     const surname = /^\s*([\p{L}\p{M}'’.-]+(?:\s+[\p{L}\p{M}'’.-]+)*),/u.exec(withoutNumber)?.[1];

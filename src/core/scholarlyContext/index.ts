@@ -28,14 +28,20 @@ function yearIn(text: string, latest: number) {
   return years.at(-1) ?? null;
 }
 
-/** A PDF line break can end an entry mid-sentence, and the next line then looks like a new author list. */
-const isUnfinished = (text: string) => !/(?:[.?!)\]]|\/\S*)\s*$/u.test(text);
+/**
+ * A PDF line break can end an entry mid-sentence, and the next line then looks like a new author list. An
+ * entry that ends with a full stop, a bracket, a link, an arXiv id or a year is finished.
+ */
+const isUnfinished = (text: string) =>
+  !/(?:[.?!)\]]|\/\S*|\d{4}\.\d{4,5}(?:v\d+)?|(?<!\d)(?:19|20)\d{2}[a-z]?)\s*$/u.test(text);
 
 export function referenceList(paper: Paper, now = new Date()): ReferenceItem[] {
   const merged: { text: string; first: Located | undefined }[] = [];
   for (const entry of referenceEntries(paperReferenceParagraphs(paper))) {
     const previous = merged.at(-1);
-    if (previous && isUnfinished(previous.text)) previous.text += ` ${entry.text}`;
+    // A numbered entry always starts a new reference, whatever the one before ends with.
+    const numbered = entry.keys.some((key) => key.startsWith('n:'));
+    if (previous && !numbered && isUnfinished(previous.text)) previous.text += ` ${entry.text}`;
     else merged.push({ text: entry.text, first: entry.locs[0] });
   }
   return merged.map(({ text, first }) => ({
