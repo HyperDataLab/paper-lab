@@ -13,9 +13,9 @@ import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { ReviewActions } from '@/shared/ui/FindingCard';
-import { placeLabel } from './paperLabels';
 import { useReportJob } from './paperJobs';
 import styles from './snapshot.module.css';
+import { PlaceText } from './PlaceText';
 
 const LABELS: Record<SnapshotField, string> = {
   methods: 'Methods',
@@ -222,7 +222,7 @@ export function PaperSnapshot({
                             })
                           }
                         >
-                          {placeLabel(paper, item.source.paragraphId)}
+                          <PlaceText paper={paper} paragraphId={item.source.paragraphId} />
                         </Button>
                         <ReviewActions
                           acceptByDefault

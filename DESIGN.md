@@ -337,3 +337,9 @@ The profile has five dimensions (Khoa học, Lập luận, Diễn ngôn, Viết 
 **Automated checks** run on their own when a paper opens. Each check sits with what it is about: Numbers & claims in the
 Arguments space, Figures & tables and Acronyms & claim strength in the Writing style space, citations in Citations. Their
 findings are also in the Issues block of the same place.
+
+**Where a passage is.** Every place shown on the paper page reads the same way: the kind of its section as a small
+coloured badge (Abstract, Introduction, Related work, Methods, Results, Discussion, Conclusion; other sections by a
+short form of their heading), then "· Tr. N". The full heading shows on hover. Pressing it opens the passage. Colours
+come from the `--sec-*` tokens in `theme.css`, with light and dark values; the colour is never the only cue, the name is
+always written.

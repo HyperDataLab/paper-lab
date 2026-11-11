@@ -2,9 +2,9 @@ import { LENSES } from '@/core/prompts';
 import type { Paper, PaperReviewRun, ReviewDecision } from '@/core/schemas';
 import { Badge } from '@/shared/ui/Badge';
 import { FindingCard, ReviewActions } from '@/shared/ui/FindingCard';
-import { placeLabel } from './paperLabels';
 import styles from './page.module.css';
 import { DIMENSION_LABELS, KIND_LABELS, SEVERITY_LABELS } from './reviewLabels';
+import { PlaceText } from './PlaceText';
 
 type Point = PaperReviewRun['merged'][number];
 export function ReviewPointCard({
@@ -61,7 +61,10 @@ export function ReviewPointCard({
         </>
       }
       quote={first ? `“${first.quote}”` : undefined}
-      source={{ label: placeLabel(paper, point.anchor.paragraphId), onOpen: () => onLocation(point.anchor) }}
+      source={{
+        label: <PlaceText paper={paper} paragraphId={point.anchor.paragraphId} />,
+        onOpen: () => onLocation(point.anchor),
+      }}
       actions={
         <ReviewActions
           acceptByDefault

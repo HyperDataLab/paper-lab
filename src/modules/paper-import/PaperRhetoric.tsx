@@ -22,12 +22,12 @@ import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { FindingCard, ReviewActions } from '@/shared/ui/FindingCard';
-import { placeLabel } from './paperLabels';
 import { usePaperScope, useRunBudget } from './paperScope';
 import { RunSetup } from './RunSetup';
 import { acceptsSectionRun, useReportJob } from './paperJobs';
 import styles from './measurement.module.css';
 import { Loading } from '@/shared/ui/StateNote';
+import { PlaceText } from './PlaceText';
 
 type Location = Finding['locations'][number];
 const LABELS: Record<RhetoricCategory, { name: string; help: string }> = {
@@ -310,7 +310,10 @@ export function PaperRhetoric({
                             </>
                           }
                           quote={item.excerpt}
-                          source={{ label: placeLabel(paper, item.paragraphId), onOpen: () => open(item) }}
+                          source={{
+                            label: <PlaceText paper={paper} paragraphId={item.paragraphId} />,
+                            onOpen: () => open(item),
+                          }}
                           actions={actions(item.id)}
                         >
                           <p>{item.rationale}</p>
@@ -351,11 +354,11 @@ export function PaperRhetoric({
                     source={
                       claim.support
                         ? {
-                            label: placeLabel(paper, claim.support.paragraphId),
+                            label: <PlaceText paper={paper} paragraphId={claim.support.paragraphId} />,
                             onOpen: () => claim.support && open(claim.support),
                           }
                         : {
-                            label: placeLabel(paper, claim.claim.paragraphId),
+                            label: <PlaceText paper={paper} paragraphId={claim.claim.paragraphId} />,
                             onOpen: () => open(claim.claim),
                           }
                     }

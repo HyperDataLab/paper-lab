@@ -116,7 +116,7 @@ it('R4 Toulmin is drawn as a diagram: empty slots say so, and an inferred warran
   expect(within(diagram).getByText('Trừ khi')).toBeInTheDocument();
   expect(diagram.querySelector('path[data-tone="conflict"]')).toHaveAttribute('data-dashed', 'true');
   // A passage opens in the paper.
-  fireEvent.click(within(screen.getByTestId('node-data-0')).getByRole('button', { name: 'Tr. 4 · Results' }));
+  fireEvent.click(within(screen.getByTestId('node-data-0')).getByRole('button', { name: 'Results · Tr. 4' }));
   expect(onLocation).toHaveBeenCalledWith(first.data[0]);
 });
 

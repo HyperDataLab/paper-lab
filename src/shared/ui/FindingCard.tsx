@@ -14,7 +14,7 @@ export function FindingCard({
   labels: ReactNode;
   quote?: ReactNode;
   children?: ReactNode;
-  source?: { label: string; onOpen: () => void; title?: string };
+  source?: { label: ReactNode; onOpen: () => void; title?: string };
   actions?: ReactNode;
   state?: 'open' | 'confirmed' | 'dismissed';
 }) {

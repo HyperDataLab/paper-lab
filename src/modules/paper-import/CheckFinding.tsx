@@ -3,8 +3,8 @@ import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { FindingCard, ReviewActions } from '@/shared/ui/FindingCard';
 import type { CheckHandlers } from './checkTypes';
-import { placeLabel } from './paperLabels';
 import styles from './page.module.css';
+import { PlaceText } from './PlaceText';
 
 export function FindingRow({
   finding,
@@ -50,7 +50,12 @@ export function FindingRow({
         }
         quote={first ? `“${quoteOf(first)}”` : undefined}
         source={
-          first ? { label: placeLabel(paper, first.paragraphId), onOpen: () => onLocation(first) } : undefined
+          first
+            ? {
+                label: <PlaceText paper={paper} paragraphId={first.paragraphId} />,
+                onOpen: () => onLocation(first),
+              }
+            : undefined
         }
         actions={
           <ReviewActions
@@ -70,7 +75,7 @@ export function FindingRow({
               {others.map((location, index) => (
                 <li key={`${location.paragraphId}:${location.start}:${index}`}>
                   <Button size="sm" variant="ghost" onClick={() => onLocation(location)}>
-                    {placeLabel(paper, location.paragraphId)}
+                    <PlaceText paper={paper} paragraphId={location.paragraphId} />
                   </Button>
                 </li>
               ))}

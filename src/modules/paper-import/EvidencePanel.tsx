@@ -2,8 +2,8 @@ import type { Finding, Paper } from '@/core/schemas';
 import { sliceCp } from '@/core/text/offsets';
 import { Button } from '@/shared/ui/Button';
 import { Drawer } from '@/shared/ui/Drawer';
-import { placeLabel } from './paperLabels';
 import styles from './page.module.css';
+import { PlaceText } from './PlaceText';
 
 type Location = Finding['locations'][number];
 
@@ -25,7 +25,9 @@ export function EvidencePanel({
       {location && paragraph && (
         <div className={styles.evidence}>
           <header className={styles.evidenceHead}>
-            <h2>{placeLabel(paper, paragraph.id)}</h2>
+            <h2>
+              <PlaceText paper={paper} paragraphId={paragraph.id} />
+            </h2>
             <Button variant="ghost" size="sm" onClick={onClose}>
               Đóng
             </Button>
