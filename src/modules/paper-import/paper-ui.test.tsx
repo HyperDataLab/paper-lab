@@ -365,8 +365,8 @@ it('P2 a run keeps going when the reader opens another tab, and the view is kept
   await waitFor(() => expect(completeJson).toHaveBeenCalledTimes(2));
   fireEvent.click(screen.getByRole('tab', { name: 'Full text' }));
   expect(search).toContain('view=map');
-  const strip = await screen.findByText(/Đang chạy ở chỗ khác/);
-  fireEvent.click(within(strip).getByRole('button', { name: 'Key facts' }));
+  expect(await screen.findByText(/Đang chạy: /)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('tab', { name: 'Summary' }));
   // Still the same runs: the panels were hidden, not unmounted, so nothing was restarted.
   expect(screen.getByText('Đang trích Key facts…')).toBeVisible();
   expect(screen.getByRole('button', { name: 'Đang tóm tắt…' })).toBeDisabled();

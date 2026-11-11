@@ -5,6 +5,7 @@ import { RUN_ALL, type JobFacts, type JobId, type JobReport } from './paperJobs'
 import { RunAllCard } from './RunAllCard';
 
 const labels = {
+  digest: 'Summary',
   snapshot: 'Snapshot',
   measure: 'Đo lường',
   rhetoric: 'Validity và Moves',
@@ -76,32 +77,32 @@ it('P3 confirms the total once, skips analyses that already have a result, and r
   const order: JobId[] = [];
   const onRunChecks = vi.fn();
   render(<Harness done={['snapshot', 'batch']} order={order} onRunChecks={onRunChecks} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Phân tích toàn bài' }));
+  fireEvent.click(screen.getByRole('button', { name: /Phân tích toàn bài · còn/ }));
   const dialog = screen.getByRole('alertdialog');
   expect(within(dialog).getAllByText('Đã có kết quả, bỏ qua')).toHaveLength(2);
-  expect(within(dialog).getByText(/Tổng ước tính: ~12 lượt gọi AI cho 4 phân tích/)).toBeInTheDocument();
+  expect(within(dialog).getByText(/Tổng ước tính: ~15 lượt gọi AI cho 5 phân tích/)).toBeInTheDocument();
   expect(order).toEqual([]);
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Chạy 4 phân tích' }));
-  expect(await screen.findByText('Đã chạy xong 4 phân tích.', {}, { timeout: 4000 })).toBeInTheDocument();
-  expect(order).toEqual(['measure', 'rhetoric', 'arguments', 'stance']);
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Chạy 5 phân tích' }));
+  expect(await screen.findByText('Đã chạy xong 5 phân tích.', {}, { timeout: 4000 })).toBeInTheDocument();
+  expect(order).toEqual(['digest', 'measure', 'rhetoric', 'arguments', 'stance']);
   expect(onRunChecks).toHaveBeenCalledTimes(1);
 });
 
 it('P3 stops at the first analysis that does not finish instead of spending on the rest', async () => {
   const order: JobId[] = [];
   render(<Harness failing="rhetoric" order={order} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Phân tích toàn bài' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Chạy 6 phân tích' }));
+  fireEvent.click(screen.getByRole('button', { name: /Phân tích toàn bài · còn/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Chạy 7 phân tích' }));
   await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Đã dừng ở “Validity và Moves”'), {
     timeout: 4000,
   });
-  expect(order).toEqual(['snapshot', 'measure', 'rhetoric']);
+  expect(order).toEqual(['digest', 'snapshot', 'measure', 'rhetoric']);
 });
 
 it('P3 cancelling the confirmation starts nothing', () => {
   const order: JobId[] = [];
   render(<Harness order={order} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Phân tích toàn bài' }));
+  fireEvent.click(screen.getByRole('button', { name: /Phân tích toàn bài · còn/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   expect(order).toEqual([]);
@@ -110,9 +111,18 @@ it('P3 cancelling the confirmation starts nothing', () => {
 it('R6 includes stale completed analyses and shows their reason', async () => {
   const order: JobId[] = [];
   render(<Harness done={RUN_ALL} stale="rhetoric" order={order} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Phân tích toàn bài' }));
+  fireEvent.click(screen.getByRole('button', { name: /Phân tích toàn bài · còn/ }));
   expect(screen.getByText('Kết quả cũ (model khác) · ~3 lượt gọi AI')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Chạy 1 phân tích' }));
   expect(await screen.findByText('Đã chạy xong 1 phân tích.')).toBeInTheDocument();
   expect(order).toEqual(['rhetoric']);
+});
+
+it('R15 whole-paper run shows what is left', () => {
+  const order: JobId[] = [];
+  const { unmount } = render(<Harness done={['snapshot']} order={order} />);
+  expect(screen.getByRole('button', { name: 'Phân tích toàn bài · còn 6' })).toBeInTheDocument();
+  unmount();
+  render(<Harness done={RUN_ALL} order={order} />);
+  expect(screen.queryByRole('button', { name: /Phân tích toàn bài · còn/ })).not.toBeInTheDocument();
 });
