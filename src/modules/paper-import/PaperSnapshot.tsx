@@ -98,16 +98,15 @@ export function PaperSnapshot({
     start,
   });
   if (compact) {
-    const shown = (run?.values ?? []).filter(
-      (item) => item.status === 'reported' && states.get(item.id) !== 'dismissed',
-    );
+    // A rejected fact stays in place, dimmed, so the decision can be undone.
+    const shown = (run?.values ?? []).filter((item) => item.status === 'reported');
     if (running && !run) return <p role="status">Đang trích Key facts…</p>;
     if (shown.length === 0) return error ? <p role="alert">{error}</p> : null;
     return (
       <section className={styles.strip} aria-label="Key facts">
         <dl>
           {shown.map((item) => (
-            <div key={item.id} className={styles.fact}>
+            <div key={item.id} className={styles.fact} data-rejected={states.get(item.id) === 'dismissed'}>
               <dt>{LABELS[item.field]}</dt>
               <dd>
                 <span>{item.value}</span>
@@ -129,16 +128,27 @@ export function PaperSnapshot({
                     {item.source.page ? `Tr. ${item.source.page}` : 'Câu gốc'}
                   </Button>
                 )}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className={styles.page}
-                  aria-label={`Bác bỏ ${LABELS[item.field]}`}
-                  title="Bác bỏ giá trị này"
-                  onClick={() => decide(item.id, 'dismiss')}
-                >
-                  ×
-                </Button>
+                {states.get(item.id) === 'dismissed' ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={styles.page}
+                    onClick={() => decide(item.id, 'reopen')}
+                  >
+                    Hoàn tác
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={styles.page}
+                    aria-label={`Bác bỏ ${LABELS[item.field]}`}
+                    title="Bác bỏ giá trị này"
+                    onClick={() => decide(item.id, 'dismiss')}
+                  >
+                    ×
+                  </Button>
+                )}
               </dd>
             </div>
           ))}

@@ -318,6 +318,9 @@ The profile has five dimensions (Khoa học, Lập luận, Diễn ngôn, Viết 
 ## 14. Original PDFs
 
 - Full text opens on the paper's original PDF (pdf.js, a canvas and a selectable text layer per page). There is no switch to the parsed text. Opening a finding's location moves the PDF to its page.
+- The PDF scrolls with its column: there is one scrollbar. The sticky toolbar holds, in order: the way back (when there is one), page field, previous/next, zoom, fit width and the storage badge; on its second row "Tìm trong bài" (Enter searches the paper's text and outlines the first match; ‹ › step through matches, with "2/7") and "Mục" (jumps to a section's first page). The page field moves the PDF on Enter or when it is left, not on every keystroke.
+- **A way back.** A source opened from Summary, or from a space through the drawer's "Mở trong PDF", shows "← Quay lại Summary" (or the space's name) at the start of the toolbar; it returns to that tab at the same scroll position. Going anywhere else ends it.
+- A mark pressed while the analysis is hidden shows the right column again with its finding.
 - The PDF is kept in this browser (IndexedDB, keyed by the file's SHA-256). With a lab account (Google, @hyperdatalab.org only) it is also kept in the lab's storage, so other members can open it on any machine. Without an account it stays on this machine, and the screen says so with a badge: "Chỉ trên máy này", "Đang lưu lên kho lab…" or "Đã lưu trong kho lab".
 - A paper imported before PDFs were kept offers "Gắn PDF gốc". The file is accepted only when its hash matches the one recorded at import.
 - What was found in the paper is drawn on the PDF too: a translucent box in the criterion's colour over the words, with the same underline style as in Text (solid, double, dotted, dashed). Findings to review are stronger than analysis marks. Pressing a box opens what it stands for. Claims, Evidence and Sources are drawn; Writing marks are not, since they would cover the page. A passage opened from Issues gets an accent outline that pulses once and is scrolled into the upper part of the view. Passages are matched to the PDF text with the paragraph's text around them, never guessed; when one cannot be found, the page opens and the toolbar says so.
@@ -327,6 +330,7 @@ The profile has five dimensions (Khoa học, Lập luận, Diễn ngôn, Viết 
 
 - Modelled on SciSpace's Summary tab: the paper retold section by section (headline, overview, then Introduction, Methods, Results, Discussion… as the paper has them), in prose with lists whose items start with a bold lead.
 - One button makes it, in one AI request over the whole body of the paper (title and references left out). A very long paper is cut at a fixed length, and the footer says how many paragraphs were read.
+- Key facts that the reader rejects stay in the strip, dimmed and struck through, with "Hoàn tác".
 - Every paragraph and list item ends with the pages it comes from ("Tr. N"); pressing one opens that paragraph in the PDF. Code keeps only sources that exist in the paper. A part without a source reads "Không rõ nguồn", and a part whose numbers are not in the paragraphs it cites reads "Số chưa đối chiếu được"; neither is hidden.
 - The summary describes what the paper says. It is not a verdict on the paper, and it is kept until the reader makes it again ("Tóm tắt lại").
 

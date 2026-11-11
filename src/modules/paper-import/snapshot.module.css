@@ -80,3 +80,9 @@
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
+.fact[data-rejected='true'] {
+  opacity: 0.55;
+}
+.fact[data-rejected='true'] dd > span {
+  text-decoration: line-through;
+}

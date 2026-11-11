@@ -163,7 +163,7 @@ it('P5 reveals reviews after skip, filters and audits decisions, and navigates t
   expect(
     screen.getByText('The method was described for all readers', { selector: 'mark' }),
   ).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Mở trong Đọc bài' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Mở trong bài' }));
   expect(screen.getByRole('tab', { name: 'Full text' })).toHaveAttribute('aria-selected', 'true');
   expect(scroll).toHaveBeenCalled();
 });

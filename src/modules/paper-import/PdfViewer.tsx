@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/shared/ui/Button';
 import { Loading } from '@/shared/ui/StateNote';
 import { TextField } from '@/shared/ui/TextField';
@@ -71,12 +71,19 @@ export function PdfViewer({
   target,
   marks = [],
   onMark,
+  toolbarStart,
+  toolbarEnd,
+  toolbarBelow,
 }: {
   blob: Blob;
   target: PdfTarget | null;
   /** What was found in the paper, drawn on its words where the passage can be found on the page. */
   marks?: PdfMark[];
   onMark?: (id: string) => void;
+  /** Controls the page puts in the sticky toolbar: before the page controls, after the zoom, and on a row below. */
+  toolbarStart?: ReactNode;
+  toolbarEnd?: ReactNode;
+  toolbarBelow?: ReactNode;
 }) {
   const [doc, setDoc] = useState<PdfDocument | null>(null);
   const [error, setError] = useState('');
@@ -85,6 +92,8 @@ export function PdfViewer({
   const [zoom, setZoom] = useState<number | null>(null);
   const [fitScale, setFitScale] = useState(1);
   const [page, setPage] = useState(1);
+  // What the reader is typing in the page field; the PDF moves only on Enter or when the field is left.
+  const [draft, setDraft] = useState<string | null>(null);
   const [flash, setFlash] = useState<number | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const rendered = useRef(new Map<number, number>());
@@ -182,13 +191,9 @@ export function PdfViewer({
           pendingScroll.current = 0;
           setMissing(false);
           // After the layer is in place: bring the passage to the upper part of the view.
-          window.requestAnimationFrame(() => {
-            const root = scroller.current;
-            const first = layer.querySelector('.pl-passage');
-            if (!root || !first) return;
-            const offset = first.getBoundingClientRect().top - root.getBoundingClientRect().top;
-            root.scrollTop += offset - root.clientHeight * 0.25;
-          });
+          window.requestAnimationFrame(() =>
+            layer.querySelector('.pl-passage')?.scrollIntoView?.({ block: 'center' }),
+          );
         } else if (passage.page === number) setMissing(true);
       }
     }
@@ -263,11 +268,29 @@ export function PdfViewer({
           if (entry.isIntersecting) void renderPage(number, entry.target as HTMLElement);
         }
       },
-      { root, rootMargin: '400px 0px' },
+      // The pages scroll with the column around them, so the view is the viewport.
+      { rootMargin: '400px 0px' },
     );
     holders.forEach((holder) => observer.observe(holder));
     return () => observer.disconnect();
   }, [doc, renderPage]);
+
+  // The page counter follows the page under the upper part of the view, whatever element scrolls.
+  useEffect(() => {
+    if (!doc) return;
+    // A few page boxes are read per scroll event: cheap enough to do directly.
+    const onScroll = () => {
+      const root = scroller.current;
+      if (!root) return;
+      const line = window.innerHeight * 0.4;
+      let current = 1;
+      for (const holder of root.querySelectorAll<HTMLElement>('[data-page]'))
+        if (holder.getBoundingClientRect().top <= line) current = Number(holder.dataset.page);
+      setPage(current);
+    };
+    document.addEventListener('scroll', onScroll, true);
+    return () => document.removeEventListener('scroll', onScroll, true);
+  }, [doc]);
 
   const goTo = useCallback((number: number) => {
     const holder = scroller.current?.querySelector<HTMLElement>(`[data-page="${number}"]`);
@@ -302,10 +325,18 @@ export function PdfViewer({
     setZoom(next ?? (direction > 0 ? ZOOMS[ZOOMS.length - 1] : ZOOMS[0]) ?? 1);
   };
 
+  const commitPage = () => {
+    const number = Number(draft);
+    if (draft !== null && doc && Number.isInteger(number) && number >= 1 && number <= doc.numPages)
+      goTo(number);
+    setDraft(null);
+  };
+
   if (error) return <p role="alert">{error}</p>;
   return (
     <div className={styles.viewer}>
       <div className={styles.toolbar} role="toolbar" aria-label="PDF">
+        {toolbarStart}
         <Button
           size="sm"
           variant="ghost"
@@ -321,11 +352,12 @@ export function PdfViewer({
           type="number"
           min={1}
           max={doc?.numPages ?? 1}
-          value={String(page)}
-          onChange={(event) => {
-            const number = Number(event.target.value);
-            if (doc && Number.isInteger(number) && number >= 1 && number <= doc.numPages) goTo(number);
+          value={draft ?? String(page)}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') commitPage();
           }}
+          onBlur={commitPage}
         />
         <span className={styles.count}>/ {doc?.numPages ?? '…'}</span>
         <Button
@@ -348,27 +380,15 @@ export function PdfViewer({
         <Button size="sm" variant="ghost" aria-pressed={zoom === null} onClick={() => setZoom(null)}>
           Vừa khung
         </Button>
+        {toolbarEnd}
+        {toolbarBelow && <div className={styles.toolbarRow}>{toolbarBelow}</div>}
         {missing && (
           <p className={styles.missing} role="status">
             Không tìm thấy đúng đoạn trong PDF; đã mở trang chứa đoạn.
           </p>
         )}
       </div>
-      <div
-        ref={scroller}
-        className={styles.pages}
-        tabIndex={0}
-        aria-label="Các trang PDF"
-        onScroll={(event) => {
-          // The page counter follows the page that fills the upper part of the view.
-          const root = event.currentTarget;
-          const line = root.getBoundingClientRect().top + root.clientHeight * 0.3;
-          let current = 1;
-          for (const holder of root.querySelectorAll<HTMLElement>('[data-page]'))
-            if (holder.getBoundingClientRect().top <= line) current = Number(holder.dataset.page);
-          setPage(current);
-        }}
-      >
+      <div ref={scroller} className={styles.pages} aria-label="Các trang PDF">
         {!doc || !base ? (
           <Loading label="Đang mở PDF…" />
         ) : (

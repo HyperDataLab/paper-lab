@@ -36,6 +36,8 @@ export function PaperPdf({
   marks,
   onMark,
   fallback,
+  back,
+  find,
 }: {
   paper: Paper;
   target: PdfTarget | null;
@@ -43,6 +45,10 @@ export function PaperPdf({
   onMark?: (id: string) => void;
   /** The parsed text, shown under the attach box while the PDF is not on this machine or in the lab. */
   fallback?: ReactNode;
+  /** A way back to where the reader came from, at the start of the toolbar. */
+  back?: ReactNode;
+  /** Search and section controls, on a row of the toolbar. */
+  find?: ReactNode;
 }) {
   const repo = useRepositories();
   const { user, getIdToken, signIn } = useAuth();
@@ -163,16 +169,24 @@ export function PaperPdf({
     );
   return (
     <>
-      <p className={styles.note}>
-        {state.uploaded ? (
-          <Badge tone="success">Đã lưu trong kho lab</Badge>
-        ) : (
-          <Badge>{user ? 'Đang lưu lên kho lab…' : 'Chỉ trên máy này'}</Badge>
-        )}{' '}
-      </p>
       {message && <p role="alert">{message}</p>}
       <Suspense fallback={<Loading label="Đang mở PDF…" />}>
-        <PdfViewer key={sha} blob={state.blob} target={target} marks={marks} onMark={onMark} />
+        <PdfViewer
+          key={sha}
+          blob={state.blob}
+          target={target}
+          marks={marks}
+          onMark={onMark}
+          toolbarStart={back}
+          toolbarBelow={find}
+          toolbarEnd={
+            state.uploaded ? (
+              <Badge tone="success">Đã lưu trong kho lab</Badge>
+            ) : (
+              <Badge>{user ? 'Đang lưu lên kho lab…' : 'Chỉ trên máy này'}</Badge>
+            )
+          }
+        />
       </Suspense>
     </>
   );

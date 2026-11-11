@@ -88,7 +88,7 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
   );
   // Inside a space the passage opens in the drawer, and from there in the reader.
   expect(screen.getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Mở trong Đọc bài' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Mở trong bài' }));
   expect(screen.getByRole('tab', { name: 'Full text' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
   expect(scroll).toHaveBeenCalled();

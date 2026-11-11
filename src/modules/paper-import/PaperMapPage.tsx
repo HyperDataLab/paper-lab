@@ -29,7 +29,9 @@ import { PaperProbe } from './PaperProbe';
 import { PaperReader } from './PaperReader';
 import { PaperAtomics } from './PaperAtomics';
 import { PaperDigest } from './PaperDigest';
+import { PaperFind } from './PaperFind';
 import { PaperPdf } from './PaperPdf';
+import pdfStyles from './pdf.module.css';
 import { pdfMarks, pdfNeedle } from './pdfMarks';
 import type { PdfTarget } from './PdfViewer';
 import { PaperMeasurement } from './PaperMeasurement';
@@ -393,6 +395,16 @@ function BatchWorkspace({
   return <>{children(batch)}</>;
 }
 
+/** How far a column, or the page when the column does not scroll, has been scrolled. */
+function scrollOf(column: HTMLElement | null) {
+  const element = column && column.scrollHeight > column.clientHeight ? column : document.scrollingElement;
+  return element?.scrollTop ?? 0;
+}
+function setScroll(column: HTMLElement | null, top: number) {
+  const element = column && column.scrollHeight > column.clientHeight ? column : document.scrollingElement;
+  if (element) element.scrollTop = top;
+}
+
 export default function PaperMapPage() {
   const { id } = useParams();
   const [query, setQuery] = useSearchParams();
@@ -434,6 +446,9 @@ export default function PaperMapPage() {
   // Leaving a space returns to the tab of the right column the reader came from.
   const beforeSpace = useRef<ViewId>(DEFAULT_VIEW.issues);
   const rightColumn = useRef<HTMLElement>(null);
+  const centreColumn = useRef<HTMLElement>(null);
+  // Where the reader was before a source took them to the PDF, so one press brings them back there.
+  const [returnTo, setReturnTo] = useState<{ view: ViewId; label: string; scroll: number } | null>(null);
   const [jobFacts, setJobFacts] = useState<Partial<Record<JobId, JobFacts>>>({});
   const reportJob = useCallback<JobReporter>((jobId, report) => {
     if (report) jobs.current[jobId] = report;
@@ -475,6 +490,8 @@ export default function PaperMapPage() {
   /** Opens a view in its column and records it in the address, so a reload or a shared link lands there. */
   const setTab = (view: ViewId) => {
     const place = placeOf(view);
+    // Going anywhere but the paper ends the way back.
+    if (view !== 'map') setReturnTo(null);
     if (!isPane(place) && isSpace(place) && !isSpace(modeOf(tab))) beforeSpace.current = tab;
     const block = blockOf(view);
     // Every analysis of the place being shown is mounted, so each row can say what a run would cost.
@@ -704,7 +721,11 @@ export default function PaperMapPage() {
     const page = paragraph.pageStart;
     const passage = pdfNeedle(paper, location, '__selected');
     if (page) setPdfTarget((old) => ({ page, nonce: (old?.nonce ?? 0) + 1, passage }));
+    const space = SPACES.find((item) => item.id === modeOf(tab));
     setTab('map');
+    if (space) setReturnTo({ view: tab, label: space.label, scroll: scrollOf(rightColumn.current) });
+    else if (pane === 'summary')
+      setReturnTo({ view: 'profile', label: 'Summary', scroll: scrollOf(centreColumn.current) });
   };
   // The paper is the centre of the page: on a wide screen it is always beside the analysis, so a quote opens
   // there. On a narrow screen showing the analysis, the quote opens in a drawer to keep the reader's place.
@@ -718,12 +739,43 @@ export default function PaperMapPage() {
     setFilter(null);
     setSelected(paragraph.sectionId);
     setHighlight(location);
+    if (pane === 'summary')
+      setReturnTo({ view: 'profile', label: 'Summary', scroll: scrollOf(centreColumn.current) });
     setPaneState('fulltext');
     // In the PDF the passage's page is shown; the exact words are highlighted in Text.
     const page = paragraph.pageStart;
     const passage = pdfNeedle(paper, location, '__selected');
     if (page) setPdfTarget((old) => ({ page, nonce: (old?.nonce ?? 0) + 1, passage }));
   };
+  /** Back to where the source was opened from, at the same scroll position. */
+  const goBack = () => {
+    if (!returnTo) return;
+    const { view, scroll } = returnTo;
+    setTab(view);
+    const column = isSpace(modeOf(view)) ? rightColumn : centreColumn;
+    // After the tab has shown and setTab's own scroll to its block.
+    window.setTimeout(() => setScroll(wide ? column.current : null, scroll), 50);
+  };
+  const backButton = returnTo && (
+    <Button size="sm" variant="ghost" className={pdfStyles.back} onClick={goBack}>
+      ← Quay lại {returnTo.label}
+    </Button>
+  );
+  const find = (
+    <PaperFind
+      paper={paper}
+      onGo={openLocation}
+      onSection={(sectionId) => {
+        const first = paper.paragraphs.find(
+          (paragraph) => paragraph.sectionId === sectionId && paragraph.pageStart,
+        );
+        const page =
+          first?.pageStart ?? paper.sections.find((section) => section.id === sectionId)?.pageStart;
+        setSelected(sectionId);
+        if (page) setPdfTarget((old) => ({ page, nonce: (old?.nonce ?? 0) + 1 }));
+      }}
+    />
+  );
   const toggleSplit = () => {
     const next = !splitWanted;
     setSplitWanted(next);
@@ -817,6 +869,8 @@ export default function PaperMapPage() {
     setFocusFinding(mark.findingId);
     setTab('issues');
     if (!wide) setFocus('right');
+    // With the analysis hidden the finding would open out of sight: show the column again.
+    else if (!splitWanted) toggleSplit();
   };
   const sectionLabel = (sectionId: string) =>
     paper.sections.find((section) => section.id === sectionId)?.heading ?? sectionId;
@@ -1078,6 +1132,7 @@ export default function PaperMapPage() {
               />
               <div className={wide && showRight && !inSpace ? styles.workspace : undefined}>
                 <section
+                  ref={centreColumn}
                   className={wide ? styles.column : undefined}
                   aria-label="Paper"
                   hidden={inSpace || !centreVisible}
@@ -1109,6 +1164,8 @@ export default function PaperMapPage() {
                         const mark = marks.find((item) => item.id === id);
                         if (mark) openMark(mark);
                       }}
+                      back={backButton}
+                      find={find}
                       fallback={
                         <PaperReader
                           paper={paper}
@@ -1129,6 +1186,7 @@ export default function PaperMapPage() {
                       }
                     />
                   )}
+                  {pane === 'fulltext' && paper.source.kind !== 'pdf' && backButton}
                   {pane === 'fulltext' && paper.source.kind !== 'pdf' && (
                     <PaperReader
                       paper={paper}
