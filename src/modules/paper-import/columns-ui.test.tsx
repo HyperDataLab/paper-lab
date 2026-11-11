@@ -246,17 +246,16 @@ it('R11 each space lists the issues of its own criteria, accepted until rejected
       </StorageProvider>
     </MemoryRouter>,
   );
-  // The rule check found a figure that is cited but has no caption: an Evidence issue.
+  // The figure check belongs to Writing, not Arguments.
   fireEvent.click(await screen.findByRole('tab', { name: /^Arguments/ }));
+  expect(await screen.findByRole('button', { name: 'Mở Issues (0)' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('tab', { name: /^Writing style/ }));
   fireEvent.click(await screen.findByRole('button', { name: 'Mở Issues (1)' }));
   const list = screen.getByRole('region', { name: 'Issues' });
   expect(
     within(within(list).getByRole('group', { name: 'Filter by criterion' }))
       .getAllByRole('button')
       .map((chip) => chip.textContent),
-  ).toEqual(['CClaims (0)', 'EEvidence (1)', 'Theo trang', 'Kiểm tra tự động']);
+  ).toEqual(['WWriting (1)', 'Theo trang', 'Kiểm tra tự động']);
   expect(within(list).getByRole('button', { name: 'Bác bỏ' })).toBeInTheDocument();
-  // Figure checks are also available in Writing, even though their criterion is evidence.
-  fireEvent.click(screen.getByRole('tab', { name: /^Writing style/ }));
-  expect(await screen.findByRole('button', { name: 'Mở Issues (1)' })).toBeInTheDocument();
 });

@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest';
+import { CheckIdSchema } from '../schemas';
 import type {
   Analysis,
   MeasurementsRecord,
@@ -9,7 +10,7 @@ import type {
   PaperReviewsRecord,
   StanceRecord,
 } from '../schemas';
-import { collectFindings, collectMarks, countBySection, segmentText, type PaperMark } from './index';
+import { CHECKS, collectFindings, collectMarks, countBySection, segmentText, type PaperMark } from './index';
 
 const RUN = '00000000-0000-4000-8000-0000000000aa';
 const paper = {
@@ -163,6 +164,42 @@ const measurements = {
   ],
 } as unknown as MeasurementsRecord;
 
+it('CRIT routes every check id and keeps the figures finding id and detail view', () => {
+  for (const id of CheckIdSchema.options) {
+    expect(CHECKS[id]).toEqual(
+      expect.objectContaining({ criterion: expect.any(String), view: expect.any(String) }),
+    );
+  }
+  const figureChecks = {
+    report: {
+      checks: [
+        {
+          id: 'figures_tables',
+          findings: [
+            {
+              id: 'figures_tables:unused:figure:4:p2:0:8',
+              severity: 'info',
+              message: 'Figure',
+              locations: [],
+              evidence: [],
+            },
+          ],
+        },
+      ],
+    },
+    decisions: [],
+  } as unknown as PaperChecksRecord;
+  expect(collectFindings({ paper, checks: figureChecks })[0]).toMatchObject({
+    id: 'checks:figures_tables:unused:figure:4:p2:0:8',
+    criterion: 'writing',
+    view: 'discourse-checks',
+  });
+});
+
+it('CRIT routes a claim evidence gap to claims', () => {
+  expect(collectFindings({ paper, measurements })[0]).toMatchObject({ criterion: 'claim' });
+});
+
 it('R2 reads five kinds of stored results into one finding shape, in the paper order', () => {
   const found = collectFindings({ paper, checks, reviews: reviews(true), analyses, overview, measurements });
   expect(found.map((item) => item.id)).toEqual([
@@ -248,13 +285,22 @@ it('R2 marks the text with findings and with what the analyses described, leavin
   const ids = marks.map((mark) => mark.id);
   expect(ids).toContain('checks:f1#0');
   expect(ids).not.toContain('writing:a1:i2#0');
-  expect(ids).toEqual(expect.arrayContaining(['claim:arg1', 'data:arg1:0', 'snapshot:v1', 'stance:st1']));
+  expect(ids).toEqual(expect.arrayContaining(['claim:arg1', 'data:arg1:0', 'stance:st1']));
   expect(ids).not.toContain('claim:arg2');
   expect(marks.find((mark) => mark.id === 'claim:arg1')).toMatchObject({
     criterion: 'claim',
     label: 'Luận điểm chính',
     findingId: null,
   });
+});
+
+it('CRIT emits no snapshot evidence marks', () => {
+  const insights = {
+    decisions: [],
+    argumentRuns: [],
+    snapshotRuns: [{ id: RUN, values: [{ id: 'v1', source: { paragraphId: 'p2', start: 0, end: 8 } }] }],
+  } as unknown as PaperInsightsRecord;
+  expect(collectMarks({ paper, insights }).filter((mark) => mark.id.startsWith('snapshot:'))).toEqual([]);
 });
 
 it('R2 cuts a paragraph into stretches by the marks covering them, by code point', () => {

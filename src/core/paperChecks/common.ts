@@ -1,4 +1,4 @@
-import type { CheckResult, Finding, Paper, PaperParagraph } from '../schemas';
+import type { CheckId, CheckResult, Finding, Paper, PaperParagraph } from '../schemas';
 import { createOffsetIndex } from '../text/offsets';
 
 export type Located = { paragraph: PaperParagraph; text: string; start: number; end: number };
@@ -28,7 +28,7 @@ export function finding(
   };
 }
 export function result(
-  id: string,
+  id: CheckId,
   label: string,
   applicable: boolean,
   findings: Finding[],

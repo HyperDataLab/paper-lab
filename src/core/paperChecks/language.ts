@@ -9,6 +9,11 @@ function quantities(p: Paper['paragraphs'][number]) {
       /[%‰°\p{L}µμ]/u.test(m.text) && !matches(p, citation).some((c) => c.start < m.end && c.end > m.start),
   );
 }
+const normaliseQuantity = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/\s/gu, '')
+    .replace(/(\d+\.\d*?[1-9])0+\b|\.0+\b/gu, '$1');
 export function numbersConsistency(paper: Paper) {
   const id = 'numbers_consistency',
     findings: Finding[] = [];
@@ -21,11 +26,7 @@ export function numbersConsistency(paper: Paper) {
   );
   const all = evidence.flatMap(quantities);
   for (const item of claims.flatMap(quantities))
-    if (
-      !all.some(
-        (x) => x.text.toLowerCase().replace(/\s/gu, '') === item.text.toLowerCase().replace(/\s/gu, ''),
-      )
-    )
+    if (!all.some((x) => normaliseQuantity(x.text) === normaliseQuantity(item.text)))
       findings.push(
         finding(
           id,
@@ -47,7 +48,13 @@ export function numbersConsistency(paper: Paper) {
       if (!a || !b) continue;
       const unitA = a.text.match(/[%‰°\p{L}µμ][\p{L}\p{N}%‰°µμ/·^−-]*/u)?.[0]?.toLowerCase();
       const unitB = b.text.match(/[%‰°\p{L}µμ][\p{L}\p{N}%‰°µμ/·^−-]*/u)?.[0]?.toLowerCase();
-      if (unitA && unitA === unitB && context(a) && context(a) === context(b) && a.text !== b.text)
+      if (
+        unitA &&
+        unitA === unitB &&
+        context(a) &&
+        context(a) === context(b) &&
+        normaliseQuantity(a.text) !== normaliseQuantity(b.text)
+      )
         findings.push(
           finding(id, 'different', 'minor', 'Cùng ngữ cảnh và đơn vị có số liệu khác nhau.', [a, b]),
         );

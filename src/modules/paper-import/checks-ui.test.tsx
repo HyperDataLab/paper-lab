@@ -270,16 +270,17 @@ it('R7 on a wide screen the paper is the centre column beside the analysis, and 
   expect(within(list).queryByText('Rule')).toBeNull();
   expect(within(list).queryByText(/^(High|Medium|Low)$/)).toBeNull();
   // R2: it is drawn on the words of the paper, as a control and not by colour alone.
+  const layer = within(pane).getByRole('button', { name: /Writing/ });
+  fireEvent.click(layer);
   const underlined = within(pane).getByRole('button', { name: 'Figure 2' });
   expect(underlined).toHaveAttribute('data-finding', 'true');
-  expect(underlined.getAttribute('title')).toContain('Evidence');
+  expect(underlined.getAttribute('title')).toContain('Writing');
   fireEvent.click(underlined);
   expect(list.querySelector('[data-focus="true"]')).not.toBeNull();
   // Accepted by default: the list offers only to reject it.
   expect(within(list).queryByRole('button', { name: 'Xác nhận' })).toBeNull();
   expect(within(list).getByRole('button', { name: 'Bác bỏ' })).toBeInTheDocument();
   // A layer can be switched off; the passage the reader opened stays marked.
-  const layer = within(pane).getByRole('button', { name: /Evidence/ });
   expect(layer).toHaveAttribute('aria-pressed', 'true');
   fireEvent.click(layer);
   expect(within(pane).queryByRole('button', { name: 'Figure 2' })).toBeNull();
