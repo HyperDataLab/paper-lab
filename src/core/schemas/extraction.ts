@@ -124,6 +124,7 @@ export type ExtractionRun = z.infer<typeof ExtractionRunSchema>;
 export const ExtractionProjectSchema = z.object({
   schemaVersion: z.literal(1),
   id: z.uuid(),
+  paperId: z.uuid().nullable().default(null),
   title: z.string().min(1),
   researchQuestion: z.string(),
   createdAt: z.iso.datetime(),

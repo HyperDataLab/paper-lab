@@ -12,3 +12,8 @@ const module: ModuleDefinition = {
   page: lazy(() => import('./Page')),
 };
 export default module;
+export { AddColumns } from './AddColumns';
+export { CellDrawer } from './CellDrawer';
+export { RunPanel } from './RunPanel';
+export { STATUS } from './labels';
+export { useExtractionRun } from './useExtractionRun';

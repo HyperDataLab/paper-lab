@@ -1,5 +1,7 @@
 # DESIGN.md
 
+The paper's **Data table** space opens a Columns view over its own Extraction project. It lists each column vertically with its value, status and evidence drawer, shows the remaining capacity out of 50 columns, and offers extraction, export and a link to compare additional papers. CSV opens in Excel; JSON retains extraction evidence, while RIS and BibTeX export the paper's metadata.
+
 UI and interaction rules for PaperLab. Implements PRD §6 (Highlight and annotation UX) and §9 (Accessibility).
 
 ## 1. Navigation: collapsible sidebar driven by a module registry

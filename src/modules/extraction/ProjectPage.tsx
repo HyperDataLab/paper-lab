@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import {
@@ -8,6 +8,7 @@ import {
   isStale,
   matrixCsv,
   matrixJson,
+  MAX_COLUMNS,
   moveField,
   NEEDS_ATTENTION,
   removeField,
@@ -18,9 +19,6 @@ import {
 } from '@/core/extraction';
 import type { ExtractionCell, ExtractionProject, Paper } from '@/core/schemas';
 import { downloadJson, downloadText } from '@/shared/calibration/download';
-import { describeLlmError } from '@/shared/llm/describeError';
-import { useLlm } from '@/shared/llm/LlmProvider';
-import { llmExtraction } from '@/shared/llm/llmExtraction';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { ActionBar, ActionMenu } from '@/shared/ui/ActionBar';
 import { Badge } from '@/shared/ui/Badge';
@@ -28,6 +26,7 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Chip } from '@/shared/ui/Chip';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
+import { useExtractionRun } from './useExtractionRun';
 import { AddColumns } from './AddColumns';
 import { AddPapers } from './AddPapers';
 import { CellDrawer } from './CellDrawer';
@@ -44,17 +43,13 @@ type Filter = 'all' | 'review' | 'verified';
 export default function ProjectPage() {
   const { id } = useParams();
   const repo = useRepositories();
-  const llm = useLlm();
   const [project, setProject] = useState<ExtractionProject | null>(null);
   const [papers, setPapers] = useState(new Map<string, Paper>());
   const [panel, setPanel] = useState<Panel>(null);
   const [open, setOpen] = useState<{ paperKey: string; fieldKey: string } | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
   const [view, setView] = useState<'matrix' | 'deep'>('matrix');
-  const [progress, setProgress] = useState('');
-  const [running, setRunning] = useState(false);
   const [error, setError] = useState('');
-  const controller = useRef<AbortController | null>(null);
   useEffect(() => {
     if (!id) return;
     void Promise.all([repo.extraction.get(id), repo.papers.list()])
@@ -63,9 +58,14 @@ export default function ProjectPage() {
         setPapers(new Map(saved.map((paper) => [paper.id, paper])));
       })
       .catch((cause: unknown) => setError(String(cause)));
-    return () => controller.current?.abort();
   }, [id, repo]);
   const counts = useMemo(() => (project ? cellCounts(project) : null), [project]);
+  const {
+    run: runExtraction,
+    running,
+    progress,
+    cancel,
+  } = useExtractionRun(project, papers, setProject, setError);
   if (!project) return <p>{error ? 'Không tải được project.' : 'Đang tải…'}</p>;
   const save = async (next: ExtractionProject, event?: Parameters<typeof repo.extraction.save>[1]) => {
     try {
@@ -74,35 +74,10 @@ export default function ProjectPage() {
       setError(String(cause));
     }
   };
-  async function run(choice: RunChoice) {
-    if (!project) return;
+  const run = (choice: RunChoice) => {
     setPanel(null);
-    const abort = new AbortController();
-    controller.current = abort;
-    setRunning(true);
-    setError('');
-    try {
-      if (!(await llm.ensureConsent('paper')) || abort.signal.aborted) return;
-      const done = await llmExtraction(llm.client, project, papers, {
-        ...choice,
-        config: llm.config,
-        signal: abort.signal,
-        onProgress: (finished, total) => setProgress(`${finished}/${total} bài`),
-        save: async (next) => {
-          setProject(await repo.extraction.save(next));
-        },
-      });
-      const last = done.runs.at(-1);
-      await save(done, { action: 'run_extraction', after: { runId: last?.id, status: last?.status } });
-      if (last?.status === 'PARTIAL') setError('Một số ô chưa chạy xong hoặc bị lỗi; xem trạng thái từng ô.');
-    } catch (cause) {
-      setError(describeLlmError(cause) ?? String(cause));
-    } finally {
-      setRunning(false);
-      setProgress('');
-      controller.current = null;
-    }
-  }
+    return runExtraction(choice);
+  };
   const visible = project.fields.filter((field) => !field.hidden);
   const hidden = project.fields.filter((field) => field.hidden);
   const cellOf = (paperKey: string, fieldKey: string) =>
@@ -171,13 +146,15 @@ export default function ProjectPage() {
             }
           >
             {running ? (
-              <Button variant="danger" onClick={() => controller.current?.abort()}>
+              <Button variant="danger" onClick={() => cancel()}>
                 Dừng
               </Button>
             ) : (
               <>
                 <Button onClick={() => setPanel('papers')}>Thêm bài</Button>
-                <Button onClick={() => setPanel('columns')}>Thêm cột</Button>
+                <Button disabled={project.fields.length >= MAX_COLUMNS} onClick={() => setPanel('columns')}>
+                  Thêm cột
+                </Button>
                 <ActionMenu
                   label="Xuất"
                   items={[
@@ -296,7 +273,12 @@ export default function ProjectPage() {
                       </th>
                     ))}
                     <th scope="col" className={styles.addColumn}>
-                      <Button variant="ghost" size="sm" onClick={() => setPanel('columns')}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={project.fields.length >= MAX_COLUMNS}
+                        onClick={() => setPanel('columns')}
+                      >
                         <Plus size={14} aria-hidden="true" /> Thêm cột
                       </Button>
                     </th>

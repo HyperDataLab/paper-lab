@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { customField, FIELD_CATALOG, FIELD_TEMPLATES } from '@/core/extraction';
+import { customField, FIELD_CATALOG, FIELD_TEMPLATES, MAX_COLUMNS } from '@/core/extraction';
 import type { ExtractionProject, FieldDefinition } from '@/core/schemas';
 import { Button } from '@/shared/ui/Button';
 import { Checkbox } from '@/shared/ui/Checkbox';
@@ -21,6 +21,7 @@ export function AddColumns({
 }) {
   const has = (key: string) => project.fields.some((field) => field.key === key);
   const [chosen, setChosen] = useState<string[]>([]);
+  const remaining = Math.max(0, MAX_COLUMNS - project.fields.length);
   const [label, setLabel] = useState('');
   const [description, setDescription] = useState('');
   const [instruction, setInstruction] = useState('');
@@ -35,14 +36,18 @@ export function AddColumns({
             Đóng
           </Button>
         </header>
+        <p>Còn {remaining} chỗ trong 50 cột (kể cả cột ẩn).</p>
         <section>
           <h3>Mẫu theo loại bài</h3>
           <div className={styles.chips}>
             {FIELD_TEMPLATES.map((template) => (
               <Chip
                 key={template.id}
+                disabled={chosen.length >= remaining}
                 onClick={() =>
-                  setChosen((old) => [...new Set([...old, ...template.keys.filter((key) => !has(key))])])
+                  setChosen((old) =>
+                    [...new Set([...old, ...template.keys.filter((key) => !has(key))])].slice(0, remaining),
+                  )
                 }
               >
                 {template.label}
@@ -58,7 +63,7 @@ export function AddColumns({
               {FIELD_CATALOG.filter((field) => field.group === group).map((field) => (
                 <Checkbox
                   key={field.key}
-                  disabled={has(field.key)}
+                  disabled={has(field.key) || (!chosen.includes(field.key) && chosen.length >= remaining)}
                   checked={has(field.key) || chosen.includes(field.key)}
                   onChange={(event) => toggle(field.key, event.target.checked)}
                 >
@@ -99,7 +104,7 @@ export function AddColumns({
             />
             <div>
               <Button
-                disabled={!label.trim()}
+                disabled={!label.trim() || remaining === 0}
                 onClick={() => {
                   onAdd([
                     customField({

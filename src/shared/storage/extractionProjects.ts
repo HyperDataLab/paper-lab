@@ -17,6 +17,10 @@ export function createExtractionRepository(
   }
   return {
     get,
+    async forPaper(paperId: string) {
+      const rows = await db.extractionProjects.toArray();
+      return rows.map((row) => ExtractionProjectSchema.parse(row)).find((row) => row.paperId === paperId);
+    },
     async list() {
       const rows = await db.extractionProjects.orderBy('updatedAt').reverse().toArray();
       return rows.map((row) => ExtractionProjectSchema.parse(row));

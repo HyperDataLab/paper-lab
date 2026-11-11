@@ -12,6 +12,7 @@ import type {
 } from '../schemas/extraction';
 
 export * from './catalog';
+export * from './citation';
 
 /** Fields per request, so one answer stays well inside the output limit. */
 export const FIELDS_PER_CALL = 12;

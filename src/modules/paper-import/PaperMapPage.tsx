@@ -58,11 +58,13 @@ import { PaperOverview } from './PaperOverview';
 import { PaperChecks } from './PaperChecks';
 import { PaperReview } from './PaperReview';
 import type { ReactNode } from 'react';
+import { PaperDataTable } from './PaperDataTable';
 import { Transparency } from '@/shared/report/Transparency';
 import { captureCalibration } from '@/shared/calibration/data';
 import { Loading } from '@/shared/ui/StateNote';
 
 type ViewId =
+  | 'data-table'
   | 'profile'
   | 'snapshot'
   | 'metadata'
@@ -83,7 +85,7 @@ type Pane = 'fulltext' | 'summary';
  * Citations and Paper info. Arguments and Writing style are spaces behind the paper: each opens full width.
  */
 type Mode = 'issues' | 'citations' | 'info' | Space;
-type Space = 'arguments' | 'writing';
+type Space = 'arguments' | 'writing' | 'data';
 type Place = 'summary' | Mode;
 type BlockId =
   | 'argIssues'
@@ -266,6 +268,7 @@ const BLOCK_IDS = Object.keys(BLOCKS) as BlockId[];
 const blockOf = (view: ViewId) => BLOCK_IDS.find((id) => BLOCKS[id].views.some((item) => item.id === view));
 /** Where a view opens: the centre column (full text or summary) or a tab of the right column. */
 const placeOf = (view: ViewId): Pane | Mode => {
+  if (view === 'data-table') return 'data';
   if (view === 'issues') return 'issues';
   if (view === 'map') return 'fulltext';
   if (view === 'profile') return 'summary';
@@ -286,9 +289,11 @@ const MODES: { id: Mode; label: string }[] = [
 const SPACES: { id: Space; label: string }[] = [
   { id: 'arguments', label: 'Arguments' },
   { id: 'writing', label: 'Writing style' },
+  { id: 'data', label: 'Data table' },
 ];
-const isSpace = (mode: Mode): mode is Space => mode === 'arguments' || mode === 'writing';
+const isSpace = (mode: Mode): mode is Space => mode === 'arguments' || mode === 'writing' || mode === 'data';
 const DEFAULT_VIEW: Record<Mode, ViewId> = {
+  data: 'data-table',
   arguments: 'gap',
   writing: 'organization',
   issues: 'issues',
@@ -302,6 +307,7 @@ const CHECKS_OF: Partial<Record<ViewId, string[]>> = {
   'context-checks': ['citations_references'],
 };
 const VIEW_HELP: Record<ViewId, string> = {
+  'data-table': 'Data table',
   issues: 'Mọi phát hiện về bài ở một chỗ.',
   'arguments-issues':
     'Phát hiện về luận điểm và bằng chứng của bài. Được chấp nhận mặc định; bác bỏ những gì không đúng.',
@@ -992,15 +998,15 @@ export default function PaperMapPage() {
       claimCount + evidenceCount > 0
         ? `${claimCount} claims · ${evidenceCount} evidence`
         : 'Luận điểm, bằng chứng, Toulmin, AIF',
+    data: 'Columns',
     writing: writingCount > 0 ? `${writingCount} ghi chú về cách viết` : 'Cấu trúc, mạch, câu chữ, giọng văn',
   };
   const openSpace = (space: Space) => {
     // The parts that cost nothing are open on arrival.
     const free: BlockId[] = space === 'arguments' ? ['gap', 'mainClaims', 'atomics'] : ['vocabulary'];
     setOpenBlocks((old) => [...new Set<BlockId>([...old, ...free])]);
-    setTab(
-      blockView[BLOCK_IDS.find((id) => BLOCKS[id].place === space) ?? 'arguments'] ?? DEFAULT_VIEW[space],
-    );
+    const first = BLOCK_IDS.find((id) => BLOCKS[id].place === space);
+    setTab((first && blockView[first]) ?? DEFAULT_VIEW[space]);
     // A space is entered at its top, where its overview is; after setTab's own scroll to the block.
     window.setTimeout(() => {
       const column = rightColumn.current;
@@ -1317,6 +1323,7 @@ export default function PaperMapPage() {
                       mode === 'info' && openBlocks.includes('metadata') && <PaperMetadata paper={paper} />,
                     )}
                   </div>
+                  {mode === 'data' && <PaperDataTable paper={paper} />}
                   <div hidden={mode !== 'arguments'} className={styles.blocks}>
                     {mode === 'arguments' && overview(['science', 'argument'], 'Arguments overview', batch)}
                     {chips('arguments')}
