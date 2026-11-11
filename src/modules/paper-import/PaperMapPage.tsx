@@ -27,6 +27,7 @@ import { PaperRhetoric } from './PaperRhetoric';
 import { PaperVocabulary } from './PaperVocabulary';
 import { PaperProbe } from './PaperProbe';
 import { PaperReader } from './PaperReader';
+import { PaperAtomics } from './PaperAtomics';
 import { PaperPdf } from './PaperPdf';
 import { LayerChips } from './ReaderMarks';
 import { pdfMarks, pdfNeedle } from './pdfMarks';
@@ -60,7 +61,8 @@ import { Transparency } from '@/shared/report/Transparency';
 import { captureCalibration } from '@/shared/calibration/data';
 import { Loading } from '@/shared/ui/StateNote';
 
-type ViewId = 'profile' | 'snapshot' | 'metadata' | 'map' | 'review' | ProfileView;
+type ViewId =
+  'profile' | 'snapshot' | 'metadata' | 'map' | 'review' | 'gap' | 'main-claims' | 'atomics' | ProfileView;
 /** The centre column holds the paper: its full text, or its summary. */
 type Pane = 'fulltext' | 'summary';
 /**
@@ -71,6 +73,9 @@ type Mode = 'issues' | 'citations' | 'info' | Space;
 type Space = 'arguments' | 'writing';
 type Place = 'summary' | Mode;
 type BlockId =
+  | 'gap'
+  | 'mainClaims'
+  | 'atomics'
   | 'snapshot'
   | 'checks'
   | 'citationChecks'
@@ -99,6 +104,24 @@ const BLOCKS: Record<
     views: { id: ViewId; label: string }[];
   }
 > = {
+  gap: {
+    place: 'arguments',
+    title: 'Research gap & contribution',
+    criterion: 'claim',
+    views: [{ id: 'gap', label: 'Research gap & contribution' }],
+  },
+  mainClaims: {
+    place: 'arguments',
+    title: 'Claims & grounds',
+    criterion: 'claim',
+    views: [{ id: 'main-claims', label: 'Claims & grounds' }],
+  },
+  atomics: {
+    place: 'arguments',
+    title: 'Atomic sentences',
+    criterion: 'evidence',
+    views: [{ id: 'atomics', label: 'Atomic sentences' }],
+  },
   snapshot: {
     place: 'info',
     title: 'Key facts',
@@ -240,7 +263,7 @@ const PLACE_HELP: Record<Pane | Mode, string> = {
   info: 'Thông tin về bài báo: nơi và năm xuất bản, tác giả, và các thông tin cốt lõi của nghiên cứu.',
 };
 const DEFAULT_VIEW: Record<Mode, ViewId> = {
-  arguments: 'toulmin',
+  arguments: 'gap',
   writing: 'organization',
   issues: 'science-checks',
   citations: 'context-references',
@@ -253,6 +276,11 @@ const CHECKS_OF: Partial<Record<ViewId, string[]>> = {
   'context-checks': ['citations_references'],
 };
 const VIEW_HELP: Record<ViewId, string> = {
+  gap: 'Tác giả nói lĩnh vực còn thiếu gì và bài này đóng góp gì, bằng chính câu trong bài.',
+  'main-claims':
+    'Các luận điểm chính, căn cứ (Grounds) và giới hạn tác giả tự nêu. Bản đầy đủ theo Toulmin ở Claims & reasoning.',
+  atomics:
+    'Bài được tách thành các câu nguyên tử: mỗi câu một ý kiểm được, có vai trò và câu gốc. Tách khi chạy Evidence & measurement.',
   snapshot: 'Bảy thông tin cốt lõi của nghiên cứu, mỗi giá trị kèm câu trích trong bài.',
   metadata: 'Thông tin xuất bản của bài từ OpenAlex hoặc Thư viện DOI.',
   toulmin:
@@ -897,10 +925,14 @@ export default function PaperMapPage() {
         : 'Luận điểm, bằng chứng, Toulmin, AIF',
     writing: writingCount > 0 ? `${writingCount} ghi chú về cách viết` : 'Cấu trúc, mạch, câu chữ, giọng văn',
   };
-  const openSpace = (space: Space) =>
+  const openSpace = (space: Space) => {
+    // The overview of a space is open on arrival: its parts read what is stored and run nothing.
+    if (space === 'arguments')
+      setOpenBlocks((old) => [...new Set<BlockId>([...old, 'gap', 'mainClaims', 'atomics'])]);
     setTab(
       blockView[BLOCK_IDS.find((id) => BLOCKS[id].place === space) ?? 'arguments'] ?? DEFAULT_VIEW[space],
     );
+  };
   const spaceEntries = (
     <nav className={styles.spaces} aria-label="Spaces">
       {SPACES.map((item) => (
@@ -1230,6 +1262,41 @@ export default function PaperMapPage() {
                   </div>
                   <div hidden={mode !== 'arguments'} className={styles.blocks}>
                     {chips('arguments')}
+                    {block(
+                      'gap',
+                      mode === 'arguments' && openBlocks.includes('gap') && (
+                        <PaperSummary
+                          paper={paper}
+                          insights={stored.insights}
+                          onLocation={openLocation}
+                          onOpen={setTab}
+                          only={['question']}
+                        />
+                      ),
+                    )}
+                    {block(
+                      'mainClaims',
+                      mode === 'arguments' && openBlocks.includes('mainClaims') && (
+                        <PaperSummary
+                          paper={paper}
+                          insights={stored.insights}
+                          onLocation={openLocation}
+                          onOpen={setTab}
+                          only={['claims', 'limits']}
+                        />
+                      ),
+                    )}
+                    {block(
+                      'atomics',
+                      mode === 'arguments' && openBlocks.includes('atomics') && (
+                        <PaperAtomics
+                          paper={paper}
+                          record={stored.measurements}
+                          onLocation={openLocation}
+                          onOpen={() => setTab('measure')}
+                        />
+                      ),
+                    )}
                     {block(
                       'arguments',
                       shown('arguments') && (
