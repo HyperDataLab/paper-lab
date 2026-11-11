@@ -6,10 +6,9 @@
 
 ## How it was verified
 
-- [ ] `npm run typecheck`
-- [ ] `npm run lint`
-- [ ] `npm test` (new tests named with PRD IDs)
-- [ ] `npm run build`
+- [ ] `npm run typecheck`, `npm run lint`, `npm run format:check` locally
+- [ ] Tests touched by the change run locally (new tests named with PRD IDs); full suite in CI
+- [ ] CI green (merge only with `scripts/merge-when-green.sh`)
 - [ ] Checked in the browser (screens / notes below)
 
 ## Invariants (AGENTS.md)

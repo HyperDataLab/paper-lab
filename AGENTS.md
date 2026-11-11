@@ -121,11 +121,17 @@ npm run check:router-cors -- <baseUrl> [origin]
 firebase deploy --only hosting
 ```
 
-Definition of done for any change: `typecheck`, `lint`, `test`, `build` all green; new behaviour has tests;
-docs (`docs/ROADMAP.md`, ADRs, this file) updated when behaviour or rules change.
+Definition of done for any change: `typecheck`, `lint`, `test`, `build` all green **in CI**; new behaviour has
+tests; docs (`docs/ROADMAP.md`, ADRs, this file) updated when behaviour or rules change. Locally, run the cheap
+checks and the tests you touched; the full suite runs in CI (about 6 minutes).
+
+Flaky tests are defects. A test that fails without a related change is fixed at its cause (usually a wait for an
+element that appears after an async write), never by a retry or a longer timeout alone.
 
 ## Git
 
 - Trunk-based: short branches off `main` named `feat/…`, `fix/…`, `chore/…`, `docs/…`.
 - Conventional Commits (`feat(evaluate): …`). One logical change per commit. PRs use the template.
+- Merge only with `scripts/merge-when-green.sh <pr>`: this private repo has no branch protection, so the script is the
+  gate. Never pipe `gh pr checks` into another command before a merge (its exit code is lost).
 - Never commit `.env*.local`, keys, or the Schimel book PDF (copyrighted; reference chapters/sections only).
