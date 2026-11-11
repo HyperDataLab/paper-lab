@@ -1,0 +1,73 @@
+.atomics {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 96ch;
+}
+.empty {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+}
+.empty p {
+  margin: 0;
+  color: var(--text-muted);
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.count {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.group h3 {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-md);
+}
+.list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.item {
+  display: grid;
+  grid-template-columns: calc(var(--space-10) * 2) minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+.role {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.role[data-role='background'] {
+  color: var(--text-muted);
+}
+.role[data-role='method'] {
+  color: var(--crit-context);
+}
+.role[data-role='finding'] {
+  color: var(--crit-evidence);
+}
+.role[data-role='limitation'] {
+  color: var(--crit-claim);
+}
+.text {
+  line-height: 1.5;
+}
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+@media (max-width: 640px) {
+  .item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
