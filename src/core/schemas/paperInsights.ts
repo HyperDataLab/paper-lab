@@ -171,6 +171,58 @@ export const SnapshotRunSchema = z.object({
 });
 export type SnapshotValue = z.infer<typeof SnapshotValueSchema>;
 export type SnapshotRun = z.infer<typeof SnapshotRunSchema>;
+/** What the model returns for the reader's summary: the paper's own sections in prose, each part citing paragraph ids. */
+const DigestRefsSchema = z.array(z.string());
+export const DigestOutputSchema = z.object({
+  headline: z.string(),
+  overview: z.object({ text: z.string(), refs: DigestRefsSchema }),
+  sections: z.array(
+    z.object({
+      heading: z.string(),
+      blocks: z.array(
+        z.object({
+          text: z.string(),
+          refs: DigestRefsSchema,
+          items: z.array(z.object({ lead: z.string().nullable(), text: z.string(), refs: DigestRefsSchema })),
+        }),
+      ),
+    }),
+  ),
+});
+export type DigestOutput = z.infer<typeof DigestOutputSchema>;
+export const DigestSourceSchema = z.object({
+  paragraphId: z.string(),
+  page: z.number().int().positive().nullable(),
+});
+/** no_source: none of the cited paragraphs exists. number_not_in_source: a number is not in the cited paragraphs. */
+export const DigestFlagSchema = z.enum(['no_source', 'number_not_in_source']);
+export const DigestTextSchema = z.object({
+  text: z.string(),
+  sources: z.array(DigestSourceSchema),
+  flags: z.array(DigestFlagSchema),
+});
+export const DigestItemSchema = DigestTextSchema.extend({ lead: z.string().nullable() });
+export const DigestRunSchema = z.object({
+  id: z.uuid(),
+  createdAt: z.iso.datetime(),
+  model: z.string(),
+  promptVersion: z.string(),
+  callsUsed: z.number().int().nonnegative(),
+  /** How many of the paper's paragraphs the model was given, out of all of them. */
+  read: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+  headline: z.string(),
+  overview: DigestTextSchema,
+  sections: z.array(
+    z.object({
+      heading: z.string(),
+      blocks: z.array(z.object({ text: DigestTextSchema.nullable(), items: z.array(DigestItemSchema) })),
+    }),
+  ),
+});
+export type DigestText = z.infer<typeof DigestTextSchema>;
+export type DigestItem = z.infer<typeof DigestItemSchema>;
+export type DigestRun = z.infer<typeof DigestRunSchema>;
 export const InsightDecisionSchema = z.object({
   run_id: z.uuid(),
   item_id: z.string(),
@@ -193,6 +245,7 @@ export const PaperInsightsRecordSchema = z.object({
   argumentRuns: z.array(ArgumentRunSchema).default([]),
   argumentPending: ArgumentPendingSchema.nullable().default(null),
   snapshotRuns: z.array(SnapshotRunSchema).default([]),
+  digestRuns: z.array(DigestRunSchema).default([]),
   decisions: z.array(InsightDecisionSchema),
 });
 export type RhetoricItem = z.infer<typeof RhetoricItemSchema>;
