@@ -114,3 +114,26 @@ it('AC-11 hashes exact UTF-8 bytes', async () => {
   expect(await sourceHash('abc')).toBe(await sourceHash('abc'));
   expect(await sourceHash('abc ')).not.toBe(await sourceHash('abc'));
 });
+describe('R17a unmatched brackets from PDF text', () => {
+  const texts = (text: string) => segmentSentences(text).map((s) => sliceCp(text, s.start, s.end));
+  it('an unmatched opener no longer blocks later splits', () => {
+    expect(texts('Results (see Table 2. Values rose. Rates fell. Done.')).toEqual([
+      'Results (see Table 2.',
+      'Values rose.',
+      'Rates fell.',
+      'Done.',
+    ]);
+    expect(texts('Data [12 were used. We then fit a model. It converged.')).toHaveLength(3);
+    expect(texts('A mismatched (pair] stays. Next one. Last.')).toHaveLength(3);
+  });
+  it('a matched parenthetical with a full stop still does not split inside it', () => {
+    expect(texts('We used one method (It failed. We stopped) and then another. Next.')).toEqual([
+      'We used one method (It failed. We stopped) and then another.',
+      'Next.',
+    ]);
+    expect(texts('Open (one. Two) then (three. Four) here. Next.')).toHaveLength(2);
+  });
+  it('a stray closer does not count as closing a sentence-final bracket', () => {
+    expect(texts('First point.) Second point. Third.')).toHaveLength(3);
+  });
+});

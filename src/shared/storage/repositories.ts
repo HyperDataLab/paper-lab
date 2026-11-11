@@ -30,7 +30,7 @@ import {
   PaperContextRecordSchema,
   PaperInsightsRecordSchema,
   ExtractionProjectSchema,
-  type PaperContextRecord,
+  type PaperContextRecordInput,
   CalibrationLabelsSchema,
   CalibrationLabelSetSchema,
 } from '@/core/schemas';
@@ -696,7 +696,7 @@ export function createRepositories(
     async list() {
       return (await db.paperContext.toArray()).map((row) => PaperContextRecordSchema.parse(row));
     },
-    async save(input: PaperContextRecord) {
+    async save(input: PaperContextRecordInput) {
       const value = PaperContextRecordSchema.parse(input);
       await db.paperContext.put(value);
       return value;
