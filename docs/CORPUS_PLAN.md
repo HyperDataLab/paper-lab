@@ -42,7 +42,7 @@ Corpus (paperlab-corpus, schemaVersion 1)
 │    memberId       opaque uuid, never changes
 │    identifiers    doi?, openalexId?, sha256[], paperIds[], libraryIds[]   (grows; a merge writes an alias record)
 │    exportId       slug of memberId, matches the bank's EvidencePointer.paper_id pattern
-│    role           journal: target | held_out    (control papers live in their own corpus)
+│    role           journal and control: build | held_out    (control papers live in their own corpus)
 │    stratum        year, article type, issue, special issue flag
 │    version        publishedVersion | acceptedVersion | submittedVersion (as OpenAlex reports it)
 │    retrieval      sought | retrieved | not_retrieved
@@ -53,9 +53,9 @@ Corpus (paperlab-corpus, schemaVersion 1)
 │    appraisal[]    topic: tool (RoB 2, ROBINS-I, CASP, MMAT), domain judgements with quotes, appraiser
 │    inputs         Paper textHash list, metadata digest, insight and stance run ids, segmenter and key versions
 ├─ runs[]           corpus-wide labelling runs: scheme, model, prompt version, members done / failed / skipped
-└─ releases[]       frozen snapshots: canonical digest (JCS, sorted keys, no timestamps) of protocol version,
-                    members with roles and strata, inputs, run ids and registry version; the digest is
-                    `corpus_manifest_id`
+└─ releases[]       frozen bundles: the manifest plus one paper-model.json per member, as built at release time;
+                    canonical digest (JCS, sorted keys, no timestamps) over protocol version, members with roles and
+                    strata, model contents and registry version; the digest is `corpus_manifest_id`
 ```
 
 Rules:
@@ -63,8 +63,11 @@ Rules:
 - **Members are found by any identifier.** Adding a paper whose DOI, OpenAlex id, file hash or paper id matches an
   existing member adds the identifier to that member; a match on title and year only is shown to a person to confirm.
   A preprint and its published version are one member with two files; `version` says which file is measured.
-- **Models are rebuilt, not stored.** A member is stale when its current inputs differ from those recorded in the
-  last release.
+- **The corpus is built from paper models.** While a corpus is being worked on, models are rebuilt on demand from
+  each member's inputs; a member is stale when its inputs differ from the last release. A **release freezes** the
+  models themselves (one `paper-model.json` per member, timestamps excluded from the digest), so a released profile
+  can be recomputed after a segmenter change or a new labelling run. Where release bundles live is part of
+  decision 3.
 - **One prompt version per run across the corpus.** Members labelled by another version count as not covered.
 - **Members without full text stay** for screening and metadata, are left out of text measurements and are counted
   separately in every report and synthesis.
@@ -99,8 +102,13 @@ The corpus takes over the search and screening record; an Extraction project kee
 - **Control corpus.** A separate corpus (`kind: control`) with its own release id, matched to the target on OpenAlex
   topics, years and article type, drawn from at least three comparable journals. Results are also reported leaving
   each control journal out.
-- **Size.** Default minimums: 150 target and 150 control full-text papers of record, at least 20 per stratum cell,
-  20% held out, drawn before any feature is selected. Below the minimums every feature is `exploratory`.
+- **Size.** Default minimums: 150 target and 150 control full-text research articles of record, with at least 20
+  papers in each year bucket (for example three buckets of two years), and 20% of both target and control held out
+  before any feature is selected. Below the minimums every feature is `exploratory`. Whether 150 is reachable depends
+  on how many published versions are open (first work item, section 6).
+- **Scale.** Rhetoric and stance run per section, roughly 10–20 calls per paper, so about 3,000–6,000 calls for
+  300 papers: on the order of a day of runtime with a tab open, spread over sessions. C4b measures the real figure
+  and shows the estimate before a run starts.
 - **Sampling.** Stratified by year, capped per issue; editorials, errata and retracted papers excluded; special
   issues flagged; article type checked by hand on a sample. Only the version of record is measured; other versions
   are a separate stratum or left out.
@@ -114,7 +122,7 @@ The corpus takes over the search and screening record; an Extraction project kee
   from held-out control papers (AUC with CI), split so that no author is on both sides. `holdout_verified` is written
   only from this test.
 - **Confounds.** Topic, year and author country mix reported per corpus in `confound_checks`.
-- **Machine labels.** Before R17c, PaperLab rhetoric and stance feed only document prevalence ("does the paper have a
+- **Machine labels.** Before R17c, PaperLab rhetoric and stance (both sparse, AI-made) feed only document prevalence ("does the paper have a
   gap statement"), never sequences; a stratified sample of labels is checked by a person in both target and control,
   and precision is reported per corpus. `move_sequences` and paragraph patterns wait for full sentence labels (R17c).
 
@@ -125,23 +133,25 @@ with its digest) and a **corpus profile** (`corpus-profile.json`, with values, c
 Both are vendored read-only into `writing-bank/schemas/vendor/paperlab/`. The bank only maps them into its signature
 and never recomputes values.
 
-| Signature field                                                                                                            | Comes from                                         | Before R17c?           |
-| -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ---------------------- |
-| `scope` (years, article types, sampling policy, target population, combined Results-Discussion)                            | protocol                                           | yes                    |
-| `coverage` (target, control, held-out, strata, dedup policy, parse and annotation pass rates per section)                  | release, member status, runs                       | yes                    |
-| `provenance` (manifest id, parser, taxonomy and registry versions, extractor versions, annotation protocol, rights policy) | release, generator, registry                       | yes                    |
-| `feature_registry_binding`                                                                                                 | PaperLab registry and its digest                   | yes                    |
-| `features` with `comparison_to_controls` (structure, length, citation, stance)                                             | profile                                            | yes                    |
-| `section_profiles` (headings, body word share; declared mapping from PaperLab roles to the signature's sections)           | profile                                            | yes                    |
-| rhetoric as document prevalence; machine share in `extractor`, `review_status`, `uncertainty_notes`                        | profile                                            | yes                    |
-| `phrase_signals` (G², Log Ratio, prevalence, normalisation and tokenizer versions)                                         | profile                                            | yes, within decision 5 |
-| `scientific_profile` (declared mapping: niche → GAP, limitation → LIMITATION; CLAIM not mapped)                            | profile                                            | partly                 |
-| `move_frequencies`, `move_sequences`, `paragraph_patterns`                                                                 | CoreSC / AZ-II labels                              | after R17c             |
-| `evidence` pointers                                                                                                        | `exportId` + sentence key, excerpts per decision 6 | yes                    |
+| Signature field                                                                                                            | Comes from                                                                                                         | Before R17c?           |
+| -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------- |
+| `scope` (years, article types, sampling policy, target population, combined Results-Discussion)                            | protocol                                                                                                           | yes                    |
+| `coverage` (target, control, held-out, strata, dedup policy, parse and annotation pass rates per section)                  | release, member status, runs                                                                                       | yes                    |
+| `provenance` (manifest id, parser, taxonomy and registry versions, extractor versions, annotation protocol, rights policy) | release, generator, registry                                                                                       | yes                    |
+| `feature_registry_binding`                                                                                                 | PaperLab registry and its digest                                                                                   | yes                    |
+| `features` with `comparison_to_controls`: structure and length                                                             | profile                                                                                                            | yes                    |
+| citation features (density, position)                                                                                      | citation markers counted in block text by the existing reference check; citation links in the model come with R17d | yes, from text         |
+| `section_profiles` (headings, body word share; declared mapping from PaperLab roles to the signature's sections)           | profile                                                                                                            | yes                    |
+| rhetoric and stance as document prevalence; machine share in `extractor`, `review_status`, `uncertainty_notes`             | profile                                                                                                            | yes                    |
+| `phrase_signals` (G², Log Ratio, prevalence, normalisation and tokenizer versions)                                         | profile                                                                                                            | yes, within decision 5 |
+| `scientific_profile` (declared mapping: niche → GAP, limitation → LIMITATION; CLAIM not mapped)                            | profile                                                                                                            | partly                 |
+| `move_frequencies`, `move_sequences`, `paragraph_patterns`                                                                 | CoreSC / AZ-II labels                                                                                              | after R17c             |
+| `evidence` pointers                                                                                                        | `exportId` + sentence key, excerpts per decision 6                                                                 | yes                    |
 
 ## 6. Slices
 
-Each line is one PR.
+Each line is one PR. First, without code: count in OpenAlex how many open published-version research articles each
+candidate journal has per year (feeds decision 1).
 
 | #    | Slice                                                                                                                         | Done when                                                                              |
 | ---- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
@@ -158,7 +168,7 @@ Each line is one PR.
 | C4a  | Journal and control harvest from OpenAlex by source id; strata; version of record; exclusions; seed                           | the same seed draws the same sample                                                    |
 | C4b  | Corpus labelling runs (rhetoric, stance) with cost estimate and coverage; human label check sample                            | precision per corpus reported                                                          |
 | C5a  | Feature registry v1 and corpus profile v1 (structure, length, citation, stance, rhetoric prevalence), statistics of section 4 | profile for one journal and its control validates                                      |
-| C5b  | Held-out test and `holdout_verified`                                                                                          | AUC with CI on frozen features                                                         |
+| C5b  | Held-out test (held-out target vs held-out control) and `holdout_verified`                                                    | AUC with CI on frozen features                                                         |
 | C6   | Bank: vendor registry and profile; map to Journal Signature v2.1                                                              | one journal has a non-empty fingerprint                                                |
 | C7   | After R17c: moves, sequences, paragraph patterns                                                                              | only after the R17c gate passes                                                        |
 
@@ -175,7 +185,8 @@ C7 waits for R17c.
 
 ## 8. Owner decisions
 
-1. The first journal, its control journals (at least three), and whether the default size of 150 + 150 papers holds.
+1. The first journal, its control journals (at least three), and whether the default size of 150 + 150 papers holds,
+   once the count of open published versions is known.
 2. Who labels the 5–10 papers for the AZ-II gate, and who checks the sample of machine labels.
 3. Whether corpora are shared in the lab (a worker route on R2 and sign-in roles, which also enables dual screening)
    or stay in one browser and move as files.
@@ -208,7 +219,7 @@ C7 waits for R17c.
 | Machine labels unvalidated                                                                                                         | major           | Accepted: prevalence only before R17c, human check sample                                                                                        |
 | Machine share has no field in the signature                                                                                        | major           | Accepted: `extractor`, `review_status`, `uncertainty_notes`                                                                                      |
 | No author ids or countries                                                                                                         | major           | Accepted: OpenAlex ids and countries per member                                                                                                  |
-| Store models or recipes                                                                                                            | major           | Accepted: recipes                                                                                                                                |
+| Store models or recipes                                                                                                            | major           | Accepted in part: recipes while working; a release freezes the models so it can be recomputed                                                    |
 | R2 holds PDFs only                                                                                                                 | major           | Accepted: corrected                                                                                                                              |
 | IndexedDB budget; export lacks `paperContext`                                                                                      | major           | Accepted                                                                                                                                         |
 | Batch runner is per paper and needs the screen                                                                                     | major           | Accepted: corpus queue, "tab open, resumes"                                                                                                      |
