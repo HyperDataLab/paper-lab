@@ -223,20 +223,27 @@ export function citationsReferences(paper: Paper) {
 export function figuresTables(paper: Paper) {
   const id = 'figures_tables';
   const extract = (p: Paper['paragraphs'][number]) =>
-    matches(p, /\b(?:fig(?:ure)?\.?|table)\s+\d+\b/giu).map((loc) => ({
+    matches(p, /\b(?:fig(?:ure)?s?\.?|tables?)\s+\d+\b(?:\s*[-–—]\s*\d+\b)?/giu).map((loc) => ({
       key: `${/^t/iu.test(loc.text) ? 'table' : 'figure'}:${loc.text.match(/\d+/u)?.[0]}`,
+      numbers: (loc.text.match(/\d+/gu) ?? []).map(Number),
       loc,
     }));
   const body = paper.paragraphs.filter((p) => p.kind === 'body').flatMap(extract);
   const captions = paper.paragraphs.filter((p) => p.kind === 'caption').flatMap(extract);
   const findings: Finding[] = [];
+  const includes = (range: (typeof body)[number], item: (typeof body)[number]) => {
+    const first = range.numbers[0] ?? 0;
+    const last = range.numbers[1] ?? first;
+    const number = item.numbers[0] ?? 0;
+    return range.key.split(':')[0] === item.key.split(':')[0] && number >= first && number <= last;
+  };
   for (const item of body)
-    if (!captions.some((c) => c.key === item.key))
+    if (!captions.some((c) => includes(item, c)))
       findings.push(
         finding(id, `missing:${item.key}`, 'minor', 'Không tìm thấy chú thích tương ứng.', [item.loc]),
       );
   for (const item of captions)
-    if (!body.some((c) => c.key === item.key))
+    if (!body.some((c) => includes(c, item)))
       findings.push(
         finding(id, `unused:${item.key}`, 'info', 'Chú thích chưa được nhắc đến trong nội dung.', [item.loc]),
       );

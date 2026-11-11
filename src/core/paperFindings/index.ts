@@ -1,5 +1,6 @@
 import type {
   Analysis,
+  CheckId,
   MeasurementsRecord,
   Paper,
   PaperChecksRecord,
@@ -63,10 +64,10 @@ export interface FindingInputs {
   stance?: StanceRecord;
 }
 
-const CHECKS: Record<string, { criterion: Criterion; view: string }> = {
+export const CHECKS: Record<CheckId, { criterion: Criterion; view: string }> = {
   numbers_consistency: { criterion: 'evidence', view: 'science-checks' },
   unsupported_claims: { criterion: 'claim', view: 'science-checks' },
-  figures_tables: { criterion: 'evidence', view: 'discourse-checks' },
+  figures_tables: { criterion: 'writing', view: 'discourse-checks' },
   acronyms: { criterion: 'writing', view: 'writing-checks' },
   claim_strength_drift: { criterion: 'claim', view: 'writing-checks' },
   citations_references: { criterion: 'context', view: 'context-checks' },
@@ -106,7 +107,7 @@ export function collectFindings(input: FindingInputs): PaperFinding[] {
     found.push({ ...item, sectionId: sectionOf.get(item.locations[0]?.paragraphId ?? '') ?? null });
 
   for (const check of input.checks?.report.checks ?? []) {
-    const place = CHECKS[check.id] ?? { criterion: 'evidence' as const, view: 'science-checks' };
+    const place = CHECKS[check.id];
     for (const finding of check.findings) {
       const decision = input.checks?.decisions.findLast((item) => item.findingId === finding.id);
       add({
@@ -203,7 +204,7 @@ export function collectFindings(input: FindingInputs): PaperFinding[] {
         id: `measurement:${finding.id}`,
         source: 'measurement',
         runId: measurement.id,
-        criterion: 'evidence',
+        criterion: finding.type === 'claim_evidence_gap' ? 'claim' : 'evidence',
         view: 'measure',
         title: MEASUREMENT_TITLES[finding.type] ?? finding.type,
         code: null,
@@ -237,7 +238,7 @@ export function collectFindings(input: FindingInputs): PaperFinding[] {
 
 /**
  * Everything to mark on the paper's text: each finding's passages, plus what the descriptive analyses
- * located (claims and their data, the snapshot's sources, stance markers). Items a person dismissed are left out.
+ * located (claims and their data, stance markers). Items a person dismissed are left out.
  */
 export function collectMarks(
   input: FindingInputs,
@@ -286,18 +287,6 @@ export function collectMarks(
         view: 'toulmin',
       }),
     );
-  }
-  const snapshotRun = insights?.snapshotRuns.at(-1);
-  for (const value of snapshotRun?.values ?? []) {
-    if (!value.source || dismissed(snapshotRun?.id ?? '', value.id)) continue;
-    add({
-      ...span(value.source),
-      id: `snapshot:${value.id}`,
-      criterion: 'evidence',
-      label: 'Thông tin cốt lõi',
-      findingId: null,
-      view: 'snapshot',
-    });
   }
   const stanceRun = input.stance?.runs.at(-1);
   for (const annotation of stanceRun?.annotations ?? []) {

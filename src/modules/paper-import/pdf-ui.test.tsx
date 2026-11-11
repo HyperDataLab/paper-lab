@@ -274,7 +274,15 @@ it('R9 findings are drawn on the PDF and open the finding when pressed', async (
     ...base,
     sections: [{ id: 'b', heading: 'Results', role: 'results', level: 1, pageStart: 3 }],
     paragraphs: [
-      { id: 'p2', sectionId: 'b', order: 0, kind: 'body', text: 'See Figure 2.', pageStart: 3, textHash: '' },
+      {
+        id: 'p2',
+        sectionId: 'b',
+        order: 0,
+        kind: 'body',
+        text: 'Extensive experiments.',
+        pageStart: 3,
+        textHash: '',
+      },
     ],
   };
   await repo.papers.create(paper);
@@ -296,7 +304,7 @@ it('R9 findings are drawn on the PDF and open the finding when pressed', async (
       `/papers/${paper.id}`,
     ),
   );
-  fireEvent.click(await screen.findByRole('button', { name: 'mark Figure 2 p3' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'mark Extensive experiments. p3' }));
   expect(screen.getByRole('tab', { name: 'Issues' })).toHaveAttribute('aria-selected', 'true');
 });
 
@@ -352,12 +360,20 @@ it('R14 a pressed mark shows the analysis again when it was hidden', async () =>
     ...base,
     sections: [{ id: 'b', heading: 'Results', role: 'results', level: 1, pageStart: 3 }],
     paragraphs: [
-      { id: 'p2', sectionId: 'b', order: 0, kind: 'body', text: 'See Figure 2.', pageStart: 3, textHash: '' },
+      {
+        id: 'p2',
+        sectionId: 'b',
+        order: 0,
+        kind: 'body',
+        text: 'Extensive experiments.',
+        pageStart: 3,
+        textHash: '',
+      },
     ],
   };
   await openPaper(paper);
   expect(screen.queryByRole('region', { name: 'Analysis' })).toBeNull();
-  fireEvent.click(await screen.findByRole('button', { name: 'mark Figure 2 p3' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'mark Extensive experiments. p3' }));
   expect(await screen.findByRole('region', { name: 'Analysis' })).toBeVisible();
   expect(screen.getByRole('tab', { name: 'Issues' })).toHaveAttribute('aria-selected', 'true');
   expect(localStorage.getItem('paper-split')).toBe('true');

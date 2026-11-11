@@ -1,6 +1,16 @@
 import { z } from 'zod';
 import { CalibrationSnapshotSchema } from './calibration';
 
+export const CheckIdSchema = z.enum([
+  'numbers_consistency',
+  'unsupported_claims',
+  'figures_tables',
+  'acronyms',
+  'claim_strength_drift',
+  'citations_references',
+]);
+export type CheckId = z.infer<typeof CheckIdSchema>;
+
 export const CheckLocationSchema = z
   .object({
     paragraphId: z.string(),
@@ -17,7 +27,7 @@ export const FindingSchema = z.object({
   evidence: z.array(z.string()),
 });
 export const CheckResultSchema = z.object({
-  id: z.string(),
+  id: CheckIdSchema,
   label: z.string(),
   status: z.enum(['pass', 'warn', 'fail', 'not_applicable']),
   experimental: z.literal(true),

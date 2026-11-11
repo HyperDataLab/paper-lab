@@ -220,6 +220,30 @@ describe('P4 citations_references', () => {
   });
 });
 describe('P4 figures_tables', () => {
+  it.each(['Fig. 4', 'Figure 4', 'Figs. 4–5', 'Fig. 4(a)'])(
+    'CRIT recognizes %s as a figure mention',
+    (mention) => {
+      const result = check(
+        paper([
+          ['results', `See ${mention}.`],
+          ['results', 'Figure 4. Caption.', 'caption'],
+        ]),
+        'figures_tables',
+      );
+      expect(result?.findings.some((f) => f.id.includes(':unused:figure:4'))).toBe(false);
+      expect(result?.findings.some((f) => f.id.includes(':missing:figure:4'))).toBe(false);
+      if (mention.includes('4–5')) {
+        const withFive = check(
+          paper([
+            ['results', `See ${mention}.`],
+            ['results', 'Figure 5. Caption.', 'caption'],
+          ]),
+          'figures_tables',
+        );
+        expect(withFive?.findings.some((f) => f.id.includes(':unused:figure:5'))).toBe(false);
+      }
+    },
+  );
   it('P4 reports large figure and table gaps as bounded ranges', () => {
     const result = check(
       paper([
@@ -333,6 +357,16 @@ describe('P4 acronyms', () => {
   });
 });
 describe('P4 numbers_consistency', () => {
+  it.each(['52.9 %', '52.90%'])('CRIT matches 52.9%% with %s', (value) => {
+    const result = check(
+      paper([
+        ['abstract', 'Accuracy was 52.9%.'],
+        ['results', `Accuracy was ${value}.`],
+      ]),
+      'numbers_consistency',
+    );
+    expect(result?.status).toBe('pass');
+  });
   it('compares percentages and units against results', () => {
     expect(
       check(
