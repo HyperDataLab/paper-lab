@@ -112,6 +112,7 @@ it('R10b the Arguments space opens on gap, claims and atomic sentences, ahead of
     'Claims & reasoning',
     'Evidence & measurement',
     'Validity & rhetorical moves',
+    'AI peer review',
   ]);
   expect(await screen.findByText('Accuracy is the share of correct predictions.')).toBeInTheDocument();
   // Parts with nothing stored yet say so and point to the analysis that fills them.

@@ -206,12 +206,6 @@ export function PaperSummary({
               )}
             </>,
           )}
-        {!only && (
-          <p className={styles.muted}>
-            Mọi câu ở trên là câu trích từ bài, do AI chọn và code đối chiếu lại. Đây là mô tả điều tác giả
-            viết, không phải kết luận bài đúng hay sai.
-          </p>
-        )}
       </div>
     </Card>
   );

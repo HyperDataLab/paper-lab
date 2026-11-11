@@ -25,7 +25,10 @@ export function PaperChecks({ paper, record, onRun, onReview, onLocation, only }
     <>
       <Card>
         <h2>Kiểm tra</h2>
-        <p>Các kiểm tra tự động là thử nghiệm, có thể báo nhầm; hãy xác nhận hoặc bỏ qua từng mục.</p>
+        <p>
+          Các kiểm tra tự động là thử nghiệm, có thể báo nhầm; kết quả được chấp nhận mặc định, hãy bác bỏ mục
+          nào báo nhầm.
+        </p>
         <ActionBar
           status={
             record

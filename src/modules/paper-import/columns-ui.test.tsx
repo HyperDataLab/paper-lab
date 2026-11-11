@@ -98,10 +98,13 @@ it('R7 an old view link opens its tab on the right while the paper stays in the 
   // Results are accepted by default, so nothing announces a queue to review.
   fireEvent.click(within(right).getByRole('tab', { name: 'Issues' }));
   expect(within(right).getByRole('tab', { name: 'Issues' })).toHaveTextContent(/^Issues$/);
-  expect((await screen.findAllByText(/được chấp nhận mặc định/)).length).toBeGreaterThan(0);
+  const issues = await screen.findByRole('region', { name: 'Issues' });
+  expect(within(issues).getByRole('button', { name: 'Bác bỏ' })).toBeInTheDocument();
   expect(screen.queryByText(/cần duyệt/)).toBeNull();
-  // Each tab says what a reader comes to it for.
-  expect(screen.getByText(/Mọi phát hiện về bài ở một chỗ/)).toBeInTheDocument();
+  // No help line under the tabs, and the list has only the criterion filter.
+  expect(screen.queryByText(/Mọi phát hiện về bài ở một chỗ/)).toBeNull();
+  expect(within(issues).queryByRole('group', { name: 'Filter by status' })).toBeNull();
+  expect(within(issues).queryByText('Sections × criteria')).toBeNull();
 });
 
 it('R7 issues are grouped by type of problem, the most severe first, with rejections counted', () => {
@@ -162,15 +165,11 @@ it('R7 issues are grouped by type of problem, the most severe first, with reject
     'source medium',
     'writing low',
   ]);
-  // The rejected chip hides what the reader rejected; it stays one press away.
-  fireEvent.click(
-    within(screen.getByRole('group', { name: 'Filter by status' })).getByRole('button', {
-      name: /Đã bác bỏ/,
-    }),
-  );
-  expect([...list.querySelectorAll('article strong')].map((title) => title.textContent)).not.toContain(
-    'evidence low',
-  );
+  // A rejected card stays in place, marked, with undo.
+  const rejected = list.querySelector('[id="finding-evidence low"]');
+  if (!(rejected instanceof HTMLElement)) throw new Error('Missing rejected card');
+  expect(within(rejected).getByText('Đã bác bỏ')).toBeInTheDocument();
+  expect(within(rejected).getByRole('button', { name: 'Hoàn tác' })).toBeInTheDocument();
 });
 
 it('R11 each space lists the issues of its own criteria, accepted until rejected', async () => {

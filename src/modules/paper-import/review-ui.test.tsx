@@ -94,7 +94,8 @@ async function setup(large = false, waitForAbort = false) {
     </MemoryRouter>,
   );
   if (!large) {
-    fireEvent.click(await screen.findByRole('tab', { name: 'Issues' }));
+    // The AI peer review is part of the Arguments space.
+    fireEvent.click(await screen.findByRole('button', { name: /^Arguments/ }));
     fireEvent.click(screen.getByRole('button', { name: 'AI peer review' }));
   }
   await screen.findByLabelText('Nhận xét của bạn trước khi xem AI');

@@ -165,7 +165,7 @@ it('R8 a paper that did not come from a PDF says so instead of offering a file',
   expect(screen.getByText('Bài này không được nhập từ tệp PDF.')).toBeInTheDocument();
 });
 
-it('R8 Full text opens on the PDF, switches to the parsed text, and remembers the choice', async () => {
+it('R12 a PDF paper is read as its PDF only, and its parsed text shows only while the PDF is missing', async () => {
   const repo = newRepo();
   const paper = paperFor(sha);
   await repo.papers.create(paper);
@@ -182,10 +182,30 @@ it('R8 Full text opens on the PDF, switches to the parsed text, and remembers th
     ),
   );
   expect(await screen.findByTestId('pdf-viewer')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('radio', { name: 'Text' }));
-  await waitFor(() => expect(screen.queryByTestId('pdf-viewer')).not.toBeInTheDocument());
+  // No switch to the parsed text and no layer chips: the PDF is the paper.
+  expect(screen.queryByRole('radio', { name: 'Text' })).toBeNull();
+  expect(screen.queryByRole('group', { name: 'Lớp đánh dấu trên bài' })).toBeNull();
+  expect(screen.queryByText('A result.')).toBeNull();
+});
+
+it('R12 a PDF paper whose file is not here offers to attach it and shows the parsed text meanwhile', async () => {
+  const repo = newRepo();
+  const paper = paperFor(sha);
+  await repo.papers.create(paper);
+  vi.stubGlobal('fetch', vi.fn());
+  render(
+    wrap(
+      repo,
+      signedOut(),
+      <Routes>
+        <Route path="/papers/:id" element={<PaperMapPage />} />
+      </Routes>,
+      `/papers/${paper.id}`,
+    ),
+  );
+  expect(await screen.findByRole('button', { name: 'Gắn PDF gốc' })).toBeInTheDocument();
   expect(await screen.findByText('A result.')).toBeInTheDocument();
-  expect(localStorage.getItem('paper-fulltext-view')).toBe('text');
+  await waitFor(() => expect(screen.queryByTestId('pdf-viewer')).toBeNull());
 });
 
 it('R8 opening a finding in a PDF paper turns the PDF to the page of its passage', async () => {
@@ -235,7 +255,7 @@ it('R8 opening a finding in a PDF paper turns the PDF to the page of its passage
   expect(await screen.findByTestId('pdf-viewer')).toHaveTextContent('page 3, passage [Figure 2]');
 });
 
-it('R9 findings are drawn on the PDF, can be switched off by layer, and open the finding when pressed', async () => {
+it('R9 findings are drawn on the PDF and open the finding when pressed', async () => {
   const repo = newRepo();
   const base = paperFor(sha);
   const paper: Paper = {
@@ -264,11 +284,6 @@ it('R9 findings are drawn on the PDF, can be switched off by layer, and open the
       `/papers/${paper.id}`,
     ),
   );
-  expect(await screen.findByRole('button', { name: 'mark Figure 2 p3' })).toBeInTheDocument();
-  const layers = screen.getByRole('group', { name: 'Lớp đánh dấu trên bài' });
-  fireEvent.click(within(layers).getByRole('button', { name: /Evidence/ }));
-  expect(screen.queryByRole('button', { name: 'mark Figure 2 p3' })).not.toBeInTheDocument();
-  fireEvent.click(within(layers).getByRole('button', { name: /Evidence/ }));
   fireEvent.click(await screen.findByRole('button', { name: 'mark Figure 2 p3' }));
   expect(screen.getByRole('tab', { name: 'Issues' })).toHaveAttribute('aria-selected', 'true');
 });

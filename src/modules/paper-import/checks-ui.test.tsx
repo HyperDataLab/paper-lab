@@ -63,11 +63,11 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
       </StorageProvider>
     </MemoryRouter>,
   );
+  // The automated checks live, folded, in Paper info; they also run on their own when the paper opens.
   const openChecks = () => {
-    fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
-    fireEvent.click(screen.getByRole('radio', { name: 'Paragraph structure & flow' }));
-    fireEvent.click(screen.getByRole('tab', { name: 'Issues' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Paper info' }));
+    const fold = screen.queryByRole('button', { name: 'Mở Automated checks' });
+    if (fold) fireEvent.click(fold);
     fireEvent.click(screen.getByRole('radio', { name: 'Figures & tables' }));
   };
   await screen.findByRole('tab', { name: 'Full text' });
@@ -85,7 +85,7 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
   fireEvent.click(
     within(card).getByText('“Figure 2”').closest('article')?.querySelector('button') as HTMLElement,
   );
-  expect(screen.getByRole('tab', { name: 'Issues' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'Paper info' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Mở trong Đọc bài' }));
   expect(screen.getByRole('tab', { name: 'Full text' })).toHaveAttribute('aria-selected', 'true');
@@ -101,9 +101,6 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
   fireEvent.click(within(cardAgain).getByRole('button', { name: 'Bác bỏ' }));
   const dismissed = await within(cardAgain).findByText('Đã bác bỏ (1)');
   expect(dismissed.parentElement).not.toHaveAttribute('open');
-  // The same decision shows in the list, which keeps the card with its undo.
-  const list = screen.getByRole('region', { name: 'Issues' });
-  await within(list).findByText('Đã bác bỏ');
   fireEvent.click(dismissed);
   fireEvent.click(within(cardAgain).getByRole('button', { name: 'Hoàn tác' }));
   await waitFor(async () =>
@@ -264,7 +261,8 @@ it('R7 on a wide screen the paper is the centre column beside the analysis, and 
   expect(document.querySelector('section[aria-label="Paper"]')).not.toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: '← Quay lại bài' }));
   expect(screen.getByRole('region', { name: 'Paper' })).toBeVisible();
-  fireEvent.click(screen.getByRole('tab', { name: 'Issues' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Paper info' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Mở Automated checks' }));
   fireEvent.click(screen.getByRole('radio', { name: 'Figures & tables' }));
   fireEvent.click(screen.getByRole('button', { name: 'Chạy kiểm tra' }));
   // The same quote also heads its card in the unified list; this is the one in the checks block.
@@ -276,12 +274,14 @@ it('R7 on a wide screen the paper is the centre column beside the analysis, and 
   expect(within(pane).getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
   expect(within(pane).getByRole('heading', { name: 'Results' })).toBeInTheDocument();
   expect(screen.queryByRole('dialog')).toBeNull();
-  expect(screen.getByRole('tab', { name: 'Issues' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'Paper info' })).toHaveAttribute('aria-selected', 'true');
 
-  // R2: the same finding heads a card in the one list, in the one card shape.
+  // R2: the same finding heads a card in the one list, without labels that add nothing to read.
+  fireEvent.click(screen.getByRole('tab', { name: 'Issues' }));
   const list = screen.getByRole('region', { name: 'Issues' });
-  expect(within(list).getByText('Rule')).toBeInTheDocument();
-  expect(within(list).getByText(/^(High|Medium|Low)$/)).toBeInTheDocument();
+  expect(within(list).getByText('Không tìm thấy chú thích tương ứng.')).toBeInTheDocument();
+  expect(within(list).queryByText('Rule')).toBeNull();
+  expect(within(list).queryByText(/^(High|Medium|Low)$/)).toBeNull();
   // R2: it is drawn on the words of the paper, as a control and not by colour alone.
   const underlined = within(pane).getByRole('button', { name: 'Figure 2' });
   expect(underlined).toHaveAttribute('data-finding', 'true');
