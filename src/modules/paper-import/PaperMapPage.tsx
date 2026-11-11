@@ -63,12 +63,17 @@ import { Loading } from '@/shared/ui/StateNote';
 type ViewId = 'profile' | 'snapshot' | 'metadata' | 'map' | 'review' | ProfileView;
 /** The centre column holds the paper: its full text, or its summary. */
 type Pane = 'fulltext' | 'summary';
-/** The right column holds what the analyses say about the paper. */
-type Mode = 'arguments' | 'writing' | 'issues';
+/**
+ * The right column holds what needs the reader's decision and what is known about the paper: Issues,
+ * Citations and Paper info. Arguments and Writing style are spaces behind the paper: each opens full width.
+ */
+type Mode = 'issues' | 'citations' | 'info' | Space;
+type Space = 'arguments' | 'writing';
 type Place = 'summary' | Mode;
 type BlockId =
   | 'snapshot'
   | 'checks'
+  | 'citationChecks'
   | 'review'
   | 'measure'
   | 'rhetoric'
@@ -80,8 +85,8 @@ type BlockId =
   | 'probe'
   | 'metadata';
 /**
- * Every analysis is one block in one place: the paper's Summary in the centre column, or one of the three
- * tabs of the right column. Names are the scientific terms a researcher already uses; the help line under
+ * Every analysis is one block in one place: the paper's Summary in the centre column, a tab of the right
+ * column, or one of the two spaces. Names are the scientific terms a researcher already uses; the help line under
  * each says, in Vietnamese, what the block answers. Every former view id still opens its block.
  */
 const BLOCKS: Record<
@@ -95,20 +100,20 @@ const BLOCKS: Record<
   }
 > = {
   snapshot: {
-    place: 'summary',
+    place: 'info',
     title: 'Key facts',
     criterion: 'evidence',
     job: 'snapshot',
     views: [{ id: 'snapshot', label: 'Key facts' }],
   },
   references: {
-    place: 'summary',
+    place: 'citations',
     title: 'References',
     criterion: 'context',
     views: [{ id: 'context-references', label: 'References' }],
   },
   metadata: {
-    place: 'summary',
+    place: 'info',
     title: 'Publication info',
     criterion: 'context',
     views: [{ id: 'metadata', label: 'Publication info' }],
@@ -178,8 +183,13 @@ const BLOCKS: Record<
       { id: 'science-checks', label: 'Numbers & claims' },
       { id: 'discourse-checks', label: 'Figures & tables' },
       { id: 'writing-checks', label: 'Acronyms & claim strength' },
-      { id: 'context-checks', label: 'Citations' },
     ],
+  },
+  citationChecks: {
+    place: 'citations',
+    title: 'Citation checks',
+    criterion: 'context',
+    views: [{ id: 'context-checks', label: 'Citations ↔ references' }],
   },
   review: {
     place: 'issues',
@@ -205,10 +215,15 @@ const PANES: { id: Pane; label: string }[] = [
   { id: 'summary', label: 'Summary' },
 ];
 const MODES: { id: Mode; label: string }[] = [
+  { id: 'issues', label: 'Issues' },
+  { id: 'citations', label: 'Citations' },
+  { id: 'info', label: 'Paper info' },
+];
+const SPACES: { id: Space; label: string }[] = [
   { id: 'arguments', label: 'Arguments' },
   { id: 'writing', label: 'Writing style' },
-  { id: 'issues', label: 'Issues' },
 ];
+const isSpace = (mode: Mode): mode is Space => mode === 'arguments' || mode === 'writing';
 /** What a reader comes to each tab for, said once under the tab. */
 const PLACE_HELP: Record<Pane | Mode, string> = {
   fulltext:
@@ -220,11 +235,16 @@ const PLACE_HELP: Record<Pane | Mode, string> = {
   writing:
     'Bài được viết ra sao: cấu trúc, mạch, câu chữ, giọng văn. Dùng để học cách viết, không phải để chấm bài.',
   issues: 'Những điểm cần bạn xem và quyết định. AI và quy tắc chỉ đề xuất; bạn xác nhận hoặc bỏ qua.',
+  citations:
+    'Bài trích dẫn những gì: danh sách tài liệu, độ mới, bài đã bị rút, và trích dẫn trong bài có khớp danh sách không.',
+  info: 'Thông tin về bài báo: nơi và năm xuất bản, tác giả, và các thông tin cốt lõi của nghiên cứu.',
 };
 const DEFAULT_VIEW: Record<Mode, ViewId> = {
   arguments: 'toulmin',
   writing: 'organization',
   issues: 'science-checks',
+  citations: 'context-references',
+  info: 'metadata',
 };
 const CHECKS_OF: Partial<Record<ViewId, string[]>> = {
   'science-checks': ['numbers_consistency', 'unsupported_claims'],
@@ -353,6 +373,8 @@ export default function PaperMapPage() {
     return first && initial ? { [first]: initial } : {};
   });
   const jobs = useRef<Partial<Record<JobId, JobReport>>>({});
+  // Leaving a space returns to the tab of the right column the reader came from.
+  const beforeSpace = useRef<ViewId>(DEFAULT_VIEW.issues);
   const [jobFacts, setJobFacts] = useState<Partial<Record<JobId, JobFacts>>>({});
   const reportJob = useCallback<JobReporter>((jobId, report) => {
     if (report) jobs.current[jobId] = report;
@@ -394,6 +416,7 @@ export default function PaperMapPage() {
   /** Opens a view in its column and records it in the address, so a reload or a shared link lands there. */
   const setTab = (view: ViewId) => {
     const place = placeOf(view);
+    if (!isPane(place) && isSpace(place) && !isSpace(modeOf(tab))) beforeSpace.current = tab;
     const block = blockOf(view);
     // Every analysis of the place being shown is mounted, so each row can say what a run would cost.
     // What is left keeps its panels too, so nothing running there is interrupted.
@@ -406,6 +429,8 @@ export default function PaperMapPage() {
     if (isPane(place)) {
       setPaneState(place);
       setFocus('centre');
+      // Choosing the paper leaves a space: the right column comes back as it was.
+      if (isSpace(modeOf(tab))) setTabState(beforeSpace.current);
     } else {
       setTabState(view);
       setFocus('right');
@@ -625,8 +650,10 @@ export default function PaperMapPage() {
   };
   // The paper is the centre of the page: on a wide screen it is always beside the analysis, so a quote opens
   // there. On a narrow screen showing the analysis, the quote opens in a drawer to keep the reader's place.
-  const showRight = !wide || splitWanted;
-  const centreVisible = wide || focus === 'centre';
+  // A space takes the whole width; the paper's passages then open in the evidence drawer.
+  const inSpace = isSpace(modeOf(tab));
+  const showRight = !wide || splitWanted || inSpace;
+  const centreVisible = !inSpace && (wide || focus === 'centre');
   const openLocation = (location: Finding['locations'][number]) => {
     const paragraph = paper.paragraphs.find((item) => item.id === location.paragraphId);
     if (!paragraph || !centreVisible) return setEvidence(location);
@@ -768,7 +795,11 @@ export default function PaperMapPage() {
       (id) =>
         BLOCKS[id].job === job &&
         openBlocks.includes(id) &&
-        (BLOCKS[id].place === mode ? showRight : BLOCKS[id].place === 'summary' && pane === 'summary'),
+        (BLOCKS[id].place === mode
+          ? wide
+            ? showRight
+            : focus === 'right'
+          : BLOCKS[id].place === 'summary' && pane === 'summary' && centreVisible),
     );
   const elsewhere = JOB_IDS.filter((job) => jobFacts[job]?.running && !visibleJob(job));
   const checkView = viewOf('checks');
@@ -856,6 +887,30 @@ export default function PaperMapPage() {
       {item.label}
     </Button>
   );
+  const claimCount = marks.filter((item) => item.criterion === 'claim').length;
+  const evidenceCount = marks.filter((item) => item.criterion === 'evidence').length;
+  const writingCount = marks.filter((item) => item.criterion === 'writing').length;
+  const SPACE_LINE: Record<Space, string> = {
+    arguments:
+      claimCount + evidenceCount > 0
+        ? `${claimCount} claims · ${evidenceCount} evidence`
+        : 'Luận điểm, bằng chứng, Toulmin, AIF',
+    writing: writingCount > 0 ? `${writingCount} ghi chú về cách viết` : 'Cấu trúc, mạch, câu chữ, giọng văn',
+  };
+  const openSpace = (space: Space) =>
+    setTab(
+      blockView[BLOCK_IDS.find((id) => BLOCKS[id].place === space) ?? 'arguments'] ?? DEFAULT_VIEW[space],
+    );
+  const spaceEntries = (
+    <nav className={styles.spaces} aria-label="Spaces">
+      {SPACES.map((item) => (
+        <Button key={item.id} className={styles.spaceEntry} onClick={() => openSpace(item.id)}>
+          <span className={styles.spaceName}>{item.label} →</span>
+          <span className={styles.spaceLine}>{SPACE_LINE[item.id]}</span>
+        </Button>
+      ))}
+    </nav>
+  );
   const modeTab = (item: { id: Mode; label: string }) => (
     <Button
       key={item.id}
@@ -922,6 +977,16 @@ export default function PaperMapPage() {
                     <span className={styles.tabDivider} aria-hidden="true" />
                     {MODES.map(modeTab)}
                   </Tabs>
+                  {/* While the paper shows, the right column is hidden: the spaces stay one press away. */}
+                  {focus === 'centre' && !inSpace && (
+                    <div className={styles.spaceLinks}>
+                      {SPACES.map((item) => (
+                        <Button key={item.id} size="sm" variant="ghost" onClick={() => openSpace(item.id)}>
+                          {item.label} →
+                        </Button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               {elsewhere.length > 0 && (
@@ -945,11 +1010,11 @@ export default function PaperMapPage() {
                 onClose={() => setEvidence(null)}
                 onOpenReader={openInReader}
               />
-              <div className={wide && showRight ? styles.workspace : undefined}>
+              <div className={wide && showRight && !inSpace ? styles.workspace : undefined}>
                 <section
                   className={wide ? styles.column : undefined}
                   aria-label="Paper"
-                  hidden={!centreVisible}
+                  hidden={inSpace || !centreVisible}
                 >
                   {wide && (
                     <div className={styles.columnTabs}>
@@ -1035,22 +1100,6 @@ export default function PaperMapPage() {
                         onOpen={setTab}
                       />
                     )}
-                    {block(
-                      'snapshot',
-                      shown('snapshot') && <PaperSnapshot paper={paper} onLocation={openLocation} />,
-                    )}
-                    {block(
-                      'metadata',
-                      pane === 'summary' && openBlocks.includes('metadata') && (
-                        <PaperMetadata paper={paper} />
-                      ),
-                    )}
-                    {block(
-                      'references',
-                      pane === 'summary' && openBlocks.includes('references') && (
-                        <PaperReferences paper={paper} onLocation={openLocation} />
-                      ),
-                    )}
                     {pane === 'summary' && (
                       <PaperProfile
                         // A finished analysis changes what the cards can show, so they are read again.
@@ -1065,13 +1114,39 @@ export default function PaperMapPage() {
                 </section>
                 <section
                   className={wide ? styles.column : undefined}
-                  aria-label="Analysis"
+                  aria-label={
+                    inSpace ? (SPACES.find((item) => item.id === mode)?.label ?? 'Space') : 'Analysis'
+                  }
                   hidden={wide ? !showRight : focus !== 'right'}
                 >
-                  {wide && (
-                    <div className={styles.columnTabs}>
-                      <Tabs label="Analysis">{MODES.map(modeTab)}</Tabs>
+                  {inSpace ? (
+                    <div className={styles.spaceHead}>
+                      <Button variant="ghost" size="sm" onClick={() => setTab(beforeSpace.current)}>
+                        ← Quay lại bài
+                      </Button>
+                      <h2>{SPACES.find((item) => item.id === mode)?.label}</h2>
+                      <Tabs label="Spaces">
+                        {SPACES.map((item) => (
+                          <Button
+                            key={item.id}
+                            role="tab"
+                            aria-selected={mode === item.id}
+                            onClick={() => openSpace(item.id)}
+                          >
+                            {item.label}
+                          </Button>
+                        ))}
+                      </Tabs>
                     </div>
+                  ) : (
+                    <>
+                      {spaceEntries}
+                      {wide && (
+                        <div className={styles.columnTabs}>
+                          <Tabs label="Analysis">{MODES.map(modeTab)}</Tabs>
+                        </div>
+                      )}
+                    </>
                   )}
                   <p className={styles.tabHelp}>{PLACE_HELP[mode]}</p>
                   <div hidden={mode !== 'issues'} className={styles.blocks}>
@@ -1115,6 +1190,42 @@ export default function PaperMapPage() {
                       shown('review') && (
                         <PaperReview paper={paper} checks={checks} onLocation={openLocation} />
                       ),
+                    )}
+                  </div>
+                  <div hidden={mode !== 'citations'} className={styles.blocks}>
+                    {block(
+                      'references',
+                      mode === 'citations' && openBlocks.includes('references') && (
+                        <PaperReferences paper={paper} onLocation={openLocation} />
+                      ),
+                    )}
+                    {block(
+                      'citationChecks',
+                      mode === 'citations' && openBlocks.includes('citationChecks') && (
+                        <PaperChecks
+                          only={CHECKS_OF['context-checks'] ?? []}
+                          paper={paper}
+                          record={checks}
+                          onRun={runChecks}
+                          onReview={(findingId, status) => {
+                            void repo.paperChecks
+                              .review(paper.id, findingId, status)
+                              .then(setChecks)
+                              .catch((cause: unknown) => setError(String(cause)));
+                          }}
+                          onLocation={openLocation}
+                        />
+                      ),
+                    )}
+                  </div>
+                  <div hidden={mode !== 'info'} className={styles.blocks}>
+                    {block(
+                      'metadata',
+                      mode === 'info' && openBlocks.includes('metadata') && <PaperMetadata paper={paper} />,
+                    )}
+                    {block(
+                      'snapshot',
+                      shown('snapshot') && <PaperSnapshot paper={paper} onLocation={openLocation} />,
                     )}
                   </div>
                   <div hidden={mode !== 'arguments'} className={styles.blocks}>

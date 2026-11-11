@@ -172,7 +172,7 @@ async function setup(modelConfirmed = false) {
 }
 it('P3 shows distributions, recurring filters, transition review and stale notice', async () => {
   const { repo, paper } = await setup();
-  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn' }));
@@ -224,7 +224,7 @@ it('P3 marks a transition unavailable when its annotations disappear', async () 
   const first = analyses.find((item) => item.origin?.kind === 'paper' && item.origin.paragraphId === 'p1');
   if (!first) throw new Error('Missing analysis');
   await repo.analyses.update(first.id, { sentenceAnnotations: [] });
-  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
   fireEvent.click(screen.getByRole('radio', { name: 'Paragraph structure & flow' }));
   expect(await screen.findByText('Không còn hợp lệ')).toBeInTheDocument();

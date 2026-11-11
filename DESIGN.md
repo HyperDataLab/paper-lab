@@ -193,19 +193,26 @@ prompt versions accompany the advisory banner.
 ## 9. Paper workspace
 
 The paper is the centre of the page, as in SciSpace's reader. From 1280 px the page has two columns that scroll on their own: the
-paper in the centre and what the analyses say about it on the right. Below 1280 px one tab bar holds all five tabs and shows one column
-at a time; a quote then opens in a drawer so the reader keeps their place. The app sidebar folds to a rail from the control beside the
-brand. "Ẩn phân tích" hides the right column and leaves the paper alone on the page.
+paper in the centre and, on the right, what needs a decision and what is known about the paper. Below 1280 px one tab bar holds the
+tabs and shows one column at a time; a quote then opens in a drawer so the reader keeps their place. The app sidebar folds to a rail
+from the control beside the brand. "Ẩn phân tích" hides the right column and leaves the paper alone on the page.
 
-Each tab answers the question a reader brings to it; the line under the tab says it in Vietnamese.
+**Spaces.** Arguments and Writing style are spaces behind the paper, not tabs. Two entries above the right column's tabs open them,
+each with one line on what is inside ("11 claims · 38 evidence"). A space takes the whole width, with "← Quay lại bài" and a tab
+to the other space; a quote opens in the evidence drawer. Choosing Full text or Summary also leaves the space. Analyses keep
+running while the reader moves between the paper, the tabs and the spaces.
 
-| Column | Tab               | The reader wants                                     | Holds                                                                                                                      |
+Each tab and space answers the question a reader brings to it; the line under it says it in Vietnamese.
+
+| Where  | Name              | The reader wants                                     | Holds                                                                                                                      |
 | ------ | ----------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Centre | **Full text**     | to read the paper itself and check a passage         | Outline (folds away beside the analysis), the text with its marks, layer chips                                             |
-| Centre | **Summary**       | to grasp what the paper says before reading closely  | Research gap & contribution, Key facts, Main claims, Stated limitations, Publication info, References, analysis coverage   |
-| Right  | **Arguments**     | to judge how the author reasons and on what evidence | Claims & reasoning (Toulmin model, AIF graph), Evidence & measurement (with atomic sentences), Validity & rhetorical moves |
-| Right  | **Writing style** | to learn from how the paper is written               | Coherence & sentences, Stance & engagement, Vocabulary & phrases, Score robustness                                         |
+| Centre | **Full text**     | to read the paper itself and check a passage         | The PDF or the parsed text with its marks, layer chips                                                                     |
+| Centre | **Summary**       | to grasp what the paper says before reading closely  | One readable column (72ch): Research gap, then Contribution; Key facts; Main claims; Stated limitations; analysis coverage |
 | Right  | **Issues**        | to see what needs a decision and make it             | Every finding in one list, grouped by type, then its sources: Automated checks, AI peer review                             |
+| Right  | **Citations**     | to see what the paper cites and whether it holds up  | References (recency, retracted papers), Citation checks (citations ↔ references)                                           |
+| Right  | **Paper info**    | to know what the paper is                            | Publication info, Key facts                                                                                                |
+| Space  | **Arguments**     | to judge how the author reasons and on what evidence | Claims & reasoning (Toulmin model, AIF graph), Evidence & measurement (with atomic sentences), Validity & rhetorical moves |
+| Space  | **Writing style** | to learn from how the paper is written               | Coherence & sentences, Stance & engagement, Vocabulary & phrases, Score robustness                                         |
 
 "Phân tích toàn bài" sits in the centre column's tab bar. When findings still need a decision, the header shows "N cần duyệt" and
 the Issues tab carries the count; the Issues list opens with "N phát hiện cần bạn duyệt" and a button that narrows it to those.
