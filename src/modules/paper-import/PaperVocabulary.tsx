@@ -13,9 +13,9 @@ import type { Finding, Paper } from '@/core/schemas';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
-import { placeLabel } from './paperLabels';
 import { SECTION_ROLE_LABELS } from './sectionRoles';
 import styles from './page.module.css';
+import { PlaceText } from './PlaceText';
 
 type MetricKey = Exclude<keyof LanguageMetrics, 'words'>;
 const decimal = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 });
@@ -146,7 +146,7 @@ export function PaperVocabulary({
                   <td>{item.paragraphs}</td>
                   <td>
                     <Button variant="ghost" size="sm" onClick={() => onLocation(item.location)}>
-                      {placeLabel(paper, item.location.paragraphId)}
+                      <PlaceText paper={paper} paragraphId={item.location.paragraphId} />
                     </Button>
                   </td>
                 </tr>

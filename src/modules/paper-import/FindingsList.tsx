@@ -9,9 +9,9 @@ import { FindingCard, ReviewActions } from '@/shared/ui/FindingCard';
 import { Empty } from '@/shared/ui/StateNote';
 import { CRITERIA } from './criteria';
 import { findingTitle } from './findingTitle';
-import { placeLabel } from './paperLabels';
 import { CriterionMark } from './SectionBlock';
 import styles from './page.module.css';
+import { PlaceText } from './PlaceText';
 
 const CRITERION_IDS = Object.keys(CRITERIA) as Criterion[];
 const SEVERITY_RANK = { high: 0, medium: 1, low: 2 } as const;
@@ -146,7 +146,10 @@ export function FindingsList({
                 quote={quote}
                 source={
                   first
-                    ? { label: placeLabel(paper, first.paragraphId), onOpen: () => onLocation(first) }
+                    ? {
+                        label: <PlaceText paper={paper} paragraphId={first.paragraphId} />,
+                        onOpen: () => onLocation(first),
+                      }
                     : undefined
                 }
                 actions={

@@ -94,7 +94,7 @@ it('F4 opens a category, shows the marker in its clause and links to the paper',
   expect(screen.getByRole('heading', { name: 'Rào đón (Hedges)' })).toBeInTheDocument();
   expect(screen.getByText('may').tagName).toBe('MARK');
   expect(screen.getByText('Giảm chắc chắn.')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Tr. 2 · Results' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Results · Tr. 2' }));
   expect(onLocation).toHaveBeenCalledWith({ paragraphId: 'p1', start: 14, end: 17 });
 });
 

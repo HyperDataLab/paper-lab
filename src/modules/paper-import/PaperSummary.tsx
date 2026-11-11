@@ -5,9 +5,9 @@ import type { Paper, PaperInsightsRecord, SnapshotField } from '@/core/schemas';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
-import { placeLabel } from './paperLabels';
 import { CriterionMark } from './SectionBlock';
 import styles from './summary.module.css';
+import { PlaceText } from './PlaceText';
 
 const FACTS: Record<SnapshotField, string> = {
   methods: 'Methods',
@@ -61,7 +61,7 @@ export function PaperSummary({
       variant="ghost"
       onClick={() => onLocation({ paragraphId: quote.paragraphId, start: quote.start, end: quote.end })}
     >
-      {placeLabel(paper, quote.paragraphId)}
+      <PlaceText paper={paper} paragraphId={quote.paragraphId} />
     </Button>
   );
   const quotes = (items: SummaryQuote[], empty: string) =>

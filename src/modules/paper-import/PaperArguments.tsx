@@ -16,13 +16,13 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { FindingCard, ReviewActions } from '@/shared/ui/FindingCard';
 import { ArgumentDiagram } from './ArgumentDiagram';
-import { placeLabel } from './paperLabels';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { usePaperScope, useRunBudget } from './paperScope';
 import { RunSetup } from './RunSetup';
 import { acceptsSectionRun, useReportJob } from './paperJobs';
 import styles from './argument.module.css';
 import { Loading } from '@/shared/ui/StateNote';
+import { PlaceText } from './PlaceText';
 
 type Location = Finding['locations'][number];
 type Span = Argument['claim'];
@@ -172,7 +172,7 @@ export function PaperArguments({
           <li key={`${span.paragraphId}:${span.start}`}>
             <span>“{span.excerpt}”</span>{' '}
             <Button variant="ghost" size="sm" onClick={() => open(span)}>
-              {placeLabel(paper, span.paragraphId)}
+              <PlaceText paper={paper} paragraphId={span.paragraphId} />
             </Button>
           </li>
         ))}
@@ -329,7 +329,7 @@ export function PaperArguments({
                   }
                   quote={item.claim.excerpt}
                   source={{
-                    label: placeLabel(paper, item.claim.paragraphId),
+                    label: <PlaceText paper={paper} paragraphId={item.claim.paragraphId} />,
                     onOpen: () => open(item.claim),
                   }}
                   actions={
@@ -415,7 +415,7 @@ export function PaperArguments({
                                       <Badge>I · {kind === 'CA' ? 'phản bác' : roleOf(item, span)}</Badge>{' '}
                                       {span.excerpt}{' '}
                                       <Button variant="ghost" size="sm" onClick={() => open(span)}>
-                                        {placeLabel(paper, span.paragraphId)}
+                                        <PlaceText paper={paper} paragraphId={span.paragraphId} />
                                       </Button>
                                     </li>
                                   )

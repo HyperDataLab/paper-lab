@@ -27,6 +27,7 @@ import { Tree, type TreeNode } from '@/shared/ui/Tree';
 import { usePaperScope, useRunBudget } from './paperScope';
 import { RunSetup } from './RunSetup';
 import { acceptsSectionRun, useReportJob } from './paperJobs';
+import { PlaceText } from './PlaceText';
 import styles from './measurement.module.css';
 import { Loading } from '@/shared/ui/StateNote';
 
@@ -457,7 +458,7 @@ export function PaperStance({
                           )
                         }
                         source={{
-                          label: `${item.page ? `Tr. ${item.page}` : 'Không rõ trang'} · ${heading(item.sectionId)}`,
+                          label: <PlaceText paper={paper} paragraphId={item.paragraphId} />,
                           onOpen: () =>
                             onLocation({ paragraphId: item.paragraphId, start: item.start, end: item.end }),
                         }}

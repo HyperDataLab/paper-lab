@@ -1082,3 +1082,43 @@ mark.textMark {
   flex-wrap: wrap;
   gap: var(--space-1);
 }
+/* Where a passage is: the kind of section as a small coloured badge, then the page. */
+.place {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+.section {
+  --sec-colour: var(--sec-other);
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: 1px solid color-mix(in srgb, var(--sec-colour) 40%, transparent);
+  border-radius: var(--radius-pill, 999px);
+  background: color-mix(in srgb, var(--sec-colour) 12%, transparent);
+  color: var(--sec-colour);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.6;
+}
+.section[data-role='abstract'] {
+  --sec-colour: var(--sec-abstract);
+}
+.section[data-role='introduction'] {
+  --sec-colour: var(--sec-introduction);
+}
+.section[data-role='related_work'] {
+  --sec-colour: var(--sec-related);
+}
+.section[data-role='methods'] {
+  --sec-colour: var(--sec-methods);
+}
+.section[data-role='results'] {
+  --sec-colour: var(--sec-results);
+}
+.section[data-role='discussion'] {
+  --sec-colour: var(--sec-discussion);
+}
+.section[data-role='conclusion'] {
+  --sec-colour: var(--sec-conclusion);
+}

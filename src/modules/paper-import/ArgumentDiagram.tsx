@@ -14,8 +14,8 @@ import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { ReviewActions } from '@/shared/ui/FindingCard';
 import { Select } from '@/shared/ui/Select';
-import { placeLabel } from './paperLabels';
 import styles from './argument.module.css';
+import { PlaceText } from './PlaceText';
 
 type Span = Argument['claim'];
 const ROLES: Record<DiagramRole, string> = {
@@ -174,7 +174,7 @@ export function ArgumentDiagram({
       )}
       {node.span ? (
         <Button size="sm" variant="ghost" onClick={() => node.span && onLocation(node.span)}>
-          {placeLabel(paper, node.span.paragraphId)}
+          <PlaceText paper={paper} paragraphId={node.span.paragraphId} />
         </Button>
       ) : node.inferred ? (
         <span className={styles.dNote}>Không phải lời tác giả</span>

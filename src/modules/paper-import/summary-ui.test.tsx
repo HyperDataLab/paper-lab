@@ -49,7 +49,7 @@ it("R3 shows the author's main claim with what it rests on, and labels an inferr
   expect(within(claims).getByText('“Y rose 12%.”')).toBeInTheDocument();
   expect(within(claims).getByText('AI suy ra, không phải lời tác giả')).toBeInTheDocument();
   // Every quote opens its passage in the paper.
-  fireEvent.click(within(claims).getAllByRole('button', { name: 'Tr. 4 · Results' })[1] as HTMLElement);
+  fireEvent.click(within(claims).getAllByRole('button', { name: 'Results · Tr. 4' })[1] as HTMLElement);
   expect(onLocation).toHaveBeenCalledWith({ paragraphId: 'p1', start: 14, end: 25 });
 });
 
