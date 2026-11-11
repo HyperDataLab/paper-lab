@@ -8,7 +8,7 @@
 
 - [ ] `npm run typecheck`, `npm run lint`, `npm run format:check` locally
 - [ ] Tests touched by the change run locally (new tests named with PRD IDs); full suite in CI
-- [ ] CI green (merge only with `scripts/merge-when-green.sh`)
+- [ ] Merged with `scripts/merge-pr.sh`; CI checked on `main` afterwards
 - [ ] Checked in the browser (screens / notes below)
 
 ## Invariants (AGENTS.md)

@@ -133,6 +133,7 @@ the work is slow, not stuck; the test then says so in a comment.
 
 - Trunk-based: short branches off `main` named `feat/…`, `fix/…`, `chore/…`, `docs/…`.
 - Conventional Commits (`feat(evaluate): …`). One logical change per commit. PRs use the template.
-- Merge only with `scripts/merge-when-green.sh <pr>`: this private repo has no branch protection, so the script is the
-  gate. Never pipe `gh pr checks` into another command before a merge (its exit code is lost).
+- Merge with `scripts/merge-pr.sh <pr>` without waiting for CI. CI runs on `main` after the merge; a red `main` is
+  fixed or reverted in the next commit. Deploy only with `scripts/deploy.sh`, which requires green CI on the
+  deployed `main` commit.
 - Never commit `.env*.local`, keys, or the Schimel book PDF (copyrighted; reference chapters/sections only).
