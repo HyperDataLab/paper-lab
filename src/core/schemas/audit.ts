@@ -40,6 +40,7 @@ export const AuditEventSchema = z.object({
     'run_argument',
     'review_argument',
     'run_snapshot',
+    'run_digest',
     'run_extraction',
     'review_extraction',
   ]),

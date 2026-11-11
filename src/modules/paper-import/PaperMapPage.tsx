@@ -28,6 +28,7 @@ import { PaperVocabulary } from './PaperVocabulary';
 import { PaperProbe } from './PaperProbe';
 import { PaperReader } from './PaperReader';
 import { PaperAtomics } from './PaperAtomics';
+import { PaperDigest } from './PaperDigest';
 import { PaperPdf } from './PaperPdf';
 import { pdfMarks, pdfNeedle } from './pdfMarks';
 import type { PdfTarget } from './PdfViewer';
@@ -1154,14 +1155,8 @@ export default function PaperMapPage() {
                         }}
                       />
                     )}
-                    {pane === 'summary' && (
-                      <PaperSummary
-                        paper={paper}
-                        insights={stored.insights}
-                        onLocation={openLocation}
-                        onOpen={setTab}
-                      />
-                    )}
+                    {/* A reader's summary written by AI from the whole paper, with one button to make it. */}
+                    {pane === 'summary' && <PaperDigest paper={paper} onLocation={openLocation} />}
                   </div>
                 </section>
                 <section

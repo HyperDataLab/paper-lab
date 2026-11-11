@@ -23,6 +23,7 @@ export const PROMPT_VERSIONS = {
   abstractAlignment: 'abstract-align-1',
   argument: 'argument-1',
   snapshot: 'snapshot-1',
+  digest: 'digest-1',
   extraction: 'extraction-1',
   extractionVerify: 'extraction-verify-1',
   searchPlan: 'search-plan-1',
@@ -45,4 +46,5 @@ export * from './styleProbe';
 export * from './measurement';
 export * from './stance';
 export * from './rhetoric';
+export * from './digest';
 export * from './extraction';

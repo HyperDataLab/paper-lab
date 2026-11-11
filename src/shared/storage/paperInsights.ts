@@ -5,6 +5,8 @@ import {
   PaperInsightsRecordSchema,
   RhetoricRunSchema,
   SnapshotRunSchema,
+  DigestRunSchema,
+  type DigestRun,
   type ArgumentPending,
   type ArgumentRun,
   type AuditEvent,
@@ -35,6 +37,7 @@ export function createPaperInsightsRepository(
     argumentRuns: [],
     argumentPending: null,
     snapshotRuns: [],
+    digestRuns: [],
     decisions: [],
   });
   async function requirePaper(paperId: string) {
@@ -203,6 +206,22 @@ export function createPaperInsightsRepository(
         });
         await db.paperInsights.put(value);
         await audit(paperId, 'run_snapshot', at, { runId: run.id });
+        return value;
+      });
+    },
+    async saveDigestRun(paperId: string, input: DigestRun) {
+      const run = DigestRunSchema.parse(input);
+      return db.transaction('rw', [db.papers, db.paperInsights, db.auditEvents], async () => {
+        await requirePaper(paperId);
+        const previous = (await get(paperId)) ?? empty(paperId);
+        const at = now();
+        const value = PaperInsightsRecordSchema.parse({
+          ...previous,
+          updatedAt: at,
+          digestRuns: [...previous.digestRuns, run],
+        });
+        await db.paperInsights.put(value);
+        await audit(paperId, 'run_digest', at, { runId: run.id });
         return value;
       });
     },
