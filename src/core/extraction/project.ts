@@ -4,6 +4,8 @@ import type { LibraryItem } from '../schemas/library';
 import type { Paper } from '../schemas/paper';
 import type { ExtractionProject, FieldDefinition, ProjectField, ProjectPaper } from '../schemas/extraction';
 
+export const MAX_COLUMNS = 50;
+
 /** A short, stable fingerprint, so a changed source text shows up as stale cells. */
 function fingerprint(text: string) {
   let hash = 2166136261;
@@ -23,6 +25,7 @@ export function newProject(input: {
   return {
     schemaVersion: 1,
     id: input.id,
+    paperId: null,
     title: input.title.trim(),
     researchQuestion: input.researchQuestion.trim(),
     createdAt: input.now,
@@ -118,7 +121,15 @@ export function addFields(project: ExtractionProject, fields: FieldDefinition[])
       !project.fields.some((existing) => existing.key === field.key) &&
       fields.findIndex((other) => other.key === field.key) === index,
   );
-  return { ...project, fields: [...project.fields, ...fresh.map((field) => ({ ...field, hidden: false }))] };
+  return {
+    ...project,
+    fields: [
+      ...project.fields,
+      ...fresh
+        .slice(0, Math.max(0, MAX_COLUMNS - project.fields.length))
+        .map((field) => ({ ...field, hidden: false })),
+    ],
+  };
 }
 
 /** Hiding keeps the data; removing a column keeps its cells too, so adding it back shows them again. */

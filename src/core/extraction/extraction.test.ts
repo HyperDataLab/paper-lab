@@ -255,6 +255,7 @@ describe('extraction', () => {
   });
   const project: ExtractionProject = {
     schemaVersion: 1,
+    paperId: null,
     id: '00000000-0000-4000-8000-000000000003',
     title: 'P',
     researchQuestion: '',

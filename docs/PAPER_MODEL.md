@@ -112,9 +112,9 @@ evaluation shows that it raises agreement.
 
 The **Data table** space has three views over the same model:
 
-- **Columns**: the 50 suggested columns and custom ones, capped at 50, as in SciSpace Extract Data. It is the existing
-  Extraction engine run on a one-paper project, so nothing is built twice; "So sánh với bài khác" turns it into a
-  normal project. Exports CSV, Excel, BibTeX, RIS.
+- **Columns**: suggested and custom columns, capped at 50, as in SciSpace Extract Data. It is the existing
+  Extraction engine run on a one-paper project; "So sánh với bài khác" opens that project for comparison.
+  Exports CSV (opens in Excel), JSON, BibTeX and RIS.
 - **Sentences**: every sentence with its CoreSC and AZ-II labels, filters by label and by "two passes disagree",
   reject and change.
 - **Contribution graph**: units and triples.
@@ -127,7 +127,7 @@ A "Xuất" menu offers the export files.
    splitting; `pl-seg-3`), `paper-model.json` with today's PaperLab rhetoric and stance labels, the editable
    metadata form, the agreement metrics for the evaluation gate, and the Writing Bank contract (section 10). No AI.
    Deferred from it: citation links move to R17d, and the ART corpus loader for the evaluation script to R17c.
-2. **R17b** Data table → Columns (the owner's first priority; reuses Extraction).
+2. **R17b** (done) Data table → Columns reuses Extraction, evidence review and exports. Sentences and Contribution graph remain later slices.
 3. **R17c** analyst pass and Sentences view, behind the evaluation gate; critic pass on request; CoreSC and AZ-II
    exports.
 4. **R17d** JATS Archiving export with raw `mixed-citation`. Parsed references are deferred.
