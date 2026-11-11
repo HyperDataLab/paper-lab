@@ -65,7 +65,8 @@ export function PaperPdf({
         try {
           const remote = await pdfRemote.download(sha, token);
           if (remote) {
-            await repo.pdfFiles.put(sha, remote, true);
+            // A full browser store only costs the local copy; the lab's copy is still shown.
+            await repo.pdfFiles.put(sha, remote, true).catch(() => undefined);
             if (active) setState({ kind: 'ready', blob: remote, uploaded: true });
             return;
           }

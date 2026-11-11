@@ -114,14 +114,15 @@ it('R8 without a lab account the PDF stays on this machine and nothing is sent',
 it('R8 a member on another machine opens the lab copy, which is then kept locally', async () => {
   const repo = newRepo();
   const fetchMock = vi.fn(
-    async () => new Response(new Blob([bytes], { type: 'application/pdf' }), { status: 200 }),
+    async () => new Response(bytes.slice(), { status: 200, headers: { 'Content-Type': 'application/pdf' } }),
   );
   vi.stubGlobal('fetch', fetchMock);
+  // Blobs do not survive fake-indexeddb on every Node version, so the cache write is observed, not read back.
+  const put = vi.spyOn(repo.pdfFiles, 'put');
   render(wrap(repo, signedIn(), <PaperPdf paper={paperFor(sha)} target={null} />));
   expect(await screen.findByTestId('pdf-viewer')).toBeInTheDocument();
   expect(fetchMock).toHaveBeenCalledTimes(1);
-  const record = await repo.pdfFiles.get(sha);
-  expect(record?.uploaded).toBe(true);
+  expect(put).toHaveBeenCalledWith(sha, expect.anything(), true);
 });
 
 it('R8 attaching the PDF again refuses a different file and accepts the original one', async () => {
