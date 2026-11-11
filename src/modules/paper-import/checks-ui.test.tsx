@@ -64,7 +64,7 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
     </MemoryRouter>,
   );
   const openChecks = () => {
-    fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Paragraph structure & flow' }));
     fireEvent.click(screen.getByRole('tab', { name: 'Issues' }));
@@ -114,11 +114,11 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
   );
   fireEvent.click(screen.getByRole('tab', { name: 'Summary' }));
   expect(await screen.findByText('Hình và bảng cần kiểm tra')).toBeInTheDocument();
-  expect(screen.getByRole('tab', { name: 'Arguments' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: /^Arguments/ })).toBeEnabled();
   const context = screen.getByRole('article', { name: 'Bối cảnh học thuật và Nguồn gốc' });
   fireEvent.click(within(context).getByRole('button', { name: 'Xem chi tiết' }));
-  // References are part of the paper's Summary: the card opens that block there, already unfolded.
-  expect(screen.getByRole('tab', { name: 'Summary' })).toHaveAttribute('aria-selected', 'true');
+  // References live in the Citations tab: the card opens that block there, already unfolded.
+  expect(screen.getByRole('tab', { name: 'Citations' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByRole('button', { name: 'Thu gọn References' })).toHaveAttribute('aria-expanded', 'true');
   expect(await screen.findByRole('heading', { name: 'Tình trạng rút bài' })).toBeInTheDocument();
   expect(completeJson).not.toHaveBeenCalled();
@@ -245,10 +245,14 @@ it('R7 on a wide screen the paper is the centre column beside the analysis, and 
     within(screen.getByRole('tablist', { name: 'Analysis' }))
       .getAllByRole('tab')
       .map((tab) => tab.textContent),
-  ).toEqual(['Arguments', 'Writing style', 'Issues']);
-  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  ).toEqual(['Issues', 'Citations', 'Paper info']);
+  fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
   fireEvent.click(screen.getByRole('radio', { name: 'Paragraph structure & flow' }));
+  // A space takes the whole width; going back shows the paper beside the right column again.
+  expect(document.querySelector('section[aria-label="Paper"]')).not.toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: '← Quay lại bài' }));
+  expect(screen.getByRole('region', { name: 'Paper' })).toBeVisible();
   fireEvent.click(screen.getByRole('tab', { name: 'Issues' }));
   fireEvent.click(screen.getByRole('radio', { name: 'Figures & tables' }));
   fireEvent.click(screen.getByRole('button', { name: 'Chạy kiểm tra' }));

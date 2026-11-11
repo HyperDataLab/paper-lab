@@ -1029,3 +1029,56 @@ mark.textMark {
   color: var(--text-muted);
   font-weight: 400;
 }
+/* Arguments and Writing style are spaces behind the paper: two entries above the right column's tabs. */
+.spaces {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--space-10) * 4), 1fr));
+  gap: var(--space-2);
+}
+.spaceEntry {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1);
+  height: auto;
+  padding: var(--space-3);
+  text-align: start;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.spaceEntry:hover {
+  border-color: var(--accent);
+}
+.spaceName {
+  font-weight: 600;
+}
+.spaceLine {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 400;
+}
+.spaceHead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.spaceHead h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+.spaceHead [role='tablist'] {
+  margin-left: auto;
+  border-bottom: 0;
+}
+.spaceLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}

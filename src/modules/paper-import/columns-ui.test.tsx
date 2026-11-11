@@ -78,10 +78,23 @@ it('R7 an old view link opens its tab on the right while the paper stays in the 
       </StorageProvider>
     </MemoryRouter>,
   );
+  // A Toulmin link opens the Arguments space, full width, with a way back to the paper.
+  const spaces = await screen.findByRole('tablist', { name: 'Spaces' });
+  expect(within(spaces).getByRole('tab', { name: 'Arguments' })).toHaveAttribute('aria-selected', 'true');
+  expect(document.querySelector('section[aria-label="Paper"]')).not.toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: '← Quay lại bài' }));
   const centre = await screen.findByRole('tablist', { name: 'Paper' });
   expect(within(centre).getByRole('tab', { name: 'Full text' })).toHaveAttribute('aria-selected', 'true');
   const right = screen.getByRole('tablist', { name: 'Analysis' });
-  expect(within(right).getByRole('tab', { name: 'Arguments' })).toHaveAttribute('aria-selected', 'true');
+  expect(
+    within(right)
+      .getAllByRole('tab')
+      .map((tab) => tab.textContent?.replace(/\d+$/, '')),
+  ).toEqual(['Issues', 'Citations', 'Paper info']);
+  // Both spaces are entered from above the right column's tabs.
+  const entries = screen.getByRole('navigation', { name: 'Spaces' });
+  expect(within(entries).getByRole('button', { name: /^Arguments/ })).toBeInTheDocument();
+  expect(within(entries).getByRole('button', { name: /^Writing style/ })).toBeInTheDocument();
   // The rule check's finding needs a person's decision: the header says so and the tab carries the count.
   const pill = await screen.findByRole('button', { name: '1 cần duyệt' });
   expect(within(right).getByRole('tab', { name: 'Issues' })).toHaveTextContent('Issues1');

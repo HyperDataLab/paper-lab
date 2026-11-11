@@ -2,6 +2,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
+  max-width: 72ch;
 }
 .summary section {
   display: grid;
@@ -38,7 +39,7 @@
 }
 .pair {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
   width: 100%;
 }
@@ -55,7 +56,7 @@
 }
 .facts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
   width: 100%;
   margin: 0;

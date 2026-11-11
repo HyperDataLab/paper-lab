@@ -61,7 +61,7 @@ it('imports a paper, persists and audits role edits, then prefills Evaluate', as
 it('requires confirmation before deleting a paper', async () => {
   const repo = setup();
   await importPaper();
-  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   fireEvent.click(screen.getByRole('link', { name: /Bài báo đã nhập/ }));
@@ -102,7 +102,7 @@ it('P2 estimates selected calls, asks manuscript consent and opens a completed a
     </MemoryRouter>,
   );
   await importPaper();
-  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   // Sections and AI steps are preselected; the test narrows them to one paragraph and one step.
@@ -164,7 +164,7 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   );
   const view = render(tree('/papers'));
   await importPaper();
-  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn' }));
@@ -190,7 +190,7 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   await repo.paperRuns.save({ ...run, status: 'running' });
   view.unmount();
   render(tree(`/papers/${paper.id}`));
-  fireEvent.click(await screen.findByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(await screen.findByRole('button', { name: /^Writing style/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   expect(await screen.findByRole('button', { name: 'Tiếp tục chạy' })).toBeInTheDocument();
@@ -213,7 +213,7 @@ it('P2 increases a budget on the same run when resuming', async () => {
     </MemoryRouter>,
   );
   await importPaper();
-  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   const paper = (await repo.papers.list())[0];
@@ -261,7 +261,7 @@ it('P2 increases a budget on the same run when resuming', async () => {
       </StorageProvider>
     </MemoryRouter>,
   );
-  fireEvent.click(await screen.findByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(await screen.findByRole('button', { name: /^Writing style/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   // The field moves once the paused run has loaded, so wait for that before typing.
@@ -306,7 +306,7 @@ it('P2 pauses after the current call and resumes the remaining step', async () =
     </MemoryRouter>,
   );
   await importPaper();
-  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn' }));
@@ -352,6 +352,7 @@ it('P2 a run keeps going when the reader opens another tab, and the view is kept
   fireEvent.click(screen.getByRole('tab', { name: 'Summary' }));
   expect(search).toContain('view=profile');
   // The snapshot table is folded under the summary tiles; its block is opened to run it.
+  fireEvent.click(screen.getByRole('tab', { name: 'Paper info' }));
   fireEvent.click(screen.getByRole('button', { name: 'Mở Key facts' }));
   fireEvent.click(screen.getByRole('button', { name: 'Tạo snapshot (AI)' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
