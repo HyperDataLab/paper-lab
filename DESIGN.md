@@ -214,20 +214,28 @@ Each tab and space answers the question a reader brings to it; the line under it
 | Space  | **Arguments**     | to judge how the author reasons and on what evidence | Arguments overview (dimensions A Khoa học, B Lập luận); then, open on arrival because they run nothing: Research gap & contribution, Claims & grounds (with stated limitations), Atomic sentences by section and role; then Claims & reasoning (Toulmin model, AIF graph), Evidence & measurement, Validity & rhetorical moves |
 | Space  | **Writing style** | to learn from how the paper is written               | Writing overview (dimensions C Diễn ngôn, D Viết học thuật); Coherence & sentences, Stance & engagement, Vocabulary & phrases (open on arrival, no AI), Score robustness                                                                                                                                                       |
 
-"Phân tích toàn bài" sits in the centre column's tab bar. When findings still need a decision, the header shows "N cần duyệt" and
-the Issues tab carries the count; the Issues list opens with "N phát hiện cần bạn duyệt" and a button that narrows it to those.
+"Phân tích toàn bài" sits in the centre column's tab bar.
+
+**Accepted by default.** What the analyses and rule checks produce counts as accepted until the reader rejects it; there is no
+review queue, no "cần duyệt" count and no confirm button. Every card offers "Bác bỏ", and a rejected card stays in place, dimmed,
+with "Đã bác bỏ" and "Hoàn tác". Rejections are saved to the source that produced the result and are left out of marks and counts.
+Stored results keep their own status: accepting by default records no human decision.
+
+**Issues where they belong.** Each space and tab has an "Issues (N)" block with the findings of its criteria: Claims and Evidence in
+the Arguments space, Writing in the Writing style space, Sources in Citations. The Issues tab stays as the one list of everything,
+beside the paper; a mark pressed on the paper opens its finding there.
 
 **Language.** Navigation, block titles and scientific terms are in English, the way researchers name them (Claims, Grounds, Warrant,
 Qualifier, Rebuttal, Premise, Inference, Conflict, Key facts, Stance & engagement…); empty Toulmin slots read "Not identified". Help
-lines, hints, explanations, action buttons and status words stay in Vietnamese ("Cần duyệt", "Đã xác nhận", "Phân tích", "Xác nhận").
+lines, hints, explanations, action buttons and status words stay in Vietnamese ("Bác bỏ", "Đã bác bỏ", "Hoàn tác", "Phân tích").
 
 **Findings are one list in one card shape**, whatever found them (rule checks, AI review, sentence-level writing issues, paragraph
 transitions, measurement findings). A card reads: criterion mark, the point in bold, `Badge`s for severity (High / Medium / Low), origin
 (AI / Rule) and decision, the quote, the reason, the place, then actions. Filters are `Chip`s with counts for criterion and
 status, plus a section `Select`; Writing starts off when anything else exists. The list is grouped by type of problem
-(Claims & reasoning, Evidence & data, Sources & citations, Writing), each group with "N cần duyệt / M"; inside a group what needs review
-comes first, then the most severe, then paper order. "Group by: Section" groups by the paper's sections instead. The table of sections by criteria is folded; a count filters
-the list, and a cell's menu runs that criterion's analyses for that section alone. Every card can be confirmed, dismissed or reopened, with the decision saved to its source; the AI review's points stay out until the reader has
+(Claims & reasoning, Evidence & data, Sources & citations, Writing), each group with its count and how many were rejected; inside a
+group the most severe come first, then paper order. "Group by: Section" groups by the paper's sections instead. The table of sections by criteria is folded; a count filters
+the list, and a cell's menu runs that criterion's analyses for that section alone. Every card can be rejected and the rejection undone, with the decision saved to its source; the AI review's points stay out until the reader has
 saved or skipped their own notes. Descriptions (claims, stance markers, snapshot sources) are marks on the text, not findings.
 
 **A section run merges, it does not replace.** Claims & reasoning, Validity & rhetorical moves, Stance & engagement and Coherence & sentences can be run for one

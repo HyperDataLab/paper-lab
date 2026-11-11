@@ -130,8 +130,10 @@ it('R4 AIF is drawn with RA and CA nodes between statements, and the reader step
   // The inferred warrant is not a passage of the paper, so it is not a premise.
   expect(screen.queryByText('A rise in Y reflects X.')).toBeNull();
   expect(screen.getByText('1 / 2')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
-  expect(onDecide).toHaveBeenCalledWith('a1', 'confirm');
+  // An argument counts as accepted until the reader rejects it.
+  expect(screen.queryByRole('button', { name: 'Xác nhận' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Bác bỏ' }));
+  expect(onDecide).toHaveBeenCalledWith('a1', 'dismiss');
   fireEvent.click(screen.getByRole('button', { name: 'Lập luận sau' }));
   expect(screen.getByRole('group', { name: 'Lược đồ AIF của lập luận 2' })).toBeInTheDocument();
   // A claim with no premise has no inference node to draw.

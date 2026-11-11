@@ -134,7 +134,7 @@ export function PaperSnapshot({
                         <p className={styles.value}>{item.value}</p>
                         {state && (
                           <Badge tone={state === 'confirmed' ? 'success' : 'danger'}>
-                            {state === 'confirmed' ? 'Đã xác nhận' : 'Đã loại'}
+                            {state === 'confirmed' ? 'Đã xác nhận' : 'Đã bác bỏ'}
                           </Badge>
                         )}
                       </>
@@ -163,6 +163,7 @@ export function PaperSnapshot({
                           {placeLabel(paper, item.source.paragraphId)}
                         </Button>
                         <ReviewActions
+                          acceptByDefault
                           decided={Boolean(state)}
                           dismissLabel="Loại bỏ"
                           onConfirm={() => decide(item.id, 'confirm')}

@@ -105,6 +105,7 @@ it('R10b the Arguments space opens on gap, claims and atomic sentences, ahead of
       .getAllByRole('button')
       .map((chip) => chip.textContent?.slice(1)),
   ).toEqual([
+    'Issues',
     'Research gap & contribution',
     'Claims & grounds',
     'Atomic sentences',

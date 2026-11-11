@@ -279,10 +279,15 @@ it('R5 decides a measurement finding from the unified list', async () => {
   const finding = await within(list).findByText('Chưa thấy nêu seed.');
   const row = finding.closest('[id^="finding-measurement:"]');
   if (!(row instanceof HTMLElement)) throw new Error('Missing measurement finding');
-  fireEvent.click(within(row).getByRole('button', { name: 'Xác nhận' }));
-  await within(row).findByText('Đã xác nhận');
-  expect((await repo.measurements.get(PAPER_ID))?.decisions.at(-1)).toMatchObject({
-    run_id: run.id,
-    decision: 'accept',
-  });
+  // Accepted by default: the only decision is to reject it.
+  fireEvent.click(within(row).getByRole('button', { name: 'Bác bỏ' }));
+  await waitFor(async () =>
+    expect((await repo.measurements.get(PAPER_ID))?.decisions.at(-1)).toMatchObject({
+      run_id: run.id,
+      decision: 'reject',
+    }),
+  );
+  // It stays in the list, marked, so it can be undone.
+  expect(await within(row).findByText('Đã bác bỏ')).toBeInTheDocument();
+  expect(within(row).getByRole('button', { name: 'Hoàn tác' })).toBeInTheDocument();
 });

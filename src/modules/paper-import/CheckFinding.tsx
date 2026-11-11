@@ -43,7 +43,7 @@ export function FindingRow({
             <Badge>{label}</Badge>
             {state !== 'open' && (
               <Badge tone={state === 'confirmed' ? 'success' : 'neutral'}>
-                {state === 'confirmed' ? 'Đã xác nhận' : 'Đã bỏ qua'}
+                {state === 'confirmed' ? 'Đã xác nhận' : 'Đã bác bỏ'}
               </Badge>
             )}
           </>
@@ -54,6 +54,7 @@ export function FindingRow({
         }
         actions={
           <ReviewActions
+            acceptByDefault
             decided={Boolean(decision)}
             onConfirm={() => onReview(finding.id, 'confirmed_by_human')}
             onDismiss={() => onReview(finding.id, 'dismissed_by_human')}

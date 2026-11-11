@@ -62,7 +62,18 @@ import { captureCalibration } from '@/shared/calibration/data';
 import { Loading } from '@/shared/ui/StateNote';
 
 type ViewId =
-  'profile' | 'snapshot' | 'metadata' | 'map' | 'review' | 'gap' | 'main-claims' | 'atomics' | ProfileView;
+  | 'profile'
+  | 'snapshot'
+  | 'metadata'
+  | 'map'
+  | 'review'
+  | 'gap'
+  | 'main-claims'
+  | 'atomics'
+  | 'arguments-issues'
+  | 'writing-issues'
+  | 'citation-issues'
+  | ProfileView;
 /** The centre column holds the paper: its full text, or its summary. */
 type Pane = 'fulltext' | 'summary';
 /**
@@ -73,6 +84,9 @@ type Mode = 'issues' | 'citations' | 'info' | Space;
 type Space = 'arguments' | 'writing';
 type Place = 'summary' | Mode;
 type BlockId =
+  | 'argIssues'
+  | 'writingIssues'
+  | 'citationIssues'
   | 'gap'
   | 'mainClaims'
   | 'atomics'
@@ -104,6 +118,12 @@ const BLOCKS: Record<
     views: { id: ViewId; label: string }[];
   }
 > = {
+  argIssues: {
+    place: 'arguments',
+    title: 'Issues',
+    criterion: 'claim',
+    views: [{ id: 'arguments-issues', label: 'Issues' }],
+  },
   gap: {
     place: 'arguments',
     title: 'Research gap & contribution',
@@ -168,6 +188,12 @@ const BLOCKS: Record<
       { id: 'moves', label: 'Rhetorical moves & abstract' },
     ],
   },
+  writingIssues: {
+    place: 'writing',
+    title: 'Issues',
+    criterion: 'writing',
+    views: [{ id: 'writing-issues', label: 'Issues' }],
+  },
   batch: {
     place: 'writing',
     title: 'Coherence & sentences',
@@ -207,6 +233,12 @@ const BLOCKS: Record<
       { id: 'discourse-checks', label: 'Figures & tables' },
       { id: 'writing-checks', label: 'Acronyms & claim strength' },
     ],
+  },
+  citationIssues: {
+    place: 'citations',
+    title: 'Issues',
+    criterion: 'context',
+    views: [{ id: 'citation-issues', label: 'Issues' }],
   },
   citationChecks: {
     place: 'citations',
@@ -257,7 +289,8 @@ const PLACE_HELP: Record<Pane | Mode, string> = {
     'Tác giả lập luận thế nào: luận điểm, bằng chứng, phép đo và giới hạn. Mỗi ý kèm câu trích để bạn kiểm.',
   writing:
     'Bài được viết ra sao: cấu trúc, mạch, câu chữ, giọng văn. Dùng để học cách viết, không phải để chấm bài.',
-  issues: 'Những điểm cần bạn xem và quyết định. AI và quy tắc chỉ đề xuất; bạn xác nhận hoặc bỏ qua.',
+  issues:
+    'Mọi phát hiện về bài ở một chỗ. Kết quả AI và quy tắc được chấp nhận mặc định; bạn bác bỏ những gì không đúng.',
   citations:
     'Bài trích dẫn những gì: danh sách tài liệu, độ mới, bài đã bị rút, và trích dẫn trong bài có khớp danh sách không.',
   info: 'Thông tin về bài báo: nơi và năm xuất bản, tác giả, và các thông tin cốt lõi của nghiên cứu.',
@@ -276,6 +309,11 @@ const CHECKS_OF: Partial<Record<ViewId, string[]>> = {
   'context-checks': ['citations_references'],
 };
 const VIEW_HELP: Record<ViewId, string> = {
+  'arguments-issues':
+    'Phát hiện về luận điểm và bằng chứng của bài. Được chấp nhận mặc định; bác bỏ những gì không đúng.',
+  'writing-issues': 'Phát hiện về cách viết của bài. Được chấp nhận mặc định; bác bỏ những gì không đúng.',
+  'citation-issues':
+    'Phát hiện về nguồn và trích dẫn của bài. Được chấp nhận mặc định; bác bỏ những gì không đúng.',
   gap: 'Tác giả nói lĩnh vực còn thiếu gì và bài này đóng góp gì, bằng chính câu trong bài.',
   'main-claims':
     'Các luận điểm chính, căn cứ (Grounds) và giới hạn tác giả tự nêu. Bản đầy đủ theo Toulmin ở Claims & reasoning.',
@@ -812,7 +850,6 @@ export default function PaperMapPage() {
   });
   const jobLabels = Object.fromEntries(JOB_IDS.map((job) => [job, JOBS[job].label])) as Record<JobId, string>;
   const mode = modeOf(tab);
-  const toReview = findings.filter((item) => item.status === 'open').length;
   // The findings table offers section runs, so the analyses that can do one are mounted there too.
   const shown = (job: JobId) =>
     opened.includes(job) ||
@@ -836,7 +873,7 @@ export default function PaperMapPage() {
   const toggleBlock = (id: BlockId) =>
     setOpenBlocks((old) => (old.includes(id) ? old.filter((item) => item !== id) : [...old, id]));
   /** One analysis as a folding block. `body` is rendered by the caller so kept panels stay mounted. */
-  const block = (id: BlockId, body: ReactNode) => {
+  const block = (id: BlockId, body: ReactNode, title?: string) => {
     const def = BLOCKS[id];
     const fact = def.job ? jobFacts[def.job] : undefined;
     const status: BlockStatus | undefined = !def.job
@@ -853,7 +890,7 @@ export default function PaperMapPage() {
       <SectionBlock
         key={id}
         id={id}
-        title={def.title}
+        title={title ?? def.title}
         help={VIEW_HELP[viewOf(id)]}
         criterion={def.criterion}
         status={status}
@@ -941,6 +978,26 @@ export default function PaperMapPage() {
       else column?.scrollIntoView?.({ block: 'start' });
     }, 0);
   };
+  /** The findings of some criteria, as a folding block in the place that is about them. */
+  const issuesBlock = (id: BlockId, only: Criterion[], visible: boolean) => {
+    const own = findings.filter((item) => only.includes(item.criterion));
+    return block(
+      id,
+      visible && openBlocks.includes(id) && (
+        <FindingsList
+          paper={paper}
+          findings={own}
+          only={only}
+          focusId={null}
+          onLocation={openLocation}
+          onOpenSource={(view) => setTab(view as ViewId)}
+          onDecide={decide}
+          sectionRuns={sectionRuns.filter((item) => only.includes(item.criterion))}
+        />
+      ),
+      `Issues (${own.length})`,
+    );
+  };
   /** The profile's dimensions that answer what a tab or space is about, read again when an analysis ends. */
   const overview = (only: DimensionId[], label: string, batch: ReturnType<typeof useBatchRun>) => (
     <PaperProfile
@@ -977,12 +1034,6 @@ export default function PaperMapPage() {
       }}
     >
       {item.label}
-      {item.id === 'issues' && toReview > 0 && (
-        // The header names the count in words; here it is a mark, so the tab keeps its name.
-        <span className={styles.tabCount} aria-hidden="true" title={`${toReview} cần duyệt`}>
-          {toReview}
-        </span>
-      )}
     </Button>
   );
   return (
@@ -992,18 +1043,6 @@ export default function PaperMapPage() {
         <div className={styles.titleRow}>
           <h1>{shownTitle ?? paperIdentity(paper).title}</h1>
           <div className={styles.row}>
-            {toReview > 0 && (
-              <Button
-                size="sm"
-                className={styles.reviewPill}
-                onClick={() => {
-                  setTab(viewOf('checks'));
-                  if (!splitWanted && wide) toggleSplit();
-                }}
-              >
-                {toReview} cần duyệt
-              </Button>
-            )}
             {wide && (
               <Button size="sm" aria-pressed={!splitWanted} onClick={toggleSplit}>
                 Ẩn phân tích
@@ -1243,6 +1282,7 @@ export default function PaperMapPage() {
                         <PaperReferences paper={paper} onLocation={openLocation} />
                       ),
                     )}
+                    {issuesBlock('citationIssues', ['context'], mode === 'citations')}
                     {block(
                       'citationChecks',
                       mode === 'citations' && openBlocks.includes('citationChecks') && (
@@ -1275,6 +1315,7 @@ export default function PaperMapPage() {
                   <div hidden={mode !== 'arguments'} className={styles.blocks}>
                     {mode === 'arguments' && overview(['science', 'argument'], 'Arguments overview', batch)}
                     {chips('arguments')}
+                    {issuesBlock('argIssues', ['claim', 'evidence'], mode === 'arguments')}
                     {block(
                       'gap',
                       mode === 'arguments' && openBlocks.includes('gap') && (
@@ -1338,6 +1379,7 @@ export default function PaperMapPage() {
                   <div hidden={mode !== 'writing'} className={styles.blocks}>
                     {mode === 'writing' && overview(['discourse', 'writing'], 'Writing overview', batch)}
                     {chips('writing')}
+                    {issuesBlock('writingIssues', ['writing'], mode === 'writing')}
                     {block(
                       'batch',
                       <>

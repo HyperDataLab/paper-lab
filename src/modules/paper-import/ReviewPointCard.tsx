@@ -55,7 +55,7 @@ export function ReviewPointCard({
           {warning && <Badge tone="warning">Cụm khuôn mẫu</Badge>}
           {decision && (
             <Badge tone={state === 'confirmed' ? 'success' : 'neutral'}>
-              {state === 'confirmed' ? 'Đã xác nhận' : 'Đã bỏ qua'}
+              {state === 'confirmed' ? 'Đã xác nhận' : 'Đã bác bỏ'}
             </Badge>
           )}
         </>
@@ -64,6 +64,7 @@ export function ReviewPointCard({
       source={{ label: placeLabel(paper, point.anchor.paragraphId), onOpen: () => onLocation(point.anchor) }}
       actions={
         <ReviewActions
+          acceptByDefault
           decided={Boolean(decision)}
           onConfirm={() => onReview(point.id, 'confirmed_by_human')}
           onDismiss={() => onReview(point.id, 'dismissed_by_human')}

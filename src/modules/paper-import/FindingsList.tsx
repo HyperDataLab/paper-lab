@@ -23,12 +23,11 @@ import { CriterionMark } from './SectionBlock';
 import styles from './page.module.css';
 
 const CRITERION_IDS = Object.keys(CRITERIA) as Criterion[];
-const STATUS: Record<FindingStatus, string> = {
-  open: 'Cần duyệt',
-  confirmed: 'Đã xác nhận',
-  dismissed: 'Đã bỏ qua',
-};
-const STATUS_IDS = Object.keys(STATUS) as FindingStatus[];
+/** A result counts as accepted unless a person rejected it; an older explicit confirmation is accepted too. */
+type Verdict = 'accepted' | 'rejected';
+const VERDICT: Record<Verdict, string> = { accepted: 'Chấp nhận', rejected: 'Đã bác bỏ' };
+const VERDICT_IDS = Object.keys(VERDICT) as Verdict[];
+const verdictOf = (status: FindingStatus): Verdict => (status === 'dismissed' ? 'rejected' : 'accepted');
 const SEVERITY = {
   high: { label: 'High', tone: 'danger', rank: 0 },
   medium: { label: 'Medium', tone: 'warning', rank: 1 },
@@ -56,6 +55,7 @@ export function FindingsList({
   onOpenSource,
   onDecide,
   sectionRuns = [],
+  only,
 }: {
   paper: Paper;
   findings: PaperFinding[];
@@ -72,16 +72,18 @@ export function FindingsList({
     sections: { id: string; estimate: number }[];
     run: (sectionId: string) => void;
   }[];
+  /** The criteria this list is about, when it sits in a space or tab about them. */
+  only?: Criterion[];
 }) {
+  const ids = only ?? CRITERION_IDS;
   // Sentence-level writing issues can outnumber everything else, so they start switched off when there is
   // anything else. Until the reader touches the chips the default follows the findings as they load.
   const [chosen, setCriteria] = useState<Criterion[] | null>(null);
   const criteria =
     chosen ??
-    (findings.some((item) => item.criterion !== 'writing')
-      ? CRITERION_IDS.filter((id) => id !== 'writing')
-      : CRITERION_IDS);
-  const [statuses, setStatuses] = useState<FindingStatus[]>(['open', 'confirmed']);
+    (findings.some((item) => item.criterion !== 'writing') ? ids.filter((id) => id !== 'writing') : ids);
+  // Rejected cards stay in the list, dimmed and with undo; the chip hides them.
+  const [statuses, setStatuses] = useState<Verdict[]>(VERDICT_IDS);
   const [section, setSection] = useState('all');
   const [limit, setLimit] = useState(PAGE);
   const [groupBy, setGroupBy] = useState('type');
@@ -91,7 +93,9 @@ export function FindingsList({
     const target = findings.find((item) => item.id === focusId);
     if (target) {
       if (!criteria.includes(target.criterion)) setCriteria([...criteria, target.criterion]);
-      setStatuses((old) => (old.includes(target.status) ? old : [...old, target.status]));
+      setStatuses((old) =>
+        old.includes(verdictOf(target.status)) ? old : [...old, verdictOf(target.status)],
+      );
       setSection('all');
       setLimit(findings.length);
     }
@@ -103,7 +107,8 @@ export function FindingsList({
   const inSection = (item: PaperFinding) =>
     section === 'all' || (section === WHOLE ? item.sectionId === null : item.sectionId === section);
   const filtered = findings.filter(
-    (item) => criteria.includes(item.criterion) && statuses.includes(item.status) && inSection(item),
+    (item) =>
+      criteria.includes(item.criterion) && statuses.includes(verdictOf(item.status)) && inSection(item),
   );
   const group = (item: PaperFinding) => GROUPS.findIndex((entry) => entry.id === item.criterion);
   const shown =
@@ -113,14 +118,18 @@ export function FindingsList({
           .sort(
             (a, b) =>
               group(a.item) - group(b.item) ||
-              Number(a.item.status !== 'open') - Number(b.item.status !== 'open') ||
               SEVERITY[a.item.severity].rank - SEVERITY[b.item.severity].rank ||
               a.position - b.position,
           )
           .map(({ item }) => item)
       : filtered;
-  const toReview = findings.filter((item) => item.status === 'open').length;
   const counts = useMemo(() => countBySection(findings), [findings]);
+  /** How many of a kind there are, and how many of them the reader rejected. */
+  const groupCount = (criterion: Criterion) => {
+    const all = findings.filter((item) => item.criterion === criterion);
+    const rejected = all.filter((item) => item.status === 'dismissed').length;
+    return rejected > 0 ? `${all.length - rejected} · ${rejected} đã bác bỏ` : String(all.length);
+  };
   const cell = (sectionId: string | null, criterion: Criterion) =>
     counts.find((item) => item.sectionId === sectionId && item.criterion === criterion)?.count ?? 0;
   const runnable = new Set(sectionRuns.flatMap((item) => item.sections.map((choice) => choice.id)));
@@ -143,21 +152,6 @@ export function FindingsList({
   const visible = shown.slice(0, limit);
   return (
     <section className={styles.findings} aria-label="Issues">
-      {toReview > 0 && (
-        <p className={styles.reviewNotice} role="status">
-          <strong>{toReview} phát hiện cần bạn duyệt.</strong>
-          <Button
-            size="sm"
-            onClick={() => {
-              setStatuses(['open']);
-              setCriteria(CRITERION_IDS);
-              setSection('all');
-            }}
-          >
-            Chỉ hiện mục cần duyệt
-          </Button>
-        </p>
-      )}
       <SegmentedControl
         label="Group by"
         value={groupBy}
@@ -168,7 +162,7 @@ export function FindingsList({
         onChange={setGroupBy}
       />
       <div className={styles.blockChips} role="group" aria-label="Filter by criterion">
-        {CRITERION_IDS.map((id) => (
+        {ids.map((id) => (
           <Chip
             key={id}
             aria-pressed={criteria.includes(id)}
@@ -181,14 +175,14 @@ export function FindingsList({
         ))}
       </div>
       <div className={styles.blockChips} role="group" aria-label="Filter by status">
-        {STATUS_IDS.map((id) => (
+        {VERDICT_IDS.map((id) => (
           <Chip
             key={id}
             aria-pressed={statuses.includes(id)}
-            count={findings.filter((item) => item.status === id).length}
+            count={findings.filter((item) => verdictOf(item.status) === id).length}
             onClick={() => setStatuses(toggle(statuses, id))}
           >
-            {STATUS[id]}
+            {VERDICT[id]}
           </Chip>
         ))}
         <Select label="Mục" size="sm" value={section} onChange={(event) => setSection(event.target.value)}>
@@ -207,7 +201,7 @@ export function FindingsList({
             <thead>
               <tr>
                 <th scope="col">Mục</th>
-                {CRITERION_IDS.map((id) => (
+                {ids.map((id) => (
                   <th key={id} scope="col">
                     <CriterionMark criterion={id} /> {CRITERIA[id].label}
                   </th>
@@ -218,7 +212,7 @@ export function FindingsList({
               {rows.map((row) => (
                 <tr key={row.id ?? WHOLE}>
                   <th scope="row">{row.label}</th>
-                  {CRITERION_IDS.map((id) => {
+                  {ids.map((id) => {
                     const count = cell(row.id, id);
                     const runs = row.id
                       ? sectionRuns.flatMap((item) => {
@@ -240,7 +234,7 @@ export function FindingsList({
                               onClick={() => {
                                 setSection(row.id ?? WHOLE);
                                 setCriteria([id]);
-                                setStatuses(STATUS_IDS);
+                                setStatuses(VERDICT_IDS);
                               }}
                             >
                               {count}
@@ -267,8 +261,8 @@ export function FindingsList({
         </div>
       </details>
       <p className={styles.muted} role="status">
-        Đang hiện {Math.min(shown.length, limit)}/{shown.length} phát hiện (tổng {findings.length}). Mỗi phát
-        hiện là ứng viên từ AI hoặc từ quy tắc; bạn là người quyết định.
+        Đang hiện {Math.min(shown.length, limit)}/{shown.length} phát hiện (tổng {findings.length}). Phát hiện
+        do AI hoặc quy tắc tạo ra được chấp nhận mặc định; bấm Bác bỏ với phát hiện bạn thấy không đúng.
       </p>
       {shown.length === 0 && (
         <Empty title="Không có phát hiện nào khớp bộ lọc." hint="Bật thêm tiêu chí hoặc trạng thái." />
@@ -284,13 +278,7 @@ export function FindingsList({
               ? entry && (
                   <>
                     <CriterionMark criterion={entry.id} /> {entry.label}{' '}
-                    <span className={styles.groupCount}>
-                      {
-                        findings.filter((item) => item.criterion === entry.id && item.status === 'open')
-                          .length
-                      }{' '}
-                      cần duyệt / {findings.filter((item) => item.criterion === entry.id).length}
-                    </span>
+                    <span className={styles.groupCount}>{groupCount(entry.id)}</span>
                   </>
                 )
               : null
@@ -307,7 +295,7 @@ export function FindingsList({
               data-focus={finding.id === focusId}
             >
               <FindingCard
-                state={finding.status}
+                state={finding.status === 'dismissed' ? 'dismissed' : 'confirmed'}
                 labels={
                   <>
                     <CriterionMark criterion={finding.criterion} />
@@ -316,11 +304,7 @@ export function FindingsList({
                     <Badge tone={finding.origin === 'ai' ? 'accent' : 'neutral'}>
                       {finding.origin === 'ai' ? 'AI' : 'Rule'}
                     </Badge>
-                    {finding.status !== 'open' && (
-                      <Badge tone={finding.status === 'confirmed' ? 'success' : 'neutral'}>
-                        {STATUS[finding.status]}
-                      </Badge>
-                    )}
+                    {finding.status === 'dismissed' && <Badge tone="neutral">{VERDICT.rejected}</Badge>}
                   </>
                 }
                 quote={quote}
@@ -335,7 +319,8 @@ export function FindingsList({
                       Chi tiết
                     </Button>
                     <ReviewActions
-                      decided={finding.status !== 'open'}
+                      acceptByDefault
+                      decided={finding.status === 'dismissed'}
                       onConfirm={() => onDecide(finding, 'confirmed')}
                       onDismiss={() => onDecide(finding, 'dismissed')}
                       onUndo={() => onDecide(finding, 'open')}

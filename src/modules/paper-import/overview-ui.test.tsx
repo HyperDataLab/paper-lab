@@ -240,13 +240,13 @@ it('R5 decides writing and transition findings from the unified list', async () 
   const transition = list.querySelector('[id^="finding-transition:"]');
   if (!(writing instanceof HTMLElement) || !(transition instanceof HTMLElement))
     throw new Error('Missing findings');
-  fireEvent.click(within(writing).getByRole('button', { name: 'Xác nhận' }));
-  await within(writing).findByText('Đã xác nhận');
-  expect((await repo.analyses.get(analyses[0]!.id))?.issues[0]?.status).toBe('confirmed_by_human');
-  fireEvent.click(within(transition).getByRole('button', { name: 'Xác nhận' }));
-  await within(transition).findByText('Đã xác nhận');
+  fireEvent.click(within(writing).getByRole('button', { name: 'Bác bỏ' }));
+  await within(writing).findByText('Đã bác bỏ');
+  expect((await repo.analyses.get(analyses[0]!.id))?.issues[0]?.status).toBe('dismissed_by_human');
+  fireEvent.click(within(transition).getByRole('button', { name: 'Bác bỏ' }));
+  await within(transition).findByText('Đã bác bỏ');
   expect((await repo.paperOverviews.get(paper.id))?.transitions?.findings[0]?.status).toBe(
-    'confirmed_by_human',
+    'dismissed_by_human',
   );
 });
 
@@ -262,10 +262,10 @@ it('R5 restores model verdicts after human decisions on writing and transition f
   if (!(writing instanceof HTMLElement) || !(transition instanceof HTMLElement))
     throw new Error('Missing findings');
   for (const row of [writing, transition]) {
-    fireEvent.click(within(row).getByRole('button', { name: 'Xác nhận' }));
-    await within(row).findByText('Đã xác nhận');
+    fireEvent.click(within(row).getByRole('button', { name: 'Bác bỏ' }));
+    await within(row).findByText('Đã bác bỏ');
     fireEvent.click(within(row).getByRole('button', { name: 'Hoàn tác' }));
-    await within(row).findByRole('button', { name: 'Xác nhận' });
+    await within(row).findByRole('button', { name: 'Bác bỏ' });
   }
   expect((await repo.analyses.get(analysis.id))?.issues[0]?.status).toBe('confirmed_by_model');
   expect((await repo.paperOverviews.get(paper.id))?.transitions?.findings[0]?.status).toBe(

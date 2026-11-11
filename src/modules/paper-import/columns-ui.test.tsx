@@ -95,17 +95,16 @@ it('R7 an old view link opens its tab on the right while the paper stays in the 
   const entries = screen.getByRole('navigation', { name: 'Spaces' });
   expect(within(entries).getByRole('button', { name: /^Arguments/ })).toBeInTheDocument();
   expect(within(entries).getByRole('button', { name: /^Writing style/ })).toBeInTheDocument();
-  // The rule check's finding needs a person's decision: the header says so and the tab carries the count.
-  const pill = await screen.findByRole('button', { name: '1 cần duyệt' });
-  expect(within(right).getByRole('tab', { name: 'Issues' })).toHaveTextContent('Issues1');
-  fireEvent.click(pill);
-  expect(within(right).getByRole('tab', { name: 'Issues' })).toHaveAttribute('aria-selected', 'true');
-  expect(screen.getByText('1 phát hiện cần bạn duyệt.')).toBeInTheDocument();
+  // Results are accepted by default, so nothing announces a queue to review.
+  fireEvent.click(within(right).getByRole('tab', { name: 'Issues' }));
+  expect(within(right).getByRole('tab', { name: 'Issues' })).toHaveTextContent(/^Issues$/);
+  expect((await screen.findAllByText(/được chấp nhận mặc định/)).length).toBeGreaterThan(0);
+  expect(screen.queryByText(/cần duyệt/)).toBeNull();
   // Each tab says what a reader comes to it for.
-  expect(screen.getByText(/Những điểm cần bạn xem và quyết định/)).toBeInTheDocument();
+  expect(screen.getByText(/Mọi phát hiện về bài ở một chỗ/)).toBeInTheDocument();
 });
 
-it('R7 issues are grouped by type of problem, with what needs review first and then the most severe', () => {
+it('R7 issues are grouped by type of problem, the most severe first, with rejections counted', () => {
   const finding = (
     id: string,
     criterion: PaperFinding['criterion'],
@@ -130,7 +129,7 @@ it('R7 issues are grouped by type of problem, with what needs review first and t
       paper={paper}
       findings={[
         finding('writing low', 'writing', 'low', 'open'),
-        finding('evidence low', 'evidence', 'low', 'open'),
+        finding('evidence low', 'evidence', 'low', 'dismissed'),
         finding('claim confirmed high', 'claim', 'high', 'confirmed'),
         finding('evidence high', 'evidence', 'high', 'open'),
         finding('claim low', 'claim', 'low', 'open'),
@@ -150,22 +149,61 @@ it('R7 issues are grouped by type of problem, with what needs review first and t
   );
   const list = screen.getByRole('region', { name: 'Issues' });
   expect([...list.querySelectorAll('h3')].map((heading) => heading.textContent)).toEqual([
-    'C Claims & reasoning 1 cần duyệt / 2',
-    'E Evidence & data 2 cần duyệt / 2',
-    'S Sources & citations 1 cần duyệt / 1',
-    'W Writing 1 cần duyệt / 1',
+    'C Claims & reasoning 2',
+    'E Evidence & data 1 · 1 đã bác bỏ',
+    'S Sources & citations 1',
+    'W Writing 1',
   ]);
   expect([...list.querySelectorAll('article strong')].map((title) => title.textContent)).toEqual([
-    'claim low',
     'claim confirmed high',
+    'claim low',
     'evidence high',
     'evidence low',
     'source medium',
     'writing low',
   ]);
-  // The notice narrows the list to what still needs a decision.
-  fireEvent.click(screen.getByRole('button', { name: 'Chỉ hiện mục cần duyệt' }));
-  expect([...list.querySelectorAll('article strong')].map((title) => title.textContent)).not.toContain(
-    'claim confirmed high',
+  // The rejected chip hides what the reader rejected; it stays one press away.
+  fireEvent.click(
+    within(screen.getByRole('group', { name: 'Filter by status' })).getByRole('button', {
+      name: /Đã bác bỏ/,
+    }),
   );
+  expect([...list.querySelectorAll('article strong')].map((title) => title.textContent)).not.toContain(
+    'evidence low',
+  );
+});
+
+it('R11 each space lists the issues of its own criteria, accepted until rejected', async () => {
+  const repo = createRepositories(createDb(`columns-${crypto.randomUUID()}`));
+  await repo.papers.create(paper);
+  await repo.paperChecks.save({
+    schemaVersion: 1,
+    paperId: paper.id,
+    report: runPaperChecks(paper),
+    decisions: [],
+  });
+  render(
+    <MemoryRouter initialEntries={[`/papers/${paper.id}`]}>
+      <StorageProvider repositories={repo}>
+        <LlmProvider innerClient={{ completeJson: vi.fn() }}>
+          <Routes>
+            <Route path="/papers/:id" element={<PaperMapPage />} />
+          </Routes>
+        </LlmProvider>
+      </StorageProvider>
+    </MemoryRouter>,
+  );
+  // The rule check found a figure that is cited but has no caption: an Evidence issue.
+  fireEvent.click(await screen.findByRole('button', { name: /^Arguments/ }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Mở Issues (1)' }));
+  const list = screen.getByRole('region', { name: 'Issues' });
+  expect(
+    within(within(list).getByRole('group', { name: 'Filter by criterion' }))
+      .getAllByRole('button')
+      .map((chip) => chip.textContent),
+  ).toEqual(['CClaims (0)', 'EEvidence (1)']);
+  expect(within(list).getByRole('button', { name: 'Bác bỏ' })).toBeInTheDocument();
+  // The Writing space has no writing issue yet.
+  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
+  expect(await screen.findByRole('button', { name: 'Mở Issues (0)' })).toBeInTheDocument();
 });

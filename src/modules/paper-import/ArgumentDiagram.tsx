@@ -262,7 +262,7 @@ export function ArgumentDiagram({
           </Badge>
           {state && (
             <Badge tone={state === 'confirmed' ? 'success' : 'danger'}>
-              {state === 'confirmed' ? 'Đã xác nhận' : 'Đã loại'}
+              {state === 'confirmed' ? 'Đã xác nhận' : 'Đã bác bỏ'}
             </Badge>
           )}
           <span className={styles.note}>
@@ -272,6 +272,7 @@ export function ArgumentDiagram({
           </span>
           <span className={styles.dSpacer} />
           <ReviewActions
+            acceptByDefault
             decided={Boolean(state)}
             dismissLabel="Loại bỏ"
             onConfirm={() => onDecide(item.id, 'confirm')}
