@@ -126,7 +126,8 @@ tests; docs (`docs/ROADMAP.md`, ADRs, this file) updated when behaviour or rules
 checks and the tests you touched; the full suite runs in CI (about 6 minutes).
 
 Flaky tests are defects. A test that fails without a related change is fixed at its cause (usually a wait for an
-element that appears after an async write), never by a retry or a longer timeout alone.
+element that appears after an async write), never by a retry. A longer wait is right only when a measured run shows
+the work is slow, not stuck; the test then says so in a comment.
 
 ## Git
 

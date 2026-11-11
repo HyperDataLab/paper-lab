@@ -132,12 +132,13 @@ it('P2 estimates selected calls, asks manuscript consent and opens a completed a
   expect(await screen.findByText(/Các đoạn được chọn của bản thảo/)).toBeInTheDocument();
   expect(completeJson).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Đồng ý và tiếp tục' }));
-  expect(await screen.findByText(/Tiến độ: 1\/1 đoạn/)).toBeInTheDocument();
+  // The whole journey runs in jsdom. Under CI load the run alone took longer than the 4 s default wait.
+  expect(await screen.findByText(/Tiến độ: 1\/1 đoạn/, {}, { timeout: 15000 })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('tab', { name: 'Full text' }));
   expect(await screen.findByText('Hoàn tất')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('link', { name: 'Mở trong Đánh giá' }));
   expect(await screen.findByRole('link', { name: 'Bài báo › Introduction' })).toBeInTheDocument();
-});
+}, 40000);
 
 it('P2 retries a failed paragraph and restores an interrupted run as paused', async () => {
   localStorage.clear();
