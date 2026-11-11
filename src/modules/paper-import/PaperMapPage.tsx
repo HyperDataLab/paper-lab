@@ -28,6 +28,9 @@ import { PaperVocabulary } from './PaperVocabulary';
 import { PaperProbe } from './PaperProbe';
 import { PaperReader } from './PaperReader';
 import { PaperPdf } from './PaperPdf';
+import { LayerChips } from './ReaderMarks';
+import { pdfMarks, pdfNeedle } from './pdfMarks';
+import type { PdfTarget } from './PdfViewer';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { PaperMeasurement } from './PaperMeasurement';
 import { PaperStance } from './PaperStance';
@@ -455,7 +458,7 @@ export default function PaperMapPage() {
       /* the choice then lasts for this visit only */
     }
   };
-  const [pdfTarget, setPdfTarget] = useState<{ page: number; nonce: number } | null>(null);
+  const [pdfTarget, setPdfTarget] = useState<PdfTarget | null>(null);
   const wide = useWide();
   const [splitWanted, setSplitWanted] = useState(readSplit);
   useEffect(() => {
@@ -504,6 +507,18 @@ export default function PaperMapPage() {
   const marks = useMemo(
     () => (paper ? collectMarks({ paper, checks, ...stored }, findings) : []),
     [paper, checks, stored, findings],
+  );
+  // The same marks on the PDF, limited to the layers that are switched on.
+  const marksOnPdf = useMemo(
+    () =>
+      paper
+        ? pdfMarks(
+            paper,
+            marks.filter((mark) => layers.includes(mark.criterion)),
+            (mark) => mark.label,
+          )
+        : [],
+    [paper, marks, layers],
   );
   useEffect(() => {
     if (pane === 'fulltext' && highlight)
@@ -621,7 +636,8 @@ export default function PaperMapPage() {
     setPaneState('fulltext');
     // In the PDF the passage's page is shown; the exact words are highlighted in Text.
     const page = paragraph.pageStart;
-    if (page) setPdfTarget((old) => ({ page, nonce: (old?.nonce ?? 0) + 1 }));
+    const passage = pdfNeedle(paper, location, '__selected');
+    if (page) setPdfTarget((old) => ({ page, nonce: (old?.nonce ?? 0) + 1, passage }));
   };
   const toggleSplit = () => {
     const next = !splitWanted;
@@ -964,7 +980,18 @@ export default function PaperMapPage() {
                     />
                   )}
                   {pane === 'fulltext' && paper.source.kind === 'pdf' && fullView === 'pdf' && (
-                    <PaperPdf paper={paper} target={pdfTarget} />
+                    <>
+                      <LayerChips marks={marks} layers={layers} onLayers={setLayers} />
+                      <PaperPdf
+                        paper={paper}
+                        target={pdfTarget}
+                        marks={marksOnPdf}
+                        onMark={(id) => {
+                          const mark = marks.find((item) => item.id === id);
+                          if (mark) openMark(mark);
+                        }}
+                      />
+                    </>
                   )}
                   {pane === 'fulltext' && (paper.source.kind !== 'pdf' || fullView === 'text') && (
                     <>
