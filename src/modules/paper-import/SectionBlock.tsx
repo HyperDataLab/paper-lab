@@ -86,7 +86,7 @@ export function SectionBlock({
         {stale && <Badge tone="warning">Kết quả cũ ({describeStale(stale)})</Badge>}
         {status && <Badge tone={STATUS[status].tone}>{STATUS[status].label}</Badge>}
         {onRun && (
-          <Button size="sm" variant="primary" onClick={onRun}>
+          <Button size="sm" onClick={onRun}>
             Phân tích{estimate ? ` (~${estimate} lượt)` : ''}
           </Button>
         )}

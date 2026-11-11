@@ -254,7 +254,15 @@ function SectionNames({ names }: { names: string[] | null }) {
   );
 }
 
-export function Transparency({ paper, report }: { paper?: Paper; report?: AnalysisReport }) {
+export function Transparency({
+  paper,
+  report,
+  parserCounts,
+}: {
+  paper?: Paper;
+  report?: AnalysisReport;
+  parserCounts?: string;
+}) {
   const repo = useRepositories();
   const [paperEntries, setSteps] = useState<Step[]>([]);
   const [error, setError] = useState('');
@@ -291,6 +299,7 @@ export function Transparency({ paper, report }: { paper?: Paper; report?: Analys
   };
   const body = (
     <>
+      {parserCounts && <p>{parserCounts}</p>}
       <p className={styles.note}>
         Thông tin không được lưu lúc chạy sẽ ghi là Không rõ, hệ thống không suy đoán.
       </p>

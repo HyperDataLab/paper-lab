@@ -108,9 +108,6 @@ export function PaperProfile({
                 </div>
               )}
               {dimension.attention && <p className={styles.attention}>{dimension.attention}</p>}
-              {dimension.planned.length > 0 && (
-                <p className={styles.planned}>Sẽ bổ sung: {dimension.planned.join(', ')}.</p>
-              )}
               <footer className={styles.foot}>
                 <span>{dimension.coverage}</span>
                 {dimension.target && (

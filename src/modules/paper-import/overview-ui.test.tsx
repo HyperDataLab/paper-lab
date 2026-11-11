@@ -172,8 +172,9 @@ async function setup(modelConfirmed = false) {
 }
 it('P3 shows distributions, recurring filters, transition review and stale notice', async () => {
   const { repo, paper } = await setup();
-  fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Writing style/ }));
+  const openCoherence0 = screen.queryByRole('button', { name: 'Mở Coherence & sentences' });
+  if (openCoherence0) fireEvent.click(openCoherence0);
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
@@ -183,8 +184,9 @@ it('P3 shows distributions, recurring filters, transition review and stale notic
   fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc đoạn' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chấm điểm' }));
   expect(screen.getByText('Chuyển đoạn: ~1 lượt gọi AI')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Writing style/ }));
+  const openCoherence1 = screen.queryByRole('button', { name: 'Mở Coherence & sentences' });
+  if (openCoherence1) fireEvent.click(openCoherence1);
   fireEvent.click(screen.getByRole('radio', { name: 'Paragraph structure & flow' }));
   expect(await screen.findByText('Đã phân tích 3/4 đoạn (75 %)')).toBeInTheDocument();
   expect(screen.getByText(/Kết quả chuyển đoạn đã cũ/)).toBeInTheDocument();
@@ -204,8 +206,9 @@ it('P3 shows distributions, recurring filters, transition review and stale notic
   expect(
     (await repo.audit.listByAnalysis(paper.id)).items.filter((e) => e.action === 'review_transition'),
   ).toHaveLength(3);
-  fireEvent.click(screen.getByRole('tab', { name: 'Writing style' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Writing style/ }));
+  const openCoherence2 = screen.queryByRole('button', { name: 'Mở Coherence & sentences' });
+  if (openCoherence2) fireEvent.click(openCoherence2);
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   expect(await screen.findByText('62,5 (56,25–68,75, n = 2)')).toBeInTheDocument();
   fireEvent.click(await screen.findByRole('button', { name: /Động từ chưa cụ thể · 3 lần/ }));
@@ -216,7 +219,7 @@ it('P3 shows distributions, recurring filters, transition review and stale notic
   expect(screen.queryByText('Paragraph 4.')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ lọc' }));
   expect(screen.getByText('Paragraph 4.')).toBeInTheDocument();
-  expect(within(screen.getByRole('tablist', { name: 'Bài báo' })).getAllByRole('tab')).toHaveLength(5);
+  expect(within(screen.getByRole('tablist', { name: 'Bài báo' })).getAllByRole('tab')).toHaveLength(4);
 });
 it('P3 marks a transition unavailable when its annotations disappear', async () => {
   const { repo, paper } = await setup();
@@ -224,8 +227,9 @@ it('P3 marks a transition unavailable when its annotations disappear', async () 
   const first = analyses.find((item) => item.origin?.kind === 'paper' && item.origin.paragraphId === 'p1');
   if (!first) throw new Error('Missing analysis');
   await repo.analyses.update(first.id, { sentenceAnnotations: [] });
-  fireEvent.click(screen.getByRole('button', { name: /^Writing style/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Coherence & sentences' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Writing style/ }));
+  const openCoherence3 = screen.queryByRole('button', { name: 'Mở Coherence & sentences' });
+  if (openCoherence3) fireEvent.click(openCoherence3);
   fireEvent.click(screen.getByRole('radio', { name: 'Paragraph structure & flow' }));
   expect(await screen.findByText('Không còn hợp lệ')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeDisabled();

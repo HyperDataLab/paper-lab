@@ -32,7 +32,7 @@ it('R17b opens the Data table, creates template columns and offers exports', asy
       </StorageProvider>
     </MemoryRouter>,
   );
-  fireEvent.click(await screen.findByRole('button', { name: 'Data table →' }));
+  fireEvent.click(await screen.findByRole('tab', { name: 'Data table' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Tạo bảng dữ liệu' }));
   const table = await screen.findByRole('table');
   expect(within(table).getByRole('rowheader', { name: 'Objectives' })).toBeInTheDocument();
