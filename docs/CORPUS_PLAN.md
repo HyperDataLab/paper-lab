@@ -229,3 +229,37 @@ C7 waits for R17c.
 | Access and screening names collide                                                                                                 | minor           | Accepted: `textRead` vs Library `access`; `candidate` absent from the project view                                                               |
 | Phrase threshold should scale with N                                                                                               | minor           | Accepted                                                                                                                                         |
 | Section mapping and missing provenance fields                                                                                      | minor           | Accepted: section 5                                                                                                                              |
+
+## 10. First work item: open published versions (counted 2026-11-11)
+
+OpenAlex, `type:article`, publication years 2020–2025. A cell is open published versions / all articles. "Open
+published" means OA status gold, diamond, hybrid or bronze; green copies (preprints and accepted manuscripts) are
+counted apart because they are not the journal's text.
+
+| Journal (OpenAlex id)                        | 2020       | 2021     | 2022     | 2023     | 2024     | 2025      | Total         | Green |
+| -------------------------------------------- | ---------- | -------- | -------- | -------- | -------- | --------- | ------------- | ----- |
+| Expert Systems with Applications (S13144211) | 61/975     | 146/1474 | 320/2389 | 398/3187 | 401/2881 | 423/4094  | 1749/15000    | 2554  |
+| Knowledge-Based Systems (S10169007)          | 32/682     | 75/973   | 131/1153 | 128/925  | 166/1356 | 222/1979  | 754/7068      | 1102  |
+| Neurocomputing (S45693802)                   | 87/1440    | 125/1531 | 131/1235 | 171/947  | 214/1614 | 251/2646  | 979/9413      | 1737  |
+| Applied Soft Computing (S140556538)          | 41/874     | 78/1015  | 82/904   | 109/1023 | 101/1253 | 148/1594  | 559/6663      | 1078  |
+| Information Sciences (S192650101)            | 45/969     | 83/1071  | 113/1326 | 142/1379 | 137/1443 | 73/910    | 593/7098      | 949   |
+| Eng. Applications of AI (S900972176)         | 35/332     | 47/360   | 99/681   | 243/1802 | 282/1917 | 339/3083  | 1045/8175     | 986   |
+| IEEE Access (S2485537415)                    | all open   |          |          |          |          |           | 75721/75721   | 0     |
+| PLOS ONE (S202381698)                        | all open   |          |          |          |          |           | 92446/92446   | 0     |
+| Scientific Reports (S196734849)              | all open   |          |          |          |          |           | 165344/165344 | 0     |
+| Nature (S137773608)                          | 379/2804   | 478/2916 | 755/3151 | 871/3285 | 968/3358 | 1042/3413 | 4493/18927    | 3098  |
+| NeurIPS proceedings (S4363606243)            | not usable |          |          |          |          |           | 0/668         | 0     |
+
+What it means:
+
+- **150 + 150 is reachable** for every journal above except NeurIPS, even with 20 papers per two-year bucket.
+- **Fully open journals** (IEEE Access, PLOS ONE, Scientific Reports) have every paper as published: no selection by
+  access.
+- **Hybrid journals** (ESWA and its Elsevier neighbours, Nature): the open published papers are the ones whose
+  authors or funders paid for open access. That can skew country, funding and topic, so the control must be drawn the
+  same way (open published only) and the skew reported in `confound_checks`.
+- **Nature**: `type:article` includes news and comment pieces, so the research-article share is smaller than shown.
+- **NeurIPS**: OpenAlex records only 668 papers under this source and no OA status, although the proceedings are open
+  on the conference site. It needs its own intake from the proceedings site, not OpenAlex counts.
+- **A natural first pair:** ESWA as target with Knowledge-Based Systems, Engineering Applications of AI and
+  Neurocomputing as control (same publisher, layout and field, 750–1,050 open published each). The owner decides.
