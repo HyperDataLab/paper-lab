@@ -1,11 +1,12 @@
 import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { runPaperChecks } from '@/core/paperChecks';
 import type { Paper } from '@/core/schemas';
+import { chooseSelectOption } from '@/test/selectOption';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { sha256Hex } from '@/shared/pdfStore';
@@ -22,13 +23,24 @@ vi.mock('./PdfViewer', () => ({
     target,
     marks = [],
     onMark,
+    toolbarStart,
+    toolbarEnd,
+    toolbarBelow,
   }: {
     blob: Blob;
     target: { page: number; passage?: { text: string } | null } | null;
     marks?: { id: string; text: string; page: number }[];
     onMark?: (id: string) => void;
+    toolbarStart?: ReactNode;
+    toolbarEnd?: ReactNode;
+    toolbarBelow?: ReactNode;
   }) => (
     <div data-testid="pdf-viewer">
+      <div role="toolbar" aria-label="PDF">
+        {toolbarStart}
+        {toolbarEnd}
+        {toolbarBelow}
+      </div>
       {blob.size} bytes{target ? `, page ${target.page}` : ''}
       {target?.passage ? `, passage [${target.passage.text}]` : ''}
       {marks.map((mark) => (
@@ -286,4 +298,116 @@ it('R9 findings are drawn on the PDF and open the finding when pressed', async (
   );
   fireEvent.click(await screen.findByRole('button', { name: 'mark Figure 2 p3' }));
   expect(screen.getByRole('tab', { name: 'Issues' })).toHaveAttribute('aria-selected', 'true');
+});
+
+async function openPaper(paper: Paper, path = `/papers/${paper.id}`) {
+  const repo = newRepo();
+  await repo.papers.create(paper);
+  await repo.pdfFiles.put(sha, new Blob([bytes], { type: 'application/pdf' }));
+  vi.stubGlobal('fetch', vi.fn());
+  render(
+    wrap(
+      repo,
+      signedOut(),
+      <Routes>
+        <Route path="/papers/:id" element={<PaperMapPage />} />
+      </Routes>,
+      path,
+    ),
+  );
+  return repo;
+}
+const twoSections = (): Paper => ({
+  ...paperFor(sha),
+  sections: [
+    { id: 'i', heading: 'Introduction', role: 'introduction', level: 1, pageStart: 1 },
+    { id: 'b', heading: 'Results', role: 'results', level: 1, pageStart: 3 },
+  ],
+  paragraphs: [
+    {
+      id: 'p1',
+      sectionId: 'i',
+      order: 0,
+      kind: 'body',
+      text: 'Data sharing matters.',
+      pageStart: 1,
+      textHash: '',
+    },
+    {
+      id: 'p2',
+      sectionId: 'b',
+      order: 1,
+      kind: 'body',
+      text: 'Sharing raised citations.',
+      pageStart: 3,
+      textHash: '',
+    },
+  ],
+});
+
+it('R14 a pressed mark shows the analysis again when it was hidden', async () => {
+  localStorage.setItem('paper-split', 'false');
+  const base = paperFor(sha);
+  const paper: Paper = {
+    ...base,
+    sections: [{ id: 'b', heading: 'Results', role: 'results', level: 1, pageStart: 3 }],
+    paragraphs: [
+      { id: 'p2', sectionId: 'b', order: 0, kind: 'body', text: 'See Figure 2.', pageStart: 3, textHash: '' },
+    ],
+  };
+  await openPaper(paper);
+  expect(screen.queryByRole('region', { name: 'Analysis' })).toBeNull();
+  fireEvent.click(await screen.findByRole('button', { name: 'mark Figure 2 p3' }));
+  expect(await screen.findByRole('region', { name: 'Analysis' })).toBeVisible();
+  expect(screen.getByRole('tab', { name: 'Issues' })).toHaveAttribute('aria-selected', 'true');
+  expect(localStorage.getItem('paper-split')).toBe('true');
+});
+
+it('R14 the PDF toolbar finds a phrase in the paper and jumps to a section', async () => {
+  await openPaper(twoSections());
+  const toolbar = await screen.findByRole('toolbar', { name: 'PDF' });
+  const field = within(toolbar).getByLabelText('Tìm trong bài');
+  fireEvent.change(field, { target: { value: 'sharing' } });
+  fireEvent.keyDown(field, { key: 'Enter' });
+  // Case is ignored: both paragraphs match, and the first one is outlined on its page.
+  expect(await within(toolbar).findByText('1/2')).toBeInTheDocument();
+  expect(screen.getByTestId('pdf-viewer')).toHaveTextContent('page 1, passage [sharing]');
+  fireEvent.click(within(toolbar).getByRole('button', { name: 'Kết quả sau' }));
+  expect(screen.getByTestId('pdf-viewer')).toHaveTextContent('page 3, passage [Sharing]');
+  chooseSelectOption('Mục', 'Introduction');
+  expect(screen.getByTestId('pdf-viewer')).toHaveTextContent('page 1');
+});
+
+it('R14 a page link in Summary opens the PDF with a way back to Summary', async () => {
+  const paper = twoSections();
+  const repo = await openPaper(paper, `/papers/${paper.id}?view=profile&pane=summary`);
+  await repo.paperInsights.saveDigestRun(paper.id, {
+    id: '00000000-0000-4000-8000-0000000000f2',
+    createdAt: at,
+    model: 'm',
+    promptVersion: 'digest-1',
+    callsUsed: 1,
+    read: 2,
+    total: 2,
+    headline: 'Sharing data pays off.',
+    overview: { text: 'Shared data was cited more.', sources: [{ paragraphId: 'p2', page: 3 }], flags: [] },
+    sections: [],
+  });
+  cleanup();
+  render(
+    wrap(
+      repo,
+      signedOut(),
+      <Routes>
+        <Route path="/papers/:id" element={<PaperMapPage />} />
+      </Routes>,
+      `/papers/${paper.id}?view=profile&pane=summary`,
+    ),
+  );
+  fireEvent.click(await screen.findByRole('button', { name: 'Tr. 3' }));
+  expect(screen.getByRole('tab', { name: 'Full text' })).toHaveAttribute('aria-selected', 'true');
+  const back = await screen.findByRole('button', { name: '← Quay lại Summary' });
+  fireEvent.click(back);
+  expect(screen.getByRole('tab', { name: 'Summary' })).toHaveAttribute('aria-selected', 'true');
+  expect(await screen.findByRole('heading', { name: 'Sharing data pays off.' })).toBeInTheDocument();
 });

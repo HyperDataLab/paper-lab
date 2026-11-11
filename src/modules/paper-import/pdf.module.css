@@ -31,14 +31,14 @@
   display: grid;
   justify-items: center;
   gap: var(--space-3);
-  max-height: calc(100vh - var(--space-10) * 4);
-  overflow: auto;
   padding: var(--space-3) 0;
   background: var(--bg);
   border-radius: var(--radius);
 }
 .page {
   position: relative;
+  /* A page shown by its number starts below the sticky toolbar. */
+  scroll-margin-top: calc(var(--space-10) * 3);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
   outline: 2px solid transparent;
@@ -79,4 +79,14 @@
   margin: 0;
   color: var(--warning);
   font-size: var(--text-sm);
+}
+.toolbarRow {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-1) var(--space-2);
+}
+.back {
+  font-weight: 600;
 }

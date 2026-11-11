@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { Paper } from '@/core/schemas';
 import type { LlmClient } from '@/shared/llm/client';
@@ -111,7 +111,7 @@ it('R12 one button writes the reader summary, section by section, each part open
   expect(screen.getByRole('button', { name: 'Tóm tắt lại' })).toBeInTheDocument();
 });
 
-it('R13 key facts sit above the summary as a strip, each with its page, and a rejected fact leaves', async () => {
+it('R13 key facts sit above the summary as a strip, each with its page; a rejected fact is dimmed and can be undone', async () => {
   const repo = createRepositories(createDb(`facts-${crypto.randomUUID()}`));
   await repo.papers.create(paper);
   await repo.paperInsights.saveSnapshotRun(paper.id, {
@@ -147,5 +147,11 @@ it('R13 key facts sit above the summary as a strip, each with its page, and a re
   fireEvent.click(within(strip).getByRole('button', { name: 'Tr. 2' }));
   expect(onLocation).toHaveBeenCalledWith({ paragraphId: 'r1', start: 0, end: 13 });
   fireEvent.click(within(strip).getByRole('button', { name: 'Bác bỏ Results' }));
-  await waitFor(() => expect(screen.queryByRole('region', { name: 'Key facts' })).toBeNull());
+  const undo = await within(strip).findByRole('button', { name: 'Hoàn tác' });
+  expect(within(strip).getByText('69% more citations').closest('[data-rejected]')).toHaveAttribute(
+    'data-rejected',
+    'true',
+  );
+  fireEvent.click(undo);
+  expect(await within(strip).findByRole('button', { name: 'Bác bỏ Results' })).toBeInTheDocument();
 });

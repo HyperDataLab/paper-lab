@@ -35,7 +35,9 @@ export function EvidencePanel({
             <mark>{sliceCp(paragraph.text, location.start, location.end)}</mark>
             {sliceCp(paragraph.text, location.end, Array.from(paragraph.text).length)}
           </p>
-          <Button onClick={() => onOpenReader(location)}>Mở trong Đọc bài</Button>
+          <Button onClick={() => onOpenReader(location)}>
+            {paper.source.kind === 'pdf' ? 'Mở trong PDF' : 'Mở trong bài'}
+          </Button>
         </div>
       )}
     </Drawer>
