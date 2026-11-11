@@ -9,6 +9,9 @@ import { Kbd } from '@/shared/ui/Kbd';
 import { Skeleton } from '@/shared/ui/Skeleton';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
+import { AuthProvider } from '@/shared/auth/AuthProvider';
+import { AccountButton } from './AccountButton';
+import { PdfSync } from './PdfSync';
 import { CommandPalette } from './CommandPalette';
 import { modules } from './modules';
 import { Sidebar } from './Sidebar';
@@ -55,88 +58,92 @@ export function App() {
   }, [theme]);
   return (
     <ToastProvider>
-      <div className={styles.shell}>
-        <div className={styles.desktopSidebar}>
-          <Sidebar />
+      <AuthProvider>
+        <div className={styles.shell}>
+          <div className={styles.desktopSidebar}>
+            <Sidebar />
+          </div>
+          <Drawer open={drawer} onClose={closeDrawer}>
+            <Sidebar mobile onNavigate={closeDrawer} />
+          </Drawer>
+          <div className={styles.main}>
+            <header className={styles.topbar}>
+              <div className={styles.mobileMenu}>
+                <IconButton label="Mở menu" onClick={() => setDrawer(true)}>
+                  <Menu size={20} />
+                </IconButton>
+              </div>
+              <nav aria-label="Đường dẫn" className={styles.breadcrumb}>
+                <span>PaperLab</span>
+                <span aria-hidden="true">/</span>
+                <strong>
+                  {current?.label ??
+                    (location.pathname.startsWith('/report/')
+                      ? 'Báo cáo'
+                      : location.pathname === '/compare'
+                        ? 'So sánh'
+                        : 'Không tìm thấy')}
+                </strong>
+              </nav>
+              <div className={styles.topActions}>
+                <Button
+                  className={styles.search}
+                  aria-label="Tìm chức năng"
+                  onClick={() =>
+                    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))
+                  }
+                >
+                  <Search size={17} />
+                  <span>Tìm chức năng</span>
+                  <Kbd>Ctrl K</Kbd>
+                </Button>
+                <AccountButton />
+                <IconButton
+                  variant="ghost"
+                  label={`Giao diện: ${THEME_LABELS[theme]}. Bấm để đổi`}
+                  onClick={() => setTheme(NEXT_THEME[theme])}
+                >
+                  {theme === 'dark' ? (
+                    <Moon size={18} />
+                  ) : theme === 'light' ? (
+                    <Sun size={18} />
+                  ) : (
+                    <Monitor size={18} />
+                  )}
+                </IconButton>
+              </div>
+            </header>
+            <main className={`${styles.content} ${wideContent ? styles.wideContent : ''}`}>
+              <StorageProvider>
+                <PdfSync />
+                <LlmProvider>
+                  <Suspense fallback={<Skeleton />}>
+                    <Routes>
+                      {modules.map((item) => (
+                        <Route key={item.id} path={item.path} element={<item.page />} />
+                      ))}
+                      <Route path="/report/:id" element={<ReportPage />} />
+                      <Route path="/compare" element={<ComparePage />} />
+                      <Route path="/papers/:id" element={<PaperMapPage />} />
+                      <Route path="/extraction/:id" element={<ExtractionProjectPage />} />
+                      <Route
+                        path="*"
+                        element={
+                          <div>
+                            <h1>Không tìm thấy trang</h1>
+                            <p>Đường dẫn này không tồn tại.</p>
+                          </div>
+                        }
+                      />
+                    </Routes>
+                  </Suspense>
+                </LlmProvider>
+              </StorageProvider>
+            </main>
+          </div>
+          <CommandPalette />
         </div>
-        <Drawer open={drawer} onClose={closeDrawer}>
-          <Sidebar mobile onNavigate={closeDrawer} />
-        </Drawer>
-        <div className={styles.main}>
-          <header className={styles.topbar}>
-            <div className={styles.mobileMenu}>
-              <IconButton label="Mở menu" onClick={() => setDrawer(true)}>
-                <Menu size={20} />
-              </IconButton>
-            </div>
-            <nav aria-label="Đường dẫn" className={styles.breadcrumb}>
-              <span>PaperLab</span>
-              <span aria-hidden="true">/</span>
-              <strong>
-                {current?.label ??
-                  (location.pathname.startsWith('/report/')
-                    ? 'Báo cáo'
-                    : location.pathname === '/compare'
-                      ? 'So sánh'
-                      : 'Không tìm thấy')}
-              </strong>
-            </nav>
-            <div className={styles.topActions}>
-              <Button
-                className={styles.search}
-                aria-label="Tìm chức năng"
-                onClick={() =>
-                  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))
-                }
-              >
-                <Search size={17} />
-                <span>Tìm chức năng</span>
-                <Kbd>Ctrl K</Kbd>
-              </Button>
-              <IconButton
-                variant="ghost"
-                label={`Giao diện: ${THEME_LABELS[theme]}. Bấm để đổi`}
-                onClick={() => setTheme(NEXT_THEME[theme])}
-              >
-                {theme === 'dark' ? (
-                  <Moon size={18} />
-                ) : theme === 'light' ? (
-                  <Sun size={18} />
-                ) : (
-                  <Monitor size={18} />
-                )}
-              </IconButton>
-            </div>
-          </header>
-          <main className={`${styles.content} ${wideContent ? styles.wideContent : ''}`}>
-            <StorageProvider>
-              <LlmProvider>
-                <Suspense fallback={<Skeleton />}>
-                  <Routes>
-                    {modules.map((item) => (
-                      <Route key={item.id} path={item.path} element={<item.page />} />
-                    ))}
-                    <Route path="/report/:id" element={<ReportPage />} />
-                    <Route path="/compare" element={<ComparePage />} />
-                    <Route path="/papers/:id" element={<PaperMapPage />} />
-                    <Route path="/extraction/:id" element={<ExtractionProjectPage />} />
-                    <Route
-                      path="*"
-                      element={
-                        <div>
-                          <h1>Không tìm thấy trang</h1>
-                          <p>Đường dẫn này không tồn tại.</p>
-                        </div>
-                      }
-                    />
-                  </Routes>
-                </Suspense>
-              </LlmProvider>
-            </StorageProvider>
-          </main>
-        </div>
-        <CommandPalette />
-      </div>
+      </AuthProvider>
     </ToastProvider>
   );
 }

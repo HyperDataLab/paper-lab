@@ -11,11 +11,14 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:cov": "vitest run --coverage",
+    "test:worker": "vitest run --config worker/vitest.config.ts",
+    "typecheck:worker": "tsc -p worker",
     "build": "tsc -b && vite build",
     "check:router-cors": "node scripts/check-router-cors.mjs"
   },
   "dependencies": {
     "dexie": "^4.4.7",
+    "firebase": "^12.19.0",
     "lucide-react": "^0.468.0",
     "pdfjs-dist": "^6.5.438",
     "react": "^19.3.1",

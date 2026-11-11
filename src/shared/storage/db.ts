@@ -1,3 +1,4 @@
+import type { PdfFileRecord } from './pdfFiles';
 import type { ExtractionProject, PaperContextRecord, PaperInsightsRecord } from '@/core/schemas';
 import Dexie, { type Table } from 'dexie';
 import type {
@@ -36,6 +37,7 @@ export class ParagraphDb extends Dexie {
   extractionProjects!: Table<ExtractionProject, string>;
   reviewNgrams!: Table<ReviewNgram, [string, string]>;
   calibrationLabels!: Table<CalibrationLabelSet, string>;
+  pdfFiles!: Table<PdfFileRecord, string>;
   constructor(name = 'paragraph-lab') {
     super(name);
     this.version(1).stores({
@@ -63,6 +65,7 @@ export class ParagraphDb extends Dexie {
     this.version(14).stores({ paperContext: 'paperId' });
     this.version(15).stores({ paperInsights: 'paperId' });
     this.version(16).stores({ extractionProjects: 'id, updatedAt' });
+    this.version(17).stores({ pdfFiles: 'sha256' });
   }
 }
 export function createDb(name?: string) {

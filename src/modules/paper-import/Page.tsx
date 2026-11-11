@@ -158,7 +158,10 @@ export default function Page() {
               <Button variant="primary" disabled={busy} onClick={() => input.current?.click()}>
                 Chọn tệp
               </Button>
-              <p>Tệp được xử lý trên máy của bạn, không tải lên máy chủ</p>
+              <p>
+                Nội dung được tách và phân tích ngay trên máy của bạn. Khi đăng nhập tài khoản lab, PDF gốc
+                được lưu thêm vào kho chung của lab; không đăng nhập thì PDF chỉ nằm trên máy này.
+              </p>
               {busy && <p role="status">{progress || 'Đang xử lý tệp…'}</p>}
             </div>
             {error && (

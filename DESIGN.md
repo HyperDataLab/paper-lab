@@ -300,3 +300,10 @@ The page opens on **Hồ sơ**: five dimensions (Khoa học, Lập luận, Diễ
 - Every AI-derived number says so.
 - A Toulmin slot with nothing behind it reads "Chưa xác định". An inferred warrant is labelled as inferred and never shown as the authors' own.
 - A finding's source opens beside the current screen in the evidence drawer; reading it does not lose the reader's place.
+
+## 14. Original PDFs
+
+- Full text opens on the paper's original PDF (pdf.js, a canvas and a selectable text layer per page). A switch, `PDF | Text`, shows the parsed text instead; the reader's choice is remembered. Opening a finding's location moves the PDF to its page.
+- The PDF is kept in this browser (IndexedDB, keyed by the file's SHA-256). With a lab account (Google, @hyperdatalab.org only) it is also kept in the lab's storage, so other members can open it on any machine. Without an account it stays on this machine, and the screen says so with a badge: "Chỉ trên máy này", "Đang lưu lên kho lab…" or "Đã lưu trong kho lab".
+- A paper imported before PDFs were kept offers "Gắn PDF gốc". The file is accepted only when its hash matches the one recorded at import.
+- Analysis never needs the account; it only decides where the original file is kept. Privacy copy on import screens says exactly this.

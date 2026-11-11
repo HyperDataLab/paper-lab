@@ -20,6 +20,7 @@ import { useToast } from '@/shared/ui/toastContext';
 import { getScholarEmail, saveScholarEmail } from '@/shared/scholar/settings';
 import { getRunDefaults, saveRunDefaults } from '@/shared/llm/runDefaults';
 import { Select } from '@/shared/ui/Select';
+import { LabAccountCard } from './LabAccountCard';
 import styles from './page.module.css';
 export default function Page() {
   const toast = useToast();
@@ -250,6 +251,7 @@ export default function Page() {
           {runsMessage && <p role="status">{runsMessage}</p>}
         </div>
       </Card>
+      <LabAccountCard />
       <Card>
         <div className={styles.section}>
           <header>
