@@ -80,6 +80,8 @@ Offsets count Unicode code points in the raw XML, including tags. Each predictio
 span with the greatest positive character overlap (ties go to the first annotation); no overlap is `none`. Recall
 counts a gold span if any prediction of its corresponding kind overlaps it. The majority baseline chooses the most
 frequent gold label and reports its share among all predictions, including unmatched predictions in the denominator.
+Alongside data precision, **data contains gold data** reports the share of predicted data spans that overlap at
+least half the length of any gold data span, even when a different label has the largest overlap.
 Empty denominators are reported as not assessable. Planned calls exclude client retries and JSON repair.
 
 ## 4. First results (development split, 2026-11-12)
@@ -99,19 +101,27 @@ Papers A01–A05 of the Dr. Inventor corpus, model `cx/gpt-6-luna`, prompt `argu
 | Data recall                   | 10.9% |
 | Majority baseline (own_claim) | 67.4% |
 
-What it says:
+### Checks on these numbers
 
-- **Claims are mostly right.** 63 of 77 returned claims overlap an annotated own claim, above the 67.4 % a
-  label-everything-as-claim baseline would get.
-- **"Data" is mostly wrong.** 96 of 159 spans PaperLab returns as data are annotated as **claims**, and only 8 as
-  data. PaperLab's prompt asks for "the evidence or premises given for it", so the model returns reasons: statements
-  that themselves need support (Booth's reasons, Toulmin's sub-claims). The annotators' DATA is short and factual
-  (median 3 words: a measurement, an observation, a reference such as "Figure 4"). This is the cause of E marks the
-  owner judged wrong.
-- **Part of it is granularity.** PaperLab returns one clause; a gold data span is often a few words inside a clause
-  that is otherwise a claim. Overlap scoring then credits the clause to the claim. The next slice reports both
-  readings.
-- **Recall is low by design**: the run returns a few arguments per section, not every span.
+- **Alignment.** The raw text at every gold offset equals the annotation text (1,623 of 1,623 spans in A01–A05), so
+  the harness compares the right passages.
+- **Chance level.** Random spans of the same lengths in the same papers land on an own claim 41 % of the time, on
+  data 7 %, on nothing 30–35 %.
+- **Claims.** About 80 % of returned claims overlap an annotated own claim, against 41 % by chance: a real signal on
+  own versus background claims.
+- **Data: no signal, and the mapping is wrong.** Data precision (5–7 %) equals chance (7 %). Reading 40 returned data
+  spans next to the gold labels shows why. In this scheme a reported result ("the compute time is insignificant
+  compared to …", "both algorithms produce similar results") is annotated **OWN CLAIM**. DATA marks short premises
+  inside a sentence ("Figure 7 to Figure 10", "the linear system is solved"). Tables, captions, equations and bare
+  numbers are not annotated at all. Section 1 of this document calls a reported result E, so **DATA → E is the
+  wrong mapping**, and this corpus cannot measure E.
+- **A failed attempt.** Prompt `argument-2` redefined data as observations, measurements and pointers. On the
+  development split it gave claim precision 80.2 %, data precision 7.4 % (15.7 % when a predicted span only has to
+  contain gold data). It did not pass the gate fixed before the run (data ≥ 40 %), was not run on held-out papers
+  and is not merged; `argument-1` stays. The held-out papers A06–A40 are still unseen.
+
+So: the Dr. Inventor corpus is kept for **own versus background claims** (C versus S). Measuring E needs gold labels
+that follow section 1, made in the lab on a few papers.
 
 ## 5. The form of a claim
 

@@ -159,7 +159,7 @@ try {
       '| --- | ---: | ---: | ---: | ---: |',
       ...['claim', 'data'].map((kind) => `| ${kind} | ${Object.values(score.confusion[kind]).join(' | ')} |`),
     ];
-    const summary = `# Argument benchmark\n\nPapers: ${results.length}; model: ${model}; prompt: ${prompts.PROMPT_VERSIONS.argument}.\n\n${rows.join('\n')}\n\n| Measure | Value |\n| --- | ---: |\n| Claim precision | ${format(score.precision.claim)} |\n| Data precision | ${format(score.precision.data)} |\n| Own claim recall | ${format(score.recall.own_claim)} |\n| Data recall | ${format(score.recall.data)} |\n| Majority baseline (${score.majorityLabel ?? 'none'}) | ${format(score.majorityBaseline)} |\n`;
+    const summary = `# Argument benchmark\n\nPapers: ${results.length}; model: ${model}; prompt: ${prompts.PROMPT_VERSIONS.argument}.\n\n${rows.join('\n')}\n\n| Measure | Value |\n| --- | ---: |\n| Claim precision | ${format(score.precision.claim)} |\n| Data precision | ${format(score.precision.data)} |\n| Data contains gold data (precision) | ${format(score.precision.dataContainsGold)} |\n| Own claim recall | ${format(score.recall.own_claim)} |\n| Data recall | ${format(score.recall.data)} |\n| Majority baseline (${score.majorityLabel ?? 'none'}) | ${format(score.majorityBaseline)} |\n`;
     await mkdir(resolve(options.out), { recursive: true });
     await writeFile(resolve(options.out, 'summary.md'), summary);
     console.log(summary);
