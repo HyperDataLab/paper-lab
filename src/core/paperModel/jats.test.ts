@@ -45,6 +45,15 @@ describe('R17d JATS export', () => {
     expect(xml).toContain('<string-name>A. Author</string-name>');
     expect(xml).toContain('<fpage>12</fpage><lpage>15</lpage>');
     expect(xml).toContain('<sec sec-type="results">');
+    expect(xml).toContain('<table-wrap><table><tbody><tr><td>');
+    expect(xml).toContain('</td></tr></tbody></table></table-wrap>');
+    expect(xml.indexOf('<article-id')).toBeLessThan(xml.indexOf('<title-group>'));
+    expect(xml.indexOf('<title-group>')).toBeLessThan(xml.indexOf('<contrib-group>'));
+    expect(xml.indexOf('</contrib-group>')).toBeLessThan(xml.indexOf('<aff>'));
+    expect(xml.indexOf('</aff>')).toBeLessThan(xml.indexOf('<pub-date>'));
+    expect(xml.indexOf('</pub-date>')).toBeLessThan(xml.indexOf('<volume>'));
+    expect(xml.indexOf('</lpage>')).toBeLessThan(xml.indexOf('<abstract>'));
+    expect(xml.indexOf('</abstract>')).toBeLessThan(xml.indexOf('<kwd-group>'));
     expect(xml).toContain('<xref ref-type="bibr" rid="ref3 ref4 ref5">[3–5]</xref> and [99]');
     expect(xml).toContain(
       '<ref id="ref3"><mixed-citation>Reference 3 <pub-id pub-id-type="doi">10.1/ref</pub-id>',
@@ -72,6 +81,7 @@ describe('R17d JATS export', () => {
       'named-content[content-type="sentence"] named-content[vocab="paperlab-rhetoric"] named-content[vocab="paperlab-stance"]',
     );
     expect(sentence).not.toBeNull();
+    expect(doc.querySelectorAll('named-content:not([content-type])')).toHaveLength(0);
     expect(doc.querySelector('named-content[vocab-term="limitation"]')).toBeNull();
     expect(paperModelToJats(model)).not.toContain('content-type="sentence"');
   });

@@ -64,7 +64,7 @@ export function paperModelToJats(model: PaperModel, options?: { sentences?: bool
       let content = text(sentence.text);
       const labels = model.annotations.filter((a) => a.key === sentence.key && a.state !== 'rejected');
       for (const label of labels.slice().reverse())
-        content = `<named-content vocab="${escapeXml(label.scheme)}" vocab-term="${escapeXml(label.label)}">${content}</named-content>`;
+        content = `<named-content content-type="annotation" vocab="${escapeXml(label.scheme)}" vocab-term="${escapeXml(label.label)}">${content}</named-content>`;
       // The content key is stable and its punctuation is encoded into an XML-safe ID.
       const id = `s-${sentence.key.replace('#', '-')}`;
       result += `<named-content content-type="sentence" id="${escapeXml(id)}">${content}</named-content>`;
@@ -80,7 +80,7 @@ export function paperModelToJats(model: PaperModel, options?: { sentences?: bool
       case 'equation':
         return `<disp-formula>${value}</disp-formula>`;
       case 'table':
-        return `<table-wrap><p>${value}</p></table-wrap>`;
+        return `<table-wrap><table><tbody><tr><td>${value}</td></tr></tbody></table></table-wrap>`;
       case 'caption':
       case 'footnote':
         return `<p content-type="${block.kind}">${value}</p>`;

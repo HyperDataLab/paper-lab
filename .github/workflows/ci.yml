@@ -18,6 +18,8 @@ jobs:
       - run: npm run format:check
       - run: npm run test:cov
       - run: npm run build
+      - run: command -v xmllint >/dev/null || (sudo apt-get update && sudo apt-get install -y libxml2-utils)
+      - run: npm run check:jats
       - run: npm ci --prefix worker
       - run: npm run typecheck:worker
       - run: npm run test:worker
