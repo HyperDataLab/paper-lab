@@ -115,6 +115,7 @@ export default function Page() {
         <div className={styles.search}>
           <TextField
             label="Tìm trong lịch sử"
+            hideLabel
             type="search"
             placeholder="Tên bài báo hoặc nội dung đoạn"
             value={query}

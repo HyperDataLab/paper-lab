@@ -5,14 +5,9 @@
 }
 .table th,
 .table td {
-  border-bottom: 1px solid var(--border);
-  padding: var(--space-2) var(--space-3);
   text-align: left;
-  vertical-align: top;
 }
 .table tbody th {
-  color: var(--text-muted);
-  font-weight: 600;
   white-space: nowrap;
   width: 1%;
 }
@@ -115,4 +110,24 @@
 }
 .model p {
   margin: 0;
+}
+.facts {
+  display: grid;
+  gap: 0;
+  margin: var(--space-3) 0 0;
+}
+.facts > div {
+  display: grid;
+  grid-template-columns: minmax(96px, 30%) minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.facts dt {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }

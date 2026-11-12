@@ -1,6 +1,8 @@
+import { FileCheck2, Link2, PenLine, ShieldCheck } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ParagraphModes } from '@/modules/evaluate/ParagraphModes';
+import { PageHeader } from '@/shared/ui/PageHeader';
 import { buildGeneration } from '@/core/generation';
 import { GenerationInputSchema, type GenerationInput } from '@/core/prompts/generation';
 import type { Generation } from '@/core/schemas';
@@ -127,8 +129,12 @@ export default function Page() {
   const failed = generation?.checks.overall.filter((check) => check.status === 'fail') ?? [];
   return (
     <div className={styles.page}>
-      <h1>Soạn đoạn</h1>
-      {!id && !generation && <ParagraphModes current="/generate" />}
+      <PageHeader
+        title="Soạn đoạn văn"
+        lead="Viết một đoạn từ luận điểm và bằng chứng bạn đưa vào. AI không thêm số liệu hay nguồn mới."
+      >
+        {!id && !generation && <ParagraphModes current="/generate" />}
+      </PageHeader>
       {(running || generation) && (
         <ActionBar status={running ? <span role="status">Đang soạn đoạn…</span> : undefined}>
           {running && (
@@ -182,7 +188,45 @@ export default function Page() {
           finishVariant={generation ? 'secondary' : 'primary'}
           onFinish={() => void generate()}
         />
-        {generation && <GenerationResult generation={generation} highlight={setHighlighted} />}
+        {generation ? (
+          <GenerationResult generation={generation} highlight={setHighlighted} />
+        ) : (
+          <aside className={styles.guide} aria-labelledby="generate-guide">
+            <h2 id="generate-guide">AI sẽ làm gì</h2>
+            <ul>
+              <li>
+                <FileCheck2 size={16} aria-hidden="true" />
+                <span>
+                  <strong>Chỉ dùng đầu vào của bạn</strong>
+                  <small>Không thêm số liệu, nguồn hay sự kiện mới.</small>
+                </span>
+              </li>
+              <li>
+                <Link2 size={16} aria-hidden="true" />
+                <span>
+                  <strong>Gắn mỗi câu với bằng chứng</strong>
+                  <small>Rê chuột lên e1, e2… trong đoạn để thấy câu dựa vào đâu.</small>
+                </span>
+              </li>
+              <li>
+                <ShieldCheck size={16} aria-hidden="true" />
+                <span>
+                  <strong>Tự kiểm tra sau khi viết</strong>
+                  <small>
+                    Số liệu, phủ định và mức dè dặt phải khớp đầu vào; câu không đạt được đánh dấu.
+                  </small>
+                </span>
+              </li>
+              <li>
+                <PenLine size={16} aria-hidden="true" />
+                <span>
+                  <strong>Bạn quyết định</strong>
+                  <small>Dùng đoạn này sẽ mở nó trong Đánh giá để phân tích tiếp.</small>
+                </span>
+              </li>
+            </ul>
+          </aside>
+        )}
       </div>
       {error && (
         <div role="alert">

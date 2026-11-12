@@ -1,9 +1,8 @@
 import { Button } from '@/shared/ui/Button';
 import type { SyntaxAnalysis } from './useSyntaxAnalysis';
-import styles from './syntax.module.css';
 import { Link } from 'react-router-dom';
 
-/** AI sentence-analysis toolbar: run / cancel, error, context and marker legend. */
+/** AI sentence analysis: run, re-run or cancel, and the error when it fails. */
 export function SyntaxControls({
   syntax,
   readOnly,
@@ -19,27 +18,24 @@ export function SyntaxControls({
 }) {
   return (
     <>
-      {!readOnly && (
-        <div className={styles.toolbar}>
-          {syntax.running ? (
-            <>
-              <span role="status">Đang phân tích câu…</span>
-              <Button variant="danger" onClick={syntax.cancel}>
-                Huỷ
-              </Button>
-            </>
-          ) : (
-            <Button
-              variant={syntax.annotations ? 'secondary' : 'primary'}
-              onClick={onRun}
-              disabled={saved || busy}
-            >
-              {syntax.annotations ? 'Phân tích lại (AI)' : 'Phân tích câu (AI)'}
+      {!readOnly &&
+        (syntax.running ? (
+          <>
+            <span role="status">Đang phân tích câu…</span>
+            <Button size="sm" variant="danger" onClick={syntax.cancel}>
+              Huỷ
             </Button>
-          )}
-          {saved && <small>Đã lưu — chọn Chỉnh sửa văn bản để phân tích lại</small>}
-        </div>
-      )}
+          </>
+        ) : (
+          <Button
+            size="sm"
+            variant={syntax.annotations ? 'secondary' : 'primary'}
+            onClick={onRun}
+            disabled={saved || busy}
+          >
+            {syntax.annotations ? 'Phân tích lại (AI)' : 'Phân tích câu (AI)'}
+          </Button>
+        ))}
       {syntax.error && (
         <p role="alert">
           Không phân tích được câu: {syntax.error}{' '}

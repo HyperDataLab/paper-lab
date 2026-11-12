@@ -1,17 +1,23 @@
+import { Library, Plus, RefreshCw } from 'lucide-react';
+import { Badge } from '@/shared/ui/Badge';
+import { ItemCard, ItemGrid } from '@/shared/ui/ItemCard';
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { newCorpus } from '@/core/corpus';
 import type { Corpus } from '@/core/schemas/corpus';
 import { useAuth } from '@/shared/auth/authContext';
 import { CorpusConflict, pullCorpus, pullCorpora, pushCorpus } from '@/shared/corpusSync';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
-import { Card } from '@/shared/ui/Card';
+import { Dialog, DialogActions } from '@/shared/ui/Dialog';
+import { PageHeader } from '@/shared/ui/PageHeader';
+import { Empty } from '@/shared/ui/StateNote';
 import { Select } from '@/shared/ui/Select';
 import { TextField } from '@/shared/ui/TextField';
 import { ProtocolForm } from './ProtocolForm';
 import { kinds } from './labels';
 import { createEswaPair, ESWA_SEED } from './journalSampling';
+import { downloadManifest } from './manifest';
 import styles from './corpus.module.css';
 
 export default function Page() {
@@ -20,9 +26,11 @@ export default function Page() {
   const [conflict, setConflict] = useState<{ corpus: Corpus; version: string | null }>();
   const navigate = useNavigate();
   const [items, setItems] = useState<Corpus[]>([]);
+  const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState('');
   const [kind, setKind] = useState<Corpus['kind']>('topic');
   const [error, setError] = useState('');
+  const [removing, setRemoving] = useState<Corpus | null>(null);
   async function sync() {
     try {
       const token = await getIdToken();
@@ -118,65 +126,172 @@ export default function Page() {
   }
   return (
     <div className={styles.page}>
-      <h1>Corpus</h1>
-      <Button
-        onClick={() =>
-          void (async () => {
-            try {
-              const pair = createEswaPair(crypto.randomUUID(), crypto.randomUUID(), new Date().toISOString());
-              for (const item of pair) await repo.corpora.save(item);
-              setItems(await repo.corpora.list());
-            } catch (e) {
-              setError(String(e));
-            }
-          })()
-        }
+      <PageHeader
+        title="Corpus"
+        lead="Tập bài báo có tiêu chí chọn rõ ràng, dùng làm nền cho tổng hợp và so sánh."
       >
-        Tạo cặp ESWA
-      </Button>
+        {user && (
+          <Button onClick={() => void sync()} leadingIcon={<RefreshCw size={16} aria-hidden="true" />}>
+            Đồng bộ
+          </Button>
+        )}
+        <Button
+          variant="primary"
+          leadingIcon={<Plus size={16} aria-hidden="true" />}
+          onClick={() => setCreating(true)}
+        >
+          Corpus mới
+        </Button>
+        <Button
+          onClick={() =>
+            void (async () => {
+              try {
+                const pair = createEswaPair(
+                  crypto.randomUUID(),
+                  crypto.randomUUID(),
+                  new Date().toISOString(),
+                );
+                for (const item of pair) await repo.corpora.save(item);
+                setItems(await repo.corpora.list());
+              } catch (e) {
+                setError(String(e));
+              }
+            })()
+          }
+        >
+          Tạo cặp ESWA
+        </Button>
+      </PageHeader>
       <p>Seed cho cặp ESWA: {ESWA_SEED}</p>
-      <Card>
-        <h2>Tạo corpus</h2>
-        <div className={styles.form}>
-          <TextField label="Tên corpus" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <Select
-            label="Loại corpus"
-            value={kind}
-            onChange={(e) => setKind(e.target.value as Corpus['kind'])}
-          >
-            <option value="topic">Chủ đề</option>
-            <option value="journal">Journal</option>
-            <option value="control">Đối chứng</option>
-          </Select>
-          <ProtocolForm key={kind} kind={kind} label="Tạo corpus" onSave={(body) => void create(body)} />
-        </div>
-      </Card>
       {error && <p role="alert">{error}</p>}
-      <h2>Các corpus</h2>
-      {user ? <Button onClick={() => void sync()}>Đồng bộ</Button> : <p>Đăng nhập để đồng bộ corpus.</p>}
       {conflict && (
-        <div role="alert">
+        <div role="alert" className={styles.conflict}>
           <p>Corpus đã được người khác sửa: {conflict.corpus.title}</p>
-          <Button onClick={() => void resolveConflict(false)}>Tải bản mới</Button>
-          <Button onClick={() => void resolveConflict(true)}>Giữ bản của tôi</Button>
+          <Button size="sm" onClick={() => void resolveConflict(false)}>
+            Tải bản mới
+          </Button>
+          <Button size="sm" onClick={() => void resolveConflict(true)}>
+            Giữ bản của tôi
+          </Button>
         </div>
       )}
+      {!user && <p className={styles.muted}>Đăng nhập tài khoản lab để đồng bộ corpus giữa các máy.</p>}
       {items.length === 0 ? (
-        <p>Chưa có corpus nào.</p>
+        <Empty title="Chưa có corpus nào." hint="Corpus bạn tạo sẽ hiện ở đây.">
+          <Button onClick={() => setCreating(true)}>Tạo corpus đầu tiên</Button>
+        </Empty>
       ) : (
-        <ul className={styles.list}>
-          {items.map((item) => (
-            <li key={item.id}>
-              <Card>
-                <Link to={`/corpus/${item.id}`}>{item.title}</Link>
-                <p className={styles.muted}>
-                  {kinds[item.kind]} · {item.members.length} bài · cập nhật{' '}
-                  {new Date(item.updatedAt).toLocaleString('vi-VN')}
-                </p>
-              </Card>
-            </li>
-          ))}
-        </ul>
+        <ItemGrid label="Các corpus">
+          {items.map((item) => {
+            const body = item.protocol.at(-1)?.body;
+            const about = !body
+              ? ''
+              : 'researchQuestion' in body
+                ? body.researchQuestion
+                : body.venues.map((venue) => venue.name).join(', ');
+            const retrieved = item.members.filter((m) => m.retrieval === 'retrieved').length;
+            return (
+              <li key={item.id}>
+                <ItemCard
+                  to={`/corpus/${item.id}`}
+                  icon={<Library size={20} />}
+                  title={item.title}
+                  description={about}
+                  badges={<Badge>{kinds[item.kind]}</Badge>}
+                  actions={[
+                    { label: 'Mở', onSelect: () => navigate(`/corpus/${item.id}`) },
+                    {
+                      label: 'Xuất manifest',
+                      onSelect: () => {
+                        try {
+                          downloadManifest(item);
+                        } catch (e) {
+                          setError(String(e));
+                        }
+                      },
+                    },
+                    { label: 'Xoá', danger: true, onSelect: () => setRemoving(item) },
+                  ]}
+                  stats={[
+                    { label: 'Bài', value: item.members.length },
+                    { label: 'Đã lấy', value: retrieved },
+                    { label: 'Phát hành', value: item.releases.length },
+                  ]}
+                  progress={
+                    item.members.length
+                      ? {
+                          value: retrieved,
+                          max: item.members.length,
+                          label: `Đã lấy ${retrieved}/${item.members.length} bài`,
+                        }
+                      : undefined
+                  }
+                  footer={
+                    <>
+                      <span>Giao thức v{item.protocol.at(-1)?.version ?? 1}</span>
+                      <span>Cập nhật {new Date(item.updatedAt).toLocaleDateString('vi-VN')}</span>
+                    </>
+                  }
+                />
+              </li>
+            );
+          })}
+        </ItemGrid>
+      )}
+      {creating && (
+        <Dialog
+          kind="form"
+          title="Tạo corpus"
+          description="Đặt tên và tiêu chí chọn bài. Sửa tiêu chí về sau sẽ tạo một phiên bản protocol mới."
+          onClose={() => setCreating(false)}
+        >
+          <div className={styles.form}>
+            <TextField label="Tên corpus" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <Select
+              label="Loại corpus"
+              value={kind}
+              onChange={(e) => setKind(e.target.value as Corpus['kind'])}
+            >
+              <option value="topic">Chủ đề</option>
+              <option value="journal">Journal</option>
+              <option value="control">Đối chứng</option>
+            </Select>
+            <ProtocolForm
+              key={kind}
+              kind={kind}
+              label="Tạo corpus"
+              onSave={(body) => void create(body)}
+              onCancel={() => setCreating(false)}
+            />
+          </div>
+        </Dialog>
+      )}
+      {removing && (
+        <Dialog
+          title="Xoá corpus này?"
+          description={`Corpus “${removing.title}” cùng giao thức và các bản phát hành sẽ bị xoá khỏi máy này. Bài báo trong Library không bị xoá.`}
+          onClose={() => setRemoving(null)}
+        >
+          <DialogActions>
+            <Button variant="ghost" onClick={() => setRemoving(null)}>
+              Huỷ
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                const target = removing;
+                setRemoving(null);
+                void repo.corpora
+                  .delete(target.id)
+                  .then(() => repo.corpora.list())
+                  .then(setItems)
+                  .catch((e: unknown) => setError(String(e)));
+              }}
+            >
+              Xoá corpus
+            </Button>
+          </DialogActions>
+        </Dialog>
       )}
     </div>
   );

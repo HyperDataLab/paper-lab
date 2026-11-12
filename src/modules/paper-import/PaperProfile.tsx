@@ -83,42 +83,64 @@ export function PaperProfile({
     <section aria-label={label} className={styles.profile}>
       {error && <p role="alert">Không tải được một phần dữ liệu của hồ sơ.</p>}
       <div className={styles.grid}>
-        {dimensions.map((dimension) => (
-          <Card key={dimension.id} padding="md">
-            <article aria-label={dimension.title} className={styles.card}>
-              <header className={styles.head}>
-                <span aria-hidden="true" className={styles.letter}>
-                  {dimension.letter}
-                </span>
-                <div className={styles.titles}>
-                  <h2>{dimension.title}</h2>
-                  <p>{dimension.question}</p>
-                </div>
-                <Badge tone={STATES[dimension.state].tone}>{STATES[dimension.state].label}</Badge>
-              </header>
-              {dimension.indicators.length > 0 && (
-                <div className={styles.indicators}>
-                  {dimension.indicators.map((indicator) => (
-                    <Stat
-                      key={indicator.id}
-                      value={indicator.value ?? '—'}
-                      label={indicator.source === 'ai' ? `${indicator.label} · AI` : indicator.label}
-                    />
-                  ))}
-                </div>
-              )}
-              {dimension.attention && <p className={styles.attention}>{dimension.attention}</p>}
-              <footer className={styles.foot}>
-                <span>{dimension.coverage}</span>
-                {dimension.target && (
-                  <Button size="sm" onClick={() => dimension.target && onOpen(dimension.target)}>
-                    {dimension.state === 'empty' ? 'Mở để phân tích' : 'Xem chi tiết'}
-                  </Button>
+        {dimensions.map((dimension) => {
+          const measured = dimension.indicators.filter((indicator) => indicator.value !== null);
+          const pending = dimension.indicators.filter((indicator) => indicator.value === null);
+          const empty = dimension.state === 'empty' && measured.length === 0;
+          return (
+            <Card key={dimension.id} padding="md">
+              <article aria-label={dimension.title} className={styles.card} data-empty={empty}>
+                <header className={styles.head}>
+                  <span aria-hidden="true" className={styles.letter}>
+                    {dimension.letter}
+                  </span>
+                  <div className={styles.titles}>
+                    <h2>{dimension.title}</h2>
+                    <p>{dimension.question}</p>
+                  </div>
+                  {dimension.state === 'partial' && <Badge tone="warning">{STATES.partial.label}</Badge>}
+                </header>
+                {measured.length > 0 && (
+                  <div className={styles.indicators}>
+                    {measured.map((indicator) => (
+                      <Stat
+                        key={indicator.id}
+                        value={indicator.value}
+                        label={
+                          indicator.source === 'ai' ? (
+                            <>
+                              {indicator.label} <span className={styles.ai}>AI</span>
+                            </>
+                          ) : (
+                            indicator.label
+                          )
+                        }
+                      />
+                    ))}
+                  </div>
                 )}
-              </footer>
-            </article>
-          </Card>
-        ))}
+                {!empty && pending.length > 0 && (
+                  <p className={styles.planned}>
+                    Chưa đo: {pending.map((indicator) => indicator.label.toLowerCase()).join(', ')}.
+                  </p>
+                )}
+                {dimension.attention && <p className={styles.attention}>{dimension.attention}</p>}
+                <footer className={styles.foot}>
+                  <span>{empty ? 'Chưa phân tích' : dimension.coverage}</span>
+                  {dimension.target && (
+                    <Button
+                      size="sm"
+                      variant={empty ? 'secondary' : 'ghost'}
+                      onClick={() => dimension.target && onOpen(dimension.target)}
+                    >
+                      {empty ? 'Mở để phân tích' : 'Xem chi tiết'}
+                    </Button>
+                  )}
+                </footer>
+              </article>
+            </Card>
+          );
+        })}
       </div>
     </section>
   );

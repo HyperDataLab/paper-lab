@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Table2 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import {
   addFields,
@@ -23,7 +23,7 @@ import { useRepositories } from '@/shared/storage/StorageProvider';
 import { ActionBar, ActionMenu } from '@/shared/ui/ActionBar';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
-import { Card } from '@/shared/ui/Card';
+import { Empty } from '@/shared/ui/StateNote';
 import { Chip } from '@/shared/ui/Chip';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { useExtractionRun } from './useExtractionRun';
@@ -226,15 +226,32 @@ export default function ProjectPage() {
             ))}
           </div>
           {!project.papers.length || !visible.length ? (
-            <Card padding="md">
-              <div className={styles.startState}>
-                <h2>Bắt đầu</h2>
-                <p>
-                  {!project.papers.length ? 'Thêm các bài cần so sánh. ' : ''}
-                  {!visible.length ? 'Thêm các cột cần trích, hoặc chọn một mẫu theo loại bài.' : ''}
-                </p>
-              </div>
-            </Card>
+            <Empty
+              icon={<Table2 size={22} />}
+              title={!project.papers.length ? 'Bảng chưa có bài nào' : 'Bảng chưa có cột nào'}
+              hint={
+                !project.papers.length && !visible.length
+                  ? 'Mỗi hàng là một bài, mỗi cột là một thông tin cần trích. Chọn bài trước, rồi chọn cột hoặc một mẫu theo loại bài.'
+                  : !project.papers.length
+                    ? 'Chọn các bài cần so sánh; mỗi bài là một hàng.'
+                    : 'Chọn các thông tin cần trích, hoặc một mẫu cột theo loại bài.'
+              }
+            >
+              {!project.papers.length && (
+                <Button variant="primary" onClick={() => setPanel('papers')}>
+                  Chọn bài để so sánh
+                </Button>
+              )}
+              {!visible.length && (
+                <Button
+                  variant={project.papers.length ? 'primary' : 'secondary'}
+                  disabled={project.fields.length >= MAX_COLUMNS}
+                  onClick={() => setPanel('columns')}
+                >
+                  Chọn cột cần trích
+                </Button>
+              )}
+            </Empty>
           ) : (
             <div className={styles.scroll}>
               <table className={styles.matrix}>

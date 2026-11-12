@@ -1,22 +1,50 @@
 .viewer {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-2);
+  gap: 0;
+  /* The PDF sits on the desk edge to edge; its column keeps padding for everything else. */
+  margin: calc(var(--space-3) * -1) calc(var(--space-4) * -1) calc(var(--space-4) * -1);
 }
 .toolbar {
   position: sticky;
-  top: var(--space-10);
-  z-index: 2;
+  /* Tucked 1px under the column's tab bar, so no page shows through a seam while scrolling. */
+  top: var(--control-h-lg);
+  z-index: 7;
+  box-shadow: 0 calc(var(--space-4) * -1) 0 0 var(--surface);
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-1) var(--space-2);
-  padding: var(--space-2) 0;
+  align-items: center;
+  gap: var(--space-2) var(--space-1);
+  min-height: var(--control-h-lg);
+  padding: var(--space-1) var(--space-3);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
-.toolbar label {
-  width: calc(var(--space-10) * 2);
+.toolbar input[type='number'] {
+  width: calc(var(--space-12) + var(--space-1));
+  text-align: center;
+  -moz-appearance: textfield;
+}
+.toolbar input[type='number']::-webkit-inner-spin-button,
+.toolbar input[type='number']::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+.toolbar input[type='search'] {
+  width: calc(var(--space-10) * 5);
+}
+.toolbar > div {
+  min-width: 0;
+}
+.divider {
+  width: 1px;
+  height: var(--space-5);
+  margin: 0 var(--space-1);
+  background: var(--border);
+}
+.zoom {
+  min-width: var(--space-10);
+  text-align: center;
 }
 .count {
   align-self: center;
@@ -30,17 +58,18 @@
 .pages {
   display: grid;
   justify-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) 0;
-  background: var(--bg);
-  border-radius: var(--radius);
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-4) var(--space-10);
+  background: var(--desk);
 }
 .page {
   position: relative;
+  /* Marks and the text layer stack inside their page, never over the sticky bars above it. */
+  isolation: isolate;
   /* A page shown by its number starts below the sticky toolbar. */
   scroll-margin-top: calc(var(--space-10) * 3);
   background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-page);
   outline: 2px solid transparent;
   transition: outline-color 0.3s;
 }
@@ -84,8 +113,10 @@
   display: flex;
   flex-basis: 100%;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-1) var(--space-2);
+  align-items: center;
+  gap: var(--space-2);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--border-subtle);
 }
 .back {
   font-weight: 600;

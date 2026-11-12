@@ -1,5 +1,7 @@
+import { ArrowLeft, Info, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { IconButton } from '@/shared/ui/IconButton';
 import { paperIdentity } from '@/core/paperIdentity';
 import {
   type Paper,
@@ -1075,24 +1077,31 @@ export default function PaperMapPage() {
     </Button>
   );
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${styles.paperPage}`}>
       <header className={styles.paperHead}>
-        <Link to="/papers">← Bài báo đã nhập</Link>
+        <Link to="/papers" className={styles.backLink}>
+          <ArrowLeft size={14} aria-hidden="true" />
+          Bài báo đã nhập
+        </Link>
         <div className={styles.titleRow}>
           <h1>{shownTitle ?? paperIdentity(paper).title}</h1>
           <div className={styles.row}>
             {wide && (
-              <Button size="sm" aria-pressed={!splitWanted} onClick={toggleSplit}>
-                {splitWanted ? 'Ẩn phân tích' : 'Hiện phân tích'}
-              </Button>
+              <IconButton
+                aria-pressed={!splitWanted}
+                label={splitWanted ? 'Ẩn phân tích' : 'Hiện phân tích'}
+                onClick={toggleSplit}
+              >
+                {splitWanted ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
+              </IconButton>
             )}
             <Transparency
               paper={paper}
               parserCounts={`${paper.source.pageCount ?? 'Không rõ'} trang · ${paper.sections.length} mục · ${bodyCount} đoạn nội dung${counts ? ` · ${counts.sentences} câu · ${counts.words} từ` : ''}`}
             />
-            <Button size="sm" onClick={() => setInfoOpen(true)}>
-              Thông tin xuất bản
-            </Button>
+            <IconButton label="Thông tin xuất bản" onClick={() => setInfoOpen(true)}>
+              <Info size={18} />
+            </IconButton>
           </div>
         </div>
         <p className={styles.paperMeta}>
@@ -1133,7 +1142,11 @@ export default function PaperMapPage() {
                 onClick={() => openSpace(item.id)}
               >
                 {item.label}
-                {item.id !== 'data' && ` · ${count} issues`}
+                {item.id !== 'data' && count > 0 && (
+                  <span className={styles.spaceCount} aria-label={`${count} issues`}>
+                    {count}
+                  </span>
+                )}
               </Button>
             );
           })}
@@ -1147,19 +1160,17 @@ export default function PaperMapPage() {
         }}
         side="right"
         label="Thông tin xuất bản"
+        title="Thông tin xuất bản"
       >
-        <Button
-          onClick={() => {
-            setInfoOpen(false);
-            void repo.paperContext.get(paper.id).then((context) => setMetadata(context?.metadata ?? null));
-          }}
-        >
-          Đóng
-        </Button>
         {infoOpen && <PaperMetadata paper={paper} />}
       </Drawer>
-      <Drawer open={markDrawer !== null} onClose={() => setMarkDrawer(null)} side="right" label="Issue">
-        <Button onClick={() => setMarkDrawer(null)}>Đóng</Button>
+      <Drawer
+        open={markDrawer !== null}
+        onClose={() => setMarkDrawer(null)}
+        side="right"
+        label="Issue"
+        title="Issue"
+      >
         {markDrawer && (
           <FindingsList
             paper={paper}
@@ -1197,7 +1208,15 @@ export default function PaperMapPage() {
                 onClose={() => setEvidence(null)}
                 onOpenReader={openInReader}
               />
-              <div className={wide && showRight && !inSpace ? styles.workspace : undefined}>
+              <div
+                className={
+                  wide
+                    ? showRight && !inSpace && centreVisible
+                      ? styles.workspace
+                      : styles.workspaceSingle
+                    : undefined
+                }
+              >
                 <section
                   ref={centreColumn}
                   className={wide ? styles.column : undefined}
@@ -1311,9 +1330,15 @@ export default function PaperMapPage() {
                 >
                   {inSpace ? (
                     <div className={styles.spaceHead}>
-                      <Button variant="ghost" size="sm" onClick={() => setTab(beforeSpace.current)}>
-                        ← Quay lại bài
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        leadingIcon={<ArrowLeft size={16} aria-hidden="true" />}
+                        onClick={() => setTab(beforeSpace.current)}
+                      >
+                        Quay lại bài
                       </Button>
+                      <span className={styles.spaceDivider} aria-hidden="true" />
                       <h2>{SPACES.find((item) => item.id === mode)?.label}</h2>
                     </div>
                   ) : (

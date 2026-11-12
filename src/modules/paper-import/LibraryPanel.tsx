@@ -17,7 +17,6 @@ import { downloadText } from '@/shared/calibration/download';
 import { getScholarEmail } from '@/shared/scholar/settings';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
-import { Card } from '@/shared/ui/Card';
 import { Checkbox } from '@/shared/ui/Checkbox';
 import { Chip } from '@/shared/ui/Chip';
 import { Dialog } from '@/shared/ui/Dialog';
@@ -131,20 +130,24 @@ export function LibraryPanel() {
   );
   return (
     <div className={styles.panel}>
-      <Card>
-        <h2>Thêm bài báo theo DOI</h2>
+      <h2 className={styles.composerTitle}>Thêm bài báo theo DOI</h2>
+      <div className={styles.composer}>
         <TextField
           multiline
-          rows={4}
-          placeholder={'Ví dụ: 10.1038/s41586-020-2649-2\n10.1145/3368089.3409740'}
+          rows={3}
+          placeholder={
+            'Dán DOI, đường dẫn doi.org hoặc cả đoạn văn có DOI. Ví dụ:\n10.1038/s41586-020-2649-2'
+          }
           label="Dán DOI, đường dẫn doi.org, hoặc cả đoạn văn có DOI"
+          hideLabel
           value={text}
           onChange={(event) => setText(event.target.value)}
         />
-        <div className={styles.actions}>
-          <Button variant="primary" disabled={!text.trim()} onClick={() => void addFrom(text)}>
-            Thêm và tra cứu
-          </Button>
+        <div className={styles.composerFoot}>
+          <p className={styles.note}>
+            Chỉ DOI được gửi tới OpenAlex, Crossref, Europe PMC{getScholarEmail() ? ' và Unpaywall' : ''}.{' '}
+            {!getScholarEmail() && <Link to="/settings">Thêm email trong Cài đặt</Link>}
+          </p>
           <Button onClick={() => csvInput.current?.click()}>Nhập tệp CSV</Button>
           <input
             ref={csvInput}
@@ -154,28 +157,22 @@ export function LibraryPanel() {
             aria-label="Chọn tệp CSV"
             onChange={(event) => void readCsv(event)}
           />
+          <Button variant="primary" disabled={!text.trim()} onClick={() => void addFrom(text)}>
+            Thêm và tra cứu
+          </Button>
         </div>
-        {report && <p role="status">{report}</p>}
-        {skipped.length > 0 && (
-          <details>
-            <summary>{skipped.length} dòng không có DOI</summary>
-            <ul>
-              {skipped.slice(0, 20).map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          </details>
-        )}
-        <p className={styles.note}>
-          Chỉ DOI được gửi tới OpenAlex, Crossref, Europe PMC{getScholarEmail() ? ' và Unpaywall' : ''}. Nội
-          dung bài không gửi đi.{' '}
-          {!getScholarEmail() && (
-            <>
-              <Link to="/settings">Thêm email trong Cài đặt</Link> để tra thêm Unpaywall.
-            </>
-          )}
-        </p>
-      </Card>
+      </div>
+      {report && <p role="status">{report}</p>}
+      {skipped.length > 0 && (
+        <details>
+          <summary>{skipped.length} dòng không có DOI</summary>
+          <ul>
+            {skipped.slice(0, 20).map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </details>
+      )}
       {problem && <div role="alert">{problem}</div>}
       {library.error && <div role="alert">Không thể tải thư viện: {library.error}</div>}
       {items.length > 0 && (

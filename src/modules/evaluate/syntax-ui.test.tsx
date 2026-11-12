@@ -94,7 +94,7 @@ it('EV-02 EV-03 asks consent, then shows markers, T/A/S and the review label for
   expect(screen.getByLabelText('Phần xen giữa chủ–vị')).toHaveTextContent(
     'after very extensive testing across many new multiple datasets',
   );
-  expect(screen.getByText('T: The model')).toBeInTheDocument();
+  expect(screen.getByText('Topic').nextElementSibling).toHaveTextContent('The model');
   expect(screen.getByText('Bị động')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Đánh giá theo ngữ cảnh (AI)' })).toBeInTheDocument();
   expect(screen.getByText(/Chỉ phân tích riêng đoạn này/)).toBeInTheDocument();
@@ -185,7 +185,7 @@ it('EV-11 reopening a pre-S6 analysis computes candidates locally', async () => 
   const saved = await repo.analyses.create({ text: await analyzeText('Very clear results.') });
   const { client, completeJson } = fakeClient();
   renderEvaluate(repo, client, `/evaluate?id=${saved.id}`);
-  expect(await screen.findByRole('heading', { name: 'Gợi ý (1)' })).toBeInTheDocument();
+  expect(await screen.findByText('1 cần xem')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /Từ ngữ.*Very/ }));
   expect(screen.getByText(/^Gợi ý:/)).toBeInTheDocument();
   expect(completeJson).not.toHaveBeenCalled();
@@ -213,14 +213,15 @@ it('EV-11 AC-05 AC-06 AC-12 audits unsaved and later saved decisions and restore
     'confirm',
   ]);
   fireEvent.click(screen.getByRole('tab', { name: /Đã xử lý/ }));
+  expect(screen.queryByText('Chưa hiệu chuẩn (n=1)')).toBeNull();
+  fireEvent.click(await screen.findByRole('button', { name: /Từ ngữ.*Very/ }));
   expect(await screen.findByText('Chưa hiệu chuẩn (n=1)')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: /Từ ngữ.*Very/ }));
   chooseSelectOption('Mức độ', 'Lớn');
   await waitFor(async () => expect((await repo.analyses.get(item.id))?.issues[0]?.severity).toBe('major'));
   expect(spy).toHaveBeenCalledWith(item.id, expect.any(String), { severity: 'major' });
   view.unmount();
   renderEvaluate(repo, client, `/evaluate?id=${item.id}`);
-  await screen.findByRole('heading', { name: 'Gợi ý (0)' });
+  await screen.findByText('0 cần xem');
   fireEvent.click(screen.getByRole('tab', { name: /Đã xử lý/ }));
   fireEvent.click(screen.getByRole('button', { name: /Từ ngữ.*Very/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }));

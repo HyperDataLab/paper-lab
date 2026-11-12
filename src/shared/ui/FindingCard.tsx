@@ -1,3 +1,5 @@
+import { Ban, Check, Undo2, X } from 'lucide-react';
+import { IconButton } from './IconButton';
 import type { ReactNode } from 'react';
 import { Button } from './Button';
 import styles from './ui.module.css';
@@ -62,24 +64,24 @@ export function ReviewActions({
 }) {
   if (decided)
     return (
-      <Button size="sm" variant="ghost" onClick={onUndo}>
-        Hoàn tác
-      </Button>
+      <IconButton size="sm" label="Hoàn tác" onClick={onUndo}>
+        <Undo2 size={16} />
+      </IconButton>
     );
   if (acceptByDefault)
     return (
-      <Button size="sm" variant="ghost" onClick={onDismiss}>
-        Bác bỏ
-      </Button>
+      <IconButton size="sm" tone="danger" label="Bác bỏ" onClick={onDismiss}>
+        <Ban size={16} />
+      </IconButton>
     );
   return (
     <>
-      <Button size="sm" variant="ghost" onClick={onDismiss}>
-        {dismissLabel}
-      </Button>
-      <Button size="sm" onClick={onConfirm}>
-        {confirmLabel}
-      </Button>
+      <IconButton size="sm" tone="danger" label={dismissLabel} onClick={onDismiss}>
+        <X size={16} />
+      </IconButton>
+      <IconButton size="sm" tone="accent" label={confirmLabel} onClick={onConfirm}>
+        <Check size={16} />
+      </IconButton>
     </>
   );
 }

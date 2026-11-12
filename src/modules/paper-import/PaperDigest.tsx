@@ -1,3 +1,4 @@
+import { Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { FindingLocation } from '@/core/paperFindings';
 import type { DigestItem, DigestText, Paper, PaperInsightsRecord } from '@/core/schemas';
@@ -8,7 +9,7 @@ import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
-import { Loading } from '@/shared/ui/StateNote';
+import { Empty, Loading } from '@/shared/ui/StateNote';
 import { useReportJob, useStoredChanged } from './paperJobs';
 import styles from './digest.module.css';
 
@@ -100,20 +101,17 @@ export function PaperDigest({
   if (!loaded) return <Loading label="Đang tải…" />;
   if (!run)
     return (
-      <Card padding="md">
-        <div className={styles.start}>
-          <p>
-            AI đọc toàn bài và viết bản tóm tắt theo đúng các phần của bài. Mỗi ý kèm số trang để mở đoạn gốc;
-            code kiểm lại nguồn và số liệu.
-          </p>
-          <Button variant="primary" disabled={running} onClick={() => void start()}>
-            {running ? 'Đang tóm tắt…' : 'Tóm tắt bài (AI)'}
-          </Button>
-          <span className={styles.note}>Ước tính 2 lượt gọi AI: bản tóm tắt và Key facts.</span>
-          {running && <span role="status">Đang đọc và tóm tắt bài…</span>}
-          {error && <p role="alert">{error}</p>}
-        </div>
-      </Card>
+      <Empty
+        icon={<Sparkles size={22} />}
+        title="Chưa có bản tóm tắt"
+        hint="AI đọc toàn bài và tóm tắt theo đúng các phần của bài. Mỗi ý kèm số trang để mở đoạn gốc; code kiểm lại nguồn và số liệu. Ước tính 2 lượt gọi AI: bản tóm tắt và Key facts."
+      >
+        <Button variant="primary" disabled={running} onClick={() => void start()}>
+          {running ? 'Đang tóm tắt…' : 'Tóm tắt bài (AI)'}
+        </Button>
+        {running && <span role="status">Đang đọc và tóm tắt bài…</span>}
+        {error && <p role="alert">{error}</p>}
+      </Empty>
     );
   return (
     <Card padding="md">

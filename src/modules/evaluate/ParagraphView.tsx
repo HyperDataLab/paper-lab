@@ -1,9 +1,10 @@
-import { Link2, Unlink } from 'lucide-react';
+import { Link2, Network, Unlink } from 'lucide-react';
 import type { TextAnalysis } from '@/core/schemas';
 import type { ParagraphMetrics } from '@/core/schemas/paragraph';
 import { createOffsetIndex } from '@/core/text';
 import { Badge } from '@/shared/ui/Badge';
 import { Card } from '@/shared/ui/Card';
+import { Empty } from '@/shared/ui/StateNote';
 import styles from './paragraph.module.css';
 import {
   continuityLabels,
@@ -34,114 +35,167 @@ export function ParagraphView({
 }) {
   if (!result)
     return (
-      <Card>
-        <p>Chưa có phân tích cấu trúc đoạn.</p>
-      </Card>
+      <Empty
+        icon={<Network size={20} />}
+        title="Chưa có phân tích cấu trúc đoạn"
+        hint="Chạy Phân tích cấu trúc đoạn (AI) ở bước 2 để thấy kiểu đoạn, ý chính, vai trò từng câu và mạch nối."
+      />
     );
   const index = createOffsetIndex(text.sourceText);
   const quote = (span: { start: number; end: number } | null) =>
     span ? `“${index.sliceCp(span.start, span.end)}”` : 'Chưa xác định';
-  const { paragraph } = result;
+  const { paragraph, metrics } = result;
   const fractionKeys = Object.keys(metricLabels) as (keyof typeof metricLabels)[];
+  const linked = result.flowLinks.filter((link) => link.measured && link.linked).length;
   return (
-    <Card>
-      <h2>Cấu trúc đoạn</h2>
-      <div className={styles.summary}>
-        <span>{paragraph.type === 'UNKNOWN' ? 'Chưa xác định' : paragraph.type}</span>
-        <span className={styles.muted}>độ tin cậy {pct(paragraph.confidence)}</span>
+    <div className={styles.view}>
+      <dl className={styles.summary}>
+        <div>
+          <dt>Kiểu đoạn</dt>
+          <dd>
+            <strong>{paragraph.type === 'UNKNOWN' ? 'Chưa xác định' : paragraph.type}</strong>
+            <span className={styles.muted}>độ tin cậy {pct(paragraph.confidence)}</span>
+          </dd>
+        </div>
+        <div>
+          <dt>Ý chính</dt>
+          <dd>
+            <strong>{paragraph.centralPoint.identifiability}/4</strong>
+            <span className={styles.muted}>
+              {identifiabilityLabels[paragraph.centralPoint.identifiability]}
+            </span>
+          </dd>
+        </div>
+        <div>
+          <dt>Cặp câu nối mạch</dt>
+          <dd>
+            <strong>
+              {linked}/{result.flowLinks.length}
+            </strong>
+            <span className={styles.muted}>cặp có liên kết</span>
+          </dd>
+        </div>
+        <div>
+          <dt>Câu lạc đề</dt>
+          <dd>
+            <strong>{metrics.off_topic_sentence_count.numerator}</strong>
+            <span className={styles.muted}>trên {text.sentences.length} câu</span>
+          </dd>
+        </div>
+      </dl>
+
+      <div className={styles.split}>
+        <Card>
+          <h2 className={styles.cardTitle}>Kiểu cấu trúc</h2>
+          <ul className={styles.scores} aria-label="Điểm theo từng kiểu cấu trúc">
+            {Object.entries(paragraph.typeScores).map(([type, score]) => (
+              <li key={type} className={styles.score} data-top={type === paragraph.type || undefined}>
+                <span>{type === 'UNKNOWN' ? 'Không rõ' : type}</span>
+                <progress max={1} value={score} aria-label={`${type} ${pct(score)}`} />
+                <span>{pct(score)}</span>
+              </li>
+            ))}
+          </ul>
+          {paragraph.rationale && <p className={styles.note}>{paragraph.rationale}</p>}
+        </Card>
+        <Card>
+          <h2 className={styles.cardTitle} id="central-point">
+            Ý chính
+          </h2>
+          <blockquote className={styles.central}>{quote(paragraph.centralPoint.span)}</blockquote>
+          <p className={styles.note}>
+            Mức rõ {paragraph.centralPoint.identifiability}/4 ·{' '}
+            {identifiabilityLabels[paragraph.centralPoint.identifiability]}
+            {paragraph.centralPoint.evidence ? ` · ${paragraph.centralPoint.evidence}` : ''}
+          </p>
+        </Card>
       </div>
-      <ul className={styles.scores} aria-label="Điểm theo từng kiểu cấu trúc">
-        {Object.entries(paragraph.typeScores).map(([type, score]) => (
-          <li key={type} className={styles.score}>
-            <span>{type === 'UNKNOWN' ? 'Không rõ' : type}</span>
-            <progress max={1} value={score} aria-label={`${type} ${pct(score)}`} />
-            <span>{pct(score)}</span>
-          </li>
-        ))}
-      </ul>
-      {paragraph.rationale && <p className={styles.muted}>{paragraph.rationale}</p>}
 
-      <section className={styles.section} aria-labelledby="central-point">
-        <h3 id="central-point">Ý chính</h3>
-        <p className={styles.quote}>{quote(paragraph.centralPoint.span)}</p>
-        <p className={styles.muted}>
-          Mức rõ {paragraph.centralPoint.identifiability}/4 ·{' '}
-          {identifiabilityLabels[paragraph.centralPoint.identifiability]}
-          {paragraph.centralPoint.evidence ? ` · ${paragraph.centralPoint.evidence}` : ''}
-        </p>
-      </section>
-
-      <section className={styles.section} aria-labelledby="sentence-roles">
-        <h3 id="sentence-roles">Vai trò câu</h3>
-        <ul className={styles.list}>
+      <Card>
+        <h2 className={styles.cardTitle} id="sentence-roles">
+          Vai trò từng câu
+        </h2>
+        <ol className={styles.roles} aria-labelledby="sentence-roles">
           {result.roles.map((role) => (
-            <li key={role.sentenceId} className={styles.row}>
-              <span>{role.sentenceId.toUpperCase()}</span>
-              <Badge tone={role.role === 'off_topic' ? 'warning' : 'neutral'}>{roleLabels[role.role]}</Badge>
-              {role.rationale && <span className={styles.muted}>{role.rationale}</span>}
+            <li key={role.sentenceId}>
+              <span className={styles.sentenceId}>{role.sentenceId.toUpperCase()}</span>
+              <Badge tone={role.role === 'off_topic' ? 'warning' : 'accent'}>{roleLabels[role.role]}</Badge>
+              {role.rationale && <span className={styles.rationale}>{role.rationale}</span>}
+              <span className={styles.confidence}>{pct(role.confidence)}</span>
             </li>
           ))}
-        </ul>
-      </section>
+        </ol>
+      </Card>
 
-      <section className={styles.section} aria-labelledby="flow-chain">
-        <h3 id="flow-chain">Mạch đoạn</h3>
-        <p className={styles.muted}>{text.sentences.map((s) => s.id.toUpperCase()).join(' → ')}</p>
-        <ul className={styles.list}>
+      <Card>
+        <div className={styles.cardHead}>
+          <h2 className={styles.cardTitle} id="flow-chain">
+            Mạch đoạn
+          </h2>
+          <span className={styles.muted}>{text.sentences.map((s) => s.id.toUpperCase()).join(' → ')}</span>
+        </div>
+        <ol className={styles.flow} aria-labelledby="flow-chain">
           {result.flowLinks.map((link) => (
-            <li key={`${link.fromSentenceId}-${link.toSentenceId}`} className={styles.pair}>
-              <div className={styles.row}>
-                <strong>
-                  {link.fromSentenceId.toUpperCase()} → {link.toSentenceId.toUpperCase()}
-                </strong>
-                {!link.measured ? (
-                  <Badge>Không có đánh giá của AI</Badge>
-                ) : (
-                  <>
-                    <Badge>{continuityLabels[link.continuity]}</Badge>
-                    <Badge>{relationLabels[link.discourseRelation]}</Badge>
-                    {link.linked ? (
-                      <Badge tone="success" icon={<Link2 size={14} aria-hidden="true" />}>
-                        Có liên kết
-                      </Badge>
-                    ) : (
-                      <Badge tone="warning" icon={<Unlink size={14} aria-hidden="true" />}>
-                        Chưa liên kết
-                      </Badge>
-                    )}
-                  </>
+            <li
+              key={`${link.fromSentenceId}-${link.toSentenceId}`}
+              className={styles.pair}
+              data-linked={link.measured ? link.linked : undefined}
+            >
+              <span className={styles.pairIcon} aria-hidden="true">
+                {link.measured && link.linked ? <Link2 size={16} /> : <Unlink size={16} />}
+              </span>
+              <div className={styles.pairBody}>
+                <div className={styles.row}>
+                  <strong>
+                    {link.fromSentenceId.toUpperCase()} → {link.toSentenceId.toUpperCase()}
+                  </strong>
+                  {!link.measured ? (
+                    <Badge>Không có đánh giá của AI</Badge>
+                  ) : (
+                    <>
+                      <Badge>{continuityLabels[link.continuity]}</Badge>
+                      <Badge>{relationLabels[link.discourseRelation]}</Badge>
+                      {link.linked ? (
+                        <Badge tone="success">Có liên kết</Badge>
+                      ) : (
+                        <Badge tone="warning">Chưa liên kết</Badge>
+                      )}
+                    </>
+                  )}
+                </div>
+                <span className={styles.quote}>
+                  {quote(link.fromSpan)} → {quote(link.toSpan)}
+                </span>
+                {link.rationale && link.rationale !== 'no model output' && (
+                  <span className={styles.note}>{link.rationale}</span>
                 )}
               </div>
-              <span className={styles.quote}>
-                {quote(link.fromSpan)} → {quote(link.toSpan)}
-              </span>
-              {link.rationale && link.rationale !== 'no model output' && (
-                <span className={styles.muted}>{link.rationale}</span>
-              )}
             </li>
           ))}
-        </ul>
-      </section>
+        </ol>
+      </Card>
 
-      <section className={styles.section} aria-labelledby="paragraph-metrics">
-        <h3 id="paragraph-metrics">Số liệu</h3>
-        <ul className={styles.metrics}>
+      <Card>
+        <h2 className={styles.cardTitle} id="paragraph-metrics">
+          Số liệu
+        </h2>
+        <dl className={styles.metrics} aria-labelledby="paragraph-metrics">
           {fractionKeys.map((key) => (
-            <li key={key} className={styles.metric} title={key}>
-              <span>{metricLabels[key].label}</span>
-              <strong>{formatMetric(key, result.metrics[key])}</strong>
-            </li>
+            <div key={key} className={styles.metric} title={key}>
+              <dt>{metricLabels[key].label}</dt>
+              <dd>{formatMetric(key, metrics[key])}</dd>
+            </div>
           ))}
-          {Object.entries(result.metrics.topic_continuity_pattern).map(([key, metric]) => (
-            <li key={key} className={styles.metric} title={`topic_continuity_pattern.${key}`}>
-              <span>{continuityLabels[key as keyof typeof continuityLabels]}</span>
-              <strong>
+          {Object.entries(metrics.topic_continuity_pattern).map(([key, metric]) => (
+            <div key={key} className={styles.metric} title={`topic_continuity_pattern.${key}`}>
+              <dt>{continuityLabels[key as keyof typeof continuityLabels]}</dt>
+              <dd>
                 {metric.numerator}/{metric.denominator} cặp
-              </strong>
-            </li>
+              </dd>
+            </div>
           ))}
-        </ul>
-      </section>
-    </Card>
+        </dl>
+      </Card>
+    </div>
   );
 }

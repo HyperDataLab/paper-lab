@@ -1,3 +1,4 @@
+import { Cloud, CloudOff, HardDrive } from 'lucide-react';
 import {
   lazy,
   Suspense,
@@ -55,6 +56,8 @@ export function PaperPdf({
   const sha = paperSha(paper);
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [message, setMessage] = useState('');
+  // A failed upload is a state of the stored copy, not an error with the paper: it shows in the toolbar badge.
+  const [uploadError, setUploadError] = useState('');
   const picker = useRef<HTMLInputElement>(null);
 
   /** Keeps the lab's copy in step: sends the local file when the lab does not have it yet. */
@@ -81,7 +84,7 @@ export function PaperPdf({
         if (!local.uploaded && user)
           void upload(local.blob)
             .then((sent) => sent && active && setState({ kind: 'ready', blob: local.blob, uploaded: true }))
-            .catch((cause: unknown) => active && setMessage(`PDF chưa lên kho lab: ${String(cause)}`));
+            .catch((cause: unknown) => active && setUploadError(String(cause)));
         return;
       }
       const token = user ? await getIdToken() : null;
@@ -129,7 +132,7 @@ export function PaperPdf({
     if (user)
       void upload(blob)
         .then((sent) => sent && setState({ kind: 'ready', blob, uploaded: true }))
-        .catch((cause: unknown) => setMessage(`PDF chưa lên kho lab: ${String(cause)}`));
+        .catch((cause: unknown) => setUploadError(String(cause)));
   }
 
   if (!sha) return <p className={styles.note}>Bài này không được nhập từ tệp PDF.</p>;
@@ -181,9 +184,19 @@ export function PaperPdf({
           toolbarBelow={find}
           toolbarEnd={
             state.uploaded ? (
-              <Badge tone="success">Đã lưu trong kho lab</Badge>
+              <Badge tone="success" icon={<Cloud size={14} aria-hidden="true" />}>
+                Đã lưu trong kho lab
+              </Badge>
+            ) : uploadError ? (
+              <span title={uploadError}>
+                <Badge tone="warning" icon={<CloudOff size={14} aria-hidden="true" />}>
+                  Chưa lưu được lên kho lab
+                </Badge>
+              </span>
             ) : (
-              <Badge>{user ? 'Đang lưu lên kho lab…' : 'Chỉ trên máy này'}</Badge>
+              <Badge icon={<HardDrive size={14} aria-hidden="true" />}>
+                {user ? 'Đang lưu lên kho lab…' : 'Chỉ trên máy này'}
+              </Badge>
             )
           }
         />

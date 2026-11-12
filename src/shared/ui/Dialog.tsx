@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import styles from './ui.module.css';
 export function Dialog({
@@ -5,12 +6,15 @@ export function Dialog({
   description,
   onClose,
   returnFocus,
+  kind = 'confirm',
   children,
 }: {
   title: string;
   description: string;
   onClose: () => void;
   returnFocus?: HTMLElement | null;
+  /** `confirm` asks for a decision (alertdialog); `form` collects input, as when creating something. */
+  kind?: 'confirm' | 'form';
   children: ReactNode;
 }) {
   const panel = useRef<HTMLDivElement>(null);
@@ -75,18 +79,28 @@ export function Dialog({
       }}
     >
       <div
-        className={styles.dialog}
+        className={`${styles.dialog} ${kind === 'form' ? styles.dialogForm : ''}`}
         ref={panel}
-        role="alertdialog"
+        role={kind === 'form' ? 'dialog' : 'alertdialog'}
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
         tabIndex={-1}
       >
+        {kind === 'form' && (
+          <button type="button" className={styles.dialogClose} aria-label="Đóng" onClick={onClose}>
+            <X size={18} aria-hidden="true" />
+          </button>
+        )}
         <h2 id={titleId}>{title}</h2>
         <p id={descriptionId}>{description}</p>
         {children}
       </div>
     </div>
   );
+}
+
+/** The row of buttons at the bottom of a form dialog: cancel first, the action last. */
+export function DialogActions({ children }: { children: ReactNode }) {
+  return <div className={styles.dialogActions}>{children}</div>;
 }

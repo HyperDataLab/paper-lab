@@ -175,7 +175,10 @@ export function ReviewWorkspace({
   }
   const panel = (
     <Card>
-      <h2>Gợi ý ({issues.filter((i) => !handled(i)).length})</h2>
+      <div className={styles.panelHead}>
+        <h2>Gợi ý</h2>
+        <span className={styles.count}>{issues.filter((i) => !handled(i)).length} cần xem</span>
+      </div>
       <Tabs label="Trạng thái gợi ý">
         <Button role="tab" aria-selected={!done} onClick={() => setDone(false)}>
           Cần xem ({issues.filter((i) => !handled(i)).length})
@@ -218,7 +221,7 @@ export function ReviewWorkspace({
         </Checkbox>
       </div>
       {visible.filter((i) => handled(i) === done).length === 0 && (
-        <p>{issues.length ? 'Đã xem hết gợi ý' : 'Chưa có gợi ý'}</p>
+        <p className={styles.none}>{issues.length ? 'Đã xem hết gợi ý' : 'Chưa có gợi ý'}</p>
       )}
       <ul
         className={styles.cards}
@@ -271,26 +274,26 @@ export function ReviewWorkspace({
                   onClick={() => select(i.id, 'mark')}
                 >
                   <span className={styles.cardCategory}>
-                    <span className={styles.dot} aria-hidden="true" /> {categories[i.category]}
-                  </span>
-                  <span className={styles.cardSummary}>
+                    <span className={styles.dot} aria-hidden="true" />
+                    {categories[i.category]}
                     {i.category === 'flow' && i.sentenceIds.length === 2 && (
-                      <span>{i.sentenceIds.map((id) => id.toUpperCase()).join(' → ')} · </span>
-                    )}
-                    <strong>{original}</strong>
-                    {selected !== i.id && (
-                      <>
-                        {' '}
-                        ·{' '}
-                        <span>
-                          {labels[i.type]} {i.severity === 'info' && 'AI: chấp nhận được'}
-                        </span>
-                      </>
+                      <span>· {i.sentenceIds.map((id) => id.toUpperCase()).join(' → ')}</span>
                     )}
                   </span>
+                  <strong className={styles.cardQuote}>{original}</strong>
+                  {selected !== i.id && (
+                    <span className={styles.cardLabel}>
+                      {labels[i.type]}
+                      {i.severity === 'info' && <span className={styles.aiOk}> · AI: chấp nhận được</span>}
+                    </span>
+                  )}
                 </Button>
                 <div className={styles.cardFoot}>
-                  <CalibrationBadge stats={statsFor(i.type)} />
+                  {/* "Not calibrated yet" is detail for the open suggestion; a verdict (reliable or not) shows on every card. */}
+                  {(selected === i.id ||
+                    calibrationStatus(statsFor(i.type) ?? { n: 0, wilsonLow: null }) !== 'uncalibrated') && (
+                    <CalibrationBadge stats={statsFor(i.type)} />
+                  )}
                   {revisionSelection && onRevisionSelection && (
                     <Checkbox
                       disabled={i.status === 'dismissed_by_human'}
@@ -302,9 +305,9 @@ export function ReviewWorkspace({
                   )}
                 </div>
                 {selected === i.id && (
-                  <div>
-                    <strong>{labels[i.type]}</strong>
-                    <p>
+                  <div className={styles.detail}>
+                    <div className={styles.detailHead}>
+                      <strong>{labels[i.type]}</strong>
                       <Badge
                         icon={
                           i.status === 'dismissed_by_human' ? (
@@ -322,8 +325,8 @@ export function ReviewWorkspace({
                       >
                         {i.severity === 'info' && !handled(i) ? 'AI: chấp nhận được' : statuses[i.status]}
                       </Badge>
-                    </p>
-                    <p>{i.why}</p>
+                    </div>
+                    <p className={styles.why}>{i.why}</p>
                     {suggestion && (
                       <p className={styles.suggestion}>
                         {replacement ? (
@@ -349,40 +352,42 @@ export function ReviewWorkspace({
                                 : `${i.metric.value ?? '—'} ${i.metric.unit === 'candidate' ? 'ứng viên' : i.metric.unit === 'tokens' ? 'token' : (i.metric.unit ?? '')}`}{' '}
                       · {severities[i.severity]} · {Math.round(i.confidence * 100)}% · {i.sourcePrinciple}
                     </p>
-                    <Select
-                      label="Mức độ"
-                      size="sm"
-                      inline
-                      value={i.severity}
-                      onChange={(e) => onChange(i, { severity: e.target.value as Issue['severity'] })}
-                    >
-                      <option value="minor">Nhỏ</option>
-                      <option value="moderate">Vừa</option>
-                      <option value="major">Lớn</option>
-                      {(i.severity === 'info' || i.severity === 'critical') && (
-                        <option value={i.severity}>{severities[i.severity]}</option>
-                      )}
-                    </Select>
-                    <div className={styles.controls}>
-                      <ReviewActions
-                        decided={done}
-                        onConfirm={() => onChange(i, { status: 'confirmed_by_human' })}
-                        onDismiss={() => onChange(i, { status: 'dismissed_by_human' })}
-                        onUndo={() => onChange(i, { status: 'candidate' })}
-                      />
-                      {suggestion && (
-                        <IconButton
-                          label="Sao chép gợi ý"
-                          onClick={() => {
-                            void navigator.clipboard
-                              ?.writeText(suggestion)
-                              .then(() => toast('Đã sao chép gợi ý'))
-                              .catch(() => {});
-                          }}
-                        >
-                          <Copy size={16} />
-                        </IconButton>
-                      )}
+                    <div className={styles.detailFoot}>
+                      <Select
+                        label="Mức độ"
+                        size="sm"
+                        inline
+                        value={i.severity}
+                        onChange={(e) => onChange(i, { severity: e.target.value as Issue['severity'] })}
+                      >
+                        <option value="minor">Nhỏ</option>
+                        <option value="moderate">Vừa</option>
+                        <option value="major">Lớn</option>
+                        {(i.severity === 'info' || i.severity === 'critical') && (
+                          <option value={i.severity}>{severities[i.severity]}</option>
+                        )}
+                      </Select>
+                      <div className={styles.controls}>
+                        <ReviewActions
+                          decided={done}
+                          onConfirm={() => onChange(i, { status: 'confirmed_by_human' })}
+                          onDismiss={() => onChange(i, { status: 'dismissed_by_human' })}
+                          onUndo={() => onChange(i, { status: 'candidate' })}
+                        />
+                        {suggestion && (
+                          <IconButton
+                            label="Sao chép gợi ý"
+                            onClick={() => {
+                              void navigator.clipboard
+                                ?.writeText(suggestion)
+                                .then(() => toast('Đã sao chép gợi ý'))
+                                .catch(() => {});
+                            }}
+                          >
+                            <Copy size={16} />
+                          </IconButton>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -390,101 +395,119 @@ export function ReviewWorkspace({
             );
           })}
       </ul>
-      <small>Đây là ứng viên cần xem xét, không phải lỗi đã khẳng định.</small>
+      <p className={styles.footnote}>Đây là ứng viên cần xem xét, không phải lỗi đã khẳng định.</p>
     </Card>
   );
   return (
     <div className={styles.workspace}>
-      <div className={styles.reading} ref={reading}>
-        {connector && (
-          <svg className={styles.connector} aria-hidden="true">
-            <defs>
-              <marker id="flow-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-                <path d="M 0 0 L 6 3 L 0 6 z" />
-              </marker>
-            </defs>
-            <path d={connector} markerEnd="url(#flow-arrow)" />
-          </svg>
-        )}
-        {boundaries.slice(0, -1).map((start, n) => {
-          const end = boundaries[n + 1] ?? start;
-          const covering = visible.filter(
-            (i) => i.status !== 'dismissed_by_human' && i.spans.some((s) => s.start <= start && s.end >= end),
-          );
-          const value = index.sliceCp(start, end);
-          const sentence = text.sentences.find((item) => item.start === start);
-          const role = roles?.find((item) => item.sentenceId === sentence?.id);
-          const badge = role ? (
-            <sup aria-label={`Vai trò: ${roleLabels[role.role]}`}>[{roleLabels[role.role]}] </sup>
-          ) : null;
-          if (!covering.length)
-            return (
-              <span key={start}>
-                {badge}
-                {value}
-              </span>
+      <div className={styles.readingCard}>
+        <div className={styles.reading} ref={reading}>
+          {connector && (
+            <svg className={styles.connector} aria-hidden="true">
+              <defs>
+                <marker id="flow-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                  <path d="M 0 0 L 6 3 L 0 6 z" />
+                </marker>
+              </defs>
+              <path d={connector} markerEnd="url(#flow-arrow)" />
+            </svg>
+          )}
+          {boundaries.slice(0, -1).map((start, n) => {
+            const end = boundaries[n + 1] ?? start;
+            const covering = visible.filter(
+              (i) =>
+                i.status !== 'dismissed_by_human' && i.spans.some((s) => s.start <= start && s.end >= end),
             );
-          const priority: Record<Issue['severity'], number> = {
-            info: 0,
-            minor: 1,
-            moderate: 2,
-            major: 3,
-            critical: 4,
-          };
-          const ranked = [...covering].sort((a, b) => priority[b.severity] - priority[a.severity]);
-          const issue = ranked[0];
-          if (!issue) return null;
-          const secondary = ranked[1];
-          const secondaryColor = `var(--hl-${secondary?.category === 'organization' ? 'org' : (secondary?.category ?? 'word')})`;
-          const activate = () => {
-            const position = covering.findIndex((i) => i.id === selected);
-            select(covering[(position + 1) % covering.length]?.id ?? issue.id, 'card');
-          };
-          return (
-            <Fragment key={start}>
-              {badge}
-              <mark
-                style={
-                  {
-                    '--second-color':
-                      secondary?.status === 'candidate'
-                        ? `color-mix(in srgb, ${secondaryColor} 60%, transparent)`
-                        : secondaryColor,
-                  } as CSSProperties
-                }
-                data-issues={covering.map((item) => item.id).join('|')}
-                role="button"
-                tabIndex={0}
-                aria-label={`${labels[issue.type]}, ${severities[issue.severity]}, ${statuses[issue.status]}`}
-                className={`${styles.mark} ${styles[issue.category]} ${styles[issue.severity]} ${covering.length > 1 ? styles.overlap : ''} ${issue.status === 'candidate' ? styles.candidate : ''} ${covering.some((i) => i.id === selected) ? styles.selected : ''} ${covering.some((i) => i.id === hovered) ? styles.hoveredMark : ''}`}
-                onMouseEnter={() => setHovered(issue.id)}
-                onMouseLeave={() => setHovered(null)}
-                onFocus={() => setHovered(issue.id)}
-                onBlur={() => setHovered(null)}
-                onClick={activate}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    activate();
+            const value = index.sliceCp(start, end);
+            const sentence = text.sentences.find((item) => item.start === start);
+            const role = roles?.find((item) => item.sentenceId === sentence?.id);
+            const badge = role ? (
+              <span className={styles.role}>
+                <span className={styles.srOnly}>Vai trò: </span>
+                {roleLabels[role.role]}
+              </span>
+            ) : null;
+            if (!covering.length)
+              return (
+                <span key={start}>
+                  {badge}
+                  {value}
+                </span>
+              );
+            const priority: Record<Issue['severity'], number> = {
+              info: 0,
+              minor: 1,
+              moderate: 2,
+              major: 3,
+              critical: 4,
+            };
+            const ranked = [...covering].sort((a, b) => priority[b.severity] - priority[a.severity]);
+            const issue = ranked[0];
+            if (!issue) return null;
+            const secondary = ranked[1];
+            const secondaryColor = `var(--hl-${secondary?.category === 'organization' ? 'org' : (secondary?.category ?? 'word')})`;
+            const activate = () => {
+              const position = covering.findIndex((i) => i.id === selected);
+              select(covering[(position + 1) % covering.length]?.id ?? issue.id, 'card');
+            };
+            return (
+              <Fragment key={start}>
+                {badge}
+                <mark
+                  style={
+                    {
+                      '--second-color':
+                        secondary?.status === 'candidate'
+                          ? `color-mix(in srgb, ${secondaryColor} 60%, transparent)`
+                          : secondaryColor,
+                    } as CSSProperties
                   }
-                }}
-              >
-                {issue.severity === 'critical' && <span aria-hidden="true">⚠</span>}
-                {value}
-              </mark>
-              {covering.length > 2 && (
-                <Button
-                  type="button"
-                  className={styles.overlapBadge}
+                  data-issues={covering.map((item) => item.id).join('|')}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${labels[issue.type]}, ${severities[issue.severity]}, ${statuses[issue.status]}`}
+                  className={`${styles.mark} ${styles[issue.category]} ${styles[issue.severity]} ${covering.length > 1 ? styles.overlap : ''} ${issue.status === 'candidate' ? styles.candidate : ''} ${covering.some((i) => i.id === selected) ? styles.selected : ''} ${covering.some((i) => i.id === hovered) ? styles.hoveredMark : ''}`}
+                  onMouseEnter={() => setHovered(issue.id)}
+                  onMouseLeave={() => setHovered(null)}
+                  onFocus={() => setHovered(issue.id)}
+                  onBlur={() => setHovered(null)}
                   onClick={activate}
-                  aria-label={`Thêm ${covering.length - 2} gợi ý chồng lấp`}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      activate();
+                    }
+                  }}
                 >
-                  +{covering.length - 2}
-                </Button>
-              )}
-            </Fragment>
-          );
-        })}
+                  {issue.severity === 'critical' && <span aria-hidden="true">⚠</span>}
+                  {value}
+                </mark>
+                {covering.length > 2 && (
+                  <Button
+                    type="button"
+                    className={styles.overlapBadge}
+                    onClick={activate}
+                    aria-label={`Thêm ${covering.length - 2} gợi ý chồng lấp`}
+                  >
+                    +{covering.length - 2}
+                  </Button>
+                )}
+              </Fragment>
+            );
+          })}
+        </div>
+        {issues.length > 0 && (
+          <ul className={styles.legend} aria-label="Cách đọc gạch chân">
+            {(Object.keys(categories) as Issue['category'][])
+              .filter((c) => issues.some((i) => i.category === c))
+              .map((c) => (
+                <li key={c}>
+                  <span className={`${styles.legendSample} ${styles[c]}`}>{categories[c]}</span>
+                </li>
+              ))}
+            <li className={styles.legendNote}>Nét đậm: AI đã xác nhận · nét nhạt: ứng viên</li>
+          </ul>
+        )}
       </div>
       {tablet ? (
         <>

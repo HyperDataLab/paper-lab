@@ -40,6 +40,9 @@ async function detail() {
 it('C1c creates a topic corpus with its first protocol', async () => {
   const { repo, mount } = setup('/corpus');
   mount();
+  // Creating opens a dialog from the page header, the way list pages do it elsewhere.
+  fireEvent.click(screen.getByRole('button', { name: 'Corpus mới' }));
+  expect(screen.getByRole('dialog', { name: 'Tạo corpus' })).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Tên corpus'), { target: { value: 'Review' } });
   fireEvent.change(screen.getByLabelText('Câu hỏi nghiên cứu'), { target: { value: 'Why?' } });
   fireEvent.click(screen.getByRole('button', { name: 'Tạo corpus' }));
@@ -51,6 +54,7 @@ it('C1c creates a topic corpus with its first protocol', async () => {
 });
 it('C1c reports DOI intake counts', async () => {
   await detail();
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm bài vào corpus' }));
   fireEvent.click(screen.getByRole('radio', { name: 'Danh sách DOI' }));
   fireEvent.change(screen.getByLabelText('Danh sách DOI'), {
     target: { value: '10.1000/a\n10.1000/b\n10.1000/c\nbad' },
@@ -74,6 +78,7 @@ it('C1c confirms and merges title-year matches', async () => {
   if (!item) throw new Error('missing item');
   await repo.library.update(item.id, { title: 'A study', year: 2020 });
   mount();
+  fireEvent.click(await screen.findByRole('button', { name: 'Thêm bài vào corpus' }));
   fireEvent.click(await screen.findByRole('checkbox', { name: 'A study' }));
   fireEvent.click(screen.getByRole('button', { name: 'Thêm bài' }));
   expect(await screen.findByText(/Bài mới: A study/)).toBeInTheDocument();
@@ -84,6 +89,7 @@ it('C1c confirms and merges title-year matches', async () => {
 });
 it('C1c releases the same digest twice without changes', async () => {
   const { repo, corpus } = await detail();
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm bài vào corpus' }));
   fireEvent.click(screen.getByRole('radio', { name: 'Danh sách DOI' }));
   fireEvent.change(screen.getByLabelText('Danh sách DOI'), { target: { value: '10.1000/example' } });
   fireEvent.click(screen.getByRole('button', { name: 'Thêm bài' }));
@@ -177,4 +183,17 @@ it('C1d offers both choices after a stale write', async () => {
   expect(screen.getByRole('button', { name: 'Tải bản mới' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Giữ bản của tôi' })).toBeInTheDocument();
   vi.unstubAllGlobals();
+});
+it('C1c deletes a corpus from its card menu after confirming', async () => {
+  const corpus = exampleCorpus();
+  const { repo, mount } = setup('/corpus');
+  await repo.corpora.save(corpus);
+  mount();
+  fireEvent.click(await screen.findByRole('button', { name: `Thao tác với ${corpus.title}` }));
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Xoá' }));
+  // Nothing is removed until the person confirms.
+  expect(await repo.corpora.list()).toHaveLength(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Xoá corpus' }));
+  await waitFor(async () => expect(await repo.corpora.list()).toHaveLength(0));
+  expect(await screen.findByText('Chưa có corpus nào.')).toBeInTheDocument();
 });

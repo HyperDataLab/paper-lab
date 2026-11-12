@@ -260,22 +260,40 @@
   border-spacing: 0;
   font-size: var(--text-sm);
 }
+/*
+ * The matrix is a spreadsheet: its header row and first column stay put while it scrolls, so every cell carries
+ * an opaque background and its own borders (row borders do not draw with separated borders).
+ */
 .matrix th,
 .matrix td {
   background: var(--surface);
-  border-bottom: 1px solid var(--border);
   border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   min-width: calc(var(--space-10) * 6);
   max-width: calc(var(--space-10) * 8);
-  padding: var(--space-2);
+  padding: var(--space-3);
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
 }
 .matrix thead th {
-  background: var(--soft);
   position: sticky;
   top: 0;
   z-index: 2;
+  height: auto;
+  padding-block: var(--space-3);
+  background: var(--surface-sunken);
+}
+.matrix tbody tr:last-child th,
+.matrix tbody tr:last-child td {
+  border-bottom: 0;
+}
+.matrix tbody tr:hover th,
+.matrix tbody tr:hover td {
+  background: var(--surface-sunken);
+}
+.matrix tbody th {
+  font-weight: 400;
 }
 .sticky {
   left: 0;
@@ -285,8 +303,8 @@
 .matrix thead .sticky {
   z-index: 3;
 }
-.matrix tbody th {
-  font-weight: 400;
+.matrix .sticky {
+  box-shadow: 1px 0 0 var(--border);
 }
 .matrix tbody th .note {
   display: block;
@@ -534,18 +552,70 @@
 }
 .deep {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-6);
+  counter-reset: step;
 }
 .deep h2 {
-  margin: 0 0 var(--space-2);
+  margin: 0;
+  font-size: var(--text-lg);
+}
+/* The four steps are a real sequence, so they read as one: a numbered rail joins them. */
+.deep > [data-surface='card'] {
+  position: relative;
+  display: grid;
+  gap: var(--space-4);
+  margin-left: var(--space-10);
+}
+.deep > [data-surface='card']::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  top: var(--space-6);
+  left: calc(var(--space-10) * -1);
+  display: grid;
+  place-items: center;
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-pill);
+  background: var(--soft);
+  color: var(--accent-strong);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+.deep > [data-surface='card']:not(:last-of-type)::after {
+  content: '';
+  position: absolute;
+  top: calc(var(--space-6) + var(--space-10));
+  bottom: calc(var(--space-6) * -1);
+  left: calc(var(--space-10) * -1 + var(--space-4) - 1px);
+  width: 2px;
+  background: var(--border);
+}
+.inlineField {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+.inlineField > :first-child {
+  flex: 1;
+  min-width: 0;
 }
 .deep h3 {
   margin: var(--space-3) 0 var(--space-1);
 }
 .twoCols {
   display: grid;
-  gap: var(--space-3);
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-3) var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 720px) {
+  .twoCols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .inlineField {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 .candidates {
   display: grid;
@@ -594,8 +664,4 @@
 }
 .addColumn {
   white-space: nowrap;
-}
-.matrix tbody tr:hover td,
-.matrix tbody tr:hover th {
-  background: var(--soft);
 }

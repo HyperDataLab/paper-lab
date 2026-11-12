@@ -73,7 +73,7 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
     if (chip.getAttribute('aria-pressed') !== 'true') fireEvent.click(chip);
   };
   await screen.findByRole('tab', { name: 'Full text' });
-  expect(screen.getByText('Minh bạch')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Minh bạch' })).toBeInTheDocument();
   openChecks();
   fireEvent.click(screen.getByRole('button', { name: 'Chạy lại kiểm tra' }));
   const list = await screen.findByRole('region', { name: 'Issues' });
@@ -107,7 +107,7 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
       .getAllByRole('article')
       .map((card) => card.getAttribute('aria-label')),
   ).toEqual(['Diễn ngôn và Tu từ', 'Viết học thuật']);
-  fireEvent.click(screen.getByRole('button', { name: '← Quay lại bài' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Quay lại bài' }));
   // The scholarly context leads the Citations tab.
   fireEvent.click(screen.getByRole('tab', { name: 'Citations' }));
   const context = await within(screen.getByRole('region', { name: 'Context overview' })).findByRole(
@@ -250,7 +250,7 @@ it('R7 on a wide screen the paper is the centre column beside the analysis, and 
   fireEvent.click(screen.getByRole('radio', { name: 'Paragraph structure & flow' }));
   // A space takes the whole width; going back shows the paper beside the right column again.
   expect(document.querySelector('section[aria-label="Paper"]')).not.toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: '← Quay lại bài' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Quay lại bài' }));
   expect(screen.getByRole('region', { name: 'Paper' })).toBeVisible();
   // The rule checks ran when the paper opened: their finding is in the Issues list beside the paper.
   fireEvent.click(screen.getByRole('tab', { name: 'Issues' }));

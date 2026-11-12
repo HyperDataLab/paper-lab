@@ -20,9 +20,11 @@
     "bench:arguments": "node scripts/bench-arguments.mjs"
   },
   "dependencies": {
+    "@gsap/react": "^2.1.2",
     "dexie": "^4.4.7",
     "fflate": "^0.8.3",
     "firebase": "^12.19.0",
+    "gsap": "^3.13.0",
     "lucide-react": "^0.468.0",
     "pdfjs-dist": "^6.5.438",
     "react": "^19.3.1",

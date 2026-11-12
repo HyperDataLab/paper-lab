@@ -9,7 +9,7 @@
 .filters {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
 }

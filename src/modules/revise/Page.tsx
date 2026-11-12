@@ -13,6 +13,8 @@ import { ActionBar } from '@/shared/ui/ActionBar';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
+import { PageHeader } from '@/shared/ui/PageHeader';
+import { Empty } from '@/shared/ui/StateNote';
 import { Checkbox } from '@/shared/ui/Checkbox';
 import { Chip } from '@/shared/ui/Chip';
 import { Dialog } from '@/shared/ui/Dialog';
@@ -140,11 +142,15 @@ export default function Page() {
   }
   if (!sourceId)
     return (
-      <Card>
-        <h1>Chỉnh sửa</h1>
-        <p>Chọn gợi ý từ một bản phân tích đã lưu.</p>
-        <Link to="/history">Mở lịch sử</Link>
-      </Card>
+      <div className={styles.page}>
+        <PageHeader title="Chỉnh sửa" />
+        <Empty
+          title="Chưa chọn bản phân tích nào."
+          hint="Chỉnh sửa bắt đầu từ các gợi ý của một bản phân tích đã lưu."
+        >
+          <Link to="/history">Mở lịch sử</Link>
+        </Empty>
+      </div>
     );
   if (!source)
     return (

@@ -1,3 +1,5 @@
+import { ArrowUpRight, RotateCw } from 'lucide-react';
+import { IconButton } from '@/shared/ui/IconButton';
 import { useEffect, useState } from 'react';
 import type { Criterion, FindingLocation, FindingStatus, PaperFinding } from '@/core/paperFindings';
 import type { Paper } from '@/core/schemas';
@@ -114,21 +116,29 @@ export function FindingsList({
               {CRITERIA[id].label}
             </Chip>
           ))}
-          <Chip aria-pressed={byPage} onClick={() => setByPage(!byPage)}>
-            Theo trang
-          </Chip>
-          {onRunChecks && (
-            <Chip aria-pressed={checksOnly} onClick={() => setChecksOnly(!checksOnly)}>
-              Kiểm tra tự động
-            </Chip>
-          )}
         </div>
       }
-      {onRunChecks && (
-        <Button size="sm" onClick={onRunChecks}>
-          Chạy lại kiểm tra
-        </Button>
-      )}
+      <div className={styles.findingTools} role="group" aria-label="Sắp xếp và nguồn">
+        <Chip aria-pressed={byPage} onClick={() => setByPage(!byPage)}>
+          Theo trang
+        </Chip>
+        {onRunChecks && (
+          <Chip aria-pressed={checksOnly} onClick={() => setChecksOnly(!checksOnly)}>
+            Kiểm tra tự động
+          </Chip>
+        )}
+        {onRunChecks && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className={styles.findingToolsEnd}
+            leadingIcon={<RotateCw size={14} aria-hidden="true" />}
+            onClick={onRunChecks}
+          >
+            Chạy lại kiểm tra
+          </Button>
+        )}
+      </div>
       {shown.length === 0 && <Empty title="Không có phát hiện nào khớp bộ lọc." hint="Bật thêm tiêu chí." />}
       {visible.map((finding, index) => {
         const first = finding.locations[0];
@@ -176,9 +186,9 @@ export function FindingsList({
                 actions={
                   <>
                     {finding.source !== 'checks' && (
-                      <Button size="sm" variant="ghost" onClick={() => onOpenSource(finding.view)}>
-                        Chi tiết
-                      </Button>
+                      <IconButton size="sm" label="Chi tiết" onClick={() => onOpenSource(finding.view)}>
+                        <ArrowUpRight size={16} />
+                      </IconButton>
                     )}
                     <ReviewActions
                       acceptByDefault

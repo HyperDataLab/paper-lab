@@ -72,7 +72,7 @@ it('P7 transparency uses planned sections, excludes skipped items, identifies ca
       <Transparency paper={paper} />
     </StorageProvider>,
   );
-  fireEvent.click(screen.getByText('Minh bạch'));
+  fireEvent.click(screen.getByRole('button', { name: 'Minh bạch' }));
   expect(await screen.findByText('s1, s2')).toBeInTheDocument();
   expect(screen.getByText('s2')).toBeInTheDocument();
   expect(screen.getByText('Đáng tin: 1 loại')).toBeInTheDocument();

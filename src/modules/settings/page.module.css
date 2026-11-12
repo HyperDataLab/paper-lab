@@ -1,17 +1,40 @@
 .page {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-4);
-  max-width: 760px;
+  gap: 0;
+  max-width: 1000px;
+}
+/* Settings read as a list of rows, not a stack of boxes: what it is on the left, the controls on the right. */
+.page [data-surface='card'] {
+  padding: var(--space-8) 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
 }
 .section {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-3);
+  grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-3) var(--space-10);
 }
 .section header {
   display: grid;
   gap: var(--space-1);
+}
+.section h2 {
+  font-size: var(--text-md);
+}
+.fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  max-width: var(--form-width);
+}
+@media (max-width: 899px) {
+  .section {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .section h2,
 .section p {

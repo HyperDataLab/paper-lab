@@ -12,6 +12,8 @@ import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
+import { Upload } from 'lucide-react';
+import styles from './page.module.css';
 
 const ROWS: { key: keyof typeof GOLD_TARGETS; label: string }[] = [
   { key: 'metricPrecision', label: 'Precision phát hiện metric' },
@@ -63,55 +65,78 @@ export function MeasurementGoldCard() {
   }
   return (
     <Card>
-      <h2>Đo chất lượng trích xuất đo lường</h2>
-      <p>
-        So sánh kết quả AI gốc với nhãn của người. Các ngưỡng là mục tiêu, chưa phải kết quả đã đạt; cần tối
-        thiểu {GOLD_MIN_PAPERS} bài và hai người gán nhãn.
-      </p>
-      <input
-        ref={input}
-        type="file"
-        accept=".json,application/json"
-        multiple
-        hidden
-        aria-label="Tệp nhãn chuẩn"
-        onChange={(event) => void read(event)}
-      />
-      <Button onClick={() => input.current?.click()}>Nhập tệp nhãn chuẩn</Button>
-      {error && <div role="alert">{error}</div>}
-      {skipped.length > 0 && <p>Chưa có hồ sơ cho: {skipped.join(', ')}.</p>}
-      <p>
-        Đã đo trên {papers}/{GOLD_MIN_PAPERS} bài
-        {score && ` · Lỗi do bộ đọc PDF: ${score.parsingErrors} (tính riêng, không phải lỗi suy luận)`}
-      </p>
-      <table>
-        <thead>
-          <tr>
-            <th>Chỉ số</th>
-            <th>Kết quả</th>
-            <th>n</th>
-            <th>Mục tiêu</th>
-            <th>Trạng thái</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ROWS.map(({ key, label }) => {
-            const tally = score?.[key] ?? { hit: 0, n: 0 };
-            const verdict = VERDICT[goldVerdict(key, tally)];
-            return (
-              <tr key={key}>
-                <td>{label}</td>
-                <td>{tally.n ? (tally.hit / tally.n).toFixed(2) : '—'}</td>
-                <td>{tally.n}</td>
-                <td>{target(key)}</td>
-                <td>
-                  <Badge tone={verdict.tone}>{verdict.label}</Badge>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className={styles.cardHead}>
+        <div>
+          <h2>Đo chất lượng trích xuất đo lường</h2>
+          <p>
+            So sánh kết quả AI gốc với nhãn của người. Các ngưỡng là mục tiêu, chưa phải kết quả đã đạt; cần
+            tối thiểu {GOLD_MIN_PAPERS} bài và hai người gán nhãn.
+          </p>
+        </div>
+        <Button onClick={() => input.current?.click()}>
+          <Upload size={16} aria-hidden="true" />
+          Nhập tệp nhãn chuẩn
+        </Button>
+        <input
+          ref={input}
+          type="file"
+          accept=".json,application/json"
+          multiple
+          hidden
+          aria-label="Tệp nhãn chuẩn"
+          onChange={(event) => void read(event)}
+        />
+      </div>
+      {error && (
+        <p role="alert" className={styles.alert}>
+          {error}
+        </p>
+      )}
+      <div className={styles.progress}>
+        <p>
+          <strong>{`Đã đo trên ${papers}/${GOLD_MIN_PAPERS} bài`}</strong>
+          {score && (
+            <span className={styles.muted}>
+              {' '}
+              · Lỗi do bộ đọc PDF: {score.parsingErrors} (tính riêng, không phải lỗi suy luận)
+            </span>
+          )}
+        </p>
+        <span className={styles.progressBar} aria-hidden="true">
+          <span style={{ width: `${Math.min(100, (papers / GOLD_MIN_PAPERS) * 100)}%` }} />
+        </span>
+        {skipped.length > 0 && <p className={styles.muted}>Chưa có hồ sơ cho: {skipped.join(', ')}.</p>}
+      </div>
+      <div className={styles.tableWrap}>
+        <table>
+          <thead>
+            <tr>
+              <th>Chỉ số</th>
+              <th className={styles.num}>Kết quả</th>
+              <th className={styles.num}>n</th>
+              <th className={styles.num}>Mục tiêu</th>
+              <th>Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ROWS.map(({ key, label }) => {
+              const tally = score?.[key] ?? { hit: 0, n: 0 };
+              const verdict = VERDICT[goldVerdict(key, tally)];
+              return (
+                <tr key={key}>
+                  <td>{label}</td>
+                  <td className={styles.num}>{tally.n ? (tally.hit / tally.n).toFixed(2) : '—'}</td>
+                  <td className={styles.num}>{tally.n}</td>
+                  <td className={styles.num}>{target(key)}</td>
+                  <td>
+                    <Badge tone={verdict.tone}>{verdict.label}</Badge>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </Card>
   );
 }

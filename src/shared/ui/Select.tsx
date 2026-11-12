@@ -31,6 +31,8 @@ type Props = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'size'> & {
   label: string;
   size?: 'md' | 'sm';
   inline?: boolean;
+  /** Keeps the label for screen readers only, for toolbars where the value says what the control is. */
+  hideLabel?: boolean;
 };
 
 function textContent(node: ReactNode): string {
@@ -49,6 +51,7 @@ export function Select({
   label,
   size = 'md',
   inline = false,
+  hideLabel = false,
   id,
   className = '',
   children,
@@ -201,7 +204,7 @@ export function Select({
 
   return (
     <div className={`${styles.field} ${inline ? styles.fieldInline : ''} ${className}`}>
-      <span id={labelId} className={styles.selectLabel} onClick={show}>
+      <span id={labelId} className={hideLabel ? styles.srOnly : styles.selectLabel} onClick={show}>
         {label}
       </span>
       <div className={`${styles.selectWrap} ${inline ? styles.fieldInline : ''}`} ref={rootRef}>
