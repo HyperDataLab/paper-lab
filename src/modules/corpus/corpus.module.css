@@ -276,8 +276,37 @@
   margin: 0 0 var(--space-2);
   font-size: var(--text-sm);
 }
+.prisma h4 {
+  margin: 0 0 var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+/* PRISMA 2020 two-column layout: databases on the left, citation searching on the right, phase by phase. */
+.prisma.prismaTwo {
+  grid-template-columns: minmax(0, 1fr);
+}
+.prismaColumns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.appraisalDetail {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.appraisalItem {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border-subtle);
+}
 @media (max-width: 1023px) {
-  .prisma {
+  .prisma,
+  .prismaColumns {
     grid-template-columns: minmax(0, 1fr);
   }
 }

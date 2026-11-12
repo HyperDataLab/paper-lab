@@ -188,3 +188,47 @@ it('searches OpenAlex with the query and year filters only, and follows one cita
   });
   expect(await client(empty).citationWorks('W9', 'cited_by', 3)).toEqual([]);
 });
+
+it('C3c backward snowballing reads the reference list, then fetches the works 50 ids per request', async () => {
+  const refs = Array.from({ length: 51 }, (_, i) => `https://openalex.org/W${100 + i}`);
+  const s = setup({
+    'works/W1?select=referenced_works': () => json({ referenced_works: refs }),
+    'openalex_id:': () => json({ results: [{ id: 'W100' }] }),
+  });
+  const references = await client(s, 'me@example.org').referencedWorks('https://openalex.org/W1');
+  expect(references.ids).toHaveLength(51);
+  expect(references.ids[0]).toBe('W100');
+  expect(references.url).toBe('https://api.openalex.org/works/W1?select=referenced_works');
+  const works = await client(s, 'me@example.org').worksByIds(references.ids);
+  expect(works.urls).toHaveLength(2);
+  expect(works.urls[0]).toContain(`filter=openalex_id:${references.ids.slice(0, 50).join('|')}&per-page=50`);
+  expect(works.urls[1]).toContain('filter=openalex_id:W150&per-page=50');
+  expect(works.results).toHaveLength(2);
+  expect(s.calls.some((url) => url.includes('example.org'))).toBe(false);
+});
+
+it('C3c forward snowballing pages through cites: with a cursor and marks a capped list truncated', async () => {
+  let page = 0;
+  const s = setup({
+    'cites:W1': () => {
+      page++;
+      return json({
+        results: [{ id: `W${page}0` }, { id: `W${page}1` }],
+        meta: { count: 4, next_cursor: page < 2 ? `c${page}` : null },
+      });
+    },
+  });
+  const all = await client(s).citingWorks('W1', { cap: null });
+  expect(all).toMatchObject({ total: 4, truncated: false });
+  expect(all.results).toHaveLength(4);
+  expect(all.urls[0]).toContain('filter=cites:W1&per-page=200');
+  expect(all.urls[0]).toContain('cursor=*');
+  expect(all.urls[1]).toContain('cursor=c1');
+  page = 0;
+  const capped = await client(s).citingWorks('W1', { cap: 3 });
+  expect(capped.results).toHaveLength(3);
+  expect(capped.truncated).toBe(true);
+  const rerun = await client(s).fetchWorks('https://api.openalex.org/works?search=x&filter=cites:W1');
+  expect(rerun.url).toBe('https://api.openalex.org/works?search=x&filter=cites:W1');
+  expect(rerun.total).toBe(4);
+});

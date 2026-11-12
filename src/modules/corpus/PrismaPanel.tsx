@@ -1,4 +1,5 @@
 import { Download } from 'lucide-react';
+import { useState } from 'react';
 import {
   prismaBoxes,
   prismaCounts,
@@ -6,11 +7,15 @@ import {
   toCsv,
   type PrismaBox,
   type PrismaBoxKey,
+  type PrismaColumn,
+  type PrismaScope,
 } from '@/core/corpus/prisma';
+import { currentRound } from '@/core/corpus/updateSearch';
 import type { Corpus } from '@/core/schemas';
 import { downloadText } from '@/shared/calibration/download';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
+import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { prismaLabels, reasonLabels } from './labels';
 import styles from './corpus.module.css';
 
@@ -27,22 +32,40 @@ function phaseOf(box: PrismaBox) {
   return 'Sàng lọc';
 }
 const PHASES = ['Nhận diện', 'Sàng lọc', 'Đưa vào'];
+const COLUMNS: Record<PrismaColumn, string> = {
+  databases: 'Cơ sở dữ liệu và tệp nhập',
+  otherMethods: 'Cách khác: tìm theo trích dẫn',
+  total: 'Tổng',
+};
 // Excel reads a CSV without a byte-order mark in the ANSI code page and breaks the Vietnamese labels.
 const BOM = String.fromCharCode(0xfeff);
 
 function labelOf(box: PrismaBox): string {
-  if (box.kind === 'source')
-    return `${box.source.kind === 'database' ? 'Cơ sở dữ liệu' : 'Tệp nhập'}: ${box.source.source} (${box.source.retrieved}/${box.source.totalReported} bản ghi${box.source.notExhaustive ? ', chưa đầy đủ' : ''})`;
+  if (box.kind === 'source') {
+    const { source } = box;
+    const tail = `${source.retrieved}/${source.totalReported} bản ghi${source.notExhaustive ? ', chưa đầy đủ' : ''}`;
+    const update = source.updateRound > 0 ? `, cập nhật ${source.updateRound}` : '';
+    if (source.kind === 'citation')
+      return `Trích dẫn ${source.source === 'snowball-backward' ? 'ngược' : 'xuôi'}, vòng ${source.snowballRound ?? 1}${update} (${tail})`;
+    return `${source.kind === 'database' ? 'Cơ sở dữ liệu' : 'Tệp nhập'}: ${source.source}${update} (${tail})`;
+  }
   if (box.kind === 'reason') return `— ${reasonLabels[box.code]}`;
+  if (box.column === 'total') return 'Tổng số nghiên cứu được đưa vào tổng quan';
   return prismaLabels[box.key];
 }
 
 /** PRISMA 2020 flow counted from the searches and the decision log; nothing here is typed in by hand. */
 export function PrismaPanel({ corpus }: { corpus: Corpus }) {
-  const counts = prismaCounts(corpus);
+  const [scope, setScope] = useState<PrismaScope>('all');
+  const round = currentRound(corpus);
+  const counts = prismaCounts(corpus, scope);
   const boxes = prismaBoxes(counts);
   const slug = corpus.id.replace(/[^A-Za-z0-9_-]+/gu, '-');
-  const truncated = counts.sources.some((source) => source.notExhaustive);
+  const truncated = [...counts.sources, ...counts.otherMethods.sources].some(
+    (source) => source.notExhaustive,
+  );
+  const twoColumns = counts.otherMethods.sources.length > 0 || counts.otherMethods.members > 0;
+  const columns: PrismaColumn[] = twoColumns ? ['databases', 'otherMethods'] : ['databases'];
   const screeners = new Set(
     corpus.members.flatMap((member) =>
       member.decisions.flatMap((d) =>
@@ -50,19 +73,50 @@ export function PrismaPanel({ corpus }: { corpus: Corpus }) {
       ),
     ),
   ).size;
+  const list = (phase: string, column: PrismaColumn) => (
+    <dl
+      className={styles.facts}
+      aria-label={`PRISMA: ${phase}${column === 'databases' ? '' : column === 'total' ? ' (tổng)' : ' (trích dẫn)'}`}
+    >
+      {boxes
+        .map((box, index) => ({ box, index }))
+        .filter(({ box }) => box.column === column && phaseOf(box) === phase)
+        .map(({ box, index }) => (
+          <div key={index}>
+            <dt>{labelOf(box)}</dt>
+            <dd>{box.n}</dd>
+          </div>
+        ))}
+    </dl>
+  );
   return (
     <Card>
       <section aria-labelledby="corpus-prisma">
         <div className={styles.cardHead}>
           <h2 id="corpus-prisma">PRISMA 2020</h2>
           <div className={styles.cardTools}>
+            {round > 0 && (
+              <SegmentedControl
+                label="Phạm vi PRISMA"
+                value={scope}
+                onChange={(value) => setScope(value as PrismaScope)}
+                options={[
+                  { value: 'all', label: 'Mọi vòng' },
+                  { value: 'latest', label: `Chỉ lần cập nhật ${round}` },
+                ]}
+              />
+            )}
             <Button
               size="sm"
               leadingIcon={<Download size={16} aria-hidden="true" />}
               onClick={() =>
                 downloadText(
-                  `${slug}.prisma.csv`,
-                  BOM + toCsv([['label', 'n'], ...boxes.map((box) => [labelOf(box), box.n])]),
+                  `${slug}.prisma${counts.round === null ? '' : `.update-${counts.round}`}.csv`,
+                  BOM +
+                    toCsv([
+                      ['column', 'label', 'n'],
+                      ...boxes.map((box) => [COLUMNS[box.column], labelOf(box), box.n]),
+                    ]),
                   'text/csv',
                 )
               }
@@ -85,27 +139,30 @@ export function PrismaPanel({ corpus }: { corpus: Corpus }) {
             Có lượt tìm kiếm bị giới hạn số kết quả: nguồn đó chưa được tìm đầy đủ.
           </p>
         )}
-        <div className={styles.prisma}>
+        <div className={`${styles.prisma} ${twoColumns ? styles.prismaTwo : ''}`}>
           {PHASES.map((phase) => (
             <div key={phase}>
               <h3>{phase}</h3>
-              <dl className={styles.facts} aria-label={`PRISMA: ${phase}`}>
-                {boxes
-                  .map((box, index) => ({ box, index }))
-                  .filter(({ box }) => phaseOf(box) === phase)
-                  .map(({ box, index }) => (
-                    <div key={index}>
-                      <dt>{labelOf(box)}</dt>
-                      <dd>{box.n}</dd>
+              {twoColumns ? (
+                <div className={styles.prismaColumns}>
+                  {columns.map((column) => (
+                    <div key={column}>
+                      <h4>{COLUMNS[column]}</h4>
+                      {list(phase, column)}
                     </div>
                   ))}
-              </dl>
+                </div>
+              ) : (
+                list(phase, 'databases')
+              )}
+              {twoColumns && phase === 'Đưa vào' && list(phase, 'total')}
             </div>
           ))}
         </div>
         <p className={styles.muted}>
           Chỉ quyết định của người sàng lọc được tính; gợi ý AI không được tính. {screeners} người đã sàng
           lọc; chưa có sàng lọc kép độc lập.
+          {counts.round !== null && ` Chỉ tính lượt tìm kiếm và bài của lần cập nhật ${counts.round}.`}
         </p>
       </section>
     </Card>
