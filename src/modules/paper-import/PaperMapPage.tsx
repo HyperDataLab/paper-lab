@@ -62,9 +62,7 @@ export default function PaperMapPage() {
   const [counts, setCounts] = useState<{ sentences: number; words: number } | null>(null);
   const [candidateCounts, setCandidateCounts] = useState<Record<string, number>>({});
   const { jobs, jobFacts, reportJob } = useJobReports();
-  const [runProgress, setRunProgress] = useState<{ label: string; index: number; total: number } | null>(
-    null,
-  );
+  const [runProgress, setRunProgress] = useState<import('./paperJobs').RunProgress | null>(null);
   const linkP = query.get('p');
   const linkS = query.get('s');
   const linkE = query.get('e');

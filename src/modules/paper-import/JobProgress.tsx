@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/shared/ui/Button';
 import styles from './page.module.css';
+import type { RunProgress } from './paperJobs';
 
 export function JobProgress({
   running,
@@ -11,22 +12,24 @@ export function JobProgress({
   running: string[];
   count: number;
   onOpen: () => void;
-  sequence?: { label: string; index: number; total: number } | null;
+  sequence?: RunProgress | null;
 }) {
   const [done, setDone] = useState(false);
   const wasRunning = useRef(false);
   const [startCount, setStartCount] = useState(count);
   useEffect(() => {
-    if ((running.length || sequence) && !wasRunning.current) {
+    const active = running.length > 0 || Boolean(sequence && 'labels' in sequence);
+    if (active && !wasRunning.current) {
       setStartCount(count);
       setDone(false);
-    } else if (!running.length && !sequence && wasRunning.current) setDone(true);
-    wasRunning.current = running.length > 0 || !!sequence;
+    } else if (!active && wasRunning.current) setDone(true);
+    wasRunning.current = active;
   }, [running.length, count, sequence]);
-  if (sequence)
+  if (sequence && 'labels' in sequence)
     return (
       <span role="status" className={styles.runStrip}>
-        Đang chạy: {sequence.label} {sequence.index}/{sequence.total}
+        Đang chạy {sequence.labels.length} phân tích: {sequence.labels.join(', ')} · {sequence.completed}/
+        {sequence.total} xong
       </span>
     );
   if (running.length)
@@ -39,7 +42,10 @@ export function JobProgress({
   return (
     <span className={styles.runStrip}>
       <Button size="sm" onClick={onOpen}>
-        Xong · +{Math.max(0, count - startCount)} issues
+        {sequence && 'incomplete' in sequence && sequence.incomplete.length > 0
+          ? `Xong một phần · ${sequence.incomplete.length} chưa trọn vẹn`
+          : 'Xong'}{' '}
+        · +{Math.max(0, count - startCount)} issues
       </Button>
       <Button size="sm" variant="ghost" aria-label="Ẩn tiến độ" onClick={() => setDone(false)}>
         ×

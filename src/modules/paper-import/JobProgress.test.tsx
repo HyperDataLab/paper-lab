@@ -11,3 +11,18 @@ it('R15 progress chip shows running then done', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Xong · +2 issues' }));
   expect(open).toHaveBeenCalledOnce();
 });
+
+it('U1 progress chip reports a partial run and retains the issue count', () => {
+  const { rerender } = render(
+    <JobProgress
+      running={[]}
+      count={2}
+      onOpen={() => {}}
+      sequence={{ labels: ['Key facts'], completed: 0, total: 2 }}
+    />,
+  );
+  rerender(<JobProgress running={[]} count={4} onOpen={() => {}} sequence={{ incomplete: ['Evidence'] }} />);
+  expect(
+    screen.getByRole('button', { name: 'Xong một phần · 1 chưa trọn vẹn · +2 issues' }),
+  ).toBeInTheDocument();
+});

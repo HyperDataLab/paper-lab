@@ -53,12 +53,20 @@ export function BatchPanel({ paper, batch }: { paper: Paper; batch: ReturnType<t
   useReportJob('batch', {
     stale: staleness,
     running,
-    done: Boolean(run) && !running && !['paused', 'budget_exceeded', 'failed'].includes(run?.status ?? ''),
+    done:
+      Boolean(run) &&
+      !running &&
+      !['paused', 'budget_exceeded', 'failed', 'cancelled'].includes(run?.status ?? ''),
     estimate: plan.total,
     budget,
     ready: batch.loaded,
     start:
       plan.withinBudget && plan.paragraphs.length && selectedSteps.length ? () => batch.start(plan) : null,
+    resume:
+      run && !running && ['paused', 'budget_exceeded', 'failed', 'cancelled'].includes(run.status)
+        ? async () => batch.resume(budget)
+        : null,
+    resumeEstimate: run ? Math.max(0, run.plan.total - run.callsUsed) : undefined,
     stop: batch.pause,
     sectionRun:
       run && !running && acceptsSectionRun(staleness) && selectedSteps.length
