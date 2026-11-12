@@ -1,0 +1,29 @@
+.page {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+.form {
+  display: grid;
+  gap: var(--space-3);
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: end;
+}
+.list {
+  display: grid;
+  gap: var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+.muted {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.checks {
+  display: grid;
+  gap: var(--space-2);
+}

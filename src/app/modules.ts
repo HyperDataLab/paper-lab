@@ -8,6 +8,7 @@ import calibration from '@/modules/calibration';
 import settings from '@/modules/settings';
 import paperImport from '@/modules/paper-import';
 import extraction from '@/modules/extraction';
+import corpus from '@/modules/corpus';
 
 export const modules = [
   home,
@@ -16,6 +17,7 @@ export const modules = [
   generate,
   paperImport,
   extraction,
+  corpus,
   history,
   transfer,
   calibration,

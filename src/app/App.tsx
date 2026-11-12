@@ -19,6 +19,7 @@ import ReportPage from '@/modules/report/ReportPage';
 import ComparePage from '@/modules/report/ComparePage';
 import PaperMapPage from '@/modules/paper-import/PaperMapPage';
 import ExtractionProjectPage from '@/modules/extraction/ProjectPage';
+import CorpusDetail from '@/modules/corpus/DetailPage';
 import styles from './shell.module.css';
 type Theme = 'light' | 'dark' | 'system';
 const THEME_LABELS: Record<Theme, string> = { system: 'Hệ thống', light: 'Sáng', dark: 'Tối' };
@@ -45,6 +46,7 @@ export function App() {
     location.pathname === '/evaluate' ||
     location.pathname === '/extraction' ||
     location.pathname.startsWith('/extraction/') ||
+    location.pathname.startsWith('/corpus') ||
     location.pathname === '/papers' ||
     location.pathname.startsWith('/papers/');
   useEffect(() => {
@@ -126,6 +128,7 @@ export function App() {
                       <Route path="/compare" element={<ComparePage />} />
                       <Route path="/papers/:id" element={<PaperMapPage />} />
                       <Route path="/extraction/:id" element={<ExtractionProjectPage />} />
+                      <Route path="/corpus/:id" element={<CorpusDetail />} />
                       <Route
                         path="*"
                         element={
