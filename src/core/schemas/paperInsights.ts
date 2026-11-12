@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ClaimTypeSchema } from '../argument/claimTypes';
 
 export const RHETORIC_CATEGORIES = [
   'territory',
@@ -86,6 +87,7 @@ export const ArgumentOutputSchema = z.object({
   arguments: z.array(
     z.object({
       claim: RefSchema,
+      claimType: ClaimTypeSchema.nullable(),
       importance: z.enum(['main', 'supporting']),
       data: z.array(RefSchema),
       statedWarrant: RefSchema.nullable(),
@@ -102,6 +104,7 @@ export const ArgumentSchema = z.object({
   id: z.string(),
   importance: z.enum(['main', 'supporting']),
   claim: SpanSchema,
+  claimType: ClaimTypeSchema.nullable().default(null),
   data: z.array(SpanSchema),
   statedWarrant: SpanSchema.nullable(),
   inferredWarrant: z.string().nullable(),
@@ -128,7 +131,16 @@ export const ArgumentPendingSchema = z.object({
   sectionIds: z.array(z.string()),
   callsUsed: z.number().int().nonnegative(),
   model: z.string().nullable(),
-  chunks: z.record(z.string(), ArgumentOutputSchema),
+  chunks: z.record(
+    z.string(),
+    z.object({
+      arguments: z.array(
+        ArgumentOutputSchema.shape.arguments.element.extend({
+          claimType: ClaimTypeSchema.nullable().default(null),
+        }),
+      ),
+    }),
+  ),
 });
 export const SNAPSHOT_FIELDS = [
   'methods',

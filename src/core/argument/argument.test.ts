@@ -16,6 +16,7 @@ const ref = (quote: string, paragraphId = 'p') => ({ paragraphId, quote });
 const full = {
   claim: ref('AI review is unsafe'),
   importance: 'main' as const,
+  claimType: 'causal' as const,
   data: [ref('Scores rose 30%')],
   statedWarrant: ref('Because scores reward style'),
   inferredWarrant: null,
@@ -29,6 +30,7 @@ describe('D4 arguments', () => {
   it('keeps every slot it can verify', () => {
     const { items, discarded } = verifyArguments({ arguments: [full] }, chunk);
     expect(items[0]?.claim).toMatchObject({ excerpt: 'AI review is unsafe', page: 3, start: 0 });
+    expect(items[0]?.claimType).toBe('causal');
     expect(items[0]?.statedWarrant?.excerpt).toBe('Because scores reward style');
     expect(items[0]?.rebuttals).toHaveLength(1);
     expect(discarded).toEqual({ claim_not_found: 0, element_not_found: 0, duplicate: 0 });
@@ -91,6 +93,7 @@ describe('D4 arguments', () => {
   const argument = (id: string, over: Partial<Argument>): Argument => ({
     id,
     importance: 'main',
+    claimType: null,
     claim: span(0, 5),
     data: [],
     statedWarrant: null,

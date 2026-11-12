@@ -16,6 +16,7 @@ import { ReviewActions } from '@/shared/ui/FindingCard';
 import { Select } from '@/shared/ui/Select';
 import styles from './argument.module.css';
 import { PlaceText } from './PlaceText';
+import { ClaimTypeBadge } from './ClaimTypes';
 
 type Span = Argument['claim'];
 const ROLES: Record<DiagramRole, string> = {
@@ -260,6 +261,7 @@ export function ArgumentDiagram({
           <Badge tone={item.importance === 'main' ? 'accent' : 'neutral'}>
             {item.importance === 'main' ? 'Luận điểm chính' : 'Luận điểm phụ'}
           </Badge>
+          <ClaimTypeBadge type={item.claimType} />
           {state && (
             <Badge tone={state === 'confirmed' ? 'success' : 'danger'}>
               {state === 'confirmed' ? 'Đã xác nhận' : 'Đã bác bỏ'}

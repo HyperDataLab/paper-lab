@@ -100,6 +100,7 @@ it('R6 arguments belong to the section of their claim; stance keeps per-section 
   const argument = (id: string, sectionId: string) => ({
     id,
     importance: 'main' as const,
+    claimType: null,
     claim: span(sectionId, id),
     data: [],
     statedWarrant: null,

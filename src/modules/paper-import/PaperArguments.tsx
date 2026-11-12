@@ -2,7 +2,7 @@ import { PROMPT_VERSIONS } from '@/core/prompts';
 import { runFreshness } from '@/core/runFreshness';
 import { useStoredChanged } from './paperJobs';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { argumentMetrics, planArguments } from '@/core/argument';
+import { argumentMetrics, buildArgumentGraph, planArguments } from '@/core/argument';
 import { BatchBudgetExceededError } from '@/core/batch/runBatch';
 import { defaultRhetoricSections } from '@/core/rhetoric';
 import type { Argument, Finding, Paper, PaperInsightsRecord } from '@/core/schemas';
@@ -23,6 +23,8 @@ import { acceptsSectionRun, useReportJob } from './paperJobs';
 import styles from './argument.module.css';
 import { Loading } from '@/shared/ui/StateNote';
 import { PlaceText } from './PlaceText';
+import type { ClaimType } from '@/core/argument/claimTypes';
+import { ClaimTypeBadge, ClaimTypeFilter } from './ClaimTypes';
 
 type Location = Finding['locations'][number];
 type Span = Argument['claim'];
@@ -53,6 +55,7 @@ export function PaperArguments({
   const [showSetup, setShowSetup] = useState(false);
   // A diagram is the default reading; the list keeps every argument on one page for scanning.
   const [layout, setLayout] = useState('diagram');
+  const [claimType, setClaimType] = useState<ClaimType | null>(null);
   const controller = useRef<AbortController | null>(null);
   useEffect(() => {
     let active = true;
@@ -208,6 +211,7 @@ export function PaperArguments({
       ? [...metrics.live, ...run.arguments.filter((item) => metrics.states.get(item.id) === 'dismissed')]
       : [];
   const nodeText = (id: string) => metrics?.graph.nodes.find((node) => node.id === id)?.span;
+  const filtered = ordered.filter((item) => !claimType || item.claimType === claimType);
   return (
     <div className={styles.panel}>
       <Card padding="md">
@@ -280,11 +284,20 @@ export function PaperArguments({
               onChange={setLayout}
             />
           </div>
+          <ClaimTypeFilter
+            types={ordered.map((item) => item.claimType)}
+            value={claimType}
+            onChange={setClaimType}
+          />
           {layout === 'diagram' && (
             <ArgumentDiagram
               paper={paper}
-              graph={metrics.graph}
-              items={ordered}
+              graph={
+                claimType
+                  ? buildArgumentGraph(metrics.live.filter((item) => item.claimType === claimType))
+                  : metrics.graph
+              }
+              items={filtered}
               states={metrics.states}
               view={view}
               onLocation={open}
@@ -309,7 +322,7 @@ export function PaperArguments({
             </StatGrid>
           </Card>
           {layout === 'list' &&
-            ordered.map((item) => {
+            filtered.map((item) => {
               const state = metrics.states.get(item.id);
               return (
                 <FindingCard
@@ -320,6 +333,7 @@ export function PaperArguments({
                       <Badge tone={item.importance === 'main' ? 'accent' : 'neutral'}>
                         {item.importance === 'main' ? 'Luận điểm chính' : 'Luận điểm phụ'}
                       </Badge>
+                      <ClaimTypeBadge type={item.claimType} />
                       {state && (
                         <Badge tone={state === 'confirmed' ? 'success' : 'danger'}>
                           {state === 'confirmed' ? 'Đã xác nhận' : 'Đã bác bỏ'}
@@ -381,54 +395,57 @@ export function PaperArguments({
             Nút I là nội dung trong bài. RA là bước suy luận nối tiền đề với kết luận. CA là bước phản bác.
           </p>
           <ul className={styles.graph}>
-            {metrics.live.map((item) => {
-              const conclusion = metrics.graph.nodes.find(
-                (node) =>
-                  node.kind === 'I' &&
-                  node.span?.paragraphId === item.claim.paragraphId &&
-                  node.span.start < item.claim.end &&
-                  item.claim.start < node.span.end,
-              );
-              const into = metrics.graph.edges.filter((edge) => edge.to === conclusion?.id);
-              return (
-                <li key={item.id}>
-                  <div className={styles.node}>
-                    <Badge tone="accent">I</Badge> {item.claim.excerpt}
-                  </div>
-                  {into.length === 0 && <p className={styles.empty}>Chưa thấy tiền đề.</p>}
-                  <ul className={styles.graph}>
-                    {into.map((edge) => {
-                      const kind = edge.from.startsWith('ca-') ? 'CA' : 'RA';
-                      return (
-                        <li key={edge.from}>
-                          <div className={styles.node}>
-                            <Badge tone={kind === 'CA' ? 'danger' : 'success'}>{kind}</Badge>
-                          </div>
-                          <ul className={styles.graph}>
-                            {metrics.graph.edges
-                              .filter((inner) => inner.to === edge.from)
-                              .map((inner) => {
-                                const span = nodeText(inner.from);
-                                return (
-                                  span && (
-                                    <li key={inner.from} className={styles.node}>
-                                      <Badge>I · {kind === 'CA' ? 'phản bác' : roleOf(item, span)}</Badge>{' '}
-                                      {span.excerpt}{' '}
-                                      <Button variant="ghost" size="sm" onClick={() => open(span)}>
-                                        <PlaceText paper={paper} paragraphId={span.paragraphId} />
-                                      </Button>
-                                    </li>
-                                  )
-                                );
-                              })}
-                          </ul>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </li>
-              );
-            })}
+            {metrics.live
+              .filter((item) => !claimType || item.claimType === claimType)
+              .map((item) => {
+                const conclusion = metrics.graph.nodes.find(
+                  (node) =>
+                    node.kind === 'I' &&
+                    node.span?.paragraphId === item.claim.paragraphId &&
+                    node.span.start < item.claim.end &&
+                    item.claim.start < node.span.end,
+                );
+                const into = metrics.graph.edges.filter((edge) => edge.to === conclusion?.id);
+                return (
+                  <li key={item.id}>
+                    <div className={styles.node}>
+                      <Badge tone="accent">I</Badge> <ClaimTypeBadge type={item.claimType} />{' '}
+                      {item.claim.excerpt}
+                    </div>
+                    {into.length === 0 && <p className={styles.empty}>Chưa thấy tiền đề.</p>}
+                    <ul className={styles.graph}>
+                      {into.map((edge) => {
+                        const kind = edge.from.startsWith('ca-') ? 'CA' : 'RA';
+                        return (
+                          <li key={edge.from}>
+                            <div className={styles.node}>
+                              <Badge tone={kind === 'CA' ? 'danger' : 'success'}>{kind}</Badge>
+                            </div>
+                            <ul className={styles.graph}>
+                              {metrics.graph.edges
+                                .filter((inner) => inner.to === edge.from)
+                                .map((inner) => {
+                                  const span = nodeText(inner.from);
+                                  return (
+                                    span && (
+                                      <li key={inner.from} className={styles.node}>
+                                        <Badge>I · {kind === 'CA' ? 'phản bác' : roleOf(item, span)}</Badge>{' '}
+                                        {span.excerpt}{' '}
+                                        <Button variant="ghost" size="sm" onClick={() => open(span)}>
+                                          <PlaceText paper={paper} paragraphId={span.paragraphId} />
+                                        </Button>
+                                      </li>
+                                    )
+                                  );
+                                })}
+                            </ul>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </li>
+                );
+              })}
           </ul>
         </Card>
       )}

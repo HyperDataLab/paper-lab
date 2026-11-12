@@ -66,3 +66,34 @@ it('R3 offers to open an analysis that has not run instead of showing an empty s
   // With nothing run at all, the limits section is simply absent.
   expect(screen.queryByRole('region', { name: /Stated limitations/ })).toBeNull();
 });
+
+it('CT shows claim type grounds and filters main claims', () => {
+  const original = insights.argumentRuns[0];
+  if (!original) throw new Error('Missing run');
+  const first = original.arguments[0];
+  if (!first) throw new Error('Missing claim');
+  const typed = {
+    ...insights,
+    argumentRuns: [
+      {
+        ...original,
+        arguments: [
+          { ...first, claimType: 'causal' as const },
+          {
+            ...first,
+            id: 'a2',
+            claimType: 'comparative' as const,
+            claim: { ...first.claim, excerpt: 'X exceeds Z.' },
+          },
+        ],
+      },
+    ],
+  };
+  render(<PaperSummary paper={paper} insights={typed} onLocation={vi.fn()} onOpen={vi.fn()} />);
+  expect(screen.getByTitle(/phân nhóm ngẫu nhiên/)).toHaveTextContent('Nhân quả');
+  fireEvent.click(
+    within(screen.getByRole('group', { name: 'Loại claim' })).getByRole('button', { name: 'So sánh' }),
+  );
+  expect(screen.getByText('“X exceeds Z.”')).toBeInTheDocument();
+  expect(screen.queryByText('“X improves Y.”')).not.toBeInTheDocument();
+});

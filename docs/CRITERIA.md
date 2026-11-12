@@ -137,3 +137,16 @@ annotations give its usual form (all 40 papers, aggregate counts only):
 So a claim is usually **one clause**, not a whole sentence, of about 5 to 22 words, often after "that",
 "however", "because" or "therefore". Data are short and often a pointer ("Figure 4", "Section 3"). These are soft
 expectations used as warnings, not filters; cue words are hints, present in under 10 % of claims.
+
+## 6. Claim types
+
+Writing Bank claim-types defines twelve types: descriptive, comparative, correlational, causal, mechanistic,
+predictive, methodological, generalisation, novelty, null, theoretical and recommendation. The type is the
+model's reading, shown as a label that the reader can reject like any other.
+
+Prompt `argument-3` adds the type and leaves the claim and data definitions as they were. On the development split
+(A01–A05, 2026-11-12) claim precision was 79.5 % (81.8 % with `argument-1`; the difference is within run-to-run
+variation on five papers), data precision 7.9 %. The types returned for these computer-graphics papers were mostly
+methodological (39 of 88), descriptive (18) and comparative (16), then generalisation (7), theoretical (4), novelty
+(2), mechanistic and recommendation (1 each). There is no gold standard for types, so these counts describe the
+output and do not measure it.
