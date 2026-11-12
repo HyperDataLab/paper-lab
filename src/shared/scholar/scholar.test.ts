@@ -170,7 +170,8 @@ it('searches OpenAlex with the query and year filters only, and follows one cita
     toYear: null,
     perPage: 5,
   });
-  expect(found).toEqual({ results: [{ id: 'W1' }], total: 7 });
+  expect(found).toEqual({ results: [{ id: 'W1' }], total: 7, url: s.calls[0] });
+  expect(found.url).not.toContain('example.org');
   expect(s.calls[0]).toContain(
     'search=edge%20fog%20latency&filter=from_publication_date:2020-01-01&per-page=5',
   );
@@ -183,6 +184,7 @@ it('searches OpenAlex with the query and year filters only, and follows one cita
   expect(await client(empty).searchWorks('x', { fromYear: null, toYear: null, perPage: 5 })).toEqual({
     results: [],
     total: 0,
+    url: expect.stringContaining('https://api.openalex.org/works?search=x'),
   });
   expect(await client(empty).citationWorks('W9', 'cited_by', 3)).toEqual([]);
 });
