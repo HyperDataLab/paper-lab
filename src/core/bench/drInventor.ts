@@ -159,6 +159,10 @@ export function scoreSpans(predicted: Prediction[], gold: GoldSpan[]) {
   };
   const claimRecall = recallCounts('own_claim', 'claim');
   const dataRecall = recallCounts('data', 'data');
+  const dataPredictions = predicted.filter((p) => p.kind === 'data');
+  const dataContainsGold = dataPredictions.filter((p) =>
+    gold.some((g) => g.label === 'data' && overlap(p, g) * 2 >= g.end - g.start),
+  ).length;
   const majority = LABELS.reduce((best, label) =>
     gold.filter((g) => g.label === label).length > gold.filter((g) => g.label === best).length ? label : best,
   );
@@ -166,7 +170,8 @@ export function scoreSpans(predicted: Prediction[], gold: GoldSpan[]) {
     confusion,
     precision: {
       claim: ratio(confusion.claim.own_claim, predicted.filter((p) => p.kind === 'claim').length),
-      data: ratio(confusion.data.data, predicted.filter((p) => p.kind === 'data').length),
+      data: ratio(confusion.data.data, dataPredictions.length),
+      dataContainsGold: ratio(dataContainsGold, dataPredictions.length),
     },
     recall: {
       own_claim: ratio(claimRecall.found, claimRecall.total),

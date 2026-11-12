@@ -46,10 +46,27 @@ describe('BENCH Dr. Inventor adapter', () => {
       gold,
     );
     expect(score.confusion.claim.background_claim).toBe(1);
-    expect(score.precision).toEqual({ claim: 0.5, data: 0.5 });
+    expect(score.precision).toEqual({ claim: 0.5, data: 0.5, dataContainsGold: 0 });
     expect(score.recall).toEqual({ own_claim: 1, data: 0.5 });
     expect(score.majorityLabel).toBe('data');
     expect(score.majorityBaseline).toBe(0.25);
     expect(scoreSpans([], []).precision.claim).toBeNull();
+  });
+
+  it('BENCH counts data containing at least half a gold data span independently of largest overlap', () => {
+    const gold = [
+      { label: 'own_claim' as const, start: 0, end: 20 },
+      { label: 'data' as const, start: 20, end: 26 },
+    ];
+    const score = scoreSpans(
+      [
+        { kind: 'data', rawStart: 0, rawEnd: 23 },
+        { kind: 'data', rawStart: 0, rawEnd: 22 },
+      ],
+      gold,
+    );
+    expect(score.precision.data).toBe(0);
+    expect(score.precision.dataContainsGold).toBe(0.5);
+    expect(scoreSpans([], gold).precision.dataContainsGold).toBeNull();
   });
 });
