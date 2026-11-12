@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CorpusSchema } from './corpus';
 import { AnalysisSchema } from './analysis';
 import { AuditEventSchema } from './audit';
 import { RevisionSchema } from './revision';
@@ -34,5 +35,6 @@ export const ExportPackageSchema = z.object({
   stance: z.array(StanceRecordSchema).default([]),
   paperInsights: z.array(PaperInsightsRecordSchema).default([]),
   extractionProjects: z.array(ExtractionProjectSchema).default([]),
+  corpora: z.array(CorpusSchema).default([]),
 });
 export type ExportPackage = z.infer<typeof ExportPackageSchema>;

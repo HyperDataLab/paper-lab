@@ -1,3 +1,4 @@
+import { normalTitle } from '../text/normalizeTitle';
 import { normalizeDoi } from '../library/doi';
 import { abstractFromIndex } from '../scholarlyContext';
 import type {
@@ -33,13 +34,6 @@ export function planFromOutput(output: PlanOutput): SearchPlan {
 }
 
 const text = (value: unknown) => (typeof value === 'string' && value.trim() ? value.trim() : null);
-const normalTitle = (title: string) =>
-  title
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .trim();
 
 /** One OpenAlex work as a screening candidate. A work without a title is skipped. */
 export function candidateFromWork(raw: unknown, foundBy: string): Candidate | null {
