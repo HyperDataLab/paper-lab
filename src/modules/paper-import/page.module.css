@@ -683,7 +683,13 @@
 .runSummary strong {
   color: var(--text);
 }
+.blockRun {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
 .runActions {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);

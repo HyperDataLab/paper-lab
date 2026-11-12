@@ -1,3 +1,4 @@
+import { PAPER_LABELS } from './labels';
 import { PROMPT_VERSIONS } from '@/core/prompts';
 import { runFreshness } from '@/core/runFreshness';
 import { useStoredChanged } from './paperJobs';
@@ -28,7 +29,6 @@ import { ClaimTypeBadge, ClaimTypeFilter } from './ClaimTypes';
 
 type Location = Finding['locations'][number];
 type Span = Argument['claim'];
-const NOT_IDENTIFIED = 'Not identified';
 
 export function PaperArguments({
   paper,
@@ -145,6 +145,7 @@ export function PaperArguments({
     running,
     done: Boolean(run) && !record?.argumentPending,
     estimate,
+    budget,
     ready: !loading,
     start: () => start(false),
     sectionRun:
@@ -168,7 +169,7 @@ export function PaperArguments({
   };
   const quotes = (spans: Span[]) =>
     spans.length === 0 ? (
-      <span className={styles.empty}>{NOT_IDENTIFIED}</span>
+      <span className={styles.empty}>{PAPER_LABELS.notIdentified}</span>
     ) : (
       <ul className={styles.quotes}>
         {spans.map((span) => (
@@ -369,7 +370,7 @@ export function PaperArguments({
                           <Badge tone="warning">AI suy ra, tác giả không nêu</Badge> {item.inferredWarrant}
                         </>
                       ) : (
-                        <span className={styles.empty}>{NOT_IDENTIFIED}</span>
+                        <span className={styles.empty}>{PAPER_LABELS.notIdentified}</span>
                       )}
                     </dd>
                     <dt>Backing</dt>

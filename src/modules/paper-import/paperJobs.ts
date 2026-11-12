@@ -22,6 +22,7 @@ export interface JobReport {
   done: boolean;
   /** AI calls a fresh run is expected to make with the current scope. */
   estimate: number;
+  budget?: number;
   /** False while the panel is still loading what was saved. */
   ready: boolean;
   /** Starts a fresh run with the current scope and ceiling; null when the analysis needs the reader first. */

@@ -164,6 +164,7 @@ export function PaperStance({
     running,
     done: Boolean(run) && !record?.pending,
     estimate,
+    budget,
     ready: !loading,
     start: () => start(false),
     sectionRun:

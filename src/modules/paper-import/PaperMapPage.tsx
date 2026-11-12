@@ -477,18 +477,20 @@ export default function PaperMapPage() {
         before.done === report.done &&
         JSON.stringify(before.stale) === JSON.stringify(report.stale) &&
         before.estimate === report.estimate &&
+        before.budget === report.budget &&
         before.ready === report.ready &&
         before.startable === (report.start !== null) &&
         JSON.stringify(before.sections) === JSON.stringify(report.sectionRun?.sections ?? [])
       )
         return old;
-      const { running, done, estimate, ready, stale } = report;
+      const { running, done, estimate, budget, ready, stale } = report;
       return {
         ...old,
         [jobId]: {
           running,
           done,
           estimate,
+          budget,
           ready,
           stale,
           startable: report.start !== null,
@@ -963,6 +965,7 @@ export default function PaperMapPage() {
             : undefined
         }
         estimate={fact?.estimate}
+        budget={fact?.budget}
         onRun={
           job && (status === 'todo' || Boolean(fact?.stale)) && fact?.startable
             ? () => {

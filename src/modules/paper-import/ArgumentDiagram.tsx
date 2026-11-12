@@ -1,3 +1,4 @@
+import { PAPER_LABELS } from './labels';
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import type { ArgumentNode, ArgumentEdge } from '@/core/argument';
 import {
@@ -167,7 +168,7 @@ export function ArgumentDiagram({
         {node.inferred && <Badge tone="warning">AI suy ra</Badge>}
       </div>
       {node.missing ? (
-        <p className={styles.dMissing}>Not identified</p>
+        <p className={styles.dMissing}>{PAPER_LABELS.notIdentified}</p>
       ) : (
         <p className={styles.dText} title={node.text ?? undefined}>
           {node.text}

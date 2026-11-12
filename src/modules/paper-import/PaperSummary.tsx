@@ -1,3 +1,4 @@
+import { PAPER_LABELS } from './labels';
 import { useId, useState, type ReactNode } from 'react';
 import type { ClaimType } from '@/core/argument/claimTypes';
 import { ClaimTypeBadge, ClaimTypeFilter } from './ClaimTypes';
@@ -165,7 +166,7 @@ export function PaperSummary({
                           <dt>Grounds</dt>
                           <dd>
                             {item.data.length === 0 ? (
-                              <span className={styles.muted}>Not identified</span>
+                              <span className={styles.muted}>{PAPER_LABELS.notIdentified}</span>
                             ) : (
                               quotes(item.data, '')
                             )}

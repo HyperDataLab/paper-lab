@@ -147,7 +147,7 @@ it('FR-01 runs an analysis with an estimate and budget', async () => {
     };
   });
   await setup(false, { completeJson } as unknown as LlmClient);
-  expect(await screen.findByText(/ước tính 5 lượt gọi/)).toBeInTheDocument();
+  expect(await screen.findByText(/~5 lượt · trần/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu phân tích' }));
   expect(await screen.findByText('Nghiên cứu trường hợp')).toBeInTheDocument();
   expect(completeJson).toHaveBeenCalledTimes(5);

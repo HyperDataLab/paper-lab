@@ -117,7 +117,7 @@ it('P2 estimates selected calls, asks manuscript consent and opens a completed a
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chuyển đoạn' }));
   expect(
     within(screen.getByRole('region', { name: 'Coherence & sentences' })).getByText(
-      /ước tính 1 lượt gọi AI, trần 10/,
+      /~1 lượt · trần 10 \(chưa tính thử lại\)/,
     ),
   ).toBeInTheDocument();
   fireEvent.change(
@@ -408,5 +408,5 @@ it('R1 an old view link opens its block in the new three-mode page, and an analy
     'false',
   );
   expect(await within(stance).findByText('Chưa chạy')).toBeInTheDocument();
-  expect(within(stance).getByRole('button', { name: /^Phân tích \(~\d+ lượt\)$/ })).toBeEnabled();
+  expect(within(stance).getByRole('button', { name: 'Phân tích' })).toBeEnabled();
 });

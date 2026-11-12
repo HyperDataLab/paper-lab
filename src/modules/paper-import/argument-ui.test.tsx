@@ -112,7 +112,7 @@ it('R4 Toulmin is drawn as a diagram: empty slots say so, and an inferred warran
   expect(within(screen.getByTestId('node-warrant')).getByText('AI suy ra')).toBeInTheDocument();
   expect(within(screen.getByTestId('node-warrant')).getByText('Không phải lời tác giả')).toBeInTheDocument();
   for (const id of ['node-backing-0', 'node-qualifier'])
-    expect(within(screen.getByTestId(id)).getByText('Not identified')).toBeInTheDocument();
+    expect(within(screen.getByTestId(id)).getByText('Chưa xác định')).toBeInTheDocument();
   expect(screen.getByText(/4\/6 thành phần đã xác định/)).toBeInTheDocument();
   // The rebuttal line is dashed and labelled, not only coloured.
   expect(within(diagram).getByText('Trừ khi')).toBeInTheDocument();
