@@ -3,6 +3,7 @@ import type { Candidate, Corpus, ExtractionProject } from '../schemas';
 import { newCorpus } from './index';
 import { addMember, intakeRecords } from './intake';
 import { normalTitle } from '../text/normalizeTitle';
+import { latestDecision } from './screening';
 
 export function recordTopicSearch(
   corpus: Corpus,
@@ -104,7 +105,7 @@ export function linkTopic(project: ExtractionProject, corpus: Corpus): Extractio
           item.stratum.year === candidate.year &&
           normalTitle(item.title) === normalTitle(candidate.title)),
     );
-    const decision = member?.decisions.filter((item) => item.decider.kind === 'person').at(-1);
+    const decision = member && latestDecision(member, 'full-text');
     return {
       ...candidate,
       status: decision
@@ -113,7 +114,7 @@ export function linkTopic(project: ExtractionProject, corpus: Corpus): Extractio
           : decision.decision === 'exclude'
             ? ('excluded' as const)
             : ('uncertain' as const)
-        : candidate.status,
+        : ('candidate' as const),
     };
   });
   const existing = new Set(project.papers.map((paper) => paper.key));
@@ -122,7 +123,7 @@ export function linkTopic(project: ExtractionProject, corpus: Corpus): Extractio
   );
   const manual = corpus.members
     .filter((member) => {
-      const decision = member.decisions.filter((item) => item.decider.kind === 'person').at(-1);
+      const decision = latestDecision(member, 'full-text');
       return (
         decision?.decision === 'include' &&
         ![member.identifiers.doi, member.identifiers.openalexId].some((id) => id && represented.has(id)) &&
