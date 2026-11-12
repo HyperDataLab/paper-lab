@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import type { Analysis, Issue } from '../schemas';
+import type { Analysis } from '../schemas/analysis';
+import type { Issue } from '../schemas/issue';
 import { sliceCp } from '../text/offsets';
 
 export const RevisionOutputSchema = z.object({

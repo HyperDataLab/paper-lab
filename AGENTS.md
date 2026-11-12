@@ -55,6 +55,8 @@ src/
 
 - **Dependency direction:** `app -> modules -> shared -> core`. `core` imports nothing from React, Dexie, `fetch`
   or `window`. ESLint enforces this with `no-restricted-imports`.
+- Feature modules import other feature modules only through their public `index.ts` entry. ESLint reports
+  internal cross-module imports; existing exceptions are listed explicitly in `eslint.config.js`.
 - **Adding a module** = create `src/modules/<id>/index.ts` exporting a `ModuleDefinition` and register it in
   `src/app/modules.ts`. The sidebar, routes and breadcrumbs are generated from the registry. Do not hand-edit nav.
 - **Zod schemas in `core/schemas` are the single source of truth.** Every IndexedDB write, every LLM response and

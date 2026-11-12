@@ -8,7 +8,7 @@ import { loadReport } from '@/shared/report/loadReport';
 import { ReportText } from './ReportText';
 import styles from './report.module.css';
 import { Transparency } from '@/shared/report/Transparency';
-import { labels, statuses } from '@/modules/evaluate/issueLabels';
+import { labels, statuses } from '@/modules/evaluate';
 import { Loading } from '@/shared/ui/StateNote';
 
 const percent = (value: number | null) => (value === null ? '—' : `${Math.round(value * 100)} %`);

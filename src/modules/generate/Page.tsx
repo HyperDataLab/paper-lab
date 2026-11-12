@@ -1,7 +1,7 @@
 import { FileCheck2, Link2, PenLine, ShieldCheck } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ParagraphModes } from '@/modules/evaluate/ParagraphModes';
+import { ParagraphModes } from '@/modules/evaluate';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { buildGeneration } from '@/core/generation';
 import { GenerationInputSchema, type GenerationInput } from '@/core/prompts/generation';
