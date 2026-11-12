@@ -13,6 +13,7 @@ import { Dialog } from '@/shared/ui/Dialog';
 import { IconButton } from '@/shared/ui/IconButton';
 import { DataTable } from '@/shared/ui/DataTable';
 import { Select } from '@/shared/ui/Select';
+import { AppraisalPanel } from './AppraisalPanel';
 import { Intake } from './Intake';
 import { CorpusBuild } from './CorpusBuild';
 import { CorpusLabels } from './CorpusLabels';
@@ -232,6 +233,7 @@ export default function DetailPage() {
       {corpus.kind !== 'topic' && <JournalHarvest corpus={corpus} save={save} />}
       {corpus.kind === 'topic' && <TopicSearch corpus={corpus} save={save} />}
       {corpus.kind === 'topic' && <PrismaPanel corpus={corpus} />}
+      {corpus.kind === 'topic' && <AppraisalPanel corpus={corpus} save={save} />}
       <CorpusBuild corpus={corpus} save={save} />
       <CorpusLabels corpus={corpus} save={save} />
       {corpus.kind === 'journal' && <CorpusProfileCard corpus={corpus} />}

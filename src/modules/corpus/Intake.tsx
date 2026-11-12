@@ -4,6 +4,7 @@ import {
   addFromLibrary,
   addFromPapers,
   addMember,
+  creditPending,
   mergeMembers,
   type IntakeInput,
 } from '@/core/corpus/intake';
@@ -15,7 +16,7 @@ import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { TextField } from '@/shared/ui/TextField';
 import styles from './corpus.module.css';
 
-type Pending = { candidate: string; input: IntakeInput; id: string };
+type Pending = NonNullable<Corpus['pendingConfirmations']>[number];
 export function Intake({
   corpus,
   save,
@@ -103,9 +104,10 @@ export function Intake({
       const member = added.corpus.members.find((m) => m.memberId === added.memberId);
       if (!member) throw new Error('Không tìm thấy bài mới.');
       const both = { ...corpus, updatedAt: now, members: [...corpus.members, member] };
-      const resolved = merge
+      const merged = merge
         ? mergeMembers(both, member.memberId, item.candidate, 'title-year confirmed', now)
         : both;
+      const resolved = creditPending(merged, item, member.memberId, merge);
       await save({ ...resolved, pendingConfirmations: pending.filter((p) => p.id !== item.id) });
     } catch (e) {
       setError(String(e));

@@ -42,6 +42,11 @@ export function canScreenFullText(member: CorpusMember): boolean {
   return latestDecision(member, 'title-abstract')?.decision === 'include';
 }
 
+/** Included in the review: full-text include after a title-abstract include, as PRISMA counts it. */
+export function isIncluded(member: CorpusMember): boolean {
+  return canScreenFullText(member) && latestDecision(member, 'full-text')?.decision === 'include';
+}
+
 export type AiSuggestion = { decision: ScreeningDecision; reason: string };
 
 /** The deep-research suggestion for a member, matched by DOI or OpenAlex id. Shown apart, never counted. */

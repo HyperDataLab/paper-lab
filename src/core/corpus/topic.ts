@@ -13,26 +13,65 @@ export function recordTopicSearch(
   retrieved: number,
   at: string,
 ): Corpus {
+  return recordSearch(
+    corpus,
+    candidates,
+    { requestUrl, totalReported, retrieved, truncated: totalReported > retrieved },
+    at,
+  );
+}
+
+export type SearchRecord = {
+  /** `openalex` for a query; `snowball-backward` / `snowball-forward` for citation searching. */
+  source?: string;
+  requestUrl: string;
+  requestUrls?: string[];
+  totalReported: number;
+  retrieved: number;
+  truncated: boolean;
+  updateRound?: number;
+  seeds?: string[];
+  snowballRound?: number;
+};
+
+/** One search entry: its records go through intake, and the entry keeps the members it added. */
+export function recordSearch(
+  corpus: Corpus,
+  candidates: Candidate[],
+  record: SearchRecord,
+  at: string,
+): Corpus {
   const deep = corpus.deep ?? emptyDeep();
   const merged = mergeCandidates(deep.candidates, candidates);
-  const { corpus: result, added, duplicates } = intakeRecords(corpus, candidates, at);
-  const url = new URL(requestUrl);
+  const source = record.source ?? 'openalex';
+  const updateRound = record.updateRound ?? 0;
+  const {
+    corpus: result,
+    added,
+    duplicates,
+    memberIds,
+  } = intakeRecords(corpus, candidates, at, { source, updateRound });
+  const url = new URL(record.requestUrl);
   return {
     ...result,
     deep: { ...deep, candidates: merged.candidates },
     searches: [
       ...result.searches,
       {
-        source: 'openalex',
-        requestUrl,
+        source,
+        requestUrl: record.requestUrl,
         params: Object.fromEntries(url.searchParams),
         runAt: at,
-        totalReported,
-        retrieved,
+        totalReported: record.totalReported,
+        retrieved: record.retrieved,
         duplicates,
         added,
-        truncated: totalReported > retrieved,
-        updateRound: 0,
+        truncated: record.truncated,
+        updateRound,
+        ...(record.requestUrls ? { requestUrls: record.requestUrls } : {}),
+        ...(record.seeds ? { seeds: record.seeds } : {}),
+        ...(record.snowballRound ? { snowballRound: record.snowballRound } : {}),
+        memberIds,
       },
     ],
   };

@@ -146,6 +146,7 @@ export function mergeMembers(
       libraryIds: unique([...a.libraryIds, ...b.libraryIds]),
     },
     decisions: [...target.decisions, ...source.decisions],
+    appraisal: [...target.appraisal, ...source.appraisal],
   };
   return {
     ...corpus,
@@ -209,24 +210,59 @@ export function addFromDois(corpus: Corpus, text: string, options: IntakeOptions
  * Adds a batch of search records: identifier matches are duplicates, title-year matches wait for a person to
  * confirm. Every record lands in exactly one of added, duplicates or pending.
  */
-export function intakeRecords(corpus: Corpus, inputs: IntakeInput[], at: string) {
+/**
+ * A pending title-year match a person resolved. The member made for it is listed on the search that found the
+ * record, so PRISMA keeps it in that search's column and round: as a member when kept apart, or through its
+ * alias (a duplicate) when merged.
+ */
+export function creditPending(
+  corpus: Corpus,
+  pending: { source?: string; updateRound?: number },
+  memberId: string,
+  merged: boolean,
+): Corpus {
+  const index = corpus.searches.findLastIndex(
+    (search) =>
+      'requestUrl' in search &&
+      search.source === pending.source &&
+      search.updateRound === (pending.updateRound ?? 0),
+  );
+  const search = corpus.searches[index];
+  if (!search || !('requestUrl' in search)) return corpus;
+  const credited = {
+    ...search,
+    added: search.added + (merged ? 0 : 1),
+    memberIds: [...(search.memberIds ?? []), memberId],
+  };
+  return { ...corpus, searches: corpus.searches.map((item, i) => (i === index ? credited : item)) };
+}
+
+export function intakeRecords(
+  corpus: Corpus,
+  inputs: IntakeInput[],
+  at: string,
+  origin?: { source: string; updateRound: number },
+) {
   let result = corpus;
   const counts = { added: 0, duplicates: 0, pending: 0 };
+  const memberIds: string[] = [];
   for (const input of inputs) {
     const intake = addMember(result, input, at);
     result = intake.corpus;
-    if (intake.matched === 'new') counts.added++;
-    else if (intake.matched === 'identifier') counts.duplicates++;
+    if (intake.matched === 'new') {
+      counts.added++;
+      memberIds.push(intake.memberId);
+    } else if (intake.matched === 'identifier') counts.duplicates++;
     else {
       counts.pending++;
       result = {
         ...result,
         pendingConfirmations: [
           ...(result.pendingConfirmations ?? []),
-          { id: crypto.randomUUID(), candidate: intake.candidate, input },
+          { id: crypto.randomUUID(), candidate: intake.candidate, input, ...origin },
         ],
       };
     }
   }
-  return { corpus: result, ...counts };
+  return { corpus: result, ...counts, memberIds };
 }

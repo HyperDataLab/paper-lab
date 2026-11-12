@@ -28,6 +28,7 @@ export const CorpusProtocolVersionSchema = z.object({
   createdAt: timestamp,
   body: z.union([journalBody, topicBody]),
 });
+const memberId = z.uuid();
 const search = z.union([
   z.object({
     source: z.string(),
@@ -40,6 +41,12 @@ const search = z.union([
     added: count,
     truncated: z.boolean(),
     updateRound: count,
+    /** Citation searching (C3c): every request made, the seed members and the snowballing iteration. */
+    requestUrls: z.array(z.string()).optional(),
+    seeds: z.array(memberId).optional(),
+    snowballRound: z.number().int().positive().optional(),
+    /** Members this search added, so PRISMA counts them per column and per update round. */
+    memberIds: z.array(memberId).optional(),
   }),
   z.object({
     fileName: z.string(),
@@ -50,7 +57,6 @@ const search = z.union([
     runAt: timestamp.optional(),
   }),
 ]);
-const memberId = z.uuid();
 export const CorpusMemberSchema = z.object({
   memberId,
   title: z.string().optional(),
@@ -97,6 +103,7 @@ export const CorpusMemberSchema = z.object({
       domain: z.string(),
       judgement: z.string(),
       quote: z.string().optional(),
+      note: z.string().optional(),
       appraiser: z.string(),
       at: timestamp,
     }),
@@ -164,6 +171,9 @@ const corpusFields = {
       z.object({
         id: z.uuid(),
         candidate: memberId,
+        /** The search that found the record, so PRISMA counts it in the right column and round. */
+        source: z.string().optional(),
+        updateRound: count.optional(),
         input: z.object({
           memberId: z.string().optional(),
           doi: z.string().nullable().optional(),

@@ -152,6 +152,61 @@ export function createScholarClient(options: { email?: string | null }, deps: De
     const body = (await getJson(url, signal)) as { results?: unknown[] } | null;
     return body?.results ?? [];
   }
+  const workId = (value: string) => value.replace(/^https?:\/\/openalex\.org\//iu, '');
+  /** The works this one cites, as OpenAlex ids. Only the work id leaves the browser. */
+  async function referencedWorks(openalexId: string, signal?: AbortSignal) {
+    const url = `https://api.openalex.org/works/${encodeURIComponent(workId(openalexId))}?select=referenced_works`;
+    const body = (await getJson(url, signal)) as { referenced_works?: unknown[] } | null;
+    const ids = (body?.referenced_works ?? []).filter((v): v is string => typeof v === 'string').map(workId);
+    return { ids, url };
+  }
+  /** Works by OpenAlex id, 50 per request (the OR-filter limit). */
+  async function worksByIds(ids: string[], signal?: AbortSignal) {
+    const results: unknown[] = [];
+    const urls: string[] = [];
+    for (let start = 0; start < ids.length; start += STATUS_BATCH) {
+      const filter = ids
+        .slice(start, start + STATUS_BATCH)
+        .map((id) => encodeURIComponent(workId(id)))
+        .join('|');
+      const url = `https://api.openalex.org/works?filter=openalex_id:${filter}&per-page=${STATUS_BATCH}&select=${SEARCH_FIELDS}`;
+      urls.push(url);
+      const body = (await getJson(url, signal)) as { results?: unknown[] } | null;
+      results.push(...(body?.results ?? []));
+    }
+    return { results, urls };
+  }
+  /**
+   * Every work citing this one, page by page with a cursor. With a cap, stops once that many are in and says
+   * the list was truncated when OpenAlex reported more.
+   */
+  async function citingWorks(openalexId: string, options: { cap: number | null }, signal?: AbortSignal) {
+    const results: unknown[] = [];
+    const urls: string[] = [];
+    let total = 0;
+    let cursor: string | null = '*';
+    while (cursor) {
+      if (urls.length) await deps.sleep(200);
+      const url = `https://api.openalex.org/works?filter=cites:${encodeURIComponent(workId(openalexId))}&per-page=200&select=${SEARCH_FIELDS}&cursor=${encodeURIComponent(cursor)}`;
+      urls.push(url);
+      const body = (await getJson(url, signal)) as {
+        results?: unknown[];
+        meta?: { count?: number; next_cursor?: string | null };
+      } | null;
+      const page = body?.results ?? [];
+      total = body?.meta?.count ?? total;
+      results.push(...page);
+      cursor = page.length ? (body?.meta?.next_cursor ?? null) : null;
+      if (options.cap !== null && results.length >= options.cap) break;
+    }
+    const kept = options.cap === null ? results : results.slice(0, options.cap);
+    return { results: kept, total, urls, truncated: options.cap !== null && total > kept.length };
+  }
+  /** Re-runs a search URL as given (update searches build it); nothing is added to it. */
+  async function fetchWorks(url: string, signal?: AbortSignal) {
+    const body = (await getJson(url, signal)) as { results?: unknown[]; meta?: { count?: number } } | null;
+    return { results: body?.results ?? [], total: body?.meta?.count ?? 0, url };
+  }
   async function harvestWorks(url: string, cursor: string, signal?: AbortSignal) {
     await deps.sleep(200);
     const query = new URL(url);
@@ -171,6 +226,10 @@ export function createScholarClient(options: { email?: string | null }, deps: De
     workAbstract,
     searchWorks,
     citationWorks,
+    referencedWorks,
+    worksByIds,
+    citingWorks,
+    fetchWorks,
     harvestWorks,
   };
 }
