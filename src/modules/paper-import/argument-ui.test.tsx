@@ -21,6 +21,7 @@ const span = (excerpt: string) => ({
 const first: Argument = {
   id: 'a1',
   importance: 'main',
+  claimType: 'causal',
   claim: span('X improves Y.'),
   data: [span('Y rose 12%.')],
   statedWarrant: null,
@@ -33,6 +34,7 @@ const second: Argument = {
   ...first,
   id: 'a2',
   importance: 'supporting',
+  claimType: 'comparative',
   claim: span('X is cheap.'),
   data: [],
   inferredWarrant: null,

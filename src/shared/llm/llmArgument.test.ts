@@ -51,6 +51,7 @@ const fake = (error?: Error) =>
           {
             claim: { paragraphId: 'p', quote: 'The claim holds' },
             importance: 'main',
+            claimType: 'causal',
             data: [],
             statedWarrant: null,
             inferredWarrant: null,
@@ -64,11 +65,12 @@ const fake = (error?: Error) =>
     };
   }) as unknown as LlmClient['completeJson'];
 
-it('D4 builds a run from verified arguments', async () => {
+it('CT builds a run carrying the verified claim type', async () => {
   const { run, incomplete } = await llmArgument({ completeJson: fake() }, paper, options());
   expect(incomplete).toBe(false);
-  expect(run).toMatchObject({ model: 'real', promptVersion: 'argument-1', callsUsed: 1 });
+  expect(run).toMatchObject({ model: 'real', promptVersion: 'argument-3', callsUsed: 1 });
   expect(run.arguments[0]?.claim.excerpt).toBe('The claim holds');
+  expect(run.arguments[0]?.claimType).toBe('causal');
 });
 it('D4 reports a failed part and refuses an empty selection', async () => {
   const failed = await llmArgument({ completeJson: fake(new Error('bad')) }, paper, options());

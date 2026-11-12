@@ -62,6 +62,7 @@ export function verifyArguments(output: ArgumentOutput, chunk: StanceChunk) {
     items.push({
       importance: raw.importance,
       claim,
+      claimType: raw.claimType,
       data: list(raw.data),
       statedWarrant,
       inferredWarrant: raw.statedWarrant === null ? raw.inferredWarrant : null,

@@ -66,6 +66,19 @@ ${UNTRUSTED}
 Return the arguments the authors themselves make, at most 8. Ignore positions they only report from other work.
 For each argument:
 - claim: the position argued for.
+- claimType: choose the type by what the claim asserts, not by the words; null if none fits.
+  descriptive: a property or value in the examined sample, without comparison or explanation.
+  comparative: one thing is higher, lower or better than another on a measure; compare under the same conditions and report variation.
+  correlational: variables vary together, with direction and size, without asserting causation.
+  causal: changing X changes Y; grounds need random assignment, a controlled intervention or an identifying design.
+  mechanistic: X changes Y through Z; grounds need pathway evidence such as an ablation.
+  predictive: a model or rule predicts unseen outcomes with stated performance.
+  methodological: a method, measure or procedure suits a purpose; grounds need validation or reliability figures.
+  generalisation: a result holds beyond studied cases; grounds need samples covering that range.
+  novelty: something has not been done or shown before; grounds are a literature search.
+  null: no difference, effect or relation, or equivalence; grounds need adequate power or an equivalence test.
+  theoretical: a theorem, bound, complexity or correctness follows by deduction; grounds need proof.
+  recommendation: someone should act or adopt something; grounds need an empirical claim and an argument about consequences.
 - importance: "main" for a central claim of the paper, otherwise "supporting".
 - data: the evidence or premises given for it.
 - statedWarrant: a passage that explicitly says why the data support the claim. Use null if there is none.

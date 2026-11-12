@@ -1,4 +1,6 @@
-import { useId, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
+import type { ClaimType } from '@/core/argument/claimTypes';
+import { ClaimTypeBadge, ClaimTypeFilter } from './ClaimTypes';
 import type { FindingLocation } from '@/core/paperFindings';
 import { summarizePaper, type SummaryQuote } from '@/core/paperSummary';
 import type { Paper, PaperInsightsRecord, SnapshotField } from '@/core/schemas';
@@ -43,6 +45,7 @@ export function PaperSummary({
 }) {
   const summary = summarizePaper(insights);
   const uid = useId();
+  const [claimType, setClaimType] = useState<ClaimType | null>(null);
   const shows = (part: SummaryPart) => !only || only.includes(part);
   /** One part: titled on the Summary, bare inside a space's block. */
   const part = (id: SummaryPart, heading: ReactNode, body: ReactNode) =>
@@ -143,42 +146,54 @@ export function PaperSummary({
             ) : summary.claims.length === 0 ? (
               <p className={styles.muted}>Chưa xác định được luận điểm chính trong các mục đã đọc.</p>
             ) : (
-              <ol className={styles.claims}>
-                {summary.claims.map((item) => (
-                  <li key={item.id}>
-                    <p className={styles.claim}>
-                      <strong>“{item.claim.excerpt}”</strong> {place(item.claim)}
-                    </p>
-                    <dl className={styles.support}>
-                      <dt>Grounds</dt>
-                      <dd>
-                        {item.data.length === 0 ? (
-                          <span className={styles.muted}>Not identified</span>
-                        ) : (
-                          quotes(item.data, '')
-                        )}
-                      </dd>
-                      {item.warrant && (
-                        <>
-                          <dt>Warrant</dt>
+              <>
+                <ClaimTypeFilter
+                  types={summary.claims.map((item) => item.claimType)}
+                  value={claimType}
+                  onChange={setClaimType}
+                />
+                <ol className={styles.claims}>
+                  {summary.claims
+                    .filter((item) => !claimType || item.claimType === claimType)
+                    .map((item) => (
+                      <li key={item.id}>
+                        <p className={styles.claim}>
+                          <strong>“{item.claim.excerpt}”</strong> <ClaimTypeBadge type={item.claimType} />{' '}
+                          {place(item.claim)}
+                        </p>
+                        <dl className={styles.support}>
+                          <dt>Grounds</dt>
                           <dd>
-                            {item.warrant.text}{' '}
-                            <Badge tone={item.warrant.inferred ? 'warning' : 'neutral'}>
-                              {item.warrant.inferred ? 'AI suy ra, không phải lời tác giả' : 'Tác giả nêu'}
-                            </Badge>
+                            {item.data.length === 0 ? (
+                              <span className={styles.muted}>Not identified</span>
+                            ) : (
+                              quotes(item.data, '')
+                            )}
                           </dd>
-                        </>
-                      )}
-                      {item.limits.length > 0 && (
-                        <>
-                          <dt>Qualifiers & rebuttals</dt>
-                          <dd>{quotes(item.limits, '')}</dd>
-                        </>
-                      )}
-                    </dl>
-                  </li>
-                ))}
-              </ol>
+                          {item.warrant && (
+                            <>
+                              <dt>Warrant</dt>
+                              <dd>
+                                {item.warrant.text}{' '}
+                                <Badge tone={item.warrant.inferred ? 'warning' : 'neutral'}>
+                                  {item.warrant.inferred
+                                    ? 'AI suy ra, không phải lời tác giả'
+                                    : 'Tác giả nêu'}
+                                </Badge>
+                              </dd>
+                            </>
+                          )}
+                          {item.limits.length > 0 && (
+                            <>
+                              <dt>Qualifiers & rebuttals</dt>
+                              <dd>{quotes(item.limits, '')}</dd>
+                            </>
+                          )}
+                        </dl>
+                      </li>
+                    ))}
+                </ol>
+              </>
             )}
             {summary.has.arguments && (
               <Button size="sm" variant="ghost" onClick={() => onOpen('toulmin')}>

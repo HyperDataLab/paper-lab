@@ -14,6 +14,7 @@ const span = (excerpt: string) => ({
 const full: Argument = {
   id: 'a1',
   importance: 'main',
+  claimType: null,
   claim: span('X improves Y.'),
   data: [span('Y rose 12%.'), span('Z fell.')],
   statedWarrant: span('A rise in Y reflects X.'),

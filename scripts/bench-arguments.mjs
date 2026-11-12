@@ -46,6 +46,7 @@ const server = await createServer({
 try {
   const bench = await server.ssrLoadModule('/src/core/bench/drInventor.ts');
   const argument = await server.ssrLoadModule('/src/core/argument/index.ts');
+  const { CLAIM_TYPES } = await server.ssrLoadModule('/src/core/argument/claimTypes.ts');
   const prompts = await server.ssrLoadModule('/src/core/prompts/index.ts');
   const schemas = await server.ssrLoadModule('/src/core/schemas/index.ts');
   const { createLlmClient } = await server.ssrLoadModule('/src/shared/llm/client.ts');
@@ -134,6 +135,7 @@ try {
       promptVersion: prompts.PROMPT_VERSIONS.argument,
       callsUsed,
       discarded: run.discarded,
+      claimTypes: run.arguments.map((item) => item.claimType),
       predicted,
       gold,
       score: bench.scoreSpans(predicted, gold),
@@ -159,7 +161,11 @@ try {
       '| --- | ---: | ---: | ---: | ---: |',
       ...['claim', 'data'].map((kind) => `| ${kind} | ${Object.values(score.confusion[kind]).join(' | ')} |`),
     ];
-    const summary = `# Argument benchmark\n\nPapers: ${results.length}; model: ${model}; prompt: ${prompts.PROMPT_VERSIONS.argument}.\n\n${rows.join('\n')}\n\n| Measure | Value |\n| --- | ---: |\n| Claim precision | ${format(score.precision.claim)} |\n| Data precision | ${format(score.precision.data)} |\n| Data contains gold data (precision) | ${format(score.precision.dataContainsGold)} |\n| Own claim recall | ${format(score.recall.own_claim)} |\n| Data recall | ${format(score.recall.data)} |\n| Majority baseline (${score.majorityLabel ?? 'none'}) | ${format(score.majorityBaseline)} |\n`;
+    const types = results.flatMap((result) => result.claimTypes);
+    const typeRows = [...CLAIM_TYPES, null].map(
+      (type) => `| ${type ?? 'unclassified'} | ${types.filter((item) => item === type).length} |`,
+    );
+    const summary = `# Argument benchmark\n\nPapers: ${results.length}; model: ${model}; prompt: ${prompts.PROMPT_VERSIONS.argument}.\n\n${rows.join('\n')}\n\n| Measure | Value |\n| --- | ---: |\n| Claim precision | ${format(score.precision.claim)} |\n| Data precision | ${format(score.precision.data)} |\n| Data contains gold data (precision) | ${format(score.precision.dataContainsGold)} |\n| Own claim recall | ${format(score.recall.own_claim)} |\n| Data recall | ${format(score.recall.data)} |\n| Majority baseline (${score.majorityLabel ?? 'none'}) | ${format(score.majorityBaseline)} |\n\nClaim types (descriptive counts; no gold labels):\n\n| Type | Claims |\n| --- | ---: |\n${typeRows.join('\n')}\n`;
     await mkdir(resolve(options.out), { recursive: true });
     await writeFile(resolve(options.out, 'summary.md'), summary);
     console.log(summary);

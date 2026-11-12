@@ -1,4 +1,5 @@
 import type { PaperInsightsRecord, SnapshotField } from '../schemas';
+import type { ClaimType } from '../argument/claimTypes';
 
 /**
  * What the paper's author is saying, gathered from analyses that already ran: the gap and contribution
@@ -14,6 +15,7 @@ export interface SummaryQuote {
 }
 export interface SummaryClaim {
   id: string;
+  claimType: ClaimType | null;
   claim: SummaryQuote;
   data: SummaryQuote[];
   /** The author's own qualifier and the rebuttals they raise. */
@@ -74,6 +76,7 @@ export function summarizePaper(insights: PaperInsightsRecord | undefined): Paper
       .filter((item) => item.importance === 'main' && !dismissed(argument?.id, item.id))
       .map((item) => ({
         id: item.id,
+        claimType: item.claimType,
         claim: quote(item.id, item.claim),
         data: item.data.map((span, index) => quote(`${item.id}:data:${index}`, span)),
         limits: [
