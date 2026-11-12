@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { normalizeDoi } from '@/core/library/doi';
-import { buildPaperModel, sentenceIndex } from '@/core/paperModel';
+import { buildPaperModel, paperModelToJats, sentenceIndex } from '@/core/paperModel';
 import type { Paper, PaperContextRecord, PaperMetadata as Metadata } from '@/core/schemas';
 import { arxivDoiFromFileName, metadataFromLibrary, paperDoi, referenceList } from '@/core/scholarlyContext';
-import { downloadJson } from '@/shared/calibration/download';
+import { downloadJson, downloadText } from '@/shared/calibration/download';
 import { createScholarClient } from '@/shared/scholar/client';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { ActionBar } from '@/shared/ui/ActionBar';
@@ -107,7 +107,7 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
       setFormError('Không lưu được thông tin. Vui lòng thử lại.');
     }
   }
-  async function downloadModel() {
+  async function downloadModel(jats = false) {
     // Read at click time so the file carries the labels as they stand now, decisions included.
     try {
       const [insights, stance] = await Promise.all([
@@ -115,9 +115,22 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
         repo.stance.get(paper.id),
       ]);
       const model = buildPaperModel({ paper, metadata, insights, stance, now: new Date() });
-      downloadJson(paperModelFileName(model.document.metadata.title), model);
+      const name = paperModelFileName(model.document.metadata.title);
+      if (jats) {
+        const xml = paperModelToJats(model);
+        if (new DOMParser().parseFromString(xml, 'application/xml').querySelector('parsererror')) {
+          throw new Error('Invalid XML');
+        }
+        downloadText(name.replace(/\.json$/u, '.jats.xml'), xml, 'application/xml');
+      } else {
+        downloadJson(name, model);
+      }
     } catch {
-      setMessage('Không tạo được paper-model.json. Vui lòng thử lại.');
+      setMessage(
+        jats
+          ? 'Không tạo được article.xml (JATS). Vui lòng thử lại.'
+          : 'Không tạo được paper-model.json. Vui lòng thử lại.',
+      );
     }
   }
   async function lookup() {
@@ -280,6 +293,9 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
         </p>
         <Button size="sm" onClick={() => void downloadModel()}>
           Tải paper-model.json
+        </Button>
+        <Button size="sm" onClick={() => void downloadModel(true)}>
+          Tải article.xml (JATS)
         </Button>
       </section>
     </Card>
