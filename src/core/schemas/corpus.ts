@@ -130,6 +130,24 @@ const corpusFields = {
     }),
   ),
   aliases: z.array(z.object({ from: memberId, into: memberId, at: timestamp, reason: z.string() })),
+  pendingConfirmations: z
+    .array(
+      z.object({
+        id: z.uuid(),
+        candidate: memberId,
+        input: z.object({
+          memberId: z.string().optional(),
+          doi: z.string().nullable().optional(),
+          openalexId: z.string().nullable().optional(),
+          sha256: z.string().nullable().optional(),
+          paperId: z.string().nullable().optional(),
+          libraryId: z.string().nullable().optional(),
+          title: z.string().nullable().optional(),
+          year: z.number().int().nullable().optional(),
+        }),
+      }),
+    )
+    .optional(),
 };
 const protocolWith = <T extends typeof journalBody | typeof topicBody>(body: T) =>
   z.array(CorpusProtocolVersionSchema.extend({ body }));

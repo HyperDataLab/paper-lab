@@ -362,6 +362,12 @@ The paper header offers a switch between Bài báo, Arguments, Writing style and
 style show issue counts. Publication details open from the header, and the line beneath the title shows stored
 authors, venue, year and DOI. Parser counts belong in Minh bạch.
 
+# Corpus screen
+
+- The list pairs each corpus with its kind, member count and last update; a short form creates its first protocol.
+- The detail screen groups intake, member status, protocol history and releases in separate cards. Intake shows matching counts and asks a person to resolve title-and-year matches. The table can be filtered by retrieval status.
+- A release displays its digest and calls out an unchanged digest; the manifest download contains the validated corpus without paper text.
+
 # Paper page patterns
 
 - Look up publication metadata once when a DOI is known and metadata is absent; send only the DOI.

@@ -280,6 +280,45 @@
             "additionalProperties": false
           }
         },
+        "pendingConfirmations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "candidate": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "input": {
+                "type": "object",
+                "properties": {
+                  "memberId": { "type": "string" },
+                  "doi": { "type": ["string", "null"] },
+                  "openalexId": { "type": ["string", "null"] },
+                  "sha256": { "type": ["string", "null"] },
+                  "paperId": { "type": ["string", "null"] },
+                  "libraryId": { "type": ["string", "null"] },
+                  "title": { "type": ["string", "null"] },
+                  "year": {
+                    "anyOf": [
+                      { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+                      { "type": "null" }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "required": ["id", "candidate", "input"],
+            "additionalProperties": false
+          }
+        },
         "kind": { "type": "string", "const": "journal" },
         "protocol": {
           "type": "array",
@@ -637,6 +676,45 @@
             "additionalProperties": false
           }
         },
+        "pendingConfirmations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "candidate": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "input": {
+                "type": "object",
+                "properties": {
+                  "memberId": { "type": "string" },
+                  "doi": { "type": ["string", "null"] },
+                  "openalexId": { "type": ["string", "null"] },
+                  "sha256": { "type": ["string", "null"] },
+                  "paperId": { "type": ["string", "null"] },
+                  "libraryId": { "type": ["string", "null"] },
+                  "title": { "type": ["string", "null"] },
+                  "year": {
+                    "anyOf": [
+                      { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+                      { "type": "null" }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "required": ["id", "candidate", "input"],
+            "additionalProperties": false
+          }
+        },
         "kind": { "type": "string", "const": "control" },
         "protocol": {
           "type": "array",
@@ -991,6 +1069,45 @@
               "reason": { "type": "string" }
             },
             "required": ["from", "into", "at", "reason"],
+            "additionalProperties": false
+          }
+        },
+        "pendingConfirmations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "candidate": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "input": {
+                "type": "object",
+                "properties": {
+                  "memberId": { "type": "string" },
+                  "doi": { "type": ["string", "null"] },
+                  "openalexId": { "type": ["string", "null"] },
+                  "sha256": { "type": ["string", "null"] },
+                  "paperId": { "type": ["string", "null"] },
+                  "libraryId": { "type": ["string", "null"] },
+                  "title": { "type": ["string", "null"] },
+                  "year": {
+                    "anyOf": [
+                      { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+                      { "type": "null" }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "required": ["id", "candidate", "input"],
             "additionalProperties": false
           }
         },
