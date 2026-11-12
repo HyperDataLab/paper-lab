@@ -41,6 +41,7 @@ import type { createPapersRepository } from './papers';
 import type { createPaperOverviewsRepository } from './paperOverviews';
 import type { createPaperChecksRepository } from './paperChecks';
 import type { createCalibrationLabelsRepository } from './calibrationLabels';
+import { StoredCorpusProfileSchema } from '@/core/schemas/corpusProfile';
 import type { createCorporaRepository } from './corpora';
 export function createTransferRepository(
   db: ParagraphDb,
@@ -108,6 +109,7 @@ export function createTransferRepository(
         (await db.paperInsights.toArray()).map((value) => PaperInsightsRecordSchema.parse(value)),
         (await db.extractionProjects.toArray()).map((value) => ExtractionProjectSchema.parse(value)),
         await corpora.list(),
+        (await db.corpusProfiles.toArray()).map((row) => StoredCorpusProfileSchema.parse(row)),
       );
     },
     async previewImport(raw: unknown) {
@@ -190,6 +192,7 @@ export function createTransferRepository(
           db.paperInsights,
           db.extractionProjects,
           db.corpora,
+          db.corpusProfiles,
           db.reviewNgrams,
           db.calibrationLabels,
         ],
@@ -362,6 +365,11 @@ export function createTransferRepository(
             const existing = await db.corpora.get(record.id);
             if (!existing || record.updatedAt > existing.updatedAt)
               await db.corpora.put(CorpusSchema.parse(record));
+          }
+          for (const record of plan.corpusProfiles) {
+            const existing = await db.corpusProfiles.get(record.corpusId);
+            if (!existing || record.savedAt > existing.savedAt)
+              await db.corpusProfiles.put(StoredCorpusProfileSchema.parse(record));
           }
           for (const record of plan.library) {
             const existing = await db.library.where('doi').equals(record.doi).first();

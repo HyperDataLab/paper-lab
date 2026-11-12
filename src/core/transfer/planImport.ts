@@ -169,6 +169,7 @@ export function planImport(
     paperInsights: parsed.data.paperInsights.filter((record) => eligiblePapers.has(record.paperId)),
     extractionProjects: parsed.data.extractionProjects,
     corpora: parsed.data.corpora,
+    corpusProfiles: parsed.data.corpusProfiles,
     skipped,
     suppressed,
     auditEvents,

@@ -1,3 +1,4 @@
+import { ROLE_LABELS } from '@/modules/paper-import';
 import type { PrismaBoxKey } from '@/core/corpus/prisma';
 import type { ScreeningReasonCode } from '@/core/corpus/screening';
 
@@ -48,3 +49,37 @@ export const decisionErrors = {
   'full-text-before-include': 'Chỉ sàng lọc toàn văn cho bài đã chọn ở bước tiêu đề và tóm tắt.',
   'suggestion-mismatch': 'Gợi ý AI không khớp quyết định.',
 } as const;
+
+export const memberRoleLabel = (role: 'build' | 'held_out' | null) =>
+  role === 'build' ? 'Xây dựng' : role === 'held_out' ? 'Giữ riêng kiểm tra' : '—';
+
+export const versionLabel = (version: 'publishedVersion' | 'acceptedVersion' | 'submittedVersion' | null) =>
+  version === 'publishedVersion'
+    ? 'Bản chính thức'
+    : version === 'acceptedVersion'
+      ? 'Bản chấp nhận'
+      : version === 'submittedVersion'
+        ? 'Bản nộp'
+        : '—';
+
+export function sectionRoleLabel(role: string) {
+  const key = role.toLowerCase() as keyof typeof ROLE_LABELS;
+  return ROLE_LABELS[key] ?? (key === 'other' ? 'Khác' : role);
+}
+
+export function exclusionLabel(exclusions: Record<string, number>) {
+  const reasons: [number, string][] = [
+    [exclusions.retracted ?? 0, 'bài bị rút'],
+    [exclusions.title ?? 0, 'xã luận/đính chính'],
+    [exclusions.missing_doi ?? 0, 'thiếu DOI'],
+    [exclusions.type ?? 0, 'không phải bài báo'],
+    [exclusions.duplicate ?? 0, 'trùng lặp'],
+    [exclusions.issue_cap ?? 0, 'vượt giới hạn số báo'],
+  ];
+  return `Đã loại: ${
+    reasons
+      .filter(([count]) => count > 0)
+      .map(([count, label]) => `${count} ${label}`)
+      .join(', ') || 'không có'
+  }`;
+}

@@ -33,7 +33,10 @@ export function createCorporaRepository(db: ParagraphDb) {
       return value;
     },
     async delete(id: string) {
-      await db.corpora.delete(id);
+      await db.transaction('rw', db.corpora, db.corpusProfiles, async () => {
+        await db.corpora.delete(id);
+        await db.corpusProfiles.delete(id);
+      });
     },
   };
   return corpora;

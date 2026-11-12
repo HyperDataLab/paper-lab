@@ -400,6 +400,7 @@ authors, venue, year and DOI. Parser counts belong in Minh bạch.
 
 # Corpus screen
 
+- The latest profile and its held-out test stay on this device and travel in backups. Show when it was computed and flag changes to either corpus since the computation; “Tính lại” refreshes it.
 - The list pairs each corpus with its kind, member count and last update; a short form creates its first protocol.
 - The detail screen groups intake, member status, protocol history and releases in separate cards. Intake shows matching counts and asks a person to resolve title-and-year matches. The table can be filtered by retrieval status.
 - A release displays its digest and calls out an unchanged digest; the manifest download contains the validated corpus without paper text.

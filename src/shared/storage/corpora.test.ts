@@ -16,9 +16,12 @@ it('C1b corpus repository and export import round trip, including legacy package
   if (!plan.ok) throw new Error(plan.error);
   await target.transfer.applyImport(plan);
   expect(await target.corpora.get(corpus.id)).toEqual(corpus);
-  const legacy = Object.fromEntries(Object.entries(backup).filter(([key]) => key !== 'corpora'));
+  const legacy = Object.fromEntries(
+    Object.entries(backup).filter(([key]) => key !== 'corpora' && key !== 'corpusProfiles'),
+  );
   const old = await target.transfer.previewImport(legacy);
   expect(old.ok && old.corpora).toEqual([]);
+  expect(old.ok && old.corpusProfiles).toEqual([]);
   await target.corpora.delete(corpus.id);
   expect(await target.corpora.get(corpus.id)).toBeUndefined();
 });

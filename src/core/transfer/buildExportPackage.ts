@@ -1,3 +1,4 @@
+import type { StoredCorpusProfile } from '../schemas/corpusProfile';
 import {
   ExportPackageSchema,
   type Analysis,
@@ -36,6 +37,7 @@ export function buildExportPackage(
   paperInsights: PaperInsightsRecord[] = [],
   extractionProjects: ExtractionProject[] = [],
   corpora: Corpus[] = [],
+  corpusProfiles: StoredCorpusProfile[] = [],
 ) {
   return ExportPackageSchema.parse({
     format: 'paragraph-lab-export',
@@ -58,5 +60,6 @@ export function buildExportPackage(
     paperInsights,
     extractionProjects,
     corpora,
+    corpusProfiles,
   });
 }

@@ -1,3 +1,4 @@
+import { sectionRoleLabel } from './labels';
 import { testHoldout } from '@/core/corpusProfile/holdout';
 import { confoundChecks } from '@/core/corpusProfile/confounds';
 import { measurePaperDetail } from '@/core/corpusProfile/measure';
@@ -108,22 +109,10 @@ export async function computeHoldout(
   });
 }
 
-const sectionNames: Record<string, string> = {
-  ABSTRACT: 'Tóm tắt',
-  INTRODUCTION: 'Mở đầu',
-  RELATED_WORK: 'Nghiên cứu liên quan',
-  METHODS: 'Phương pháp',
-  RESULTS: 'Kết quả',
-  DISCUSSION: 'Bàn luận',
-  CONCLUSION: 'Kết luận',
-  OTHER: 'Khác',
-  APPENDIX: 'Phụ lục',
-};
-
 export function featureLabel(featureId: string): string {
   const [head, middle, tail] = featureId.split('.');
   if (head === 'section' && middle)
-    return `${tail === 'word_share' ? 'Tỷ lệ từ' : 'Độ dài câu'} · ${sectionNames[middle] ?? middle}`;
+    return `${tail === 'word_share' ? 'Tỷ lệ từ' : 'Độ dài câu'} · ${sectionRoleLabel(middle)}`;
   if (featureId === 'paragraph.length') return 'Độ dài đoạn';
   if (featureId === 'citation.rate') return 'Mật độ trích dẫn';
   if (head === 'stance') return `Stance: ${middle}`;

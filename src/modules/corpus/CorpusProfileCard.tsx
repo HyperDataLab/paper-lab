@@ -1,7 +1,9 @@
 import { Download } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { canonicalDigest } from '@/core/corpus';
 import type { Corpus } from '@/core/schemas/corpus';
 import type { CorpusProfile } from '@/core/schemas/corpusProfile';
+import type { StoredCorpusProfile } from '@/core/schemas/corpusProfile';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
@@ -21,19 +23,23 @@ const statuses = {
   supported: { label: 'Được hỗ trợ', tone: 'success' },
 } as const;
 
+const inputsDigest = (corpus: Corpus) =>
+  canonicalDigest({ members: corpus.members, protocol: corpus.protocol, releases: corpus.releases });
+
 /** The journal's profile against a control corpus: pure computation over the members' papers, no AI. */
 export function CorpusProfileCard({ corpus }: { corpus: Corpus }) {
   const repo = useRepositories();
   const [controls, setControls] = useState<Corpus[]>();
   const [controlId, setControlId] = useState('');
   const [profile, setProfile] = useState<CorpusProfile>();
+  const [stored, setStored] = useState<StoredCorpusProfile>();
+  const [stale, setStale] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => {
     let active = true;
-    void repo.corpora
-      .list()
-      .then((all) => {
+    void Promise.all([repo.corpora.list(), repo.corpusProfiles.get(corpus.id)])
+      .then(async ([all, saved]) => {
         if (!active) return;
         const list = all.filter((c) => c.kind === 'control');
         setControls(list);
@@ -42,13 +48,40 @@ export function CorpusProfileCard({ corpus }: { corpus: Corpus }) {
           const body = c.protocol.at(-1)?.body;
           return body && 'samplingRule' in body && body.samplingRule === `match:${corpus.id}`;
         });
-        setControlId((current) => current || (matched ?? list[0])?.id || '');
+        const savedControl = saved && list.find((c) => c.id === saved.profile.control.corpusId);
+        setControlId(saved?.profile.control.corpusId ?? (matched ?? list[0])?.id ?? '');
+        if (saved) {
+          setStored(saved);
+          setProfile(saved.profile);
+          const changed =
+            (await inputsDigest(corpus)) !== saved.targetDigest ||
+            !savedControl ||
+            (await inputsDigest(savedControl)) !== saved.controlDigest;
+          if (active) setStale(changed);
+        } else {
+          setStored(undefined);
+          setProfile(undefined);
+          setStale(false);
+        }
       })
       .catch((e: unknown) => setError(String(e)));
     return () => {
       active = false;
     };
-  }, [repo, corpus.id]);
+  }, [repo, corpus]);
+  async function saveProfile(value: CorpusProfile, target: Corpus, control: Corpus) {
+    const record = await repo.corpusProfiles.save({
+      schemaVersion: 1,
+      corpusId: target.id,
+      savedAt: new Date().toISOString(),
+      targetDigest: await inputsDigest(target),
+      controlDigest: await inputsDigest(control),
+      profile: value,
+    });
+    setStored(record);
+    setProfile(value);
+    setStale(false);
+  }
   async function run() {
     const control = controls?.find((c) => c.id === controlId);
     if (!control) return;
@@ -56,7 +89,8 @@ export function CorpusProfileCard({ corpus }: { corpus: Corpus }) {
     setError('');
     try {
       const latest = (await repo.corpora.get(control.id)) ?? control;
-      setProfile(await computeProfile(corpus, latest, repo));
+      const target = (await repo.corpora.get(corpus.id)) ?? corpus;
+      await saveProfile(await computeProfile(target, latest, repo), target, latest);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -65,11 +99,27 @@ export function CorpusProfileCard({ corpus }: { corpus: Corpus }) {
   }
   async function runHoldout() {
     const control = controls?.find((c) => c.id === controlId);
-    if (!profile || !control) return;
+    if (!profile || !control || !stored || stale) return;
     setBusy(true);
     setError('');
     try {
-      setProfile(await computeHoldout(profile, corpus, control, repo));
+      const target = (await repo.corpora.get(corpus.id)) ?? corpus;
+      const latest = (await repo.corpora.get(control.id)) ?? control;
+      if (
+        (await inputsDigest(target)) !== stored.targetDigest ||
+        (await inputsDigest(latest)) !== stored.controlDigest
+      ) {
+        setStale(true);
+        return;
+      }
+      const result = await computeHoldout(profile, target, latest, repo);
+      const record = await repo.corpusProfiles.save({
+        ...stored,
+        savedAt: new Date().toISOString(),
+        profile: result,
+      });
+      setStored(record);
+      setProfile(result);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -96,6 +146,7 @@ export function CorpusProfileCard({ corpus }: { corpus: Corpus }) {
               onChange={(e) => {
                 setControlId(e.target.value);
                 setProfile(undefined);
+                setStored(undefined);
               }}
             >
               {!controls?.length && <option value="">Chưa có corpus đối chứng</option>}
@@ -106,10 +157,10 @@ export function CorpusProfileCard({ corpus }: { corpus: Corpus }) {
               ))}
             </Select>
             <Button size="sm" variant="primary" disabled={!controlId || busy} onClick={() => void run()}>
-              {busy ? 'Đang tính…' : 'Tính profile'}
+              {busy ? 'Đang tính…' : profile ? 'Tính lại' : 'Tính profile'}
             </Button>
             {profile && (
-              <Button size="sm" disabled={busy} onClick={() => void runHoldout()}>
+              <Button size="sm" disabled={busy || stale} onClick={() => void runHoldout()}>
                 Kiểm tra trên tập giữ riêng
               </Button>
             )}
@@ -131,6 +182,8 @@ export function CorpusProfileCard({ corpus }: { corpus: Corpus }) {
         {error && <p role="alert">Có lỗi xảy ra. {error}</p>}
         {profile && status && (
           <>
+            <p className={styles.muted}>Đã tính: {new Date(profile.generatedAt).toLocaleString('vi-VN')}</p>
+            {stale && <p role="status">Corpus đã thay đổi kể từ lần tính</p>}
             <div className={styles.notice}>
               <span>
                 <Badge tone={status.tone}>{status.label}</Badge> {profile.interpretationReason}

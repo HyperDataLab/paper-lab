@@ -3,7 +3,7 @@ import type { Paper } from '@/core/schemas';
 type Role = Paper['sections'][number]['role'];
 
 /** The kind of section a reader names a place by; a section of another kind is named by its heading. */
-const ROLE_LABELS: Partial<Record<Role, string>> = {
+export const ROLE_LABELS: Partial<Record<Role, string>> = {
   title: 'Front matter',
   abstract: 'Abstract',
   introduction: 'Introduction',

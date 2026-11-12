@@ -12,6 +12,7 @@ import { createPaperOverviewsRepository } from './paperOverviews';
 import { createPaperChecksRepository } from './paperChecks';
 import { createPaperContextRepository } from './paperContext';
 import { createCalibrationLabelsRepository } from './calibrationLabels';
+import { createCorpusProfilesRepository } from './corpusProfiles';
 import { createCorporaRepository } from './corpora';
 import { createPaperReviewsRepository } from './paperReviews';
 import { createPaperProbesRepository } from './paperProbes';
@@ -82,6 +83,7 @@ export function createRepositories(
     paperInsights,
     extraction,
     corpora,
+    corpusProfiles: createCorpusProfilesRepository(db),
     pdfFiles,
     calibrationLabels,
     transfer,

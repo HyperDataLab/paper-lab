@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { StoredCorpusProfileSchema } from './corpusProfile';
 import { CorpusSchema } from './corpus';
 import { AnalysisSchema } from './analysis';
 import { AuditEventSchema } from './audit';
@@ -36,5 +37,6 @@ export const ExportPackageSchema = z.object({
   paperInsights: z.array(PaperInsightsRecordSchema).default([]),
   extractionProjects: z.array(ExtractionProjectSchema).default([]),
   corpora: z.array(CorpusSchema).default([]),
+  corpusProfiles: z.array(StoredCorpusProfileSchema).default([]),
 });
 export type ExportPackage = z.infer<typeof ExportPackageSchema>;

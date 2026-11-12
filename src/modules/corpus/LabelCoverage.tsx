@@ -3,7 +3,7 @@ import { Card } from '@/shared/ui/Card';
 import { DataTable } from '@/shared/ui/DataTable';
 import { labelCoverage } from './machineLabels';
 import type { LabelPaper, LabelScheme } from './labelPlan';
-import { schemeNames } from './labels';
+import { schemeNames, sectionRoleLabel } from './labels';
 import styles from './corpus.module.css';
 
 const SCHEMES: LabelScheme[] = ['rhetoric', 'stance', 'arguments'];
@@ -57,7 +57,7 @@ export function LabelCoverage({ items }: { items: LabelPaper[] | undefined }) {
                 <tbody>
                   {coverage.roles.map((row) => (
                     <tr key={row.role}>
-                      <td>{row.role}</td>
+                      <td>{sectionRoleLabel(row.role)}</td>
                       {SCHEMES.map((scheme) => {
                         const counts = row.schemes[scheme];
                         return (
