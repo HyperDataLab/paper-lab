@@ -55,6 +55,7 @@ export function BatchPanel({ paper, batch }: { paper: Paper; batch: ReturnType<t
     running,
     done: Boolean(run) && !running && !['paused', 'budget_exceeded', 'failed'].includes(run?.status ?? ''),
     estimate: plan.total,
+    budget,
     ready: batch.loaded,
     start:
       plan.withinBudget && plan.paragraphs.length && selectedSteps.length ? () => batch.start(plan) : null,

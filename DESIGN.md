@@ -230,7 +230,7 @@ the Arguments space, Writing in the Writing style space, Sources in Citations. T
 beside the paper; a mark pressed on the paper opens its finding there.
 
 **Language.** Navigation, block titles and scientific terms are in English, the way researchers name them (Claims, Grounds, Warrant,
-Qualifier, Rebuttal, Premise, Inference, Conflict, Key facts, Stance & engagement…); empty Toulmin slots read "Not identified". Help
+Qualifier, Rebuttal, Premise, Inference, Conflict, Key facts, Stance & engagement…); empty Toulmin slots read "Chưa xác định". Help
 lines, hints, explanations, action buttons and status words stay in Vietnamese ("Bác bỏ", "Đã bác bỏ", "Hoàn tác", "Phân tích").
 
 **Findings are one list in one card shape**, whatever found them (rule checks, AI review, sentence-level writing issues, paragraph
@@ -242,7 +242,7 @@ space shows only its own criteria. Running one analysis for one section is done 
 saved or skipped their own notes. Descriptions (claims, stance markers, snapshot sources) are marks on the text, not findings.
 
 **A section run merges, it does not replace.** Claims & reasoning, Validity & rhetorical moves, Stance & engagement and Coherence & sentences can be run for one
-section, from the block header ("Chạy cho một mục") or from a cell of the findings table. Items of other sections stay as they were,
+section, from the block options ("Chạy cho một mục") or from a cell of the findings table. Items of other sections stay as they were,
 the rerun section's items are replaced, and a person's decisions on kept items carry over to the merged run (the previous run stays in
 the history unchanged). The abstract comparison is whole-paper and is kept. A result made with another prompt or model takes no section
 run; Evidence & measurement, AI peer review and Key facts always run for the whole paper.
@@ -255,11 +255,11 @@ skipping them.
 (Writing starts off) and a margin mark names the criteria present in each paragraph. Pressing a marked stretch opens its finding in
 the list, or the block that described it.
 
-**Arguments are drawn as diagrams.** Claims & reasoning shows one argument at a time with previous / next, zoom and “Vừa khung”. The canvas chooses a vertical layout below 720px, and the reader can choose its orientation. Cards and scheme nodes can be moved by pointer or arrow keys; “Bố cục lại” restores their computed positions. A minimap shows the visible area when the drawing overflows. “Toàn bài” in AIF graph lays out the live argument network with shared statements once, and “Chỉ hiện xung đột” isolates conflict steps. Toulmin model uses the slots Claim, Grounds, Warrant, Backing, Qualifier and Rebuttal; empty slots read “Not identified” and inferred warrants are labelled “AI suy ra” and “Không phải lời tác giả”. In AIF, statements connect through RA or CA nodes, which have no passage. Limits and conflicts use dashed, labelled lines. “Danh sách” keeps every argument on one page.
+**Arguments are drawn as diagrams.** Claims & reasoning shows one argument at a time with previous / next, zoom and “Vừa khung”. The canvas chooses a vertical layout below 720px, and the reader can choose its orientation. Cards and scheme nodes can be moved by pointer or arrow keys; “Bố cục lại” restores their computed positions. A minimap shows the visible area when the drawing overflows. “Toàn bài” in AIF graph lays out the live argument network with shared statements once, and “Chỉ hiện xung đột” isolates conflict steps. Toulmin model uses the slots Claim, Grounds, Warrant, Backing, Qualifier and Rebuttal; empty slots read “Chưa xác định” and inferred warrants are labelled “AI suy ra” and “Không phải lời tác giả”. In AIF, statements connect through RA or CA nodes, which have no passage. Limits and conflicts use dashed, labelled lines. “Danh sách” keeps every argument on one page.
 
 There is no second level of tabs; a theory's name (Toulmin, AIF, CARS) appears only inside its block. Each analysis is one
 **block** (`SectionBlock`): a row with its criterion mark, a plain title, the question it answers, its state as a `Badge`, and its
-content folded underneath. A block that has not run is that row plus one `Phân tích (~N lượt)` button; it is never an empty card.
+content folded underneath. A block that has not run is that row plus one `Phân tích` button and a muted cost estimate; it is never an empty card.
 A block with two readings of one analysis switches between them inside the block. Jump `Chip`s at the top of a tab open a block and
 scroll to it. Every former `?view=` id still opens its block. AI panels stay mounted while folded or in another mode, so a run is not
 interrupted; a strip names what is running out of sight.

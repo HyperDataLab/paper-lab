@@ -157,6 +157,7 @@ export function PdfViewer({
         const element = document.createElement('button');
         element.type = 'button';
         element.className = 'pl-mark';
+        element.dataset.markId = mark.id;
         element.dataset.criterion = mark.criterion;
         element.dataset.strong = String(mark.strong);
         element.title = `${CRITERIA[mark.criterion].label}: ${mark.title}`;
@@ -198,6 +199,15 @@ export function PdfViewer({
       }
     }
     page.holder.append(layer);
+    const seen = new Set<string>();
+    for (const mark of scroller.current?.querySelectorAll<HTMLButtonElement>('.pl-mark') ?? []) {
+      const id = mark.dataset.markId ?? '';
+      const duplicate = seen.has(id);
+      mark.tabIndex = duplicate ? -1 : 0;
+      if (duplicate) mark.setAttribute('aria-hidden', 'true');
+      else mark.removeAttribute('aria-hidden');
+      seen.add(id);
+    }
   }, []);
 
   useEffect(() => {
@@ -399,7 +409,7 @@ export function PdfViewer({
               data-flash={flash === number}
               className={styles.page}
               aria-label={`Trang ${number}`}
-              role="img"
+              role="region"
               style={{ width: base.width * scale, height: base.height * scale }}
             />
           ))

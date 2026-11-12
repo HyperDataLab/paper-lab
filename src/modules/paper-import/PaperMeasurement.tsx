@@ -206,6 +206,7 @@ export function PaperMeasurement({
     running,
     done: Boolean(run) && !record?.pending,
     estimate,
+    budget,
     ready: !loading,
     start: () => start(null),
     stop: () => controller.current?.abort(),

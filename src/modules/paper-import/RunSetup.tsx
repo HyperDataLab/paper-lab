@@ -52,12 +52,15 @@ export function RunSetup({
     <div className={styles.runSetup}>
       <p className={styles.runSummary}>
         Phạm vi: <strong>{chosen.length} mục</strong>
-        {summary} · ước tính {estimate} lượt gọi AI, trần {budget} (chưa tính thử lại).
+        {summary}
       </p>
       <div className={styles.runActions}>
         <Button variant="primary" disabled={disabled || running || over || !chosen.length} onClick={onStart}>
           {startLabel}
         </Button>
+        <span className={styles.muted}>
+          ~{estimate} lượt · trần {budget} (chưa tính thử lại)
+        </span>
         <Button variant="ghost" aria-expanded={open} onClick={() => setOpen(!open)}>
           {open ? 'Ẩn tuỳ chọn' : 'Tuỳ chọn'}
         </Button>

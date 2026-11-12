@@ -171,6 +171,7 @@ export function PaperRhetoric({
     running,
     done: Boolean(run) && !record?.rhetoricPending,
     estimate,
+    budget,
     ready: !loading,
     start: () => start(false),
     sectionRun:

@@ -6,6 +6,7 @@ import { ActionMenu } from '@/shared/ui/ActionBar';
 import { Button } from '@/shared/ui/Button';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { CRITERIA, type Criterion } from './criteria';
+import { PAPER_LABELS } from './labels';
 import styles from './page.module.css';
 
 /** The criterion's mark: a letter in its colour and shape, so colour is never the only signal. */
@@ -43,6 +44,7 @@ export function SectionBlock({
   status,
   stale,
   estimate,
+  budget,
   onRun,
   sectionRun,
   open,
@@ -60,6 +62,7 @@ export function SectionBlock({
   status?: BlockStatus;
   stale?: StaleReason[] | null;
   estimate?: number;
+  budget?: number;
   /** Starts the analysis with the remembered scope and the ceiling from Settings. */
   onRun?: () => void;
   /** Running this analysis for one section and merging it into the result it already has. */
@@ -86,18 +89,16 @@ export function SectionBlock({
         {stale && <Badge tone="warning">Kết quả cũ ({describeStale(stale)})</Badge>}
         {status && <Badge tone={STATUS[status].tone}>{STATUS[status].label}</Badge>}
         {onRun && (
-          <Button size="sm" onClick={onRun}>
-            Phân tích{estimate ? ` (~${estimate} lượt)` : ''}
-          </Button>
-        )}
-        {sectionRun && (
-          <ActionMenu
-            label="Chạy cho một mục"
-            items={sectionRun.sections.map((choice) => ({
-              label: `${choice.label} (~${choice.estimate} lượt)`,
-              onSelect: () => sectionRun.onRun(choice.id),
-            }))}
-          />
+          <div className={styles.blockRun}>
+            <Button size="sm" onClick={onRun}>
+              {PAPER_LABELS.analyze}
+            </Button>
+            {estimate !== undefined && (
+              <span className={styles.muted}>
+                ~{estimate} lượt{budget !== undefined && ` · trần ${budget}`}
+              </span>
+            )}
+          </div>
         )}
         <Button
           size="sm"
@@ -110,6 +111,15 @@ export function SectionBlock({
         </Button>
       </div>
       <div hidden={!open} className={styles.blockBody}>
+        {sectionRun && (
+          <ActionMenu
+            label={PAPER_LABELS.runSection}
+            items={sectionRun.sections.map((choice) => ({
+              label: `${choice.label} (~${choice.estimate} lượt)`,
+              onSelect: () => sectionRun.onRun(choice.id),
+            }))}
+          />
+        )}
         {views.length > 1 && view && onView && (
           <SegmentedControl
             label={`Nội dung của ${title}`}
