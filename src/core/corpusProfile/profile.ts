@@ -1,3 +1,5 @@
+import type { HoldoutResult } from './holdout';
+import type { ConfoundCheck } from './confounds';
 import type { Corpus, CorpusMember } from '../schemas/corpus';
 import { CorpusProfileSchema, type CorpusProfile, type CorpusProfileFeature } from '../schemas/corpusProfile';
 import type { PaperInsightsRecord } from '../schemas/paperInsights';
@@ -90,6 +92,8 @@ export async function buildCorpusProfile({
   registry = FEATURE_REGISTRY,
   seed,
   now,
+  holdout,
+  confounds,
 }: {
   target: Corpus;
   control: Corpus;
@@ -98,6 +102,8 @@ export async function buildCorpusProfile({
   registry?: typeof FEATURE_REGISTRY;
   seed: number;
   now: Date;
+  holdout?: HoldoutResult;
+  confounds?: ConfoundCheck[];
 }): Promise<CorpusProfile> {
   const warnings: string[] = [];
   const profile = (corpus: Corpus) => {
@@ -238,10 +244,18 @@ export async function buildCorpusProfile({
       );
     if (!s.heldOut) shortfalls.push(`${s.title}: nothing held out`);
   }
-  const interpretationStatus = shortfalls.length ? 'exploratory' : 'inconclusive';
+  const interpretationStatus = shortfalls.length
+    ? 'exploratory'
+    : holdout?.passed && distinctiveFeatureIds.length
+      ? 'supported'
+      : 'inconclusive';
   const interpretationReason = shortfalls.length
     ? `Below the minimums of CORPUS_PLAN section 4. ${shortfalls.join('; ')}.`
-    : 'The section 4 minimums are met, but the held-out test (C5b) has not run, so no feature is supported yet.';
+    : holdout?.passed && distinctiveFeatureIds.length
+      ? 'The section 4 minimums and held-out test are met.'
+      : holdout
+        ? 'The held-out test did not pass, so no feature is supported.'
+        : 'The section 4 minimums are met, but the held-out test (C5b) has not run, so no feature is supported yet.';
 
   const methodNotes = [
     'Values are per paper: body blocks only, publisher boilerplate (competing interests, CRediT, data availability, acknowledgements, funding, front matter), references and title removed; one paper model per member.',
@@ -252,7 +266,7 @@ export async function buildCorpusProfile({
     'Machine-label features (stance, rhetoric, claim types) count a paper only when its latest run covers every body section except appendices; machineShare is the share of counted labels no person has confirmed.',
     `Phrases: document frequency (papers using the phrase, counted once per paper) compared by G² (1 df) and Log Ratio; tested only when used by at least ${PHRASE_RULES.minTargetPrevalence * 100}% of target papers and at least ${PHRASE_RULES.minTargetPapers} papers (owner decision 5); only phrases the target uses more are listed, top ${PHRASE_RULES.top} by G² with q < ${PHRASE_RULES.alpha}; evidence excerpts are at most ${PHRASE_RULES.maxExcerptChars} characters (decision 6).`,
     `Year buckets are ${PROFILE_THRESHOLDS.bucketYears} years wide from the earliest protocol year (or paper year when the protocol names none); sizes and buckets count full-text members, held-out ones included.`,
-    'Not yet done: author-cluster bootstrap, leaving each control journal out, confound checks and the held-out test (C5b).',
+    'Not yet done: author-cluster bootstrap and leaving each control journal out.',
   ];
 
   return CorpusProfileSchema.parse({
@@ -275,7 +289,9 @@ export async function buildCorpusProfile({
     },
     interpretationStatus,
     interpretationReason,
-    holdoutVerified: false,
+    holdoutVerified: Boolean(holdout?.passed && distinctiveFeatureIds.length),
+    ...(holdout ? { holdout } : {}),
+    ...(confounds ? { confoundChecks: confounds } : {}),
     warnings,
     methodNotes,
   });

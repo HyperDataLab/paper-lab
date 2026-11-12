@@ -2332,6 +2332,6 @@
     "Machine-label features (stance, rhetoric, claim types) count a paper only when its latest run covers every body section except appendices; machineShare is the share of counted labels no person has confirmed.",
     "Phrases: document frequency (papers using the phrase, counted once per paper) compared by G² (1 df) and Log Ratio; tested only when used by at least 5% of target papers and at least 5 papers (owner decision 5); only phrases the target uses more are listed, top 50 by G² with q < 0.05; evidence excerpts are at most 300 characters (decision 6).",
     "Year buckets are 2 years wide from the earliest protocol year (or paper year when the protocol names none); sizes and buckets count full-text members, held-out ones included.",
-    "Not yet done: author-cluster bootstrap, leaving each control journal out, confound checks and the held-out test (C5b)."
+    "Not yet done: author-cluster bootstrap and leaving each control journal out."
   ]
 }

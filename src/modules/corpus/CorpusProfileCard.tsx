@@ -8,7 +8,7 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { DataTable } from '@/shared/ui/DataTable';
 import { Select } from '@/shared/ui/Select';
-import { computeProfile, downloadProfile, featureLabel } from './profileRun';
+import { computeHoldout, computeProfile, downloadProfile, featureLabel } from './profileRun';
 import styles from './corpus.module.css';
 
 const num = (value: number | null | undefined, digits = 2) =>
@@ -63,6 +63,19 @@ export function CorpusProfileCard({ corpus }: { corpus: Corpus }) {
       setBusy(false);
     }
   }
+  async function runHoldout() {
+    const control = controls?.find((c) => c.id === controlId);
+    if (!profile || !control) return;
+    setBusy(true);
+    setError('');
+    try {
+      setProfile(await computeHoldout(profile, corpus, control, repo));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
   const distinctive = profile
     ? profile.features.filter((f) => profile.distinctiveFeatureIds.includes(f.featureId))
     : [];
@@ -96,6 +109,11 @@ export function CorpusProfileCard({ corpus }: { corpus: Corpus }) {
               {busy ? 'Đang tính…' : 'Tính profile'}
             </Button>
             {profile && (
+              <Button size="sm" disabled={busy} onClick={() => void runHoldout()}>
+                Kiểm tra trên tập giữ riêng
+              </Button>
+            )}
+            {profile && (
               <Button
                 size="sm"
                 leadingIcon={<Download size={16} aria-hidden="true" />}
@@ -122,6 +140,37 @@ export function CorpusProfileCard({ corpus }: { corpus: Corpus }) {
               {profile.target.profiled} bài tạp chí, {profile.control.profiled} bài đối chứng.{' '}
               {profile.warnings.join(' ')}
             </p>
+            {profile.holdout && (
+              <>
+                <h3>Kiểm tra trên tập giữ riêng</h3>
+                <p>
+                  AUC {num(profile.holdout.auc)} [{num(profile.holdout.ci95Low)},{' '}
+                  {num(profile.holdout.ci95High)}] · {profile.holdout.passed ? 'Đạt' : 'Không đạt'} ·{' '}
+                  {profile.holdout.rule}. Loại do trùng tác giả: {profile.holdout.droppedForAuthorOverlap}. Số
+                  bài: {profile.holdout.nTarget} / {profile.holdout.nControl}.
+                </p>
+                <DataTable aria-label="Kiểm tra yếu tố gây nhiễu">
+                  <thead>
+                    <tr>
+                      <th>Yếu tố</th>
+                      <th>Tạp chí</th>
+                      <th>Đối chứng</th>
+                      <th>Khoảng cách TV</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {profile.confoundChecks?.map((c) => (
+                      <tr key={c.name}>
+                        <td>{c.name}</td>
+                        <td>{c.target}</td>
+                        <td>{c.control}</td>
+                        <td>{num(c.distance)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </DataTable>
+              </>
+            )}
             <h3>Đặc trưng khác biệt</h3>
             {distinctive.length === 0 ? (
               <p className={styles.muted}>

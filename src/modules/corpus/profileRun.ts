@@ -1,3 +1,6 @@
+import { testHoldout } from '@/core/corpusProfile/holdout';
+import { confoundChecks } from '@/core/corpusProfile/confounds';
+import { measurePaperDetail } from '@/core/corpusProfile/measure';
 import { buildCorpusProfile, profileEligible, type ProfilePaper } from '@/core/corpusProfile/profile';
 import { buildPaperModel } from '@/core/paperModel';
 import type { Corpus } from '@/core/schemas/corpus';
@@ -6,8 +9,15 @@ import type { Repositories } from '@/shared/storage/repositories';
 import { labelMembers, loadLabelPaper } from './labelRun';
 
 /** Members' papers, models and label records, read the way the labelling coverage reads them. */
-export async function loadProfilePapers(corpus: Corpus, repo: Repositories, into: Map<string, ProfilePaper>) {
-  const members = labelMembers(corpus).filter(profileEligible);
+export async function loadProfilePapers(
+  corpus: Corpus,
+  repo: Repositories,
+  into: Map<string, ProfilePaper>,
+  includeHeldout = false,
+) {
+  const members = labelMembers(corpus).filter(
+    (m) => profileEligible(m) || (includeHeldout && m.role === 'held_out' && m.textRead === 'FULL_TEXT'),
+  );
   await Promise.all(
     members.map(async (member) => {
       const item = await loadLabelPaper(member, repo);
@@ -39,6 +49,63 @@ export async function computeProfile(target: Corpus, control: Corpus, repo: Repo
   await loadProfilePapers(target, repo, papers);
   await loadProfilePapers(control, repo, papers);
   return buildCorpusProfile({ target, control, papers, seed: profileSeed(target), now: new Date() });
+}
+
+/** The profile and its selected features remain frozen while held-out papers are loaded. */
+export async function computeHoldout(
+  profile: CorpusProfile,
+  target: Corpus,
+  control: Corpus,
+  repo: Repositories,
+): Promise<CorpusProfile> {
+  const papers = new Map<string, ProfilePaper>();
+  await loadProfilePapers(target, repo, papers, true);
+  await loadProfilePapers(control, repo, papers, true);
+  const rows = (corpus: Corpus, held: boolean) =>
+    corpus.members
+      .filter((m) =>
+        held
+          ? m.role === 'held_out' && m.retrieval === 'retrieved' && m.textRead === 'FULL_TEXT'
+          : profileEligible(m),
+      )
+      .flatMap((m) => {
+        const paper = papers.get(m.memberId);
+        return paper
+          ? [
+              {
+                authorIds: m.authorIds,
+                values: measurePaperDetail(paper.model, paper.insights, paper.stance).values,
+              },
+            ]
+          : [];
+      });
+  const holdout = testHoldout(
+    profile.distinctiveFeatureIds,
+    rows(target, false),
+    rows(control, false),
+    rows(target, true),
+    rows(control, true),
+    profile.seed,
+  );
+  const supported = profile.interpretationStatus !== 'exploratory' && holdout.passed;
+  return CorpusProfileSchema.parse({
+    ...profile,
+    holdout,
+    confoundChecks: confoundChecks(target.members, control.members),
+    holdoutVerified: holdout.passed,
+    interpretationStatus:
+      profile.interpretationStatus === 'exploratory'
+        ? 'exploratory'
+        : supported
+          ? 'supported'
+          : 'inconclusive',
+    interpretationReason:
+      profile.interpretationStatus === 'exploratory'
+        ? profile.interpretationReason
+        : supported
+          ? 'The section 4 minimums and held-out test are met.'
+          : 'The held-out test did not pass, so no feature is supported.',
+  });
 }
 
 const sectionNames: Record<string, string> = {
