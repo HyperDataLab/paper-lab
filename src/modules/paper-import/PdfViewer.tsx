@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { ChevronLeft, ChevronRight, Maximize2, Minus, Plus } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Loading } from '@/shared/ui/StateNote';
 import { TextField } from '@/shared/ui/TextField';
@@ -354,10 +355,11 @@ export function PdfViewer({
           disabled={page <= 1}
           onClick={() => goTo(page - 1)}
         >
-          ‹
+          <ChevronLeft size={16} aria-hidden="true" />
         </Button>
         <TextField
           label="Trang"
+          hideLabel
           size="sm"
           type="number"
           min={1}
@@ -377,19 +379,26 @@ export function PdfViewer({
           disabled={!doc || page >= doc.numPages}
           onClick={() => goTo(page + 1)}
         >
-          ›
+          <ChevronRight size={16} aria-hidden="true" />
         </Button>
-        <span className={styles.spacer} />
+        <span className={styles.divider} aria-hidden="true" />
         <Button size="sm" variant="ghost" aria-label="Thu nhỏ" onClick={() => step(-1)}>
-          −
+          <Minus size={16} aria-hidden="true" />
         </Button>
-        <span className={styles.count}>{Math.round(scale * 100)}%</span>
+        <span className={`${styles.count} ${styles.zoom}`}>{Math.round(scale * 100)}%</span>
         <Button size="sm" variant="ghost" aria-label="Phóng to" onClick={() => step(1)}>
-          +
+          <Plus size={16} aria-hidden="true" />
         </Button>
-        <Button size="sm" variant="ghost" aria-pressed={zoom === null} onClick={() => setZoom(null)}>
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-pressed={zoom === null}
+          leadingIcon={<Maximize2 size={14} aria-hidden="true" />}
+          onClick={() => setZoom(null)}
+        >
           Vừa khung
         </Button>
+        <span className={styles.spacer} />
         {toolbarEnd}
         {toolbarBelow && <div className={styles.toolbarRow}>{toolbarBelow}</div>}
         {missing && (

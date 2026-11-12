@@ -19,12 +19,11 @@ export function SidebarItem({
   const childActive = modules.some((other) => other.partOf === item.id && pathname.startsWith(other.path));
   const content = (
     <>
-      <Icon size={19} aria-hidden="true" />
+      <Icon size={18} aria-hidden="true" />
       {!rail && (
         <>
           <span className={styles.itemLabel}>{item.label}</span>
           {item.status === 'soon' && <Badge>Sắp có</Badge>}
-          {item.status === 'beta' && <Badge>Beta</Badge>}
         </>
       )}
     </>
@@ -45,5 +44,15 @@ export function SidebarItem({
         {content}
       </NavLink>
     );
-  return <div>{rail ? <Tooltip label={item.label}>{element}</Tooltip> : element}</div>;
+  return (
+    <div>
+      {rail ? (
+        <Tooltip label={item.label} side="right">
+          {element}
+        </Tooltip>
+      ) : (
+        element
+      )}
+    </div>
+  );
 }

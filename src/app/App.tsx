@@ -15,6 +15,7 @@ import { PdfSync } from './PdfSync';
 import { CommandPalette } from './CommandPalette';
 import { modules } from './modules';
 import { Sidebar } from './Sidebar';
+import { PageEnter } from '@/shared/motion/PageEnter';
 import ReportPage from '@/modules/report/ReportPage';
 import ComparePage from '@/modules/report/ComparePage';
 import PaperMapPage from '@/modules/paper-import/PaperMapPage';
@@ -41,14 +42,14 @@ export function App() {
   const current = modules.find(
     (item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`),
   );
+  // Workspaces and wide tables use the whole window; lists, forms and home stay at a readable width.
   const wideContent =
-    location.pathname === '/' ||
     location.pathname === '/evaluate' ||
-    location.pathname === '/extraction' ||
     location.pathname.startsWith('/extraction/') ||
-    location.pathname.startsWith('/corpus') ||
-    location.pathname === '/papers' ||
+    location.pathname.startsWith('/corpus/') ||
     location.pathname.startsWith('/papers/');
+  // A paper is a workspace: on wide screens it fills the window and its columns scroll on their own.
+  const appContent = /^\/papers\/[^/]+/.test(location.pathname);
   useEffect(() => {
     if (theme === 'system') delete document.documentElement.dataset.theme;
     else document.documentElement.dataset.theme = theme;
@@ -95,8 +96,8 @@ export function App() {
                     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))
                   }
                 >
-                  <Search size={17} />
-                  <span>Tìm chức năng</span>
+                  <Search size={16} />
+                  <span>Tìm hoặc chạy lệnh…</span>
                   <Kbd>Ctrl K</Kbd>
                 </Button>
                 <AccountButton />
@@ -115,30 +116,34 @@ export function App() {
                 </IconButton>
               </div>
             </header>
-            <main className={`${styles.content} ${wideContent ? styles.wideContent : ''}`}>
+            <main
+              className={`${styles.content} ${wideContent ? styles.wideContent : ''} ${appContent ? styles.appContent : ''}`}
+            >
               <StorageProvider>
                 <PdfSync />
                 <LlmProvider>
                   <Suspense fallback={<Skeleton />}>
-                    <Routes>
-                      {modules.map((item) => (
-                        <Route key={item.id} path={item.path} element={<item.page />} />
-                      ))}
-                      <Route path="/report/:id" element={<ReportPage />} />
-                      <Route path="/compare" element={<ComparePage />} />
-                      <Route path="/papers/:id" element={<PaperMapPage />} />
-                      <Route path="/extraction/:id" element={<ExtractionProjectPage />} />
-                      <Route path="/corpus/:id" element={<CorpusDetail />} />
-                      <Route
-                        path="*"
-                        element={
-                          <div>
-                            <h1>Không tìm thấy trang</h1>
-                            <p>Đường dẫn này không tồn tại.</p>
-                          </div>
-                        }
-                      />
-                    </Routes>
+                    <PageEnter key={location.pathname}>
+                      <Routes>
+                        {modules.map((item) => (
+                          <Route key={item.id} path={item.path} element={<item.page />} />
+                        ))}
+                        <Route path="/report/:id" element={<ReportPage />} />
+                        <Route path="/compare" element={<ComparePage />} />
+                        <Route path="/papers/:id" element={<PaperMapPage />} />
+                        <Route path="/extraction/:id" element={<ExtractionProjectPage />} />
+                        <Route path="/corpus/:id" element={<CorpusDetail />} />
+                        <Route
+                          path="*"
+                          element={
+                            <div>
+                              <h1>Không tìm thấy trang</h1>
+                              <p>Đường dẫn này không tồn tại.</p>
+                            </div>
+                          }
+                        />
+                      </Routes>
+                    </PageEnter>
                   </Suspense>
                 </LlmProvider>
               </StorageProvider>

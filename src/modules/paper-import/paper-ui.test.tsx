@@ -72,7 +72,7 @@ it('requires confirmation before deleting a paper', async () => {
   expect(await repo.papers.list()).toHaveLength(1);
   fireEvent.click(within(dialog).getByRole('button', { name: 'Xoá bài báo' }));
   await waitFor(async () => expect(await repo.papers.list()).toHaveLength(0));
-  expect(await screen.findByText('Chưa có bài báo.')).toBeInTheDocument();
+  expect(await screen.findByText('Chưa có bài nào.')).toBeInTheDocument();
 });
 it('shows the size guard error before reading an oversized file', async () => {
   setup();
@@ -401,12 +401,12 @@ it('R1 an old view link opens its block in the new three-mode page, and an analy
     'aria-checked',
     'true',
   );
-  // A folded analysis that has not run: its question, its state and one button that starts it.
+  // A folded analysis that has not run: its title and one button that starts it; no state label.
   const stance = screen.getByRole('region', { name: 'Validity & rhetorical moves' });
   expect(within(stance).getByRole('button', { name: 'Mở Validity & rhetorical moves' })).toHaveAttribute(
     'aria-expanded',
     'false',
   );
-  expect(await within(stance).findByText('Chưa chạy')).toBeInTheDocument();
-  expect(within(stance).getByRole('button', { name: 'Phân tích' })).toBeEnabled();
+  expect(await within(stance).findByRole('button', { name: 'Phân tích' })).toBeEnabled();
+  expect(within(stance).queryByText('Chưa chạy')).toBeNull();
 });

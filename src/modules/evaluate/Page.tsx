@@ -1,3 +1,4 @@
+import { Check, Info, Lock, PencilLine, Save, Scissors } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useRepositories } from '@/shared/storage/StorageProvider';
@@ -6,13 +7,13 @@ import type { CalibrationSnapshot, Issue, TextAnalysis } from '@/core/schemas';
 import { Button } from '@/shared/ui/Button';
 import { TextField } from '@/shared/ui/TextField';
 import { Card } from '@/shared/ui/Card';
-import { EmptyState } from '@/shared/ui/EmptyState';
 import { Skeleton } from '@/shared/ui/Skeleton';
 import styles from './page.module.css';
 import { AnalysisResult } from './AnalysisResult';
 import { useSyntaxAnalysis } from './useSyntaxAnalysis';
 import { useCandidateJudge } from './useCandidateJudge';
-import { AnalysisStep } from './AnalysisStep';
+import { AnalysisPipeline } from './AnalysisPipeline';
+import { ProcessGuide } from './ProcessGuide';
 import { ParagraphModes } from './ParagraphModes';
 import { detectCandidates, DETECTOR_VERSION } from '@/core/detectors';
 import { ReviewWorkspace } from './ReviewWorkspace';
@@ -303,7 +304,7 @@ export default function Page() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Đánh giá"
+        title="Đánh giá đoạn văn"
         lead={
           !id && !result
             ? 'Dán một đoạn văn học thuật tiếng Anh rồi phân tích từng bước. AI chỉ đưa gợi ý; bạn quyết định giữ hay bỏ.'
@@ -328,51 +329,73 @@ export default function Page() {
         </p>
       )}
       {(!result || editing) && (!id || error) && (
-        <Card>
-          <TextField
-            label="Dán một đoạn văn tiếng Anh"
-            multiline
-            id="paragraph"
-            value={text}
-            disabled={!!id}
-            onChange={(event) => {
-              setText(event.target.value);
-              setResult(null);
-              setSaved(false);
-              resetSyntax();
-              resetJudge();
-              resetParagraph();
-              resetScoring();
-            }}
-            rows={7}
-          />
-          <div className={styles.inputFoot}>
-            <span>{words} từ</span>
-            {id ? (
-              <Button
-                onClick={() => {
-                  setParams({});
-                  setText('');
-                  setResult(null);
-                  setError(null);
-                  setSaved(false);
-                  setCreatedId(null);
-                  setDecisions([]);
-                  resetSyntax();
-                  resetJudge();
-                  resetParagraph();
-                  resetScoring();
-                }}
-              >
-                Tạo bản phân tích mới
-              </Button>
-            ) : (
-              <Button variant="primary" type="button" disabled={loading} onClick={() => void run()}>
-                Tách câu
-              </Button>
-            )}
-          </div>
-        </Card>
+        <div className={styles.compose}>
+          <section className={styles.editor} aria-label="Đoạn văn cần đánh giá">
+            <TextField
+              label="Dán một đoạn văn tiếng Anh"
+              multiline
+              id="paragraph"
+              placeholder="Dán một đoạn văn học thuật tiếng Anh vào đây…"
+              value={text}
+              disabled={!!id}
+              onKeyDown={(event) => {
+                if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && text.trim() && !id) {
+                  event.preventDefault();
+                  void run();
+                }
+              }}
+              onChange={(event) => {
+                setText(event.target.value);
+                setResult(null);
+                setSaved(false);
+                resetSyntax();
+                resetJudge();
+                resetParagraph();
+                resetScoring();
+              }}
+              rows={10}
+            />
+            <div className={styles.editorFoot}>
+              <span className={styles.count}>
+                {words} từ · {Array.from(text).length} ký tự
+              </span>
+              <span className={styles.privacy}>
+                <Lock size={14} aria-hidden="true" />
+                Tách câu chạy trên máy này; chỉ bước có chữ AI mới gửi văn bản đi.
+              </span>
+              {id ? (
+                <Button
+                  onClick={() => {
+                    setParams({});
+                    setText('');
+                    setResult(null);
+                    setError(null);
+                    setSaved(false);
+                    setCreatedId(null);
+                    setDecisions([]);
+                    resetSyntax();
+                    resetJudge();
+                    resetParagraph();
+                    resetScoring();
+                  }}
+                >
+                  Tạo bản phân tích mới
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  type="button"
+                  disabled={loading || !text.trim()}
+                  onClick={() => void run()}
+                >
+                  <Scissors size={16} aria-hidden="true" />
+                  Tách câu
+                </Button>
+              )}
+            </div>
+          </section>
+          <ProcessGuide />
+        </div>
       )}
       {loading || (id && !result && !error) ? (
         <Skeleton />
@@ -431,6 +454,7 @@ export default function Page() {
                   resetParagraph();
                 }}
               >
+                <PencilLine size={16} aria-hidden="true" />
                 Chỉnh sửa văn bản
               </Button>
             )}
@@ -446,6 +470,7 @@ export default function Page() {
                 }
                 onClick={() => void save()}
               >
+                {saved ? <Check size={16} aria-hidden="true" /> : <Save size={16} aria-hidden="true" />}
                 {saved ? 'Đã lưu' : 'Lưu vào lịch sử'}
               </Button>
             )}
@@ -479,157 +504,81 @@ export default function Page() {
             />
           )}
           {!id && (
-            <Card padding="md">
-              <h2>Các bước phân tích</h2>
-              <ol className={styles.steps}>
-                <AnalysisStep number={1} done={!!syntax.annotations}>
-                  <SyntaxControls
-                    syntax={syntax}
-                    readOnly={!!id}
-                    saved={saved}
-                    busy={judge.running || paragraph.running || scoring.running}
-                    onRun={() => {
-                      resetJudge();
-                      resetParagraph();
-                      resetScoring();
-                      captureStep('syntax');
-                      void syntax.run(result);
-                    }}
-                  />
-                </AnalysisStep>
-                {!id && (
-                  <AnalysisStep number={2} done={!!paragraph.result}>
-                    {paragraph.running ? (
-                      <>
-                        <span role="status">Đang phân tích cấu trúc…</span>{' '}
-                        <Button variant="danger" onClick={paragraph.cancel}>
-                          Huỷ
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        variant={nextStep === 'structure' ? 'primary' : 'secondary'}
-                        disabled={
-                          saved || !syntax.annotations || syntax.running || judge.running || scoring.running
+            <AnalysisPipeline
+              syntax={syntax}
+              paragraph={paragraph}
+              judge={judge}
+              scoring={scoring}
+              canJudge={canJudge}
+              judgeDone={judgeDone}
+              nextStep={nextStep}
+              saved={saved}
+              saving={saving}
+              contextLimited={contextLimited}
+              onSyntax={() => {
+                resetJudge();
+                resetParagraph();
+                resetScoring();
+                captureStep('syntax');
+                void syntax.run(result);
+              }}
+              onStructure={() => {
+                resetScoring();
+                captureStep('structure');
+                void paragraph.run(result, syntax.annotations, issues);
+              }}
+              onJudge={() => {
+                captureStep('judge');
+                void judge.run(
+                  result,
+                  syntax.annotations,
+                  candidates,
+                  { before: null, after: null, audience: null },
+                  issues,
+                );
+              }}
+              onScore={() => {
+                const analysis = AnalysisSchema.parse({
+                  schemaVersion: 1,
+                  id: crypto.randomUUID(),
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                  text: result,
+                  context: { before: null, after: null, audience: null },
+                  contextLimited: true,
+                  versions: { rubric: null, prompt: null, model: null, syntaxProvider: null },
+                  sentenceAnnotations: (syntax.annotations ?? []).map((annotation) => {
+                    const role = paragraph.result?.roles.find(
+                      (item) => item.sentenceId === annotation.sentenceId,
+                    );
+                    return role
+                      ? {
+                          ...annotation,
+                          role: role.role,
+                          roleConfidence: role.confidence,
+                          roleRationale: role.rationale,
                         }
-                        onClick={() => {
-                          resetScoring();
-                          captureStep('structure');
-                          void paragraph.run(result, syntax.annotations, issues);
-                        }}
-                      >
-                        Phân tích cấu trúc đoạn (AI)
-                      </Button>
-                    )}
-                    {saved ? (
-                      <small>Đã lưu — chọn Chỉnh sửa văn bản để phân tích lại</small>
-                    ) : (
-                      !syntax.annotations && <small>Cần phân tích câu trước</small>
-                    )}
-                    {paragraph.error && <p role="alert">Không phân tích được: {paragraph.error}</p>}
-                  </AnalysisStep>
-                )}
-                {!id && !canJudge && (
-                  <AnalysisStep number={3} done={false}>
-                    <small>Đánh giá theo ngữ cảnh: chưa có ứng viên để đánh giá.</small>
-                  </AnalysisStep>
-                )}
-                {!id && canJudge && (
-                  <AnalysisStep number={3} done={judgeDone}>
-                    {judge.running ? (
-                      <>
-                        <span role="status">Đang đánh giá…</span>{' '}
-                        <Button variant="danger" onClick={judge.cancel}>
-                          Huỷ
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        variant={nextStep === 'judge' ? 'primary' : 'secondary'}
-                        disabled={saved || syntax.running || paragraph.running || scoring.running}
-                        onClick={() => {
-                          captureStep('judge');
-                          void judge.run(
-                            result,
-                            syntax.annotations,
-                            candidates,
-                            { before: null, after: null, audience: null },
-                            issues,
-                          );
-                        }}
-                      >
-                        Đánh giá theo ngữ cảnh (AI)
-                      </Button>
-                    )}
-                    {saved && <small>Đã lưu — chọn Chỉnh sửa văn bản để phân tích lại</small>}
-                    {judge.error && (
-                      <p role="alert">
-                        Không đánh giá được: {judge.error}{' '}
-                        {judge.error.includes('Chưa nhập khoá API') && <Link to="/settings">Cài đặt</Link>}
-                      </p>
-                    )}
-                  </AnalysisStep>
-                )}
-                {!id && (
-                  <AnalysisStep number={4} done={!!scoring.result}>
-                    {scoring.running ? (
-                      <>
-                        <span role="status">Đang chấm điểm…</span>{' '}
-                        <Button variant="danger" onClick={scoring.cancel}>
-                          Huỷ
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        variant={nextStep === 'score' ? 'primary' : 'secondary'}
-                        disabled={saved || saving || syntax.running || judge.running || paragraph.running}
-                        onClick={() => {
-                          const analysis = AnalysisSchema.parse({
-                            schemaVersion: 1,
-                            id: crypto.randomUUID(),
-                            createdAt: new Date().toISOString(),
-                            updatedAt: new Date().toISOString(),
-                            text: result,
-                            context: { before: null, after: null, audience: null },
-                            contextLimited: true,
-                            versions: { rubric: null, prompt: null, model: null, syntaxProvider: null },
-                            sentenceAnnotations: (syntax.annotations ?? []).map((annotation) => {
-                              const role = paragraph.result?.roles.find(
-                                (item) => item.sentenceId === annotation.sentenceId,
-                              );
-                              return role
-                                ? {
-                                    ...annotation,
-                                    role: role.role,
-                                    roleConfidence: role.confidence,
-                                    roleRationale: role.rationale,
-                                  }
-                                : annotation;
-                            }),
-                            paragraph: paragraph.result?.paragraph ?? null,
-                            flowLinks: paragraph.result?.flowLinks ?? [],
-                            paragraphMetrics: paragraph.result?.metrics ?? null,
-                            issues,
-                            parentAnalysisId: null,
-                          });
-                          captureStep('score');
-                          void scoring.run(analysis);
-                        }}
-                      >
-                        Chấm điểm (AI)
-                      </Button>
-                    )}
-                    {scoring.error && <p role="alert">Không chấm điểm được: {scoring.error}</p>}
-                  </AnalysisStep>
-                )}
-              </ol>
-            </Card>
+                      : annotation;
+                  }),
+                  paragraph: paragraph.result?.paragraph ?? null,
+                  flowLinks: paragraph.result?.flowLinks ?? [],
+                  paragraphMetrics: paragraph.result?.metrics ?? null,
+                  issues,
+                  parentAnalysisId: null,
+                });
+                captureStep('score');
+                void scoring.run(analysis);
+              }}
+            />
           )}
-          <p className={styles.meta}>
-            {contextLimited
-              ? 'Chỉ phân tích riêng đoạn này, không có ngữ cảnh của đoạn trước và sau.'
-              : 'Đã xét cùng đoạn trước và đoạn sau.'}
-          </p>
+          {id && (
+            <p className={styles.meta}>
+              <Info size={14} aria-hidden="true" />
+              {contextLimited
+                ? 'Chỉ phân tích riêng đoạn này, không có ngữ cảnh của đoạn trước và sau.'
+                : 'Đã xét cùng đoạn trước và đoạn sau.'}
+            </p>
+          )}
           <Tabs label="Chế độ xem">
             <Button
               id="text-tab"
@@ -726,13 +675,7 @@ export default function Page() {
             <ParagraphView text={result} result={paragraph.result} />
           </div>
         </>
-      ) : (
-        <EmptyState
-          title="Chưa có câu"
-          description="Dán đoạn văn và chọn Tách câu để xem kết quả."
-          detail="Văn bản được xử lý trên thiết bị của bạn."
-        />
-      )}
+      ) : null}
     </div>
   );
 }

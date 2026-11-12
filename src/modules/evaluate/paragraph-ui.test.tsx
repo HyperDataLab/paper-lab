@@ -114,7 +114,7 @@ it('EV-07 EV-08 AC-05 analyzes after syntax, shows the chain, and reopens withou
     expect(screen.getByRole('button', { name: 'Phân tích cấu trúc đoạn (AI)' })).toBeEnabled(),
   );
   fireEvent.click(screen.getByRole('button', { name: 'Phân tích cấu trúc đoạn (AI)' }));
-  await screen.findByText(/S1 → S2 ·/);
+  await screen.findByText(/· S1 → S2/);
   expect(screen.getByText(/grow → Roots/)).toBeInTheDocument();
   const rect = {
     x: 0,

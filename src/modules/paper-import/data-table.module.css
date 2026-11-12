@@ -11,9 +11,3 @@
   border-collapse: collapse;
   text-align: left;
 }
-.table th,
-.table td {
-  padding: var(--space-3);
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}

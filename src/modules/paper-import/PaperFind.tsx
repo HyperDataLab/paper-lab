@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { FindingLocation } from '@/core/paperFindings';
 import type { Paper } from '@/core/schemas';
@@ -44,6 +45,8 @@ export function PaperFind({
     <>
       <TextField
         label="Tìm trong bài"
+        hideLabel
+        placeholder="Tìm trong bài"
         size="sm"
         type="search"
         value={query}
@@ -65,7 +68,7 @@ export function PaperFind({
             aria-label="Kết quả trước"
             onClick={() => show((index - 1 + hits.length) % hits.length)}
           >
-            ‹
+            <ChevronLeft size={16} aria-hidden="true" />
           </Button>
           <Button
             size="sm"
@@ -73,13 +76,14 @@ export function PaperFind({
             aria-label="Kết quả sau"
             onClick={() => show((index + 1) % hits.length)}
           >
-            ›
+            <ChevronRight size={16} aria-hidden="true" />
           </Button>
         </>
       )}
       {sections.length > 1 && (
         <Select
           label="Mục"
+          hideLabel
           size="sm"
           value=""
           onChange={(event) => {

@@ -35,9 +35,11 @@ product will keep adding modules (Section/IMRaD, Citation, Figure captions, Batc
   `group: 'analysis' | 'paper' | 'data' | 'labs' | 'system'`, `order`, `status: 'ready' | 'beta' | 'soon'`, `page` (lazy).
 - Groups run **BÀI BÁO**, one **Đoạn văn** entry, **DỮ LIỆU**, then system. The app opens on the paper list. Paper work comes first because
   it is the product's main job; single-paragraph tools are secondary.
-- `soon` modules render disabled with a badge; `beta` shows a small "Beta" pill.
-- Collapsed state is remembered in `localStorage` (try/catch). Widths: 240 px expanded, 64 px rail.
-- Active item: left accent bar + bold label + `aria-current="page"`. Keyboard: Tab order follows the list,
+- Group titles are sentence case (Nghiên cứu, Viết, Dữ liệu), never all caps. `soon` modules render disabled with a
+  badge; `beta` is not marked in the sidebar, where four pills on nine items were noise.
+- Collapsed state is remembered in `localStorage` (try/catch). Widths: 232 px expanded, 64 px rail. The top bar is
+  56 px and sticky.
+- Active item: soft accent background, accent icon, semibold label + `aria-current="page"`. Keyboard: Tab order follows the list,
   `Ctrl/⌘+K` opens a command palette listing the same registry entries.
 - Inside a module, sub-views use **tabs** (e.g. Evaluate: `Văn bản | Số liệu | Cấu trúc đoạn | JSON`), never a
   second sidebar.
@@ -109,19 +111,38 @@ Two of these hues match `--hl-word` and `--hl-flow` above. The two sets never sh
 
 ## 4. Visual tokens
 
-- Fonts: `--font-ui` (Inter), `--font-reading` (Source Serif 4), `--font-mono` (JetBrains Mono).
-  Reading text uses `--text-reading` (17 px) / 1.7.
+- Direction: the neutral (zinc) system most current web apps share (shadcn/ui, Vercel, Linear): white surfaces,
+  near-black text, 1px borders, 12px card radius, light shadows, a 232px sidebar on `--sidebar-bg`. The brand green
+  (`--accent`, `--accent-hover`, `--accent-strong`, `--soft`) marks actions, the current place and selection; a PDF
+  sits on `--desk`, and the passage the reader opened is the one bright mark (`--highlight`).
+- Fonts: `--font-ui` (Inter), `--font-reading` (Source Serif 4) for quotes and analysed paragraphs only,
+  `--font-mono` (JetBrains Mono, digests and code only). Reading text uses `--text-reading` (17 px) / 1.7.
+- Page widths: list and form pages `--content-width` (1200 px), detail pages `--wide-width` (1440 px), the paper
+  workspace `--workspace-width` (1680 px); all centred, with one gutter shared by header, tabs and columns.
+- Lists of saved things (projects, corpora) are `ItemCard`s in `ItemGrid`: three columns, two below 1100 px, one on
+  phones. A card shows its kind, title, question, three key numbers, progress and last update.
+- Every token is a whole pixel. Do not scale tokens per breakpoint (fractional sizes blur text and borders).
+- Widths: `--content-width` 1200 px for list and form pages (centred), workspaces use the full width;
+  `--form-width` 720 px. A page that lists things and creates them puts the list first and the create form in a
+  side column (Corpus, Trích xuất).
+- Cards are for objects (a paper, a finding, a corpus). Page sections are separated by headings and space, not by
+  wrapping each one in a card. Cards are flat: border, no shadow. Empty states sit on `--surface-sunken`, no dashed
+  border.
+- Toolbars are one row of icon buttons; a control whose value explains itself hides its label visually
+  (`hideLabel`) and keeps it for screen readers.
 
-| Tokens                                                    | Values                          |
-| --------------------------------------------------------- | ------------------------------- |
-| `--space-1`, `-2`, `-3`, `-4`, `-5`, `-6`, `-8`, `-10`    | 4, 8, 12, 16, 20, 24, 32, 40 px |
-| `--radius-sm`, `--radius`, `--radius-lg`, `--radius-pill` | 4, 6, 10, 999 px                |
-| `--text-xs`, `-sm`, `-base`, `-md`, `-lg`, `-xl`, `-2xl`  | 12, 13, 15, 16, 18, 20, 24 px   |
-| `--control-h`, `--control-h-sm`                           | 36, 28 px                       |
+| Tokens                                                                   | Values                              |
+| ------------------------------------------------------------------------ | ----------------------------------- |
+| `--space-1`, `-2`, `-3`, `-4`, `-5`, `-6`, `-8`, `-10`, `-12`            | 4, 8, 12, 16, 20, 24, 32, 40, 48 px |
+| `--radius-sm`, `--radius`, `--radius-lg`, `--radius-xl`, `--radius-pill` | 4, 6, 10, 16, 999 px                |
+| `--text-xs`, `-sm`, `-base`, `-md`, `-lg`, `-xl`, `-2xl`, `-3xl`         | 12, 13, 14, 15, 17, 20, 24, 30 px   |
+| `--control-h`, `--control-h-sm`, `--control-h-lg`                        | 36, 30, 44 px                       |
 
 - Semantic colours include `--danger`, `--success`, `--warning`, `--scrim` and the existing highlights;
   `--soft` is a subdued surface for selected and highlighted content. `--shadow-overlay` is for overlays only.
-- Neutral palette on `:root` (`--bg`, `--surface`, `--border`, `--text`, `--text-muted`, `--accent`), redefined
+- Neutral palette on `:root` (`--bg`, `--surface`, `--surface-sunken`, `--sidebar-bg`, `--desk`, `--border`,
+  `--border-subtle`, `--border-strong`, `--text`, `--text-secondary`, `--text-muted`, `--accent`, `--accent-hover`,
+  `--accent-strong`, `--on-accent`, `--hover`, `--highlight`), redefined
   for dark mode under `prefers-color-scheme: dark` and `[data-theme="dark"]`. Contrast ≥ 4.5:1 for text.
 - Components live in `src/shared/ui/`: Button (primary, secondary, ghost, danger; md/sm), IconButton (md/sm),
   TextField, Select, Checkbox, SegmentedControl, Chip, Tabs, Badge (neutral, accent, success, warning, danger),
@@ -306,6 +327,17 @@ These are checked on each screen, by looking at it, before a change is accepted.
 - **Readers see places, not ids:** `Tr. 3 · Results`, never `sec3_p09`. Dates are formatted for Vietnamese readers, never ISO. Internal codes appear only in folded technical detail or exports.
 - **Filters are `Chip`s with counts** when the options are few. Labels on items are `Badge`s. Key numbers are `Stat`s.
 - **Long lists are trees:** group by paper, then section, with counts. A flat list of parsed items is not acceptable.
+- **Secondary actions are icons.** Toggles, dismiss, undo, open-detail, show/hide panels, transparency and info are
+  `IconButton`s: a coloured icon (accent to do, danger to reject or remove, neutral otherwise), a tooltip above it
+  and the same accessible name the text button had. A view's one primary action keeps its text.
+- **Disabled is neutral.** A disabled button is a grey fill with muted text, never a faded accent.
+- **One table style.** Every table is left-aligned with regular-weight cells and a small muted header; row headers
+  are medium weight. Modules set widths, never centring.
+- **Drawers have a header**: a title and a close icon, never a loose "Đóng" button above the content.
+- **No idle labels.** A block that has not run shows its run button, not a "Chưa chạy" badge; a finished block
+  shows its content, not "Đã có kết quả". Only a run in progress and a stale result are labelled. A block's help
+  line shows when it is open, not on the folded row. Calibration status shows on the suggestion the reader opened,
+  not on every card.
 - **Never promise a control the screen does not have.** Empty states name an action only where that action exists.
 - **Provenance is not page content.** Minh bạch opens from the header in a drawer, grouped by run.
 
@@ -314,7 +346,9 @@ These are checked on each screen, by looking at it, before a change is accepted.
 The profile has five dimensions (Khoa học, Lập luận, Diễn ngôn, Viết học thuật, Bối cảnh), each stating its question, coverage and indicators. Indicators are computed in `core/paperProfile`. Each dimension leads the place that is about it: A and B the Arguments space, C and D the Writing style space, E the Citations tab. A card's button opens the analysis behind it ("Mở để phân tích" or "Xem chi tiết"); it never starts a run.
 
 - No total score and no radar chart: the dimensions do not share a scale.
-- An indicator that has not been measured shows `—`, never zero.
+- An indicator that has not been measured is never shown as a tile: a dimension with nothing measured is one row
+  (title, question, "Mở để phân tích"), and a partly measured one lists what is not measured yet in one line
+  ("Chưa đo: …"). It is never shown as zero.
 - Every AI-derived number says so.
 - A Toulmin slot with nothing behind it reads "Chưa xác định". An inferred warrant is labelled as inferred and never shown as the authors' own.
 - A finding's source opens beside the current screen in the evidence drawer; reading it does not lose the reader's place.

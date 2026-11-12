@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Corpus } from '@/core/schemas/corpus';
 import { TextField } from '@/shared/ui/TextField';
 import { Button } from '@/shared/ui/Button';
+import { DialogActions } from '@/shared/ui/Dialog';
 import styles from './corpus.module.css';
 
 type Body = Corpus['protocol'][number]['body'];
@@ -14,11 +15,14 @@ export function ProtocolForm({
   kind,
   initial,
   onSave,
+  onCancel,
   label,
 }: {
   kind: Corpus['kind'];
   initial?: Body;
   onSave: (body: Body) => void;
+  /** In a dialog the form ends with Huỷ and its action, right-aligned. */
+  onCancel?: () => void;
   label: string;
 }) {
   const topic = initial && 'researchQuestion' in initial ? initial : undefined;
@@ -111,11 +115,22 @@ export function ProtocolForm({
         <TextField label="Đến năm" value={to} onChange={(e) => setTo(e.target.value)} />
       </div>
       {invalidYears && <p role="alert">Năm phải có bốn chữ số và năm bắt đầu không sau năm kết thúc.</p>}
-      <div>
-        <Button variant="primary" disabled={invalidYears} onClick={save}>
-          {label}
-        </Button>
-      </div>
+      {onCancel ? (
+        <DialogActions>
+          <Button variant="ghost" onClick={onCancel}>
+            Huỷ
+          </Button>
+          <Button variant="primary" disabled={invalidYears} onClick={save}>
+            {label}
+          </Button>
+        </DialogActions>
+      ) : (
+        <div>
+          <Button variant="primary" disabled={invalidYears} onClick={save}>
+            {label}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

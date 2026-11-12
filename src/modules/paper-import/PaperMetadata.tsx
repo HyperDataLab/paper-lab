@@ -257,34 +257,40 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
           </div>
         </form>
       ) : (
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th scope="col">Trường</th>
-              <th scope="col">Giá trị</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(([label, value]) => (
-              <tr key={label}>
-                <th scope="row">{label}</th>
-                <td>{value ?? <span className={styles.missing}>Chưa có</span>}</td>
-              </tr>
-            ))}
-            <tr>
-              <th scope="row">DOI</th>
-              <td>
-                {metadata?.doi ? (
+        <>
+          <dl className={styles.facts}>
+            {rows
+              .filter(([, value]) => value !== null)
+              .map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            {metadata?.doi && (
+              <div>
+                <dt>DOI</dt>
+                <dd>
                   <a href={`https://doi.org/${metadata.doi}`} target="_blank" rel="noreferrer">
                     {metadata.doi}
                   </a>
-                ) : (
-                  <span className={styles.missing}>Chưa có</span>
-                )}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                </dd>
+              </div>
+            )}
+          </dl>
+          {(rows.some(([, value]) => value === null) || !metadata?.doi) && (
+            <p className={styles.missing}>
+              Chưa có:{' '}
+              {[
+                ...rows.filter(([, value]) => value === null).map(([label]) => label),
+                ...(metadata?.doi ? [] : ['DOI']),
+              ]
+                .join(', ')
+                .toLowerCase()}
+              .
+            </p>
+          )}
+        </>
       )}
       <section className={styles.model} aria-label="Paper model">
         <h3>Paper model</h3>

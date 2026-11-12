@@ -19,28 +19,30 @@ export function LabAccountCard() {
             PDF chỉ nằm trên máy này; mọi phân tích vẫn chạy như bình thường.
           </p>
         </header>
-        <div className={styles.statusRow}>
-          {!ready ? (
-            <Badge>Đang kiểm tra…</Badge>
-          ) : user ? (
-            <>
-              <Badge tone="success">Đã đăng nhập</Badge>
-              <span>{user.email}</span>
-            </>
-          ) : (
-            <Badge>Chưa đăng nhập</Badge>
-          )}
+        <div className={styles.fields}>
+          <div className={styles.statusRow}>
+            {!ready ? (
+              <Badge>Đang kiểm tra…</Badge>
+            ) : user ? (
+              <>
+                <Badge tone="success">Đã đăng nhập</Badge>
+                <span>{user.email}</span>
+              </>
+            ) : (
+              <Badge>Chưa đăng nhập</Badge>
+            )}
+          </div>
+          <div className={styles.start}>
+            {user ? (
+              <Button onClick={() => void signOut()}>Đăng xuất</Button>
+            ) : (
+              <Button variant="primary" disabled={!ready} onClick={() => void signIn()}>
+                Đăng nhập bằng Google
+              </Button>
+            )}
+          </div>
+          {error && <p role="alert">{error}</p>}
         </div>
-        <div className={styles.start}>
-          {user ? (
-            <Button onClick={() => void signOut()}>Đăng xuất</Button>
-          ) : (
-            <Button variant="primary" disabled={!ready} onClick={() => void signIn()}>
-              Đăng nhập bằng Google
-            </Button>
-          )}
-        </div>
-        {error && <p role="alert">{error}</p>}
       </div>
     </Card>
   );

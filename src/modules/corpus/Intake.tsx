@@ -16,7 +16,16 @@ import { TextField } from '@/shared/ui/TextField';
 import styles from './corpus.module.css';
 
 type Pending = { candidate: string; input: IntakeInput; id: string };
-export function Intake({ corpus, save }: { corpus: Corpus; save: (value: Corpus) => Promise<void> }) {
+export function Intake({
+  corpus,
+  save,
+  heading = true,
+}: {
+  corpus: Corpus;
+  save: (value: Corpus) => Promise<void>;
+  /** Off inside a dialog, whose title already names it. */
+  heading?: boolean;
+}) {
   const repo = useRepositories();
   const [library, setLibrary] = useState<LibraryItem[]>([]);
   const [papers, setPapers] = useState<Paper[]>([]);
@@ -104,7 +113,7 @@ export function Intake({ corpus, save }: { corpus: Corpus; save: (value: Corpus)
   }
   return (
     <div className={styles.form}>
-      <h2>Thêm bài</h2>
+      {heading && <h2>Thêm bài</h2>}
       <SegmentedControl
         label="Nguồn bài"
         value={tab}
@@ -145,7 +154,9 @@ export function Intake({ corpus, save }: { corpus: Corpus; save: (value: Corpus)
         </div>
       )}
       <div>
-        <Button onClick={() => void add()}>Thêm bài</Button>
+        <Button variant="primary" onClick={() => void add()}>
+          Thêm bài
+        </Button>
       </div>
       {counts && (
         <p role="status">

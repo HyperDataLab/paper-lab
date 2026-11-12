@@ -1,7 +1,8 @@
 import { useId, type InputHTMLAttributes, type TextareaHTMLAttributes, type Ref } from 'react';
 import styles from './ui.module.css';
 
-type Common = { label: string; hint?: string; error?: string; size?: 'md' | 'sm' };
+/** `hideLabel` keeps the label for screen readers only; use it where the control explains itself, as in a toolbar. */
+type Common = { label: string; hint?: string; error?: string; size?: 'md' | 'sm'; hideLabel?: boolean };
 type Props = Common &
   (
     | ({ multiline?: false; ref?: Ref<HTMLInputElement> } & Omit<
@@ -10,7 +11,7 @@ type Props = Common &
       >)
     | ({ multiline: true; ref?: Ref<HTMLTextAreaElement> } & TextareaHTMLAttributes<HTMLTextAreaElement>)
   );
-export function TextField({ label, hint, error, size = 'md', ...props }: Props) {
+export function TextField({ label, hint, error, size = 'md', hideLabel = false, ...props }: Props) {
   const generatedId = useId();
   const id = props.id ?? generatedId;
   const describedBy = [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(' ') || undefined;
@@ -43,7 +44,9 @@ export function TextField({ label, hint, error, size = 'md', ...props }: Props) 
       })();
   return (
     <div className={styles.field}>
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id} className={hideLabel ? styles.srOnly : undefined}>
+        {label}
+      </label>
       {control}
       {hint && (
         <span id={`${id}-hint`} className={styles.fieldHint}>

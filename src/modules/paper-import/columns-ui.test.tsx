@@ -82,7 +82,7 @@ it('R15 the page switch keeps every space reachable and the split label follows 
   const spaces = await screen.findByRole('tablist', { name: 'Spaces' });
   expect(within(spaces).getByRole('tab', { name: /^Arguments/ })).toHaveAttribute('aria-selected', 'true');
   expect(document.querySelector('section[aria-label="Paper"]')).not.toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: '← Quay lại bài' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Quay lại bài' }));
   const centre = await screen.findByRole('tablist', { name: 'Paper' });
   expect(within(centre).getByRole('tab', { name: 'Full text' })).toHaveAttribute('aria-selected', 'true');
   const right = screen.getByRole('tablist', { name: 'Analysis' });
@@ -256,6 +256,11 @@ it('R11 each space lists the issues of its own criteria, accepted until rejected
     within(within(list).getByRole('group', { name: 'Filter by criterion' }))
       .getAllByRole('button')
       .map((chip) => chip.textContent),
-  ).toEqual(['WWriting (1)', 'Theo trang', 'Kiểm tra tự động']);
+  ).toEqual(['WWriting (1)']);
+  expect(
+    within(within(list).getByRole('group', { name: 'Sắp xếp và nguồn' }))
+      .getAllByRole('button')
+      .map((chip) => chip.textContent),
+  ).toEqual(['Theo trang', 'Kiểm tra tự động', 'Chạy lại kiểm tra']);
   expect(within(list).getByRole('button', { name: 'Bác bỏ' })).toBeInTheDocument();
 });

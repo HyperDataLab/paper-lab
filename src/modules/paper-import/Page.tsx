@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authorsShort, paperIdentity, type PaperIdentity } from '@/core/paperIdentity';
 import type { Paper } from '@/core/schemas';
 import { PaperSizeError } from '@/shared/paper/sizeGuard';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
-import { Card } from '@/shared/ui/Card';
+import { Dropzone } from '@/shared/ui/Dropzone';
+import { PageHeader } from '@/shared/ui/PageHeader';
 import { Dialog } from '@/shared/ui/Dialog';
 import { Select } from '@/shared/ui/Select';
 import { TextField } from '@/shared/ui/TextField';
@@ -24,7 +25,6 @@ const SOURCE_NOTE: Partial<Record<PaperIdentity['titleSource'], string>> = {
 export default function Page() {
   const repo = useRepositories();
   const navigate = useNavigate();
-  const input = useRef<HTMLInputElement>(null);
   const [papers, setPapers] = useState<Paper[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [identities, setIdentities] = useState(new Map<string, PaperIdentity>());
@@ -79,7 +79,6 @@ export default function Page() {
       setDetail(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setBusy(false);
-      if (input.current) input.current.value = '';
     }
   }
   async function remove() {
@@ -121,7 +120,7 @@ export default function Page() {
   }, [papers, identities, search, sort]);
   return (
     <div className={styles.page}>
-      <h1>Bài báo</h1>
+      <PageHeader title="Bài báo" />
       <Tabs label="Bài báo">
         <Button role="tab" aria-selected={view === 'papers'} onClick={() => setView('papers')}>
           Bài đã nhập
@@ -133,55 +132,33 @@ export default function Page() {
       {view === 'library' && <LibraryPanel />}
       {view === 'papers' && (
         <>
-          <Card>
-            <div
-              className={styles.drop}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                const file = event.dataTransfer.files[0];
-                if (file) void read(file);
-              }}
-            >
-              <p>Kéo thả tệp PDF, LaTeX, Markdown hoặc văn bản vào đây.</p>
-              <input
-                ref={input}
-                className={styles.hidden}
-                aria-label="Chọn tệp bài báo"
-                type="file"
-                accept=".pdf,.tex,.md,.txt,application/pdf,text/plain,text/markdown"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void read(file);
-                }}
-              />
-              <Button variant="primary" disabled={busy} onClick={() => input.current?.click()}>
-                Chọn tệp
-              </Button>
-              <p>
-                Nội dung được tách và phân tích ngay trên máy của bạn. Khi đăng nhập tài khoản lab, PDF gốc
-                được lưu thêm vào kho chung của lab; không đăng nhập thì PDF chỉ nằm trên máy này.
-              </p>
-              {busy && <p role="status">{progress || 'Đang xử lý tệp…'}</p>}
+          <Dropzone
+            inputLabel="Chọn tệp bài báo"
+            title="Kéo thả bài báo vào đây, hoặc bấm để chọn tệp"
+            hint="PDF, LaTeX, Markdown hoặc văn bản. Tệp được tách ngay trên máy này; PDF gốc chỉ lên kho lab khi bạn đăng nhập."
+            accept=".pdf,.tex,.md,.txt,application/pdf,text/plain,text/markdown"
+            busy={busy}
+            status={progress || 'Đang xử lý tệp…'}
+            onFile={(file) => void read(file)}
+          />
+          {error && (
+            <div role="alert" className={styles.importError}>
+              {error}
+              {detail && (
+                <details>
+                  <summary>Chi tiết kỹ thuật</summary>
+                  {detail}
+                </details>
+              )}
             </div>
-            {error && (
-              <div role="alert">
-                {error}
-                {detail && (
-                  <details>
-                    <summary>Chi tiết kỹ thuật</summary>
-                    {detail}
-                  </details>
-                )}
-              </div>
-            )}
-          </Card>
+          )}
           <div className={styles.libraryHead}>
             <h2>Bài báo đã nhập{loaded ? ` (${papers.length})` : ''}</h2>
             {papers.length > 0 && (
               <div className={styles.libraryTools}>
                 <TextField
                   label="Tìm bài"
+                  hideLabel
                   size="sm"
                   type="search"
                   placeholder="Tên bài, tác giả, tên tệp"
@@ -190,6 +167,7 @@ export default function Page() {
                 />
                 <Select
                   label="Sắp xếp"
+                  hideLabel
                   size="sm"
                   value={sort}
                   onChange={(event) => setSort(event.target.value as Sort)}
@@ -204,7 +182,7 @@ export default function Page() {
           {!loaded ? (
             <Loading label="Đang tải danh sách bài báo…" />
           ) : !papers.length ? (
-            <Empty title="Chưa có bài báo." hint="Kéo thả một tệp PDF vào khung phía trên để bắt đầu." />
+            <Empty title="Chưa có bài nào." hint="Bài bạn nhập sẽ hiện ở đây." />
           ) : !rows.length ? (
             <p>Không có bài nào khớp “{search.trim()}”.</p>
           ) : (

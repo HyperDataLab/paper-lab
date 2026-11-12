@@ -14,7 +14,7 @@ export function EmptyState({
     <div className={styles.emptyNote}>
       <strong>{title}</strong>
       <span>{description}</span>
-      <span className={styles.detail}>{detail}</span>
+      <span className={styles.emptyDetail}>{detail}</span>
     </div>
   );
 }

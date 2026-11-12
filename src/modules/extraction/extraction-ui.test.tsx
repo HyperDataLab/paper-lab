@@ -61,6 +61,7 @@ it('creates a project, adds a template of columns and reviews a cell with its ev
   const repo = createRepositories(createDb(`extraction-ui-${crypto.randomUUID()}`));
   mount(repo, '/extraction');
   expect(await screen.findByText('Chưa có project nào.')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Project mới' }));
   fireEvent.change(screen.getByLabelText('Tên project'), { target: { value: 'So sánh' } });
   fireEvent.click(screen.getByRole('button', { name: 'Tạo project' }));
   expect(await screen.findByRole('heading', { name: 'So sánh' })).toBeInTheDocument();

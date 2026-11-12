@@ -5,8 +5,25 @@ import { useRepositories } from '@/shared/storage/StorageProvider';
 import { CalibrationBadge } from '@/shared/calibration/CalibrationBadge';
 import { loadCalibration, type CalibrationData } from '@/shared/calibration/data';
 import { downloadJson } from '@/shared/calibration/download';
+import {
+  AlertCircle,
+  AlertTriangle,
+  Download,
+  FileJson,
+  Gauge,
+  ListChecks,
+  Tags,
+  Target,
+  Trash2,
+  Upload,
+  Users,
+} from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
+import { Dialog, DialogActions } from '@/shared/ui/Dialog';
+import { IconButton } from '@/shared/ui/IconButton';
+import { Empty, Loading } from '@/shared/ui/StateNote';
 import { Card } from '@/shared/ui/Card';
+import { PageHeader } from '@/shared/ui/PageHeader';
 import { labels as issueLabels } from '@/modules/evaluate/issueLabels';
 import { LENSES } from '@/core/prompts';
 import { DIMENSIONS } from '@/core/scoring/rubric';
@@ -61,7 +78,12 @@ export default function Page() {
       setError(String(cause));
     }
   }
-  if (!data) return <p>{error ? `Không thể tải hiệu chuẩn: ${error}` : 'Đang tải hiệu chuẩn…'}</p>;
+  if (!data)
+    return error ? (
+      <p role="alert">Không thể tải hiệu chuẩn: {error}</p>
+    ) : (
+      <Loading label="Đang tải hiệu chuẩn…" />
+    );
   const matched = preview ? matchLabels(preview.labels.labels, data.store) : null;
   const raters = [...new Set(data.labels.map((label) => label.rater))].sort();
   const agreement = raters.flatMap((a, index) =>
@@ -97,187 +119,330 @@ export default function Page() {
       ).values(),
     ],
   };
+  const sets = data.data.calibrationLabels;
   return (
     <div className={styles.page}>
-      <h1>Hiệu chuẩn</h1>
-      <p className={styles.note}>
-        Cỡ mẫu (n) nhỏ chưa đủ để kết luận về độ tin cậy. Các ngưỡng hiện là mặc định, cần hiệu chuẩn thêm.
-      </p>
-      <p className={styles.note}>
-        Mâu thuẫn giữa các nhãn cùng người đánh giá và mục: {data.conflicts} (giữ nhãn mới nhất).
-      </p>
-      <Card>
-        <h2>Nhãn đánh giá</h2>
-        <p>
-          Mẫu chứa các mục hiện có. Điền tên người đánh giá và label (correct/incorrect hoặc 0–4 cho điểm)
-          trước khi nhập.
-        </p>
-        <div className={styles.actions}>
-          <Button onClick={() => downloadJson('paperlab-labels-template.json', template)}>
-            Tải mẫu nhãn
-          </Button>
-          <input
-            ref={input}
-            type="file"
-            accept=".json,application/json"
-            hidden
-            aria-label="Tệp nhãn"
-            onChange={(event) => void read(event)}
-          />
-          <Button onClick={() => input.current?.click()}>Chọn tệp nhãn</Button>
+      <PageHeader
+        title="Hiệu chuẩn"
+        lead="Đo xem gợi ý và điểm của AI khớp với nhãn của người đến đâu. Cỡ mẫu nhỏ chưa đủ để kết luận; các ngưỡng hiện là mặc định."
+      >
+        <Button onClick={() => downloadJson('paperlab-labels-template.json', template)}>
+          <Download size={16} aria-hidden="true" />
+          Tải mẫu nhãn
+        </Button>
+        <Button variant="primary" onClick={() => input.current?.click()}>
+          <Upload size={16} aria-hidden="true" />
+          Nhập tệp nhãn
+        </Button>
+        <input
+          ref={input}
+          type="file"
+          accept=".json,application/json"
+          hidden
+          aria-label="Tệp nhãn"
+          onChange={(event) => void read(event)}
+        />
+      </PageHeader>
+
+      <dl className={styles.stats} aria-label="Dữ liệu hiệu chuẩn">
+        <div>
+          <dt>
+            <FileJson size={16} aria-hidden="true" /> Bộ nhãn
+          </dt>
+          <dd>{sets.length}</dd>
         </div>
-        {error && (
-          <div role="alert">
+        <div>
+          <dt>
+            <Tags size={16} aria-hidden="true" /> Nhãn
+          </dt>
+          <dd>{data.labels.length}</dd>
+        </div>
+        <div>
+          <dt>
+            <Users size={16} aria-hidden="true" /> Người đánh giá
+          </dt>
+          <dd>{raters.length}</dd>
+        </div>
+        <div>
+          <dt>
+            <ListChecks size={16} aria-hidden="true" /> Loại đã có nhãn
+          </dt>
+          <dd>{data.stats.length}</dd>
+        </div>
+      </dl>
+
+      {error && (
+        <div role="alert" className={styles.alert}>
+          <AlertCircle size={16} aria-hidden="true" />
+          <div>
             Không thể xử lý nhãn.
             <details>
               <summary>Chi tiết kỹ thuật</summary>
               {error}
             </details>
           </div>
-        )}
-        {preview && matched && (
+        </div>
+      )}
+
+      <Card>
+        <div className={styles.cardHead}>
           <div>
-            <h3>Xem trước: {preview.name}</h3>
+            <h2>Bộ nhãn đã nhập</h2>
             <p>
-              Khớp: {matched.matched.length} · Không khớp: {matched.unmatched.length} · Tổng n=
-              {preview.labels.labels.length}
+              Mẫu chứa các mục hiện có. Điền tên người đánh giá và nhãn (correct/incorrect, hoặc 0–4 cho điểm)
+              rồi nhập lại.
             </p>
-            <ul>
-              {[...new Set(preview.labels.labels.map((v) => v.rater))].map((rater) => (
-                <li key={rater}>
-                  {rater}: n={preview.labels.labels.filter((v) => v.rater === rater).length}
-                </li>
-              ))}
-            </ul>
-            {matched.unmatched.length > 0 && (
-              <details>
-                <summary>Nhãn không khớp</summary>
-                <pre>{JSON.stringify(matched.unmatched, null, 2)}</pre>
-              </details>
-            )}
+          </div>
+        </div>
+        {data.conflicts > 0 && (
+          <p className={styles.notice}>
+            <AlertTriangle size={16} aria-hidden="true" />
+            Mâu thuẫn giữa các nhãn cùng người đánh giá và mục: {data.conflicts} (giữ nhãn mới nhất).
+          </p>
+        )}
+        {sets.length === 0 ? (
+          <Empty
+            icon={<FileJson size={20} />}
+            title="Chưa nhập bộ nhãn nào"
+            hint="Tải mẫu nhãn ở góc trên, điền nhãn, rồi chọn Nhập tệp nhãn."
+          />
+        ) : (
+          <div className={styles.tableWrap}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Tệp</th>
+                  <th>Nhập lúc</th>
+                  <th className={styles.num}>Số nhãn</th>
+                  <th>Người đánh giá</th>
+                  <th className={styles.actionCell}>
+                    <span className={styles.srOnly}>Thao tác</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sets.map((set) => (
+                  <tr key={set.id}>
+                    <td>
+                      <span className={styles.file}>
+                        <FileJson size={16} aria-hidden="true" />
+                        {set.sourceFileName}
+                      </span>
+                    </td>
+                    <td>{new Date(set.importedAt).toLocaleString('vi-VN')}</td>
+                    <td className={styles.num}>{set.data.labels.length}</td>
+                    <td>{[...new Set(set.data.labels.map((label) => label.rater))].join(', ') || '—'}</td>
+                    <td className={styles.actionCell}>
+                      <IconButton
+                        label="Xoá bộ nhãn"
+                        tone="danger"
+                        onClick={() =>
+                          void repo.calibrationLabels
+                            .delete(set.id)
+                            .then(refresh)
+                            .catch((cause: unknown) => setError(String(cause)))
+                        }
+                      >
+                        <Trash2 size={16} />
+                      </IconButton>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <div className={styles.cardHead}>
+          <div>
+            <h2>Độ chính xác theo loại</h2>
+            <p>Tỉ lệ gợi ý được người đánh giá xác nhận là đúng, kèm khoảng tin cậy Wilson 95 %.</p>
+          </div>
+        </div>
+        {data.stats.length === 0 ? (
+          <Empty
+            icon={<Target size={20} />}
+            title="Chưa có nhãn nào"
+            hint="Nhập tệp nhãn để thấy độ chính xác của từng loại gợi ý."
+          />
+        ) : (
+          <div className={styles.tableWrap}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Loại</th>
+                  <th className={styles.num}>Đúng</th>
+                  <th className={styles.num}>Sai</th>
+                  <th className={styles.num}>n</th>
+                  <th>Precision (KTC 95%)</th>
+                  <th>Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.stats.map((row) => (
+                  <tr key={`${row.kind}:${row.type}`}>
+                    <td title={row.type}>
+                      {labelFor(row.kind, row.type).group}: {labelFor(row.kind, row.type).label}
+                    </td>
+                    <td className={styles.num}>{row.correct}</td>
+                    <td className={styles.num}>{row.incorrect}</td>
+                    <td className={styles.num}>{row.n}</td>
+                    <td className={styles.precision}>
+                      <span className={styles.meter} aria-hidden="true">
+                        <span style={{ width: `${(row.precision ?? 0) * 100}%` }} />
+                      </span>
+                      {fmt(row.precision)} ({fmt(row.wilsonLow)}–{fmt(row.wilsonHigh)})
+                    </td>
+                    <td>
+                      <CalibrationBadge stats={row} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      <div className={styles.split}>
+        <Card>
+          <div className={styles.cardHead}>
+            <div>
+              <h2>Đồng thuận giữa người đánh giá</h2>
+              <p>Cohen&apos;s kappa trên các mục mà hai người cùng gán nhãn.</p>
+            </div>
+          </div>
+          {agreement.length === 0 ? (
+            <Empty
+              icon={<Users size={20} />}
+              title="Chưa đủ người đánh giá"
+              hint="Cần ít nhất hai người đánh giá cùng gán nhãn một mục."
+            />
+          ) : (
+            <div className={styles.tableWrap}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Người đánh giá</th>
+                    <th>Loại</th>
+                    <th className={styles.num}>n</th>
+                    <th className={styles.num}>Kappa</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {agreement.map((row) => (
+                    <tr key={`${row.a}:${row.b}:${row.kind}:${row.type}`}>
+                      <td>
+                        {row.a} / {row.b}
+                      </td>
+                      <td title={row.type}>
+                        {labelFor(row.kind, row.type).group}: {labelFor(row.kind, row.type).label}
+                      </td>
+                      <td className={styles.num}>{row.n}</td>
+                      <td className={styles.num}>{fmt(row.kappa)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+        <Card>
+          <div className={styles.cardHead}>
+            <div>
+              <h2>Hiệu chuẩn điểm</h2>
+              <p>Sai số giữa điểm AI và điểm người chấm theo từng tiêu chí (thang 0–4).</p>
+            </div>
+          </div>
+          {scores.length === 0 ? (
+            <Empty
+              icon={<Gauge size={20} />}
+              title="Chưa có nhãn điểm nào"
+              hint="Điền nhãn 0–4 cho các mục Điểm trong tệp mẫu để so với điểm của AI."
+            />
+          ) : (
+            <div className={styles.tableWrap}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Chiều</th>
+                    <th className={styles.num}>n</th>
+                    <th className={styles.num}>MAE</th>
+                    <th className={styles.num}>Độ lệch có dấu</th>
+                    <th className={styles.num}>Kappa có trọng số</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scores.map((row) => (
+                    <tr key={row.dimension}>
+                      <td title={row.dimension}>{labelFor('score', row.dimension).label}</td>
+                      <td className={styles.num}>{row.n}</td>
+                      <td className={styles.num}>{fmt(row.mae)}</td>
+                      <td className={styles.num}>
+                        {row.bias > 0 ? '+' : ''}
+                        {fmt(row.bias)}
+                      </td>
+                      <td className={styles.num}>{fmt(row.weightedKappa)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      <MeasurementGoldCard />
+
+      {preview && matched && (
+        <Dialog
+          kind="form"
+          title="Xem trước tệp nhãn"
+          description={`Kiểm tra ${preview.name} trước khi nhập. Nhãn không khớp với mục nào sẽ bị bỏ qua.`}
+          onClose={() => setPreview(undefined)}
+        >
+          <dl className={styles.previewStats}>
+            <div>
+              <dt>Khớp</dt>
+              <dd>{matched.matched.length}</dd>
+            </div>
+            <div>
+              <dt>Không khớp</dt>
+              <dd>{matched.unmatched.length}</dd>
+            </div>
+            <div>
+              <dt>Tổng</dt>
+              <dd>{preview.labels.labels.length}</dd>
+            </div>
+          </dl>
+          <p className={styles.srOnly}>
+            Khớp: {matched.matched.length} · Không khớp: {matched.unmatched.length} · Tổng n=
+            {preview.labels.labels.length}
+          </p>
+          <h3 className={styles.previewTitle}>Theo người đánh giá</h3>
+          <ul className={styles.raters}>
+            {[...new Set(preview.labels.labels.map((v) => v.rater))].map((rater) => (
+              <li key={rater}>
+                {rater}: n={preview.labels.labels.filter((v) => v.rater === rater).length}
+              </li>
+            ))}
+          </ul>
+          {matched.unmatched.length > 0 && (
+            <details className={styles.unmatched}>
+              <summary>Nhãn không khớp ({matched.unmatched.length})</summary>
+              <pre>{JSON.stringify(matched.unmatched, null, 2)}</pre>
+            </details>
+          )}
+          <DialogActions>
+            <Button onClick={() => setPreview(undefined)}>Huỷ</Button>
             <Button variant="primary" onClick={() => void save()}>
               Xác nhận nhập nhãn
             </Button>
-          </div>
-        )}
-        <ul className={styles.sets}>
-          {data.data.calibrationLabels.map((set) => (
-            <li key={set.id}>
-              <span>
-                {set.sourceFileName} · {new Date(set.importedAt).toLocaleString('vi-VN')} ·{' '}
-                {set.data.labels.length} nhãn
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  void repo.calibrationLabels
-                    .delete(set.id)
-                    .then(refresh)
-                    .catch((cause: unknown) => setError(String(cause)))
-                }
-              >
-                Xoá bộ nhãn
-              </Button>
-            </li>
-          ))}
-        </ul>
-      </Card>
-      <Card>
-        <h2>Độ chính xác theo loại</h2>
-        <div className={styles.tableWrap}>
-          <table>
-            <thead>
-              <tr>
-                <th>Loại</th>
-                <th>Đúng</th>
-                <th>Sai</th>
-                <th>n</th>
-                <th>Precision (KTC 95%)</th>
-                <th>Trạng thái</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.stats.map((row) => (
-                <tr key={`${row.kind}:${row.type}`}>
-                  <td title={row.type}>
-                    {labelFor(row.kind, row.type).group}: {labelFor(row.kind, row.type).label}
-                  </td>
-                  <td>{row.correct}</td>
-                  <td>{row.incorrect}</td>
-                  <td>{row.n}</td>
-                  <td>
-                    {fmt(row.precision)} ({fmt(row.wilsonLow)}–{fmt(row.wilsonHigh)})
-                  </td>
-                  <td>
-                    <CalibrationBadge stats={row} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-      <Card>
-        <h2>Đồng thuận giữa người đánh giá</h2>
-        <div className={styles.tableWrap}>
-          <table>
-            <thead>
-              <tr>
-                <th>Người đánh giá</th>
-                <th>Loại</th>
-                <th>n</th>
-                <th>Kappa</th>
-              </tr>
-            </thead>
-            <tbody>
-              {agreement.map((row) => (
-                <tr key={`${row.a}:${row.b}:${row.kind}:${row.type}`}>
-                  <td>
-                    {row.a} / {row.b}
-                  </td>
-                  <td title={row.type}>
-                    {labelFor(row.kind, row.type).group}: {labelFor(row.kind, row.type).label}
-                  </td>
-                  <td>{row.n}</td>
-                  <td>{fmt(row.kappa)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-      <MeasurementGoldCard />
-      <Card>
-        <h2>Hiệu chuẩn điểm</h2>
-        <div className={styles.tableWrap}>
-          <table>
-            <thead>
-              <tr>
-                <th>Chiều</th>
-                <th>n</th>
-                <th>MAE</th>
-                <th>Độ lệch có dấu</th>
-                <th>Kappa có trọng số</th>
-              </tr>
-            </thead>
-            <tbody>
-              {scores.map((row) => (
-                <tr key={row.dimension}>
-                  <td title={row.dimension}>{labelFor('score', row.dimension).label}</td>
-                  <td>{row.n}</td>
-                  <td>{fmt(row.mae)}</td>
-                  <td>
-                    {row.bias > 0 ? '+' : ''}
-                    {fmt(row.bias)}
-                  </td>
-                  <td>{fmt(row.weightedKappa)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+          </DialogActions>
+        </Dialog>
+      )}
     </div>
   );
 }

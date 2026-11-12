@@ -7,9 +7,7 @@ it('opens the home page at /', async () => {
       <App />
     </MemoryRouter>,
   );
-  expect(
-    await screen.findByRole('heading', { name: 'Bạn đang tìm hiểu câu hỏi nào?' }, { timeout: 5000 }),
-  ).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Tiếp tục đọc' }, { timeout: 5000 })).toBeInTheDocument();
 });
 it('shows a 404 for unknown paths', () => {
   render(

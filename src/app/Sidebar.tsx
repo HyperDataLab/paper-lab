@@ -6,9 +6,9 @@ import styles from './shell.module.css';
 
 const groups = [
   { id: 'home', label: '' },
-  { id: 'paper', label: 'BÀI BÁO' },
-  { id: 'analysis', label: 'VIẾT' },
-  { id: 'data', label: 'DỮ LIỆU' },
+  { id: 'paper', label: 'Nghiên cứu' },
+  { id: 'analysis', label: 'Viết' },
+  { id: 'data', label: 'Dữ liệu' },
   { id: 'system', label: '' },
 ] as const;
 
@@ -35,11 +35,12 @@ export function Sidebar({ onNavigate, mobile = false }: { onNavigate?: () => voi
   return (
     <aside className={`${styles.sidebar} ${rail ? styles.collapsed : ''}`}>
       <div className={styles.brand}>
-        <BookOpenText className={styles.logo} size={26} aria-hidden="true" />
+        <BookOpenText className={styles.logo} size={22} aria-hidden="true" />
         {!rail && <span>PaperLab</span>}
         {!mobile && (
           <IconButton
             className={styles.collapse}
+            tooltipSide="right"
             label={rail ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
             onClick={toggle}
           >

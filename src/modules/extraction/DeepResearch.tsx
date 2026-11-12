@@ -1,3 +1,4 @@
+import { Sparkles } from 'lucide-react';
 import { useRef, useState } from 'react';
 import {
   addPapers,
@@ -281,16 +282,20 @@ export function DeepResearch({
       {error && <p role="alert">{error}</p>}
 
       <Card>
-        <h2>1. Kế hoạch tìm kiếm</h2>
-        <TextField
-          label="Câu hỏi nghiên cứu"
-          multiline
-          rows={2}
-          value={question}
-          onChange={(event) => setQuestion(event.target.value)}
-        />
-        <div className={styles.actions}>
-          <Button disabled={Boolean(busy) || !question.trim()} onClick={() => void proposePlan()}>
+        <h2>Kế hoạch tìm kiếm</h2>
+        <div className={styles.inlineField}>
+          <TextField
+            label="Câu hỏi nghiên cứu"
+            multiline
+            rows={2}
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+          />
+          <Button
+            leadingIcon={<Sparkles size={16} aria-hidden="true" />}
+            disabled={Boolean(busy) || !question.trim()}
+            onClick={() => void proposePlan()}
+          >
             Đề xuất kế hoạch (AI)
           </Button>
         </div>
@@ -338,7 +343,7 @@ export function DeepResearch({
       </Card>
 
       <Card>
-        <h2>2. Tìm bài</h2>
+        <h2>Tìm bài</h2>
         <p className={styles.note}>
           Chỉ truy vấn và khoảng năm được gửi tới OpenAlex. Bài trùng (theo DOI, hoặc tên và năm) chỉ giữ một
           lần.
@@ -373,7 +378,7 @@ export function DeepResearch({
       </Card>
 
       <Card>
-        <h2>3. Sàng lọc</h2>
+        <h2>Sàng lọc</h2>
         <div className={styles.chips}>
           <Chip
             aria-pressed={filter === 'all'}
@@ -456,7 +461,7 @@ export function DeepResearch({
       </Card>
 
       <Card>
-        <h2>4. Tổng hợp liên bài</h2>
+        <h2>Tổng hợp liên bài</h2>
         <p className={styles.note}>
           Chỉ dùng giá trị đang hiện trong ma trận ({ready} bài có giá trị); ô mâu thuẫn và ô bị giữ lại không
           được đưa vào. Nên chạy High Quality trước.

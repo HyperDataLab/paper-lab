@@ -1,3 +1,4 @@
+import { ArrowLeft, Download, Library, Pencil, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { canonicalDigest } from '@/core/corpus';
@@ -6,12 +7,16 @@ import { useAuth } from '@/shared/auth/authContext';
 import { CorpusConflict, pullCorpus, pushCorpus } from '@/shared/corpusSync';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
+import { Badge } from '@/shared/ui/Badge';
 import { Card } from '@/shared/ui/Card';
+import { Dialog } from '@/shared/ui/Dialog';
+import { IconButton } from '@/shared/ui/IconButton';
 import { DataTable } from '@/shared/ui/DataTable';
 import { Select } from '@/shared/ui/Select';
 import { Intake } from './Intake';
 import { CorpusBuild } from './CorpusBuild';
 import { kinds } from './labels';
+import { downloadManifest } from './manifest';
 import { ProtocolForm } from './ProtocolForm';
 import styles from './corpus.module.css';
 
@@ -26,6 +31,7 @@ export default function DetailPage() {
   const [corpus, setCorpus] = useState<Corpus>();
   const [loaded, setLoaded] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [filter, setFilter] = useState('all');
   const [error, setError] = useState('');
   useEffect(() => {
@@ -132,120 +138,254 @@ export default function DetailPage() {
   function download() {
     if (!corpus) return;
     try {
-      const json = JSON.stringify(CorpusSchema.parse(corpus), null, 2);
-      const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${
-        corpus.title
-          .normalize('NFKD')
-          .replace(/[\u0300-\u036f]/gu, '')
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/gu, '-')
-          .replace(/^-|-$/gu, '') || 'corpus'
-      }.corpus.json`;
-      link.click();
-      URL.revokeObjectURL(url);
+      downloadManifest(corpus);
     } catch (e) {
       setError(String(e));
     }
   }
   const count = (key: 'retrieval' | 'textRead', value: string) =>
     corpus.members.filter((m) => m[key] === value).length;
+  const members = corpus.members.filter((m) => filter === 'all' || m.retrieval === filter);
+  const stats: [string, number][] = [
+    ['Đang tìm', count('retrieval', 'sought')],
+    ['Đã lấy', count('retrieval', 'retrieved')],
+    ['Không lấy được', count('retrieval', 'not_retrieved')],
+    ['Toàn văn', count('textRead', 'FULL_TEXT')],
+    ['Tóm tắt', count('textRead', 'ABSTRACT_ONLY')],
+    ['Siêu dữ liệu', count('textRead', 'METADATA_ONLY')],
+  ];
+  const body = protocol?.body;
+  const yearRange = body?.years.length ? `${Math.min(...body.years)}–${Math.max(...body.years)}` : 'Mọi năm';
+  const facts: [string, string][] = !body
+    ? []
+    : 'researchQuestion' in body
+      ? [
+          ['Câu hỏi nghiên cứu', body.researchQuestion || 'Chưa đặt'],
+          ['Tiêu chí chọn', body.inclusion.join('; ') || 'Chưa có'],
+          ['Tiêu chí loại', body.exclusion.join('; ') || 'Chưa có'],
+          ['Năm', yearRange],
+        ]
+      : [
+          ['Tạp chí', body.venues.map((venue) => venue.name).join(', ') || 'Chưa có'],
+          ['Loại bài', body.articleTypes.join(', ') || 'Mọi loại'],
+          ['Năm', yearRange],
+        ];
+  const pending = corpus.pendingConfirmations?.length ?? 0;
   return (
     <div className={styles.page}>
-      <Link to="/corpus">← Corpus</Link>
-      <header>
-        <h1>{corpus.title}</h1>
-        <p>
-          {kinds[corpus.kind]} · Giao thức phiên bản {protocol?.version ?? '—'} · {corpus.members.length} bài
-        </p>
-        <p className={styles.muted}>
-          Tìm kiếm: {count('retrieval', 'sought')} · Đã lấy: {count('retrieval', 'retrieved')} · Không lấy
-          được: {count('retrieval', 'not_retrieved')}
-          <br />
-          Toàn văn: {count('textRead', 'FULL_TEXT')} · Tóm tắt: {count('textRead', 'ABSTRACT_ONLY')} · Siêu dữ
-          liệu: {count('textRead', 'METADATA_ONLY')}
-        </p>
+      <header className={styles.detailHead}>
+        <div className={styles.detailTitle}>
+          <Link to="/corpus" className={styles.back}>
+            <ArrowLeft size={14} aria-hidden="true" />
+            Corpus
+          </Link>
+          <h1>{corpus.title}</h1>
+          <div className={styles.badges}>
+            <Badge>{kinds[corpus.kind]}</Badge>
+            <Badge>Giao thức v{protocol?.version ?? '—'}</Badge>
+            {!user && <Badge>Chỉ trên máy này</Badge>}
+          </div>
+        </div>
+        <div className={styles.detailActions}>
+          <IconButton label="Sửa giao thức" onClick={() => setEditing(true)}>
+            <Pencil size={18} />
+          </IconButton>
+          <IconButton label="Xuất manifest" onClick={download}>
+            <Download size={18} />
+          </IconButton>
+          <Button variant="primary" onClick={() => void release()}>
+            Phát hành
+          </Button>
+        </div>
       </header>
       {error && <p role="alert">Có lỗi xảy ra. {error}</p>}
-      {!user && <p>Đăng nhập để đồng bộ corpus.</p>}
       {conflict && (
-        <div role="alert">
+        <div role="alert" className={styles.conflict}>
           <p>Corpus đã được người khác sửa</p>
-          <Button onClick={() => void resolveConflict(false)}>Tải bản mới</Button>
-          <Button onClick={() => void resolveConflict(true)}>Giữ bản của tôi</Button>
+          <Button size="sm" onClick={() => void resolveConflict(false)}>
+            Tải bản mới
+          </Button>
+          <Button size="sm" onClick={() => void resolveConflict(true)}>
+            Giữ bản của tôi
+          </Button>
         </div>
       )}
-      <Card>
-        <Intake corpus={corpus} save={save} />
-      </Card>
+
+      <dl className={styles.stats} aria-label="Thu thập">
+        <div>
+          <dt>Tổng số bài</dt>
+          <dd>{corpus.members.length}</dd>
+        </div>
+        {stats.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+
       <CorpusBuild corpus={corpus} save={save} />
+
       <Card>
-        <h2>Thành viên</h2>
-        <Select label="Trạng thái thu thập" value={filter} onChange={(e) => setFilter(e.target.value)}>
-          <option value="all">Tất cả</option>
-          <option value="sought">Đang tìm</option>
-          <option value="retrieved">Đã lấy</option>
-          <option value="not_retrieved">Không lấy được</option>
-        </Select>
-        <DataTable>
-          <thead>
-            <tr>
-              <th>Tiêu đề / DOI</th>
-              <th>Định danh</th>
-              <th>Vai trò</th>
-              <th>Thu thập</th>
-              <th>Đã đọc</th>
-              <th>Phiên bản</th>
-            </tr>
-          </thead>
-          <tbody>
-            {corpus.members
-              .filter((m) => filter === 'all' || m.retrieval === filter)
-              .map((m) => (
-                <tr key={m.memberId}>
-                  <td>{m.title || m.identifiers.doi || m.exportId}</td>
-                  <td>
-                    {[
-                      m.identifiers.doi,
-                      m.identifiers.openalexId,
-                      ...m.identifiers.paperIds,
-                      ...m.identifiers.libraryIds,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ') || '—'}
-                  </td>
-                  <td>{m.role ?? '—'}</td>
-                  <td>
-                    {
-                      { sought: 'Đang tìm', retrieved: 'Đã lấy', not_retrieved: 'Không lấy được' }[
-                        m.retrieval
-                      ]
-                    }
-                  </td>
-                  <td>
-                    {
-                      { FULL_TEXT: 'Toàn văn', ABSTRACT_ONLY: 'Tóm tắt', METADATA_ONLY: 'Siêu dữ liệu' }[
-                        m.textRead
-                      ]
-                    }
-                  </td>
-                  <td>{m.version ?? '—'}</td>
+        <section aria-labelledby="corpus-members" className={styles.members}>
+          <div className={styles.cardHead}>
+            <h2 id="corpus-members">Thành viên</h2>
+            <div className={styles.cardTools}>
+              {corpus.members.length > 0 && (
+                <Select
+                  label="Trạng thái thu thập"
+                  hideLabel
+                  size="sm"
+                  inline
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                >
+                  <option value="all">Mọi trạng thái</option>
+                  <option value="sought">Đang tìm</option>
+                  <option value="retrieved">Đã lấy</option>
+                  <option value="not_retrieved">Không lấy được</option>
+                </Select>
+              )}
+              <Button
+                size="sm"
+                leadingIcon={<Plus size={16} aria-hidden="true" />}
+                onClick={() => setAdding(true)}
+              >
+                Thêm bài vào corpus
+              </Button>
+            </div>
+          </div>
+          {pending > 0 && (
+            <div className={styles.notice}>
+              <span>{pending} bài trùng tên và năm với bài đã có, cần bạn xác nhận.</span>
+              <Button size="sm" variant="ghost" onClick={() => setAdding(true)}>
+                Xác nhận
+              </Button>
+            </div>
+          )}
+          {corpus.members.length === 0 ? (
+            <div className={styles.emptyMembers}>
+              <Library size={28} aria-hidden="true" />
+              <strong>Corpus chưa có bài nào</strong>
+              <span>Thêm bài từ Library, từ bài đã nhập hoặc dán một danh sách DOI.</span>
+            </div>
+          ) : (
+            <DataTable>
+              <thead>
+                <tr>
+                  <th>Tiêu đề / DOI</th>
+                  <th>Định danh</th>
+                  <th>Vai trò</th>
+                  <th>Thu thập</th>
+                  <th>Đã đọc</th>
+                  <th>Phiên bản</th>
                 </tr>
-              ))}
-          </tbody>
-        </DataTable>
+              </thead>
+              <tbody>
+                {members.map((m) => (
+                  <tr key={m.memberId}>
+                    <td className={styles.memberTitle}>{m.title || m.identifiers.doi || m.exportId}</td>
+                    <td className={styles.ids}>
+                      {[
+                        m.identifiers.doi,
+                        m.identifiers.openalexId,
+                        ...m.identifiers.paperIds,
+                        ...m.identifiers.libraryIds,
+                      ]
+                        .filter(Boolean)
+                        .join(', ') || '—'}
+                    </td>
+                    <td>{m.role ?? '—'}</td>
+                    <td>
+                      {
+                        { sought: 'Đang tìm', retrieved: 'Đã lấy', not_retrieved: 'Không lấy được' }[
+                          m.retrieval
+                        ]
+                      }
+                    </td>
+                    <td>
+                      {
+                        { FULL_TEXT: 'Toàn văn', ABSTRACT_ONLY: 'Tóm tắt', METADATA_ONLY: 'Siêu dữ liệu' }[
+                          m.textRead
+                        ]
+                      }
+                    </td>
+                    <td>{m.version ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </DataTable>
+          )}
+        </section>
       </Card>
-      <Card>
-        <h2>Giao thức</h2>
-        <p>Phiên bản: {corpus.protocol.map((p) => p.version).join(', ')}</p>
-        <Button onClick={() => setEditing(!editing)}>Sửa giao thức</Button>
-        {editing && protocol && (
+
+      <div className={styles.lower}>
+        <Card>
+          <div className={styles.cardHead}>
+            <h2>Giao thức v{protocol?.version ?? '—'}</h2>
+            <IconButton size="sm" label="Sửa giao thức" onClick={() => setEditing(true)}>
+              <Pencil size={16} />
+            </IconButton>
+          </div>
+          <dl className={styles.facts}>
+            {facts.map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </Card>
+        <Card>
+          <div className={styles.cardHead}>
+            <h2>Lịch sử phát hành</h2>
+          </div>
+          {corpus.releases.length === 0 ? (
+            <p className={styles.muted}>
+              Chưa phát hành lần nào. Phát hành chốt danh sách bài bằng một mã băm để dẫn lại về sau.
+            </p>
+          ) : (
+            <ol className={styles.releases}>
+              {[...corpus.releases].reverse().map((r) => {
+                const index = corpus.releases.indexOf(r);
+                const same = index > 0 && corpus.releases[index - 1]?.digest === r.digest;
+                return (
+                  <li key={r.id}>
+                    <code>{r.digest.replace(/^sha256:/u, '').slice(0, 12)}</code>
+                    <span>
+                      {new Date(r.createdAt).toLocaleString('vi-VN')}, {r.memberCount} bài
+                      {same ? ', không đổi so với bản trước' : ''}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </Card>
+      </div>
+
+      {adding && (
+        <Dialog
+          kind="form"
+          title="Thêm bài vào corpus"
+          description="Chọn bài từ Library, từ bài đã nhập, hoặc dán danh sách DOI. Bài trùng được gộp hoặc hỏi lại bạn."
+          onClose={() => setAdding(false)}
+        >
+          <Intake corpus={corpus} save={save} heading={false} />
+        </Dialog>
+      )}
+      {editing && protocol && (
+        <Dialog
+          kind="form"
+          title="Sửa giao thức"
+          description={`Lưu sẽ tạo phiên bản v${protocol.version + 1}. Phiên bản v${protocol.version} được giữ nguyên.`}
+          onClose={() => setEditing(false)}
+        >
           <ProtocolForm
             kind={corpus.kind}
             initial={protocol.body}
             label="Lưu phiên bản mới"
+            onCancel={() => setEditing(false)}
             onSave={(body) => {
               const at = new Date().toISOString();
               void save(
@@ -259,24 +399,8 @@ export default function DetailPage() {
                 .catch((e: unknown) => setError(String(e)));
             }}
           />
-        )}
-      </Card>
-      <Card>
-        <h2>Phát hành</h2>
-        <div className={styles.row}>
-          <Button onClick={() => void release()}>Phát hành</Button>
-          <Button onClick={download}>Xuất manifest</Button>
-        </div>
-        <ul>
-          {corpus.releases.map((r, i) => (
-            <li key={r.id}>
-              {new Date(r.createdAt).toLocaleString('vi-VN')} ·{' '}
-              {r.digest.replace(/^sha256:/u, '').slice(0, 12)} · {r.memberCount} bài
-              {i > 0 && corpus.releases[i - 1]?.digest === r.digest ? ' · không đổi so với bản trước' : ''}
-            </li>
-          ))}
-        </ul>
-      </Card>
+        </Dialog>
+      )}
     </div>
   );
 }

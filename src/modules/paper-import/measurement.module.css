@@ -49,10 +49,7 @@
 }
 .table th,
 .table td {
-  border-bottom: 1px solid var(--border);
-  padding: var(--space-2);
   text-align: left;
-  vertical-align: top;
 }
 .workspace {
   display: grid;
@@ -143,15 +140,9 @@
 }
 .matrix th,
 .matrix td {
-  border-bottom: 1px solid var(--border);
-  padding: var(--space-1) var(--space-2);
   text-align: center;
 }
-.matrix thead th {
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  font-weight: 500;
-}
+
 .matrix tbody th,
 .matrix thead th:first-child {
   text-align: left;

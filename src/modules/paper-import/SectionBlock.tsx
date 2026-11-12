@@ -1,9 +1,11 @@
+import { ChevronDown, Play } from 'lucide-react';
+import { Button } from '@/shared/ui/Button';
+import { IconButton } from '@/shared/ui/IconButton';
 import type { StaleReason } from '@/core/runFreshness';
 import { describeStale } from './paperJobs';
 import type { ReactNode } from 'react';
 import { Badge } from '@/shared/ui/Badge';
 import { ActionMenu } from '@/shared/ui/ActionBar';
-import { Button } from '@/shared/ui/Button';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { CRITERIA, type Criterion } from './criteria';
 import { PAPER_LABELS } from './labels';
@@ -83,14 +85,15 @@ export function SectionBlock({
       <div className={styles.blockHead}>
         <CriterionMark criterion={criterion} />
         <div className={styles.blockTitle}>
-          <h2>{title}</h2>
-          <p>{help}</p>
+          <h2 title={help}>{title}</h2>
         </div>
         {stale && <Badge tone="warning">Kết quả cũ ({describeStale(stale)})</Badge>}
-        {status && <Badge tone={STATUS[status].tone}>{STATUS[status].label}</Badge>}
+        {/* Only a run in progress is worth a label: not-run shows its run button, done shows its content. */}
+        {status === 'running' && <Badge tone={STATUS.running.tone}>{STATUS.running.label}</Badge>}
         {onRun && (
           <div className={styles.blockRun}>
             <Button size="sm" onClick={onRun}>
+              <Play size={14} aria-hidden="true" />
               {PAPER_LABELS.analyze}
             </Button>
             {estimate !== undefined && (
@@ -100,17 +103,19 @@ export function SectionBlock({
             )}
           </div>
         )}
-        <Button
+        <IconButton
           size="sm"
-          variant="ghost"
           aria-expanded={open}
-          aria-label={`${open ? 'Thu gọn' : 'Mở'} ${title}`}
+          label={`${open ? 'Thu gọn' : 'Mở'} ${title}`}
+          className={styles.blockToggle}
+          data-open={open}
           onClick={onToggle}
         >
-          {open ? 'Thu gọn' : status === 'todo' ? 'Tuỳ chọn' : 'Mở'}
-        </Button>
+          <ChevronDown size={18} />
+        </IconButton>
       </div>
       <div hidden={!open} className={styles.blockBody}>
+        <p className={styles.blockHelp}>{help}</p>
         {sectionRun && (
           <ActionMenu
             label={PAPER_LABELS.runSection}

@@ -24,7 +24,7 @@ export function ActionMenu({
   icon = false,
 }: {
   label: string;
-  items: { label: string; onSelect: () => void }[];
+  items: { label: string; onSelect: () => void; danger?: boolean }[];
   icon?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -70,6 +70,7 @@ export function ActionMenu({
               role="menuitem"
               size="sm"
               variant="ghost"
+              className={item.danger ? styles.menuDanger : undefined}
               onClick={() => {
                 setOpen(false);
                 item.onSelect();
@@ -85,7 +86,15 @@ export function ActionMenu({
 }
 
 /** A single number with its meaning. Clickable when it leads somewhere. */
-export function Stat({ value, label, onClick }: { value: ReactNode; label: string; onClick?: () => void }) {
+export function Stat({
+  value,
+  label,
+  onClick,
+}: {
+  value: ReactNode;
+  label: ReactNode;
+  onClick?: () => void;
+}) {
   const content = (
     <>
       <strong>{value}</strong>
