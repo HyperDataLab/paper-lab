@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { exampleInsights, examplePaper, exampleStance } from '@/core/paperModel/contract';
 import { PaperModelSchema } from '@/core/schemas';
-import { downloadJson } from '@/shared/calibration/download';
+import { downloadJson, downloadText } from '@/shared/calibration/download';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
@@ -87,4 +87,15 @@ describe('R17a Publication info: metadata form and paper model', () => {
     expect(screen.queryByLabelText('Tên')).not.toBeInTheDocument();
     expect(await repo.paperContext.get(paper.id)).toBeUndefined();
   });
+});
+
+it('R17d downloads article.xml from the publication info', async () => {
+  vi.mocked(downloadText).mockClear();
+  await setup();
+  fireEvent.click(screen.getByRole('button', { name: 'Tải article.xml (JATS)' }));
+  await waitFor(() => expect(downloadText).toHaveBeenCalledTimes(1));
+  const [name, xml, type] = vi.mocked(downloadText).mock.calls[0]!;
+  expect(name).toBe('synthetic-paper-paper-model.jats.xml');
+  expect(type).toBe('application/xml');
+  expect(new DOMParser().parseFromString(xml, 'application/xml').querySelector('article')).not.toBeNull();
 });

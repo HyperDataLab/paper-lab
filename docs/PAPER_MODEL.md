@@ -100,8 +100,8 @@ evaluation shows that it raises agreement.
   preprint does not have). Authors as `<string-name>` unless surname and given names are known; `sec-type` only where
   the role maps to a suggested value; raw `mixed-citation`; `xref` only for citations that resolve, with several
   targets when the text says `[3–5]`. Optional sentence wrapping: two nested `named-content` elements, one per scheme.
-  Well-formedness is checked in the browser; validity against the DTD is checked in CI on fixture papers, including a
-  preprint with no DOI.
+  Well-formedness is checked in the browser. DTD validation in CI is deferred: the DTD files are not in the repo,
+  and CI must not fetch them on each run.
 - `coresc.xml` (SciXML-style; never marked as gold standard) and `coresc.csv`.
 - `az2.csv` / `az2.jsonl` and SciXML-style `<S AZ=…>`.
 - `ncg.zip`: the SemEval layout. The exporter writes its own tokenised sentence file and maps phrase offsets onto it;
@@ -130,7 +130,8 @@ A "Xuất" menu offers the export files.
 2. **R17b** (done) Data table → Columns reuses Extraction, evidence review and exports. Sentences and Contribution graph remain later slices.
 3. **R17c** analyst pass and Sentences view, behind the evaluation gate; critic pass on request; CoreSC and AZ-II
    exports.
-4. **R17d** JATS Archiving export with raw `mixed-citation`. Parsed references are deferred.
+4. **R17d** (done) JATS Archiving export with raw `mixed-citation`. DTD validation, parsed references, table structure,
+   and MathML are deferred.
 5. **R17e** contribution pass, graph view, NCG export, for ML/NLP papers.
 
 Deferred: CoreSC `conceptID` linking across sentences (one concept per sentence for now); PREV_OWN by self-citation
@@ -140,7 +141,7 @@ Deferred: CoreSC `conceptID` linking across sentences (one concept per sentence 
 
 1. NCG outside ML: export only the units that apply and say that the scheme is out of domain. A neutral graph, if
    wanted later, lives in `paper-model.json`, not in the NCG export.
-2. JATS validation: no WASM validator in the app; well-formedness in the browser, DTD validation in CI.
+2. JATS validation: no WASM validator in the app; well-formedness in the browser, DTD validation in CI deferred.
 3. Critic: on request, as an independent second pass.
 
 ## 9. What the critique changed
