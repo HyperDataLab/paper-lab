@@ -432,7 +432,9 @@ export function DeepResearch({
                     .join(' · ')}
                 </span>
                 {(item.reason ?? item.suggestion?.reason) && (
-                  <span className={styles.note}>Lý do: {item.reason ?? item.suggestion?.reason}</span>
+                  <span className={styles.note}>
+                    {item.reason ? 'Lý do' : 'Lý do AI gợi ý'}: {item.reason ?? item.suggestion?.reason}
+                  </span>
                 )}
                 {item.abstract ? (
                   <details>

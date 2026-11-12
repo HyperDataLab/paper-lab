@@ -92,7 +92,8 @@ describe('deep research', () => {
     expect(suggested[0]?.status).toBe('candidate');
     expect(suggested[1]?.suggestion).toBeNull();
     const decided = decideCandidate(suggested, '10.1234/a', 'included', at);
-    expect(decided[0]).toMatchObject({ status: 'included', reason: 'Đúng chủ đề', decidedAt: at });
+    expect(decided[0]).toMatchObject({ status: 'included', reason: null, decidedAt: at });
+    expect(decided[0]?.suggestion).toEqual(suggested[0]?.suggestion);
     expect(decideCandidate(decided, '10.1234/a', 'candidate', at, 'mở lại')[0]).toMatchObject({
       decidedAt: null,
       reason: 'mở lại',

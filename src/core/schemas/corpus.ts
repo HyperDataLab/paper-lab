@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DeepResearchSchema } from './deepResearch';
 
 const timestamp = z.iso.datetime();
 const count = z.number().int().nonnegative();
@@ -110,6 +111,7 @@ const corpusFields = {
   createdAt: timestamp,
   updatedAt: timestamp,
   searches: z.array(search),
+  deep: DeepResearchSchema.optional(),
   members: z.array(CorpusMemberSchema),
   runs: z.array(
     z.object({

@@ -21,6 +21,7 @@ import { JournalHarvest } from './JournalHarvest';
 import { kinds } from './labels';
 import { downloadManifest } from './manifest';
 import { ProtocolForm } from './ProtocolForm';
+import { TopicSearch } from './TopicSearch';
 import styles from './corpus.module.css';
 
 export default function DetailPage() {
@@ -228,6 +229,7 @@ export default function DetailPage() {
       </dl>
 
       {corpus.kind !== 'topic' && <JournalHarvest corpus={corpus} save={save} />}
+      {corpus.kind === 'topic' && <TopicSearch corpus={corpus} save={save} />}
       <CorpusBuild corpus={corpus} save={save} />
       <CorpusLabels corpus={corpus} save={save} />
       {corpus.kind === 'journal' && <CorpusProfileCard corpus={corpus} />}
