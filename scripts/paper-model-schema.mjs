@@ -16,10 +16,14 @@ const server = await createServer({
 });
 try {
   const contract = await server.ssrLoadModule('/src/core/paperModel/contract.ts');
+  const corpus = await server.ssrLoadModule('/src/core/corpus/contract.ts');
   const files = [
     [contract.PAPER_MODEL_SCHEMA_FILE, contract.paperModelJsonSchema()],
     [contract.PAPER_MODEL_SCHEMA_PUBLIC_FILE, contract.paperModelJsonSchema()],
     [contract.PAPER_MODEL_EXAMPLE_FILE, contract.examplePaperModel()],
+    [corpus.CORPUS_SCHEMA_FILE, corpus.corpusJsonSchema()],
+    [corpus.CORPUS_SCHEMA_PUBLIC_FILE, corpus.corpusJsonSchema()],
+    [corpus.CORPUS_EXAMPLE_FILE, corpus.exampleCorpus()],
   ];
   for (const [file, value] of files) {
     const path = resolve(root, file);

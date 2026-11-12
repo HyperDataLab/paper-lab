@@ -156,7 +156,7 @@ candidate journal has per year (feeds decision 1).
 | #    | Slice                                                                                                                         | Done when                                                                              |
 | ---- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | R17b | Columns on today's Extraction (unchanged priority; the corpus links to it later)                                              | as in PAPER_MODEL.md                                                                   |
-| C1a  | `paperlab-corpus` schema v1 generated from Zod, example, drift test, bank copy; Dexie store                                   | schema and example committed and vendored                                              |
+| C1a  | **Done:** `paperlab-corpus` schema v1 generated from Zod, example, drift test and pure helpers                                | schema and example generated; storage and bank vendoring follow in later work          |
 | C1b  | Intake from Library, papers and DOI lists; identifiers, merge with alias records, title-year confirmation                     | the same paper added by DOI and then by PDF is one member                              |
 | C1c  | Corpus screen: member table with status, protocol versions, releases with canonical digest, manifest export                   | a release digest does not change when nothing changed and does change when a role does |
 | C2a  | PDF acquisition through the Paper Fetch Hub queue; persistent storage requested; space check; blobs evicted after upload      | 30 members fetched; refusals listed                                                    |
@@ -183,18 +183,24 @@ C7 waits for R17c.
 - Corpora move between browsers as files unless decision 3 adds sharing; the export package must carry
   `paperContext` and corpora for that.
 
-## 8. Owner decisions
+## 8. Owner decisions (taken 2026-11-12)
 
-1. The first journal, its control journals (at least three), and whether the default size of 150 + 150 papers holds,
-   once the count of open published versions is known.
-2. Who labels the 5–10 papers for the AZ-II gate, and who checks the sample of machine labels.
-3. Whether corpora are shared in the lab (a worker route on R2 and sign-in roles, which also enables dual screening)
-   or stay in one browser and move as files.
-4. Which appraisal tools the lab uses for reviews (C3d).
-5. Phrase signals put phrases from real papers into the bank. Recommendation: at most five words, in at least 5% of
-   target papers and at least five papers.
-6. Evidence excerpts in the signature (at most 300 characters each, `display_safe_excerpt`): allowed, or pointers
-   only. This sets `corpus_rights_policy`.
+1. **First journal: ESWA.** Target: Expert Systems with Applications. Control: Knowledge-Based Systems, Engineering
+   Applications of Artificial Intelligence, Neurocomputing (same publisher and field).
+2. **Size: 150 + 150** open published-version papers, at least 20 per two-year bucket, 20 % held out.
+3. **Storage: shared in the lab through R2.** Corpora are synced through the worker with sign-in roles, as the Writing
+   Bank does; this also makes dual screening possible (C3b). A slice C1d adds the worker route and the sync.
+4. **Appraisal tool: MMAT** (Mixed Methods Appraisal Tool) for C3d.
+5. **Phrase signals: allowed**, at most five words, in at least 5 % of target papers and at least five papers.
+6. **Excerpts: allowed** in the signature, at most 300 characters each (`display_safe_excerpt`), with the member and
+   sentence they come from; `corpus_rights_policy` says so.
+
+Still open: who labels the 5–10 papers for the AZ-II gate and who checks the sample of machine labels (R17c, C4b).
+The owner chose to skip the Evidence benchmark (docs/CRITERIA.md section 4).
+
+| #   | Slice added by decision 3                                                                                                            | Done when                                                                |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| C1d | Worker route `/corpora/<id>` on R2 with the lab's sign-in roles; corpus sync with version checks; conflicts shown, never overwritten | two signed-in browsers see the same corpus, and a stale write is refused |
 
 ## 9. What the critique changed
 

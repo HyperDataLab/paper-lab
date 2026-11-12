@@ -1,0 +1,42 @@
+{
+  "format": "paperlab-corpus",
+  "schemaVersion": 1,
+  "id": "example-corpus",
+  "title": "Synthetic corpus",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "searches": [],
+  "members": [
+    {
+      "memberId": "00000000-0000-4000-8000-000000000001",
+      "identifiers": { "sha256": [], "paperIds": [], "libraryIds": [] },
+      "exportId": "p00000000-0000-4000-8000-000000000001",
+      "role": null,
+      "stratum": {},
+      "version": null,
+      "retrieval": "sought",
+      "textRead": "METADATA_ONLY",
+      "authorIds": [],
+      "countries": [],
+      "decisions": [],
+      "appraisal": [],
+      "inputs": null
+    }
+  ],
+  "runs": [],
+  "releases": [],
+  "aliases": [],
+  "kind": "topic",
+  "protocol": [
+    {
+      "version": 1,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "body": {
+        "researchQuestion": "A synthetic question?",
+        "inclusion": ["Synthetic records"],
+        "exclusion": [],
+        "years": [2020, 2021]
+      }
+    }
+  ]
+}
