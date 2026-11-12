@@ -137,6 +137,23 @@ export const CorpusProfileSchema = z.object({
   interpretationReason: z.string(),
   /** Written only by the held-out test (C5b); false until then. */
   holdoutVerified: z.boolean(),
+  holdout: z
+    .object({
+      auc: share.nullable(),
+      ci95Low: share.nullable(),
+      ci95High: share.nullable(),
+      nTarget: count,
+      nControl: count,
+      droppedForAuthorOverlap: count,
+      passed: z.boolean(),
+      rule: z.string(),
+    })
+    .optional(),
+  confoundChecks: z
+    .array(
+      z.object({ name: z.string(), target: z.string(), control: z.string(), distance: share.nullable() }),
+    )
+    .optional(),
   warnings: z.array(z.string()),
   methodNotes: z.array(z.string()),
 });

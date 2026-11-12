@@ -347,6 +347,44 @@
     "interpretationStatus": { "type": "string", "enum": ["exploratory", "supported", "inconclusive"] },
     "interpretationReason": { "type": "string" },
     "holdoutVerified": { "type": "boolean" },
+    "holdout": {
+      "type": "object",
+      "properties": {
+        "auc": { "anyOf": [{ "type": "number", "minimum": 0, "maximum": 1 }, { "type": "null" }] },
+        "ci95Low": { "anyOf": [{ "type": "number", "minimum": 0, "maximum": 1 }, { "type": "null" }] },
+        "ci95High": { "anyOf": [{ "type": "number", "minimum": 0, "maximum": 1 }, { "type": "null" }] },
+        "nTarget": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "nControl": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "droppedForAuthorOverlap": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "passed": { "type": "boolean" },
+        "rule": { "type": "string" }
+      },
+      "required": [
+        "auc",
+        "ci95Low",
+        "ci95High",
+        "nTarget",
+        "nControl",
+        "droppedForAuthorOverlap",
+        "passed",
+        "rule"
+      ],
+      "additionalProperties": false
+    },
+    "confoundChecks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "target": { "type": "string" },
+          "control": { "type": "string" },
+          "distance": { "anyOf": [{ "type": "number", "minimum": 0, "maximum": 1 }, { "type": "null" }] }
+        },
+        "required": ["name", "target", "control", "distance"],
+        "additionalProperties": false
+      }
+    },
     "warnings": { "type": "array", "items": { "type": "string" } },
     "methodNotes": { "type": "array", "items": { "type": "string" } }
   },
