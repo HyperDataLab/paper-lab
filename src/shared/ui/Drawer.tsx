@@ -11,6 +11,9 @@ export function Drawer({
   label = 'Điều hướng',
   side = 'left',
   title,
+  description,
+  footer,
+  size = 'md',
 }: {
   open: boolean;
   onClose: () => void;
@@ -18,7 +21,13 @@ export function Drawer({
   label?: string;
   side?: 'left' | 'right';
   /** A visible title; the drawer then has a header with it and a close button. */
-  title?: string;
+  title?: ReactNode;
+  /** One line under the title: what this panel is about. */
+  description?: ReactNode;
+  /** The panel's actions, kept in view at the bottom while the body scrolls. */
+  footer?: ReactNode;
+  /** Wider for panels that hold a list or a form, such as choosing columns. */
+  size?: 'md' | 'lg';
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const overlay = useRef<HTMLDivElement>(null);
@@ -99,7 +108,7 @@ export function Drawer({
     >
       <div
         ref={ref}
-        className={`${styles.drawer} ${side === 'right' ? styles.drawerRight : ''}`}
+        className={`${styles.drawer} ${side === 'right' ? styles.drawerRight : ''} ${size === 'lg' ? styles.drawerLg : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={label}
@@ -107,13 +116,17 @@ export function Drawer({
       >
         {title && (
           <div className={styles.drawerHead}>
-            <h2>{title}</h2>
+            <div className={styles.drawerTitle}>
+              <h2>{title}</h2>
+              {description && <p>{description}</p>}
+            </div>
             <IconButton label="Đóng" onClick={onClose}>
               <X size={18} />
             </IconButton>
           </div>
         )}
-        {children}
+        {side === 'right' ? <div className={styles.drawerBody}>{children}</div> : children}
+        {footer && <div className={styles.drawerFoot}>{footer}</div>}
       </div>
     </div>
   );

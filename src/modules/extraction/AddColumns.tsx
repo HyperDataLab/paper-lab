@@ -1,15 +1,20 @@
 import { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { customField, FIELD_CATALOG, FIELD_TEMPLATES, MAX_COLUMNS } from '@/core/extraction';
 import type { ExtractionProject, FieldDefinition } from '@/core/schemas';
 import { Button } from '@/shared/ui/Button';
-import { Checkbox } from '@/shared/ui/Checkbox';
 import { Chip } from '@/shared/ui/Chip';
 import { Drawer } from '@/shared/ui/Drawer';
+import { OptionCard } from '@/shared/ui/OptionCard';
+import { SheetNote } from '@/shared/ui/SheetNote';
+import { SheetSection } from '@/shared/ui/SheetSection';
 import { TextField } from '@/shared/ui/TextField';
-import styles from './extraction.module.css';
+import styles from './sheets.module.css';
 
 const GROUPS = [...new Set(FIELD_CATALOG.map((field) => field.group))];
+const OPEN_GROUPS = ['Summary', 'Methodology', 'Results'];
 
+/** Choose the columns of the matrix: a template by paper type, fields from the catalogue, or one of your own. */
 export function AddColumns({
   project,
   onClose,
@@ -28,101 +33,128 @@ export function AddColumns({
   const toggle = (key: string, on: boolean) =>
     setChosen((old) => (on ? [...old, key] : old.filter((item) => item !== key)));
   return (
-    <Drawer open onClose={onClose} label="Thêm cột" side="right">
-      <div className={styles.drawer}>
-        <header className={styles.drawerHead}>
-          <h2>Thêm cột</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            Đóng
+    <Drawer
+      open
+      onClose={onClose}
+      label="Thêm cột"
+      side="right"
+      size="lg"
+      title="Thêm cột"
+      description={`Còn ${remaining} chỗ trong ${MAX_COLUMNS} cột (kể cả cột ẩn). Mỗi cột là một thông tin AI sẽ trích từ bài, kèm trích dẫn.`}
+      footer={
+        <>
+          <SheetNote>{chosen.length ? `Đã chọn ${chosen.length} cột` : 'Chưa chọn cột nào'}</SheetNote>
+          <Button variant="ghost" onClick={onClose}>
+            Huỷ
           </Button>
-        </header>
-        <p>Còn {remaining} chỗ trong 50 cột (kể cả cột ẩn).</p>
-        <section>
-          <h3>Mẫu theo loại bài</h3>
-          <div className={styles.chips}>
-            {FIELD_TEMPLATES.map((template) => (
-              <Chip
-                key={template.id}
-                disabled={chosen.length >= remaining}
-                onClick={() =>
-                  setChosen((old) =>
-                    [...new Set([...old, ...template.keys.filter((key) => !has(key))])].slice(0, remaining),
-                  )
-                }
-              >
-                {template.label}
-              </Chip>
-            ))}
-          </div>
-        </section>
-        <section>
-          <h3>Cột gợi ý</h3>
-          {GROUPS.map((group) => (
-            <details key={group} open={group === 'Summary' || group === 'Methodology' || group === 'Results'}>
-              <summary>{group}</summary>
-              {FIELD_CATALOG.filter((field) => field.group === group).map((field) => (
-                <Checkbox
-                  key={field.key}
-                  disabled={has(field.key) || (!chosen.includes(field.key) && chosen.length >= remaining)}
-                  checked={has(field.key) || chosen.includes(field.key)}
-                  onChange={(event) => toggle(field.key, event.target.checked)}
-                >
-                  {field.label} · {field.description}
-                </Checkbox>
-              ))}
-            </details>
+          <Button
+            variant="primary"
+            disabled={!chosen.length}
+            onClick={() => {
+              onAdd(FIELD_CATALOG.filter((field) => chosen.includes(field.key)));
+              onClose();
+            }}
+          >
+            Thêm {chosen.length} cột
+          </Button>
+        </>
+      }
+    >
+      <SheetSection title="Mẫu theo loại bài">
+        <p className={styles.hint}>Chọn một mẫu để đánh dấu sẵn các cột hay dùng cho loại bài đó.</p>
+        <div className={styles.chips}>
+          {FIELD_TEMPLATES.map((template) => (
+            <Chip
+              key={template.id}
+              disabled={chosen.length >= remaining}
+              onClick={() =>
+                setChosen((old) =>
+                  [...new Set([...old, ...template.keys.filter((key) => !has(key))])].slice(0, remaining),
+                )
+              }
+            >
+              {template.label}
+            </Chip>
           ))}
-          <div className={styles.actions}>
+        </div>
+      </SheetSection>
+
+      <SheetSection title="Cột gợi ý">
+        <div className={styles.groups}>
+          {GROUPS.map((group) => {
+            const fields = FIELD_CATALOG.filter((field) => field.group === group);
+            const picked = fields.filter((field) => chosen.includes(field.key)).length;
+            const present = fields.filter((field) => has(field.key)).length;
+            return (
+              <details key={group} className={styles.group} open={OPEN_GROUPS.includes(group)}>
+                <summary>
+                  <ChevronRight size={16} className={styles.chevron} aria-hidden="true" />
+                  <span className={styles.groupName}>{group}</span>
+                  <span className={styles.groupCount}>
+                    {picked > 0 && <span className={styles.picked}>{picked} đã chọn</span>}
+                    {present > 0 && `${present} có sẵn`}
+                    {!picked && !present && `${fields.length} cột`}
+                  </span>
+                </summary>
+                <ul className={styles.options}>
+                  {fields.map((field) => {
+                    const exists = has(field.key);
+                    const on = exists || chosen.includes(field.key);
+                    return (
+                      <li key={field.key}>
+                        <OptionCard
+                          checked={on}
+                          disabled={exists || (!chosen.includes(field.key) && chosen.length >= remaining)}
+                          onChange={(value) => toggle(field.key, value)}
+                          title={field.label}
+                          description={exists ? 'Đã có trong bảng' : field.description}
+                        />
+                      </li>
+                    );
+                  })}
+                </ul>
+              </details>
+            );
+          })}
+        </div>
+      </SheetSection>
+
+      <SheetSection title="Cột tự định nghĩa">
+        <div className={styles.custom}>
+          <TextField label="Tên cột" value={label} onChange={(event) => setLabel(event.target.value)} />
+          <TextField
+            label="Mô tả"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+          <TextField
+            label="Hướng dẫn trích (không bắt buộc)"
+            hint="Nói rõ cần lấy gì và điều gì không được suy ra."
+            multiline
+            rows={3}
+            value={instruction}
+            onChange={(event) => setInstruction(event.target.value)}
+          />
+          <div>
             <Button
-              variant="primary"
-              disabled={!chosen.length}
+              disabled={!label.trim() || remaining === 0}
               onClick={() => {
-                onAdd(FIELD_CATALOG.filter((field) => chosen.includes(field.key)));
+                onAdd([
+                  customField({
+                    label,
+                    description,
+                    instruction,
+                    existing: project.fields.map((field) => field.key),
+                  }),
+                ]);
                 onClose();
               }}
             >
-              Thêm {chosen.length} cột
+              Tạo cột
             </Button>
           </div>
-        </section>
-        <section>
-          <h3>Cột tự định nghĩa</h3>
-          <div className={styles.form}>
-            <TextField label="Tên cột" value={label} onChange={(event) => setLabel(event.target.value)} />
-            <TextField
-              label="Mô tả"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-            />
-            <TextField
-              label="Hướng dẫn trích (không bắt buộc)"
-              hint="Nói rõ cần lấy gì và điều gì không được suy ra."
-              multiline
-              rows={3}
-              value={instruction}
-              onChange={(event) => setInstruction(event.target.value)}
-            />
-            <div>
-              <Button
-                disabled={!label.trim() || remaining === 0}
-                onClick={() => {
-                  onAdd([
-                    customField({
-                      label,
-                      description,
-                      instruction,
-                      existing: project.fields.map((field) => field.key),
-                    }),
-                  ]);
-                  onClose();
-                }}
-              >
-                Tạo cột
-              </Button>
-            </div>
-          </div>
-        </section>
-      </div>
+        </div>
+      </SheetSection>
     </Drawer>
   );
 }

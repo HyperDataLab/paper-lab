@@ -1,6 +1,6 @@
 # DESIGN.md
 
-The paper's **Data table** space opens a Columns view over its own Extraction project. It lists each column vertically with its value, status and evidence drawer, shows the remaining capacity out of 50 columns, and offers extraction, export and a link to compare additional papers. CSV opens in Excel; JSON retains extraction evidence, while RIS and BibTeX export the paper's metadata.
+The paper's **Trích xuất** space (right of Writing style) opens the extraction matrix of the paper's own project, with this paper already chosen as its only row: add columns, run, review cells and export (CSV, JSON, plus the paper's RIS and BibTeX). The table is made on first visit from the default template. The **Data table** space holds the contribution graph. Projects (sidebar) hold multi-paper Deep Research; the project page no longer has a matrix tab.
 
 The Contribution graph view groups verified triples by NCG information unit. Expand a triple to read its sentence and open its location; the analysis action shows its estimated AI calls and the ZIP export includes an out-of-domain note when applicable.
 
@@ -333,7 +333,7 @@ These are checked on each screen, by looking at it, before a change is accepted.
 - **Disabled is neutral.** A disabled button is a grey fill with muted text, never a faded accent.
 - **One table style.** Every table is left-aligned with regular-weight cells and a small muted header; row headers
   are medium weight. Modules set widths, never centring.
-- **Drawers have a header**: a title and a close icon, never a loose "Đóng" button above the content.
+- **Drawers are side sheets**: a header with the title, one line of description and a close icon; a body that scrolls; the actions pinned in a footer (a muted note of what the action costs on the left, the primary action last). Never a loose "Đóng" button above the content. Content is grouped in `SheetSection`s; choices use `OptionCard` (a whole-row checkbox, or a card to pick one of), not bare checkboxes.
 - **No idle labels.** A block that has not run shows its run button, not a "Chưa chạy" badge; a finished block
   shows its content, not "Đã có kết quả". Only a run in progress and a stale result are labelled. A block's help
   line shows when it is open, not on the folded row. Calibration status shows on the suggestion the reader opened,

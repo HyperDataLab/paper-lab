@@ -479,10 +479,8 @@
 }
 .addPaperFooter {
   display: grid;
+  flex: 1;
   gap: var(--space-2);
-  padding: var(--space-4);
-  background: var(--surface);
-  border-top: 1px solid var(--border);
 }
 .addPaperStatus {
   display: grid;
@@ -664,4 +662,10 @@
 }
 .addColumn {
   white-space: nowrap;
+}
+/* The matrix and its toolbar, the same on a project page and in a paper's Trích xuất tab. */
+.matrixArea {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
 }

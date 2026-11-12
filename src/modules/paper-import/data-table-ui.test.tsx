@@ -11,7 +11,7 @@ import { StorageProvider } from '@/shared/storage/StorageProvider';
 import PaperMapPage from './PaperMapPage';
 
 afterEach(() => vi.unstubAllGlobals());
-it('R17b opens the Data table, creates template columns and offers exports', async () => {
+it('R17b the Trích xuất tab opens on this paper with template columns and offers exports', async () => {
   vi.stubGlobal('crypto', webcrypto);
   vi.stubGlobal(
     'matchMedia',
@@ -32,12 +32,12 @@ it('R17b opens the Data table, creates template columns and offers exports', asy
       </StorageProvider>
     </MemoryRouter>,
   );
-  fireEvent.click(await screen.findByRole('tab', { name: 'Data table' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Tạo bảng dữ liệu' }));
+  fireEvent.click(await screen.findByRole('tab', { name: 'Trích xuất' }));
   const table = await screen.findByRole('table');
-  expect(within(table).getByRole('rowheader', { name: 'Objectives' })).toBeInTheDocument();
-  expect(within(table).getByRole('rowheader', { name: 'Experimental Protocol' })).toBeInTheDocument();
+  expect(within(table).getByText('Objectives')).toBeInTheDocument();
+  expect(within(table).getByText('Experimental Protocol')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Xuất' }));
-  for (const name of ['CSV (mở được bằng Excel)', 'JSON', 'RIS', 'BibTeX'])
+  expect(screen.queryByRole('button', { name: 'Thêm bài' })).toBeNull();
+  for (const name of ['CSV', 'JSON kèm bằng chứng', 'RIS của bài này', 'BibTeX của bài này'])
     expect(screen.getByRole('menuitem', { name })).toBeInTheDocument();
 });

@@ -67,13 +67,15 @@ import { useBatchRun } from './useBatchRun';
 import { PaperOverview } from './PaperOverview';
 import { PaperReview } from './PaperReview';
 import type { ReactNode } from 'react';
-import { PaperDataViews } from './PaperDataViews';
+import { PaperContribution } from './PaperContribution';
+import { PaperExtraction } from './PaperExtraction';
 import { Transparency } from '@/shared/report/Transparency';
 import { captureCalibration } from '@/shared/calibration/data';
 import { Loading } from '@/shared/ui/StateNote';
 
 type ViewId =
   | 'data-table'
+  | 'extraction'
   | 'profile'
   | 'snapshot'
   | 'metadata'
@@ -94,7 +96,7 @@ type Pane = 'fulltext' | 'summary';
  * Citations and Paper info. Arguments and Writing style are spaces behind the paper: each opens full width.
  */
 type Mode = 'issues' | 'citations' | 'info' | Space;
-type Space = 'arguments' | 'writing' | 'data';
+type Space = 'arguments' | 'writing' | 'extract' | 'data';
 type Place = 'summary' | Mode;
 type BlockId =
   | 'argIssues'
@@ -278,6 +280,7 @@ const blockOf = (view: ViewId) => BLOCK_IDS.find((id) => BLOCKS[id].views.some((
 /** Where a view opens: the centre column (full text or summary) or a tab of the right column. */
 const placeOf = (view: ViewId): Pane | Mode => {
   if (view === 'data-table') return 'data';
+  if (view === 'extraction') return 'extract';
   if (view === 'issues') return 'issues';
   if (view === 'map') return 'fulltext';
   if (view === 'profile') return 'summary';
@@ -297,11 +300,14 @@ const MODES: { id: Mode; label: string }[] = [
 const SPACES: { id: Space; label: string }[] = [
   { id: 'arguments', label: 'Arguments' },
   { id: 'writing', label: 'Writing style' },
+  { id: 'extract', label: 'Trích xuất' },
   { id: 'data', label: 'Data table' },
 ];
-const isSpace = (mode: Mode): mode is Space => mode === 'arguments' || mode === 'writing' || mode === 'data';
+const isSpace = (mode: Mode): mode is Space =>
+  mode === 'arguments' || mode === 'writing' || mode === 'extract' || mode === 'data';
 const DEFAULT_VIEW: Record<Mode, ViewId> = {
   data: 'data-table',
+  extract: 'extraction',
   arguments: 'gap',
   writing: 'organization',
   issues: 'issues',
@@ -310,6 +316,7 @@ const DEFAULT_VIEW: Record<Mode, ViewId> = {
 };
 const VIEW_HELP: Record<ViewId, string> = {
   'data-table': 'Data table',
+  extraction: 'Trích xuất',
   issues: 'Mọi phát hiện về bài ở một chỗ.',
   'arguments-issues':
     'Phát hiện về luận điểm và bằng chứng của bài. Được chấp nhận mặc định; bác bỏ những gì không đúng.',
@@ -1142,7 +1149,7 @@ export default function PaperMapPage() {
                 onClick={() => openSpace(item.id)}
               >
                 {item.label}
-                {item.id !== 'data' && count > 0 && (
+                {count > 0 && (
                   <span className={styles.spaceCount} aria-label={`${count} issues`}>
                     {count}
                   </span>
@@ -1380,7 +1387,8 @@ export default function PaperMapPage() {
                       mode === 'info' && openBlocks.includes('metadata') && <PaperMetadata paper={paper} />,
                     )}
                   </div>
-                  {mode === 'data' && <PaperDataViews paper={paper} onLocation={openLocation} />}
+                  {mode === 'extract' && <PaperExtraction paper={paper} />}
+                  {mode === 'data' && <PaperContribution paper={paper} onLocation={openLocation} />}
                   <div hidden={mode !== 'arguments'} className={styles.blocks}>
                     {mode === 'arguments' && overview(['science', 'argument'], 'Arguments overview', batch)}
                     {issuesBlock('argIssues', ['claim', 'evidence'], mode === 'arguments')}

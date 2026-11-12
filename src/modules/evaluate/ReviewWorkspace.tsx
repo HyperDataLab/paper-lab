@@ -523,7 +523,7 @@ export function ReviewWorkspace({
               Gợi ý ({issues.filter((i) => !handled(i)).length})
             </Button>
           )}
-          <Drawer open={drawerOpen} onClose={closeDrawer} label="Gợi ý" side="right">
+          <Drawer open={drawerOpen} onClose={closeDrawer} label="Gợi ý" side="right" title="Gợi ý">
             {panel}
           </Drawer>
         </>

@@ -33,7 +33,7 @@ describe('R17a Publication info: metadata form and paper model', () => {
     const { db, paper } = await setup();
     await db.paperInsights.put(exampleInsights(paper));
     await db.stance.put(exampleStance(paper));
-    expect(await screen.findByText('4 câu · 1 tài liệu tham khảo')).toBeInTheDocument();
+    expect(await screen.findByText(/4 câu · 1 tài liệu tham khảo/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Tải paper-model.json' }));
     await waitFor(() => expect(downloadJson).toHaveBeenCalledTimes(1));
     const [name, value] = vi.mocked(downloadJson).mock.calls[0]!;

@@ -59,7 +59,7 @@ export default function Page() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Trích xuất"
+        title="Projects"
         lead="So sánh nhiều bài trong một bảng: mỗi hàng là một bài, mỗi cột là một thông tin cần trích, mỗi ô kèm trích dẫn để kiểm chứng."
       >
         <Button

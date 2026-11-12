@@ -73,92 +73,16 @@ export function AddPapers({
     else onClose();
   }
   return (
-    <Drawer open onClose={onClose} label="Thêm bài" side="right">
-      <div className={`${styles.drawer} ${styles.addPapersDrawer}`}>
-        <header className={styles.addPaperHeader}>
-          <div>
-            <h2>Thêm bài vào project</h2>
-            <p>Chọn bài toàn văn hoặc abstract để đưa vào bảng trích xuất.</p>
-          </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            Đóng
-          </Button>
-        </header>
-        <div className={styles.paperSections}>
-          <section className={styles.paperGroup} aria-labelledby="imported-paper-group">
-            <header className={styles.paperGroupHead}>
-              <h3 id="imported-paper-group">Bài đã nhập</h3>
-              <span>Đọc toàn văn · {papers.length}</span>
-            </header>
-            {papers.length === 0 ? (
-              <p className={styles.groupEmpty}>Chưa có bài nào được nhập.</p>
-            ) : (
-              <ul className={styles.paperOptions}>
-                {papers.map((paper) => {
-                  const key = `paper:${paper.id}`;
-                  return (
-                    <li className={styles.paperOption} key={key}>
-                      <Checkbox
-                        disabled={inProject(key)}
-                        checked={inProject(key) || chosen.includes(key)}
-                        onChange={(event) => toggle(key, event.target.checked)}
-                      >
-                        <span className={styles.paperOptionText}>
-                          {projectPaperFromPaper(paper, linked(paper), metadata.get(paper.id)).title}
-                        </span>
-                      </Checkbox>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-          <section className={styles.paperGroup} aria-labelledby="doi-paper-group">
-            <header className={styles.paperGroupHead}>
-              <h3 id="doi-paper-group">Thư viện DOI chưa có tệp</h3>
-              <span>Đọc abstract · {fileless.length}</span>
-            </header>
-            {fileless.length === 0 ? (
-              <p className={styles.groupEmpty}>Không có DOI nào chưa có tệp.</p>
-            ) : (
-              <ul className={styles.paperOptions}>
-                {fileless.map((item) => {
-                  const key = `library:${item.id}`;
-                  const existingPaper = paperInProject(key);
-                  const abstractMissing =
-                    existingPaper?.access === 'METADATA_ONLY' || missingAbstractIds.includes(item.id);
-                  const alreadyAvailable = Boolean(existingPaper) && !abstractMissing;
-                  return (
-                    <li
-                      className={`${styles.paperOption} ${abstractMissing ? styles.paperOptionWarning : ''}`}
-                      key={key}
-                    >
-                      <Checkbox
-                        disabled={alreadyAvailable}
-                        checked={alreadyAvailable || chosen.includes(key)}
-                        onChange={(event) => toggle(key, event.target.checked)}
-                      >
-                        <span className={styles.paperOptionContent}>
-                          <span className={styles.paperOptionText}>
-                            {item.title ?? item.doi} {item.year ? `(${item.year})` : ''}
-                          </span>
-                          {abstractMissing && (
-                            <Badge tone="warning">
-                              {missingAbstractIds.includes(item.id)
-                                ? 'Không lấy được abstract · Có thể thử lại'
-                                : 'Chưa có abstract · Có thể thử lại'}
-                            </Badge>
-                          )}
-                        </span>
-                      </Checkbox>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-        </div>
-        <footer className={styles.addPaperFooter}>
+    <Drawer
+      open
+      onClose={onClose}
+      label="Thêm bài"
+      side="right"
+      size="lg"
+      title="Thêm bài vào project"
+      description="Chọn bài toàn văn hoặc abstract để đưa vào bảng trích xuất."
+      footer={
+        <div className={styles.addPaperFooter}>
           {message ? (
             <p className={styles.addPaperMessage} role="status">
               {message}
@@ -181,7 +105,82 @@ export function AddPapers({
                 ? 'Thử lại abstract'
                 : 'Thêm vào project'}
           </Button>
-        </footer>
+        </div>
+      }
+    >
+      <div className={styles.paperSections}>
+        <section className={styles.paperGroup} aria-labelledby="imported-paper-group">
+          <header className={styles.paperGroupHead}>
+            <h3 id="imported-paper-group">Bài đã nhập</h3>
+            <span>Đọc toàn văn · {papers.length}</span>
+          </header>
+          {papers.length === 0 ? (
+            <p className={styles.groupEmpty}>Chưa có bài nào được nhập.</p>
+          ) : (
+            <ul className={styles.paperOptions}>
+              {papers.map((paper) => {
+                const key = `paper:${paper.id}`;
+                return (
+                  <li className={styles.paperOption} key={key}>
+                    <Checkbox
+                      disabled={inProject(key)}
+                      checked={inProject(key) || chosen.includes(key)}
+                      onChange={(event) => toggle(key, event.target.checked)}
+                    >
+                      <span className={styles.paperOptionText}>
+                        {projectPaperFromPaper(paper, linked(paper), metadata.get(paper.id)).title}
+                      </span>
+                    </Checkbox>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+        <section className={styles.paperGroup} aria-labelledby="doi-paper-group">
+          <header className={styles.paperGroupHead}>
+            <h3 id="doi-paper-group">Thư viện DOI chưa có tệp</h3>
+            <span>Đọc abstract · {fileless.length}</span>
+          </header>
+          {fileless.length === 0 ? (
+            <p className={styles.groupEmpty}>Không có DOI nào chưa có tệp.</p>
+          ) : (
+            <ul className={styles.paperOptions}>
+              {fileless.map((item) => {
+                const key = `library:${item.id}`;
+                const existingPaper = paperInProject(key);
+                const abstractMissing =
+                  existingPaper?.access === 'METADATA_ONLY' || missingAbstractIds.includes(item.id);
+                const alreadyAvailable = Boolean(existingPaper) && !abstractMissing;
+                return (
+                  <li
+                    className={`${styles.paperOption} ${abstractMissing ? styles.paperOptionWarning : ''}`}
+                    key={key}
+                  >
+                    <Checkbox
+                      disabled={alreadyAvailable}
+                      checked={alreadyAvailable || chosen.includes(key)}
+                      onChange={(event) => toggle(key, event.target.checked)}
+                    >
+                      <span className={styles.paperOptionContent}>
+                        <span className={styles.paperOptionText}>
+                          {item.title ?? item.doi} {item.year ? `(${item.year})` : ''}
+                        </span>
+                        {abstractMissing && (
+                          <Badge tone="warning">
+                            {missingAbstractIds.includes(item.id)
+                              ? 'Không lấy được abstract · Có thể thử lại'
+                              : 'Chưa có abstract · Có thể thử lại'}
+                          </Badge>
+                        )}
+                      </span>
+                    </Checkbox>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
       </div>
     </Drawer>
   );

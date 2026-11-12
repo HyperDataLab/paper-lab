@@ -17,7 +17,8 @@ import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Drawer } from '@/shared/ui/Drawer';
 import { IconButton } from '@/shared/ui/IconButton';
-import { ScrollText } from 'lucide-react';
+import { Download, ScrollText } from 'lucide-react';
+import { Empty } from '@/shared/ui/StateNote';
 import styles from './transparency.module.css';
 
 type Step = {
@@ -301,10 +302,12 @@ export function Transparency({
   };
   const body = (
     <>
-      {parserCounts && <p>{parserCounts}</p>}
-      <p className={styles.note}>
-        Thông tin không được lưu lúc chạy sẽ ghi là Không rõ, hệ thống không suy đoán.
-      </p>
+      {parserCounts && (
+        <dl className={styles.parsed}>
+          <dt>Bài đã đọc</dt>
+          <dd>{parserCounts}</dd>
+        </dl>
+      )}
       {error && (
         <div role="alert">
           Không thể tải thông tin.
@@ -314,7 +317,13 @@ export function Transparency({
           </details>
         </div>
       )}
-      {steps.length === 0 && <p>Chưa có bước nào được ghi nhận.</p>}
+      {steps.length === 0 && (
+        <Empty
+          icon={<ScrollText size={20} />}
+          title="Chưa có bước nào được ghi nhận."
+          hint="Mỗi lần chạy AI sẽ ghi lại model, prompt, số lượt gọi và các mục đã gửi đi."
+        />
+      )}
       {groupSteps(steps).map((group, index) => {
         const step = group.first;
         const known = (value: string | null) => value ?? 'Không rõ';
@@ -378,19 +387,26 @@ export function Transparency({
           </section>
         );
       })}
-      <div>
-        <Button onClick={() => downloadJson('paperlab-transparency.json', record)}>
-          Tải bản ghi minh bạch JSON
-        </Button>
-      </div>
     </>
+  );
+  const download = (
+    <Button onClick={() => downloadJson('paperlab-transparency.json', record)}>
+      <Download size={16} aria-hidden="true" />
+      Tải bản ghi minh bạch JSON
+    </Button>
   );
   if (report)
     return (
       <section>
         <details>
           <summary>Minh bạch</summary>
-          <div className={styles.drawer}>{body}</div>
+          <div className={styles.inline}>
+            <p className={styles.note}>
+              Thông tin không được lưu lúc chạy sẽ ghi là Không rõ, hệ thống không suy đoán.
+            </p>
+            {body}
+            <div>{download}</div>
+          </div>
         </details>
       </section>
     );
@@ -399,16 +415,16 @@ export function Transparency({
       <IconButton label="Minh bạch" onClick={() => setOpen(true)}>
         <ScrollText size={18} />
       </IconButton>
-      <Drawer open={open} onClose={() => setOpen(false)} side="right" label="Thông tin minh bạch">
-        <div className={styles.drawer}>
-          <div className={styles.head}>
-            <h2>Thông tin minh bạch</h2>
-            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
-              Đóng
-            </Button>
-          </div>
-          {body}
-        </div>
+      <Drawer
+        open={open}
+        onClose={() => setOpen(false)}
+        side="right"
+        label="Thông tin minh bạch"
+        title="Thông tin minh bạch"
+        description="Mỗi bước AI đã chạy: model, prompt, số lượt gọi và những mục đã gửi đi. Thông tin không được lưu lúc chạy ghi là Không rõ, hệ thống không suy đoán."
+        footer={download}
+      >
+        {body}
       </Drawer>
     </>
   );

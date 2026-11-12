@@ -2,9 +2,9 @@ import { Link } from 'react-router-dom';
 import { paperEvidence } from '@/core/extraction';
 import type { ExtractionProject, GroundedCitation, ProjectPaper, Synthesis } from '@/core/schemas';
 import { Badge } from '@/shared/ui/Badge';
-import { Button } from '@/shared/ui/Button';
 import { Drawer } from '@/shared/ui/Drawer';
-import styles from './extraction.module.css';
+import { SheetSection } from '@/shared/ui/SheetSection';
+import styles from './sheets.module.css';
 
 export type GroundingTarget =
   { kind: 'citation'; citation: GroundedCitation; claim: string } | { kind: 'paper'; paperKey: string };
@@ -20,17 +20,22 @@ function Quotes({ citation, paper }: { citation: GroundedCitation; paper: Projec
   if (!citation.quotes.length)
     return <p className={styles.missing}>Không có đoạn trích tìm thấy trong bài cho giá trị này.</p>;
   return (
-    <ul className={styles.evidence}>
+    <ul className={styles.quotes}>
       {citation.quotes.map((quote) => {
         const link = passageLink(paper, quote);
         return (
           <li key={`${quote.paragraphId}:${quote.start}`}>
             <blockquote>{quote.quote}</blockquote>
-            <span className={styles.note}>
+            <span className={styles.where}>
               {[quote.page ? `Tr. ${quote.page}` : null, quote.section].filter(Boolean).join(' · ') ||
                 'Tóm tắt'}
+              {link && (
+                <>
+                  {' · '}
+                  <Link to={link}>Xem đoạn này trong bài</Link>
+                </>
+              )}
             </span>
-            {link && <Link to={link}>Xem đoạn này trong bài</Link>}
           </li>
         );
       })}
@@ -65,63 +70,55 @@ export function GroundingDrawer({
   const label = target.kind === 'citation' ? 'Trích dẫn nguồn' : 'Bằng chứng từ bài này';
   const evidence = target.kind === 'paper' ? paperEvidence(synthesis, paperKey) : [];
   return (
-    <Drawer open onClose={onClose} label={label} side="right">
-      <div className={styles.drawer}>
-        <header className={styles.drawerHead}>
-          <div>
-            <h2>{label}</h2>
-            <p className={styles.note}>
-              {[paper?.title ?? paperKey, paper?.year].filter(Boolean).join(' · ')}
-            </p>
-          </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            Đóng
-          </Button>
-        </header>
-        {target.kind === 'citation' ? (
-          <>
-            <Signals citation={target.citation} />
-            <section>
-              <h3>Nhận định</h3>
-              <p className={styles.value}>{target.claim}</p>
-            </section>
-            <section>
-              <h3>Dựa trên giá trị · {target.citation.fieldLabel}</h3>
-              <p className={styles.value}>{target.citation.value}</p>
-            </section>
-            <section>
-              <h3>Đoạn trích trong bài</h3>
-              <Quotes citation={target.citation} paper={paper} />
-            </section>
-          </>
-        ) : evidence.length === 0 ? (
-          <p className={styles.missing}>Bản tổng hợp không dùng đoạn trích nào từ bài này.</p>
-        ) : (
-          evidence.map(({ citation, claims }) => (
-            <section key={citation.fieldKey} className={styles.groundItem}>
-              <h3>{citation.fieldLabel}</h3>
-              <Signals citation={citation} />
-              <p className={styles.value}>{citation.value}</p>
-              <Quotes citation={citation} paper={paper} />
-              <span className={styles.note}>Dùng cho {claims.length} nhận định:</span>
-              <ul className={styles.flags}>
-                {claims.map((claim) => (
-                  <li key={claim}>{claim}</li>
-                ))}
-              </ul>
-            </section>
-          ))
-        )}
-        <p className={styles.note}>
-          Đoạn trích là nguyên văn mà chương trình tìm thấy trong bài cho giá trị này, lưu lại lúc tổng hợp.
-          Hãy đọc đoạn trích để tự xét nhận định có đúng với bài hay không.
-        </p>
-        {paper?.source.kind !== 'paper' && paper?.doi && (
-          <a href={`https://doi.org/${paper.doi}`} target="_blank" rel="noreferrer">
+    <Drawer
+      open
+      onClose={onClose}
+      label={label}
+      side="right"
+      title={label}
+      description={[paper?.title ?? paperKey, paper?.year].filter(Boolean).join(' · ')}
+      footer={
+        paper?.source.kind !== 'paper' && paper?.doi ? (
+          <a className={styles.link} href={`https://doi.org/${paper.doi}`} target="_blank" rel="noreferrer">
             Mở bài gốc theo DOI
           </a>
-        )}
-      </div>
+        ) : undefined
+      }
+    >
+      {target.kind === 'citation' ? (
+        <>
+          <Signals citation={target.citation} />
+          <SheetSection title="Nhận định">
+            <p className={styles.value}>{target.claim}</p>
+          </SheetSection>
+          <SheetSection title={`Dựa trên giá trị · ${target.citation.fieldLabel}`}>
+            <p className={styles.value}>{target.citation.value}</p>
+          </SheetSection>
+          <SheetSection title="Đoạn trích trong bài">
+            <Quotes citation={target.citation} paper={paper} />
+          </SheetSection>
+        </>
+      ) : evidence.length === 0 ? (
+        <p className={styles.missing}>Bản tổng hợp không dùng đoạn trích nào từ bài này.</p>
+      ) : (
+        evidence.map(({ citation, claims }) => (
+          <SheetSection key={citation.fieldKey} title={citation.fieldLabel}>
+            <Signals citation={citation} />
+            <p className={styles.value}>{citation.value}</p>
+            <Quotes citation={citation} paper={paper} />
+            <span className={styles.hint}>Dùng cho {claims.length} nhận định:</span>
+            <ul className={styles.flags}>
+              {claims.map((claim) => (
+                <li key={claim}>{claim}</li>
+              ))}
+            </ul>
+          </SheetSection>
+        ))
+      )}
+      <p className={styles.hint}>
+        Đoạn trích là nguyên văn mà chương trình tìm thấy trong bài cho giá trị này, lưu lại lúc tổng hợp. Hãy
+        đọc đoạn trích để tự xét nhận định có đúng với bài hay không.
+      </p>
     </Drawer>
   );
 }

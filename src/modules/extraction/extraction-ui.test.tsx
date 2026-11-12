@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { useState } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { expect, it, vi } from 'vitest';
 import {
@@ -11,11 +12,12 @@ import {
   newProject,
   projectPaperFromPaper,
 } from '@/core/extraction';
-import type { Candidate, Paper, ProjectField } from '@/core/schemas';
+import type { Candidate, ExtractionProject, Paper, ProjectField } from '@/core/schemas';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
+import { ExtractionMatrix } from './ExtractionMatrix';
 import Page from './Page';
 import ProjectPage from './ProjectPage';
 
@@ -41,6 +43,23 @@ const paper: Paper = {
   ],
 };
 
+/** The matrix as a paper page holds it: the project in state, saved through the repository. */
+function MatrixHost({ initial }: { initial: ExtractionProject }) {
+  const [project, setProject] = useState(initial);
+  return <ExtractionMatrix project={project} papers={new Map([[paper.id, paper]])} onChange={setProject} />;
+}
+function mountMatrix(repo: ReturnType<typeof createRepositories>, project: ExtractionProject) {
+  return render(
+    <MemoryRouter>
+      <StorageProvider repositories={repo}>
+        <LlmProvider innerClient={{ completeJson: vi.fn() }}>
+          <MatrixHost initial={project} />
+        </LlmProvider>
+      </StorageProvider>
+    </MemoryRouter>,
+  );
+}
+
 function mount(repo: ReturnType<typeof createRepositories>, path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -65,6 +84,11 @@ it('creates a project, adds a template of columns and reviews a cell with its ev
   fireEvent.change(screen.getByLabelText('Tên project'), { target: { value: 'So sánh' } });
   fireEvent.click(screen.getByRole('button', { name: 'Tạo project' }));
   expect(await screen.findByRole('heading', { name: 'So sánh' })).toBeInTheDocument();
+
+  const [created] = await repo.extraction.list();
+  if (!created) throw new Error('missing project');
+  cleanup();
+  mountMatrix(repo, created);
   expect(screen.getByRole('button', { name: 'Chạy trích xuất' })).toBeDisabled();
 
   fireEvent.click(screen.getByRole('button', { name: 'Thêm cột' }));
@@ -93,8 +117,14 @@ it('creates a project, adds a template of columns and reviews a cell with its ev
     extractionSource(projectPaper, paper),
     { paper: projectPaper, runId: '00000000-0000-4000-8000-000000000002', mode: 'STANDARD', at },
   );
-  await repo.extraction.save({ ...project, papers: [projectPaper], fields: [field], cells });
-  mount(repo, `/extraction/${project.id}`);
+  const withCells = await repo.extraction.save({
+    ...project,
+    papers: [projectPaper],
+    fields: [field],
+    cells,
+  });
+  cleanup();
+  mountMatrix(repo, withCells);
   fireEvent.click(await screen.findByRole('button', { name: 'A survey paper · Methods Used' }));
   const drawer = await screen.findByRole('dialog', { name: 'Chi tiết ô' });
   expect(within(drawer).getByText('an online survey')).toBeInTheDocument();
@@ -140,8 +170,7 @@ it('Deep Research waits for an approved plan and leaves screening decisions to a
     },
   });
   mount(repo, `/extraction/${saved.id}`);
-  fireEvent.click(await screen.findByRole('radio', { name: 'Deep Research' }));
-  expect(screen.getByRole('button', { name: 'Tìm theo kế hoạch' })).toBeDisabled();
+  expect(await screen.findByRole('button', { name: 'Tìm theo kế hoạch' })).toBeDisabled();
   expect(screen.getByText('AI gợi ý: Chọn')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /Đưa 0 bài/ })).toBeDisabled();
 
@@ -151,10 +180,7 @@ it('Deep Research waits for an approved plan and leaves screening decisions to a
   const item = screen.getByText('Edge offloading study').closest('li') as HTMLElement;
   fireEvent.click(within(item).getByRole('button', { name: 'Chọn' }));
   fireEvent.click(await screen.findByRole('button', { name: /Đưa 1 bài/ }));
-  await waitFor(() =>
-    expect(screen.getByRole('radio', { name: 'Ma trận' })).toHaveAttribute('aria-checked', 'true'),
-  );
-  expect(screen.getByText(/^1 bài · /)).toBeInTheDocument();
+  await waitFor(async () => expect((await repo.extraction.get(saved.id))?.papers).toHaveLength(1));
   const stored = await repo.extraction.get(saved.id);
   expect(stored?.papers.map((paper) => [paper.key, paper.access])).toEqual([['search:W9', 'METADATA_ONLY']]);
   expect(stored?.deep?.candidates[0]).toMatchObject({ status: 'included', reason: 'Đúng chủ đề' });
@@ -220,7 +246,7 @@ it('citation grounding shows the passage behind a claim and links to it in the p
     },
   });
   mount(repo, `/extraction/${saved.id}`);
-  fireEvent.click(await screen.findByRole('radio', { name: 'Deep Research' }));
+  await screen.findByRole('heading', { name: saved.title });
   // Only the claim whose citation has no passage is flagged.
   expect(screen.getAllByText('Chưa có đoạn trích kiểm chứng')).toHaveLength(1);
   const chip = screen.getByRole('button', { name: 'Trích dẫn 1: A survey paper · Methods Used' });

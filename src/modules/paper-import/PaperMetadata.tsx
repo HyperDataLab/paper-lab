@@ -1,3 +1,4 @@
+import { FileCode2, FileJson, Info, Pencil, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { normalizeDoi } from '@/core/library/doi';
 import { buildPaperModel, paperModelToJats, sentenceIndex } from '@/core/paperModel';
@@ -6,9 +7,8 @@ import { arxivDoiFromFileName, metadataFromLibrary, paperDoi, referenceList } fr
 import { downloadJson, downloadText } from '@/shared/calibration/download';
 import { createScholarClient } from '@/shared/scholar/client';
 import { useRepositories } from '@/shared/storage/StorageProvider';
-import { ActionBar } from '@/shared/ui/ActionBar';
 import { Button } from '@/shared/ui/Button';
-import { Card } from '@/shared/ui/Card';
+import { SheetSection } from '@/shared/ui/SheetSection';
 import { TextField } from '@/shared/ui/TextField';
 import {
   draftFrom,
@@ -178,132 +178,159 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
     ['Chủ đề', metadata?.topic ?? null],
     ['Từ khoá', metadata?.keywords.length ? metadata.keywords.join(', ') : null],
   ];
+  const missing = [
+    ...rows.filter(([, value]) => value === null).map(([label]) => label),
+    ...(metadata?.doi ? [] : ['DOI']),
+  ];
   return (
-    <Card>
-      <h2>Metadata</h2>
-      <ActionBar
-        status={
-          running ? (
-            <span role="status">Đang tra cứu…</span>
-          ) : metadata ? (
-            `Nguồn: ${SOURCE_LABELS[metadata.source]} · ${new Date(metadata.fetchedAt).toLocaleString('vi-VN')}`
-          ) : (
-            'Chưa có metadata. Chỉ DOI được gửi tới OpenAlex.'
-          )
-        }
-      >
-        <TextField label="DOI" size="sm" value={doi} onChange={(event) => setDoi(event.target.value)} />
-        <Button variant="primary" disabled={running || !doi.trim()} onClick={() => void lookup()}>
-          {record?.metadata ? 'Tra cứu lại' : 'Tra cứu metadata'}
-        </Button>
-        <Button
-          disabled={running || !!draft}
-          onClick={() => {
-            setFormError('');
-            setDraft(draftFrom(metadata, paper.title, doi));
-          }}
-        >
-          Sửa thông tin
-        </Button>
-      </ActionBar>
-      {message && <p role="alert">{message}</p>}
-      {!doi && (
-        <p className={styles.note}>
-          Không tìm thấy DOI trong bài hoặc tên tệp. Bạn có thể nhập DOI để tra cứu.
-        </p>
-      )}
-      {draft ? (
+    <div className={styles.metadata}>
+      <p className={styles.sourceLine} role={running ? 'status' : undefined}>
+        <Info size={14} aria-hidden="true" />
+        {running
+          ? 'Đang tra cứu…'
+          : metadata
+            ? `Nguồn: ${SOURCE_LABELS[metadata.source]} · ${new Date(metadata.fetchedAt).toLocaleString('vi-VN')}`
+            : 'Chưa có metadata. Chỉ DOI được gửi tới OpenAlex.'}
+      </p>
+
+      <SheetSection title="Tra cứu theo DOI">
         <form
-          className={styles.form}
-          aria-label="Sửa thông tin bài báo"
+          className={styles.lookup}
           onSubmit={(event) => {
             event.preventDefault();
-            void submit();
+            void lookup();
           }}
         >
-          <div className={styles.formGrid}>
-            {FIELDS.map(({ name, label, hint }) => (
-              <TextField
-                key={name}
-                label={label}
-                hint={hint}
-                inputMode={name === 'year' ? 'numeric' : undefined}
-                value={draft[name]}
-                onChange={(event) => setDraft({ ...draft, [name]: event.target.value })}
-              />
-            ))}
-          </div>
           <TextField
-            multiline
-            label="Tác giả"
-            hint="Mỗi dòng một tác giả, viết như trong bài."
-            rows={4}
-            value={draft.authors}
-            onChange={(event) => setDraft({ ...draft, authors: event.target.value })}
+            label="DOI"
+            hideLabel
+            placeholder="10.xxxx/…"
+            value={doi}
+            onChange={(event) => setDoi(event.target.value)}
           />
-          {formError && <p role="alert">{formError}</p>}
-          <div className={styles.formActions}>
-            <Button type="submit" variant="primary">
-              Lưu
-            </Button>
-            <Button
-              onClick={() => {
-                setDraft(null);
-                setFormError('');
-              }}
-            >
-              Huỷ
-            </Button>
-          </div>
+          <Button type="submit" variant="primary" disabled={running || !doi.trim()}>
+            <Search size={16} aria-hidden="true" />
+            {record?.metadata ? 'Tra cứu lại' : 'Tra cứu metadata'}
+          </Button>
         </form>
-      ) : (
-        <>
-          <dl className={styles.facts}>
-            {rows
-              .filter(([, value]) => value !== null)
-              .map(([label, value]) => (
-                <div key={label}>
-                  <dt>{label}</dt>
-                  <dd>{value}</dd>
-                </div>
-              ))}
-            {metadata?.doi && (
-              <div>
-                <dt>DOI</dt>
-                <dd>
-                  <a href={`https://doi.org/${metadata.doi}`} target="_blank" rel="noreferrer">
-                    {metadata.doi}
-                  </a>
-                </dd>
-              </div>
+        {!doi && (
+          <p className={styles.note}>
+            Không tìm thấy DOI trong bài hoặc tên tệp. Bạn có thể nhập DOI để tra cứu.
+          </p>
+        )}
+        {message && <p role="alert">{message}</p>}
+      </SheetSection>
+
+      <SheetSection
+        title={
+          <span className={styles.sectionHead}>
+            Thông tin bài
+            {!draft && (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={running}
+                onClick={() => {
+                  setFormError('');
+                  setDraft(draftFrom(metadata, paper.title, doi));
+                }}
+              >
+                <Pencil size={14} aria-hidden="true" />
+                Sửa thông tin
+              </Button>
             )}
-          </dl>
-          {(rows.some(([, value]) => value === null) || !metadata?.doi) && (
-            <p className={styles.missing}>
-              Chưa có:{' '}
-              {[
-                ...rows.filter(([, value]) => value === null).map(([label]) => label),
-                ...(metadata?.doi ? [] : ['DOI']),
-              ]
-                .join(', ')
-                .toLowerCase()}
-              .
-            </p>
-          )}
-        </>
-      )}
-      <section className={styles.model} aria-label="Paper model">
-        <h3>Paper model</h3>
+          </span>
+        }
+      >
+        {draft ? (
+          <form
+            className={styles.form}
+            aria-label="Sửa thông tin bài báo"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submit();
+            }}
+          >
+            <div className={styles.formGrid}>
+              {FIELDS.map(({ name, label, hint }) => (
+                <TextField
+                  key={name}
+                  label={label}
+                  hint={hint}
+                  inputMode={name === 'year' ? 'numeric' : undefined}
+                  value={draft[name]}
+                  onChange={(event) => setDraft({ ...draft, [name]: event.target.value })}
+                />
+              ))}
+            </div>
+            <TextField
+              multiline
+              label="Tác giả"
+              hint="Mỗi dòng một tác giả, viết như trong bài."
+              rows={4}
+              value={draft.authors}
+              onChange={(event) => setDraft({ ...draft, authors: event.target.value })}
+            />
+            {formError && <p role="alert">{formError}</p>}
+            <div className={styles.formActions}>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setDraft(null);
+                  setFormError('');
+                }}
+              >
+                Huỷ
+              </Button>
+              <Button type="submit" variant="primary">
+                Lưu
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <dl className={styles.facts}>
+              {rows
+                .filter(([, value]) => value !== null)
+                .map(([label, value]) => (
+                  <div key={label}>
+                    <dt>{label}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              {metadata?.doi && (
+                <div>
+                  <dt>DOI</dt>
+                  <dd>
+                    <a href={`https://doi.org/${metadata.doi}`} target="_blank" rel="noreferrer">
+                      {metadata.doi}
+                    </a>
+                  </dd>
+                </div>
+              )}
+            </dl>
+            {missing.length > 0 && (
+              <p className={styles.missing}>Chưa có: {missing.join(', ').toLowerCase()}.</p>
+            )}
+          </>
+        )}
+      </SheetSection>
+
+      <SheetSection title="Paper model">
         <p className={styles.note}>
-          {counts.sentences} câu · {counts.references} tài liệu tham khảo
+          Toàn bộ bài dưới dạng có cấu trúc: {counts.sentences} câu · {counts.references} tài liệu tham khảo.
         </p>
-        <Button size="sm" onClick={() => void downloadModel()}>
-          Tải paper-model.json
-        </Button>
-        <Button size="sm" onClick={() => void downloadModel(true)}>
-          Tải article.xml (JATS)
-        </Button>
-      </section>
-    </Card>
+        <div className={styles.downloads}>
+          <Button onClick={() => void downloadModel()}>
+            <FileJson size={16} aria-hidden="true" />
+            Tải paper-model.json
+          </Button>
+          <Button onClick={() => void downloadModel(true)}>
+            <FileCode2 size={16} aria-hidden="true" />
+            Tải article.xml (JATS)
+          </Button>
+        </div>
+      </SheetSection>
+    </div>
   );
 }

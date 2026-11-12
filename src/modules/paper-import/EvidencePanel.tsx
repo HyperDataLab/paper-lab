@@ -1,3 +1,4 @@
+import { BookOpen } from 'lucide-react';
 import type { Finding, Paper } from '@/core/schemas';
 import { sliceCp } from '@/core/text/offsets';
 import { Button } from '@/shared/ui/Button';
@@ -21,26 +22,28 @@ export function EvidencePanel({
 }) {
   const paragraph = paper.paragraphs.find((item) => item.id === location?.paragraphId);
   return (
-    <Drawer open={Boolean(location && paragraph)} onClose={onClose} label="Bằng chứng trong bài" side="right">
-      {location && paragraph && (
-        <div className={styles.evidence}>
-          <header className={styles.evidenceHead}>
-            <h2>
-              <PlaceText paper={paper} paragraphId={paragraph.id} />
-            </h2>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              Đóng
-            </Button>
-          </header>
-          <p className={styles.evidenceText}>
-            {sliceCp(paragraph.text, 0, location.start)}
-            <mark>{sliceCp(paragraph.text, location.start, location.end)}</mark>
-            {sliceCp(paragraph.text, location.end, Array.from(paragraph.text).length)}
-          </p>
-          <Button onClick={() => onOpenReader(location)}>
+    <Drawer
+      open={Boolean(location && paragraph)}
+      onClose={onClose}
+      label="Bằng chứng trong bài"
+      side="right"
+      title="Bằng chứng trong bài"
+      description={paragraph ? <PlaceText paper={paper} paragraphId={paragraph.id} /> : undefined}
+      footer={
+        location ? (
+          <Button variant="primary" onClick={() => onOpenReader(location)}>
+            <BookOpen size={16} aria-hidden="true" />
             {paper.source.kind === 'pdf' ? 'Mở trong PDF' : 'Mở trong bài'}
           </Button>
-        </div>
+        ) : undefined
+      }
+    >
+      {location && paragraph && (
+        <p className={styles.evidenceText}>
+          {sliceCp(paragraph.text, 0, location.start)}
+          <mark>{sliceCp(paragraph.text, location.start, location.end)}</mark>
+          {sliceCp(paragraph.text, location.end, Array.from(paragraph.text).length)}
+        </p>
       )}
     </Drawer>
   );

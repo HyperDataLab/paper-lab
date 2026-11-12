@@ -87,7 +87,8 @@ export function DeepResearch({
 }: {
   project: ExtractionProject;
   onSave: Save;
-  onOpenMatrix: () => void;
+  /** Shows the papers once they are in the project, where a view of them exists. */
+  onOpenMatrix?: () => void;
 }) {
   const llm = useLlm();
   const deep = project.deep ?? emptyDeep();
@@ -243,7 +244,7 @@ export function DeepResearch({
   const incoming = papersFromCandidates(deep.candidates).filter((paper) => !existing.has(paper.key));
   const bring = async () => {
     await onSave(withDeep({}, addPapers(project, incoming)));
-    onOpenMatrix();
+    onOpenMatrix?.();
   };
   const ready = synthesisInput(project).length;
   const synthesize = () =>
