@@ -10,7 +10,7 @@ import { assessability } from '@/core/scoring/availability';
 import { computeScores } from '@/core/scoring/computeScores';
 import { DIMENSIONS } from '@/core/scoring/rubric';
 import { analyzeText } from '@/core/text';
-import { ScoresView } from '@/modules/evaluate/ScoresView';
+import { ScoresView } from '@/modules/evaluate';
 import type { LlmClient } from '@/shared/llm/client';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { createDb } from '@/shared/storage/db';

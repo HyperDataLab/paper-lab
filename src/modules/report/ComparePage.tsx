@@ -6,8 +6,8 @@ import type { Analysis, Revision } from '@/core/schemas';
 import { sliceCp } from '@/core/text';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import styles from './report.module.css';
-import { labels, statuses } from '../evaluate/issueLabels';
-import { checkLabels } from '../revise/checkLabels';
+import { labels, statuses } from '@/modules/evaluate';
+import { checkLabels } from '@/modules/revise';
 import { Loading } from '@/shared/ui/StateNote';
 
 const arrow = (value: number | null) =>

@@ -3,8 +3,24 @@ import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
+import moduleBoundaries from './scripts/eslint-module-boundaries.mjs';
+// Integration tests render other modules' pages directly; exporting them would defeat lazy loading.
+const moduleBoundaryAllowlist = [
+  'generate/generate-ui.test.tsx -> evaluate/Page',
+  'generate/generate-ui.test.tsx -> history/Page',
+  'history/storage-ui.test.tsx -> evaluate/Page',
+  'history/storage-ui.test.tsx -> transfer/Page',
+  'paper-import/paper-ui.test.tsx -> evaluate/Page',
+  'revise/revise-ui.test.tsx -> evaluate/Page',
+  'revise/revise-ui.test.tsx -> history/Page',
+];
 export default tseslint.config(
   { ignores: ['dist', 'coverage', 'node_modules'] },
+  {
+    files: ['src/modules/**/*.{ts,tsx}'],
+    plugins: { boundaries: { rules: { 'public-entry': moduleBoundaries } } },
+    rules: { 'boundaries/public-entry': ['error', { allow: moduleBoundaryAllowlist }] },
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],

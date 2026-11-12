@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({ lookup: vi.fn(), download: vi.fn(), importFile
 vi.mock('@/shared/scholar/client', () => ({
   createScholarClient: () => ({ lookupDoi: mocks.lookup, downloadArxivPdf: mocks.download }),
 }));
-vi.mock('../paper-import/importPaperFile', () => ({ importPaperFile: mocks.importFile }));
+vi.mock('@/modules/paper-import', () => ({ importPaperFile: mocks.importFile }));
 
 describe('C2 acquisition', () => {
   beforeEach(() => vi.resetAllMocks());

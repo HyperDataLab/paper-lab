@@ -3,7 +3,7 @@ import { guardPaperSize } from '@/shared/paper/sizeGuard';
 import { createScholarClient } from '@/shared/scholar/client';
 import { getScholarEmail } from '@/shared/scholar/settings';
 import type { Repositories } from '@/shared/storage/repositories';
-import { importPaperFile } from '../paper-import/importPaperFile';
+import { importPaperFile } from '@/modules/paper-import';
 
 export async function acquireMember(
   member: CorpusMember,
