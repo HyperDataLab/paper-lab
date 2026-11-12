@@ -15,6 +15,7 @@ import { DataTable } from '@/shared/ui/DataTable';
 import { Select } from '@/shared/ui/Select';
 import { Intake } from './Intake';
 import { CorpusBuild } from './CorpusBuild';
+import { CorpusLabels } from './CorpusLabels';
 import { JournalHarvest } from './JournalHarvest';
 import { kinds } from './labels';
 import { downloadManifest } from './manifest';
@@ -227,6 +228,7 @@ export default function DetailPage() {
 
       {corpus.kind !== 'topic' && <JournalHarvest corpus={corpus} save={save} />}
       <CorpusBuild corpus={corpus} save={save} />
+      <CorpusLabels corpus={corpus} save={save} />
 
       <Card>
         <section aria-labelledby="corpus-members" className={styles.members}>

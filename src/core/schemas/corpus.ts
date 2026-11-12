@@ -100,6 +100,8 @@ export const CorpusMemberSchema = z.object({
     })
     .nullable(),
 });
+const labelScheme = z.enum(['rhetoric', 'stance', 'arguments']);
+const labelCount = z.object({ done: count, failed: count, skipped: count });
 const corpusFields = {
   format: z.literal('paperlab-corpus'),
   schemaVersion: z.literal(1),
@@ -120,6 +122,19 @@ const corpusFields = {
       createdAt: timestamp,
     }),
   ),
+  labelChecks: z
+    .array(
+      z.object({
+        scheme: labelScheme,
+        memberId,
+        sentenceKey: z.string(),
+        label: z.string(),
+        verdict: z.enum(['correct', 'incorrect', 'unsure']),
+        checker: z.string(),
+        at: timestamp,
+      }),
+    )
+    .optional(),
   releases: z.array(
     z.object({
       id: z.string(),
@@ -156,6 +171,19 @@ const corpusFields = {
       failed: z.array(z.object({ memberId, reason: z.string() })),
     })
     .optional(),
+  /** A corpus-wide labelling run in progress: one checkpoint per member, so a reload resumes at the next one. */
+  labelQueue: z
+    .object({
+      status: z.enum(['running', 'paused', 'cancelled', 'complete']),
+      schemes: z.array(labelScheme).min(1),
+      model: z.string(),
+      promptVersions: z.partialRecord(labelScheme, z.string()),
+      pending: z.array(memberId),
+      counts: z.partialRecord(labelScheme, labelCount),
+      failed: z.array(z.object({ memberId, scheme: labelScheme, reason: z.string() })),
+      startedAt: timestamp,
+    })
+    .optional(),
 };
 const protocolWith = <T extends typeof journalBody | typeof topicBody>(body: T) =>
   z.array(CorpusProtocolVersionSchema.extend({ body }));
@@ -166,3 +194,5 @@ export const CorpusSchema = z.discriminatedUnion('kind', [
 ]);
 export type Corpus = z.infer<typeof CorpusSchema>;
 export type CorpusMember = z.infer<typeof CorpusMemberSchema>;
+export type CorpusLabelScheme = z.infer<typeof labelScheme>;
+export type CorpusLabelQueue = NonNullable<Corpus['labelQueue']>;
