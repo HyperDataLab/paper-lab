@@ -235,39 +235,12 @@ export async function runBatch(
   };
   run.status = 'running';
   await checkpoint();
-  const claimed = new Set<Item>();
-  const claim = () => {
-    if (signal.action || halted) return [];
-    const item = run.items.find(
-      (entry) => !claimed.has(entry) && !['done', 'cached', 'skipped'].includes(entry.status),
-    );
-    if (!item) return [];
-    claimed.add(item);
-    const paragraph = paragraphOf(item);
-    if (
-      !paragraph ||
-      !deps.analyzeSyntaxBatch ||
-      !run.plan.steps.includes('syntax') ||
-      item.stepsDone.includes('syntax')
-    )
-      return [{ item, paragraph }];
-    const candidates = run.items.slice(run.items.indexOf(item) + 1).flatMap((other) => {
-      const next = paragraphOf(other);
-      return next &&
-        !claimed.has(other) &&
-        next.sectionId === paragraph.sectionId &&
-        !other.stepsDone.includes('syntax') &&
-        ['pending', 'failed'].includes(other.status)
-        ? [{ item: other, paragraph: next }]
-        : [];
-    });
-    const [group = []] = groupSyntaxBatches([{ item, paragraph }, ...candidates], (member) =>
-      sentenceCountOf(member.paragraph.text),
-    );
-    for (const member of group) claimed.add(member.item);
-    return group;
-  };
-  const processItem = async (item: Item, group: { item: Item; paragraph: PaperParagraph }[]) => {
+  for (const item of run.items) if (item.status === 'failed') item.status = 'pending';
+  const processItem = async (
+    item: Item,
+    group: { item: Item; paragraph: PaperParagraph }[],
+    syntaxOnly = false,
+  ) => {
     const paragraph = paragraphOf(item);
     if (!paragraph) {
       item.status = 'failed';
@@ -282,6 +255,7 @@ export async function runBatch(
       const analysisId = await ensureAnalysis(item, paragraph);
       for (const step of run.plan.steps) {
         if (step === 'transitions') continue;
+        if (syntaxOnly && step !== 'syntax') continue;
         if (item.stepsDone.includes(step)) continue;
         if (signal.action || halted) {
           item.status = 'pending';
@@ -314,7 +288,7 @@ export async function runBatch(
         item.stepsDone.push(step);
         await checkpoint();
       }
-      item.status = 'done';
+      item.status = syntaxOnly ? 'pending' : 'done';
     } catch (error) {
       if (error instanceof BatchStoppedError || error instanceof BatchBudgetExceededError) {
         item.status = 'pending';
@@ -329,28 +303,55 @@ export async function runBatch(
     }
     await checkpoint();
   };
+  if (deps.analyzeSyntaxBatch && run.plan.steps.includes('syntax')) {
+    const sections = new Map<string, { item: Item; paragraph: PaperParagraph }[]>();
+    for (const item of run.items) {
+      if (['done', 'cached', 'skipped'].includes(item.status) || item.stepsDone.includes('syntax')) continue;
+      const paragraph = paragraphOf(item);
+      if (!paragraph) continue;
+      const members = sections.get(paragraph.sectionId) ?? [];
+      members.push({ item, paragraph });
+      sections.set(paragraph.sectionId, members);
+    }
+    const groups = [...sections.values()].flatMap((members) =>
+      groupSyntaxBatches(members, (member) => sentenceCountOf(member.paragraph.text)),
+    );
+    let nextGroup = 0;
+    const syntaxWorker = async () => {
+      while (!signal.action && !halted && nextGroup < groups.length) {
+        const group = groups[nextGroup++];
+        if (!group) return;
+        for (const [index, entry] of group.entries()) {
+          if (signal.action || halted) return;
+          if (entry.item.stepsDone.includes('syntax') || ['cached', 'failed'].includes(entry.item.status))
+            continue;
+          await processItem(
+            entry.item,
+            group
+              .slice(index)
+              .filter(
+                (member) =>
+                  member.item === entry.item ||
+                  (!member.item.stepsDone.includes('syntax') &&
+                    !['cached', 'failed'].includes(member.item.status)),
+              ),
+            true,
+          );
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: BATCH_CONCURRENCY }, () => syntaxWorker()));
+  }
+  const claimed = new Set<Item>();
   const worker = async () => {
     for (;;) {
-      const group = claim();
-      if (!group.length) return;
-      const valid = group.filter(
-        (entry): entry is { item: Item; paragraph: PaperParagraph } => !!entry.paragraph,
+      if (signal.action || halted) return;
+      const item = run.items.find(
+        (entry) => !claimed.has(entry) && !['done', 'cached', 'skipped', 'failed'].includes(entry.status),
       );
-      for (const [index, entry] of group.entries()) {
-        if (signal.action || halted) return;
-        if (index > 0 && ['cached', 'failed'].includes(entry.item.status)) continue;
-        await processItem(
-          entry.item,
-          valid
-            .slice(index)
-            .filter(
-              (member) =>
-                member.item === entry.item ||
-                (!member.item.stepsDone.includes('syntax') &&
-                  !['cached', 'failed'].includes(member.item.status)),
-            ),
-        );
-      }
+      if (!item) return;
+      claimed.add(item);
+      await processItem(item, []);
     }
   };
   await Promise.all(Array.from({ length: BATCH_CONCURRENCY }, () => worker()));

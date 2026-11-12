@@ -399,6 +399,67 @@ describe('P2 shared syntax requests', () => {
     });
   const groupSizes = (t: ReturnType<typeof syntaxSetup>) =>
     t.analyzeSyntaxBatch.mock.calls.map(([members]) => members.length);
+  it('runs steps concurrently for nine paragraphs in one syntax group', async () => {
+    const t = syntaxSetup(100);
+    const first = paper.paragraphs[0];
+    if (!first) throw new Error('missing paragraph');
+    const many: Paper = {
+      ...paper,
+      paragraphs: Array.from({ length: 9 }, (_, i) => ({
+        ...first,
+        id: `p${i}`,
+        textHash: `h${i}`,
+        order: i,
+      })),
+    };
+    t.run.plan = planRun(many, {
+      sectionIds: ['s'],
+      steps: ['syntax', 'judge', 'structure', 'score'],
+      budget: 100,
+    });
+    t.run.items = many.paragraphs.map((paragraph) => ({
+      paragraphId: paragraph.id,
+      textHash: paragraph.textHash,
+      analysisId: null,
+      status: 'pending',
+      stepsDone: [],
+      calls: 0,
+      error: null,
+    }));
+    let release = () => {};
+    const wave = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let active = 0;
+    let peak = 0;
+    const steps = new Map<string, string[]>();
+    t.analyze.mockImplementation(async (paragraph, _context, step, _id, onRequest) => {
+      if (step !== 'detectors') {
+        await onRequest?.();
+        const completed = steps.get(paragraph.id) ?? [];
+        completed.push(step);
+        steps.set(paragraph.id, completed);
+        peak = Math.max(peak, ++active);
+        await wave;
+        active--;
+      }
+      return `analysis-${paragraph.id}`;
+    });
+    const running = runBatch(t.run, { ...t.deps, paper: many });
+    try {
+      await vi.waitFor(() => expect(active).toBe(5));
+      expect(groupSizes(t)).toEqual([9]);
+    } finally {
+      release();
+    }
+    const result = await running;
+    expect(peak).toBe(5);
+    expect(result.items.every((item) => item.status === 'done')).toBe(true);
+    for (const item of result.items) {
+      expect(item.stepsDone).toEqual(['syntax', 'judge', 'structure', 'score']);
+      expect(steps.get(item.paragraphId)).toEqual(['judge', 'structure', 'score']);
+    }
+  });
   it('sends a section in one counted request and marks every paragraph', async () => {
     const t = syntaxSetup();
     t.run.callsByStep = {};
