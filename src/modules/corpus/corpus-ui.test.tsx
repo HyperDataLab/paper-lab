@@ -6,6 +6,7 @@ import { expect, it, vi } from 'vitest';
 import { exampleCorpus } from '@/core/corpus/contract';
 import { addMember } from '@/core/corpus/intake';
 import { CorpusSchema } from '@/core/schemas/corpus';
+import { AuthContext } from '@/shared/auth/authContext';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
@@ -118,5 +119,62 @@ it('C1c exports a manifest accepted by CorpusSchema', async () => {
   });
   expect(CorpusSchema.parse(JSON.parse(text)).title).toBe('Synthetic corpus');
   click.mockRestore();
+  vi.unstubAllGlobals();
+});
+it('C1d shows Vietnamese member labels', async () => {
+  const corpus = exampleCorpus();
+  const { repo, mount } = setup(`/corpus/${corpus.id}`);
+  await repo.corpora.save(corpus);
+  mount();
+  expect(await screen.findByRole('cell', { name: 'Đang tìm' })).toBeInTheDocument();
+  expect(screen.getByRole('cell', { name: 'Siêu dữ liệu' })).toBeInTheDocument();
+});
+it('C1d offers both choices after a stale write', async () => {
+  const corpus = { ...exampleCorpus(), id: crypto.randomUUID() };
+  const repo = createRepositories(createDb(`corpus-conflict-${crypto.randomUUID()}`));
+  await repo.corpora.save(corpus);
+  await repo.corpora.setSyncState(corpus.id, 'old', corpus);
+  vi.stubGlobal(
+    'fetch',
+    vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              id: corpus.id,
+              title: corpus.title,
+              kind: corpus.kind,
+              updatedAt: corpus.updatedAt,
+              version: 'old',
+            },
+          ]),
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ version: 'new' }), { status: 409 })),
+  );
+  await repo.corpora.save({ ...corpus, title: 'Local edit' });
+  render(
+    <MemoryRouter initialEntries={['/corpus']}>
+      <AuthContext.Provider
+        value={{
+          user: { uid: '1', email: 'a@hyperdatalab.org', name: null },
+          ready: true,
+          error: '',
+          signIn: async () => {},
+          signOut: async () => {},
+          getIdToken: async () => 'token',
+        }}
+      >
+        <StorageProvider repositories={repo}>
+          <Page />
+        </StorageProvider>
+      </AuthContext.Provider>
+    </MemoryRouter>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Đồng bộ' }));
+  expect(await screen.findByText(/Corpus đã được người khác sửa/)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Tải bản mới' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Giữ bản của tôi' })).toBeInTheDocument();
   vi.unstubAllGlobals();
 });

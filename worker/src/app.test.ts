@@ -10,16 +10,35 @@ async function hex(data: ArrayBuffer) {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 function memoryBucket() {
-  const objects = new Map<string, { data: ArrayBuffer; meta: Record<string, string> }>();
+  const objects = new Map<string, { data: ArrayBuffer; meta: Record<string, string>; etag: string }>();
+  let version = 0;
   const bucket: Bucket = {
-    head: async (key) => (objects.has(key) ? {} : null),
+    head: async (key) => {
+      const object = objects.get(key);
+      return object ? { etag: object.etag, customMetadata: object.meta } : null;
+    },
     get: async (key) => {
       const object = objects.get(key);
-      return object ? { body: new Blob([object.data]).stream(), size: object.data.byteLength } : null;
+      return object
+        ? { body: new Blob([object.data]).stream(), size: object.data.byteLength, etag: object.etag }
+        : null;
     },
+    list: async ({ prefix }) => ({
+      objects: [...objects]
+        .filter(([key]) => key.startsWith(prefix))
+        .map(([key, object]) => ({ key, etag: object.etag, customMetadata: object.meta })),
+      truncated: false,
+    }),
     put: async (key, value, options) => {
-      objects.set(key, { data: value, meta: options.customMetadata });
-      return {};
+      const current = objects.get(key);
+      if (
+        (options.onlyIf?.etagDoesNotMatch === '*' && current) ||
+        (options.onlyIf?.etagMatches && options.onlyIf.etagMatches !== current?.etag)
+      )
+        return null;
+      const etag = String(++version);
+      objects.set(key, { data: value, meta: options.customMetadata, etag });
+      return { etag };
     },
   };
   return { bucket, objects };
@@ -124,6 +143,50 @@ describe('R8 PDF worker', () => {
       }),
     );
     expect(other.headers.get('access-control-allow-origin')).toBeNull();
+  });
+});
+
+describe('C1d corpus worker', () => {
+  it('authenticates, creates, lists and rejects stale updates', async () => {
+    const d = deps();
+    const id = '00000000-0000-4000-8000-000000000001';
+    const path = `/corpora/${id}`;
+    const body = new TextEncoder().encode(
+      JSON.stringify({
+        format: 'paperlab-corpus',
+        schemaVersion: 1,
+        id,
+        title: 'A',
+        kind: 'topic',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    ).buffer;
+    expect((await handle(d, new Request(`https://worker.test${path}`))).status).toBe(401);
+    expect(
+      (
+        await handle(
+          deps({
+            verifyToken: async () => {
+              throw new NotAllowedError('domain');
+            },
+          }),
+          request('GET', path),
+        )
+      ).status,
+    ).toBe(403);
+    const first = await handle(d, request('PUT', path, { body, headers: { 'if-none-match': '*' } }));
+    expect(first.status).toBe(201);
+    const initial = ((await first.json()) as { version: string }).version;
+    expect(await handle(d, request('GET', '/corpora')).then((r) => r.json())).toMatchObject([
+      { id, title: 'A', version: initial },
+    ]);
+    expect((await handle(d, request('GET', path))).status).toBe(200);
+    const update = await handle(d, request('PUT', path, { body, headers: { 'if-match': initial } }));
+    expect(update.status).toBe(200);
+    const current = ((await update.json()) as { version: string }).version;
+    const stale = await handle(d, request('PUT', path, { body, headers: { 'if-match': initial } }));
+    expect(stale.status).toBe(409);
+    expect(await stale.json()).toEqual({ version: current });
   });
 });
 

@@ -198,9 +198,11 @@ C7 waits for R17c.
 Still open: who labels the 5–10 papers for the AZ-II gate and who checks the sample of machine labels (R17c, C4b).
 The owner chose to skip the Evidence benchmark (docs/CRITERIA.md section 4).
 
-| #   | Slice added by decision 3                                                                                                            | Done when                                                                |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| C1d | Worker route `/corpora/<id>` on R2 with the lab's sign-in roles; corpus sync with version checks; conflicts shown, never overwritten | two signed-in browsers see the same corpus, and a stale write is refused |
+| #     | Slice added by decision 3                                                                                                            | Done when                                                                |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| C1d ✓ | Worker route `/corpora/<id>` on R2 with the lab's sign-in roles; corpus sync with version checks; conflicts shown, never overwritten | two signed-in browsers see the same corpus, and a stale write is refused |
+
+The worker must be deployed before corpus sync works in the hosted app.
 
 ## 9. What the critique changed
 

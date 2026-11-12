@@ -2,13 +2,22 @@ import { NotAllowedError } from './auth';
 
 /** The part of an R2 bucket this worker uses, so the logic runs in tests without Cloudflare. */
 export interface Bucket {
-  head(key: string): Promise<unknown | null>;
-  get(key: string): Promise<{ body: ReadableStream; size: number } | null>;
+  head(key: string): Promise<{ etag: string; customMetadata?: Record<string, string> } | null>;
+  get(key: string): Promise<{ body: ReadableStream; size: number; etag: string } | null>;
+  list(options: { prefix: string; cursor?: string; include: ['customMetadata'] }): Promise<{
+    objects: { key: string; etag: string; customMetadata?: Record<string, string> }[];
+    truncated: boolean;
+    cursor?: string;
+  }>;
   put(
     key: string,
     value: ArrayBuffer,
-    options: { httpMetadata: { contentType: string }; customMetadata: Record<string, string> },
-  ): Promise<unknown>;
+    options: {
+      httpMetadata: { contentType: string };
+      customMetadata: Record<string, string>;
+      onlyIf?: { etagMatches?: string; etagDoesNotMatch?: string };
+    },
+  ): Promise<{ etag: string } | null>;
 }
 export interface Deps {
   verifyToken: (token: string) => Promise<{ uid: string; email: string }>;
@@ -20,6 +29,8 @@ export interface Deps {
 export const MAX_BYTES = 25 * 1024 * 1024;
 export const PREFIX = 'paperlab/pdfs/';
 const SHA = /^\/pdfs\/([0-9a-f]{64})$/;
+const CORPUS = /^\/corpora\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const CORPUS_PREFIX = 'paperlab/corpora/';
 
 function cors(request: Request, deps: Deps): Record<string, string> {
   const origin = request.headers.get('origin');
@@ -27,7 +38,7 @@ function cors(request: Request, deps: Deps): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, HEAD, PUT',
-    'Access-Control-Allow-Headers': 'authorization, content-type',
+    'Access-Control-Allow-Headers': 'authorization, content-type, if-match, if-none-match',
     'Access-Control-Max-Age': '3600',
     Vary: 'Origin',
   };
@@ -47,10 +58,10 @@ async function sha256Hex(data: ArrayBuffer) {
 export async function handle(deps: Deps, request: Request): Promise<Response> {
   const headers = cors(request, deps);
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
-  const match = SHA.exec(new URL(request.url).pathname);
-  if (!match) return json(400, { error: 'expected /pdfs/<sha256>' }, headers);
-  const sha = match[1] as string;
-  const key = `${PREFIX}${sha}.pdf`;
+  const path = new URL(request.url).pathname;
+  const match = SHA.exec(path);
+  const corpusMatch = CORPUS.exec(path);
+  if (!match && !corpusMatch && path !== '/corpora') return json(400, { error: 'invalid path' }, headers);
 
   const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
   if (!token) return json(401, { error: 'sign-in required' }, headers);
@@ -62,6 +73,85 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
       ? json(403, { error: 'account not allowed' }, headers)
       : json(401, { error: 'invalid token' }, headers);
   }
+
+  if (path === '/corpora' || corpusMatch) {
+    if (path === '/corpora') {
+      if (request.method !== 'GET') return json(405, { error: 'method not allowed' }, headers);
+      const items = [];
+      let cursor: string | undefined;
+      do {
+        const page = await deps.bucket.list({ prefix: CORPUS_PREFIX, cursor, include: ['customMetadata'] });
+        items.push(
+          ...page.objects.map((object) => ({
+            id: object.key.slice(CORPUS_PREFIX.length),
+            title: object.customMetadata?.title,
+            kind: object.customMetadata?.kind,
+            updatedAt: object.customMetadata?.updatedAt,
+            version: object.etag,
+          })),
+        );
+        cursor = page.truncated ? page.cursor : undefined;
+      } while (cursor);
+      return json(200, items, headers);
+    }
+    const id = corpusMatch?.[1] as string;
+    const key = `${CORPUS_PREFIX}${id}`;
+    if (request.method === 'GET') {
+      const object = await deps.bucket.get(key);
+      if (!object) return json(404, { error: 'not stored' }, headers);
+      return json(
+        200,
+        { corpus: JSON.parse(await new Response(object.body).text()), version: object.etag },
+        headers,
+      );
+    }
+    if (request.method !== 'PUT') return json(405, { error: 'method not allowed' }, headers);
+    const expected = request.headers.get('if-match');
+    const create = request.headers.get('if-none-match') === '*';
+    if ((!expected && !create) || (expected && create))
+      return json(400, { error: 'conditional write required' }, headers);
+    if (Number(request.headers.get('content-length')) > 5 * 1024 * 1024)
+      return json(413, { error: 'file too large' }, headers);
+    const body = await request.arrayBuffer();
+    if (body.byteLength > 5 * 1024 * 1024) return json(413, { error: 'file too large' }, headers);
+    let value: {
+      format?: unknown;
+      schemaVersion?: unknown;
+      id?: unknown;
+      title?: unknown;
+      kind?: unknown;
+      updatedAt?: unknown;
+    };
+    try {
+      value = JSON.parse(new TextDecoder().decode(body));
+    } catch {
+      return json(400, { error: 'invalid JSON' }, headers);
+    }
+    if (
+      !value ||
+      value.format !== 'paperlab-corpus' ||
+      value.schemaVersion !== 1 ||
+      value.id !== id ||
+      typeof value.title !== 'string' ||
+      typeof value.kind !== 'string' ||
+      typeof value.updatedAt !== 'string'
+    )
+      return json(400, { error: 'invalid corpus' }, headers);
+    const stored = await deps.bucket.put(key, body, {
+      httpMetadata: { contentType: 'application/json' },
+      customMetadata: {
+        title: value.title,
+        kind: value.kind,
+        updatedAt: value.updatedAt,
+        updatedBy: caller.email,
+      },
+      onlyIf: create ? { etagDoesNotMatch: '*' } : { etagMatches: expected as string },
+    });
+    if (!stored) return json(409, { version: (await deps.bucket.head(key))?.etag ?? null }, headers);
+    return json(create ? 201 : 200, { version: stored.etag }, headers);
+  }
+  const sha = match?.[1] as string;
+  const key = `${PREFIX}${sha}.pdf`;
 
   if (request.method === 'HEAD')
     return new Response(null, { status: (await deps.bucket.head(key)) ? 200 : 404, headers });
