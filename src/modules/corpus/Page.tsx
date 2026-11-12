@@ -16,6 +16,7 @@ import { Select } from '@/shared/ui/Select';
 import { TextField } from '@/shared/ui/TextField';
 import { ProtocolForm } from './ProtocolForm';
 import { kinds } from './labels';
+import { createEswaPair, ESWA_SEED } from './journalSampling';
 import { downloadManifest } from './manifest';
 import styles from './corpus.module.css';
 
@@ -141,7 +142,27 @@ export default function Page() {
         >
           Corpus mới
         </Button>
+        <Button
+          onClick={() =>
+            void (async () => {
+              try {
+                const pair = createEswaPair(
+                  crypto.randomUUID(),
+                  crypto.randomUUID(),
+                  new Date().toISOString(),
+                );
+                for (const item of pair) await repo.corpora.save(item);
+                setItems(await repo.corpora.list());
+              } catch (e) {
+                setError(String(e));
+              }
+            })()
+          }
+        >
+          Tạo cặp ESWA
+        </Button>
       </PageHeader>
+      <p>Seed cho cặp ESWA: {ESWA_SEED}</p>
       {error && <p role="alert">{error}</p>}
       {conflict && (
         <div role="alert" className={styles.conflict}>

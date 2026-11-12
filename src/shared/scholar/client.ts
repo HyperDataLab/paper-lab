@@ -152,6 +152,17 @@ export function createScholarClient(options: { email?: string | null }, deps: De
     const body = (await getJson(url, signal)) as { results?: unknown[] } | null;
     return body?.results ?? [];
   }
+  async function harvestWorks(url: string, cursor: string, signal?: AbortSignal) {
+    await deps.sleep(200);
+    const query = new URL(url);
+    query.searchParams.set('per-page', '200');
+    query.searchParams.set('cursor', cursor);
+    const body = (await getJson(query.toString(), signal)) as {
+      results?: unknown[];
+      meta?: { next_cursor?: string | null };
+    } | null;
+    return { results: body?.results ?? [], nextCursor: body?.meta?.next_cursor ?? null };
+  }
   return {
     lookupDoi,
     downloadArxivPdf,
@@ -160,6 +171,7 @@ export function createScholarClient(options: { email?: string | null }, deps: De
     workAbstract,
     searchWorks,
     citationWorks,
+    harvestWorks,
   };
 }
 export type ScholarClient = ReturnType<typeof createScholarClient>;
