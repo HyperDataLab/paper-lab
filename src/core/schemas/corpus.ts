@@ -65,6 +65,7 @@ export const CorpusMemberSchema = z.object({
   }),
   version: z.enum(['publishedVersion', 'acceptedVersion', 'submittedVersion']).nullable(),
   retrieval: z.enum(['sought', 'retrieved', 'not_retrieved']),
+  retrievalReason: z.string().optional(),
   textRead: z.enum(['FULL_TEXT', 'ABSTRACT_ONLY', 'METADATA_ONLY']),
   authorIds: z.array(z.string()),
   countries: z.array(z.string()),
@@ -147,6 +148,13 @@ const corpusFields = {
         }),
       }),
     )
+    .optional(),
+  buildQueue: z
+    .object({
+      status: z.enum(['running', 'paused', 'cancelled', 'complete']),
+      pending: z.array(memberId),
+      failed: z.array(z.object({ memberId, reason: z.string() })),
+    })
     .optional(),
 };
 const protocolWith = <T extends typeof journalBody | typeof topicBody>(body: T) =>

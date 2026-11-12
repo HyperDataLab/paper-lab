@@ -10,6 +10,7 @@ import { Card } from '@/shared/ui/Card';
 import { DataTable } from '@/shared/ui/DataTable';
 import { Select } from '@/shared/ui/Select';
 import { Intake } from './Intake';
+import { CorpusBuild } from './CorpusBuild';
 import { kinds } from './labels';
 import { ProtocolForm } from './ProtocolForm';
 import styles from './corpus.module.css';
@@ -179,6 +180,7 @@ export default function DetailPage() {
       <Card>
         <Intake corpus={corpus} save={save} />
       </Card>
+      <CorpusBuild corpus={corpus} save={save} />
       <Card>
         <h2>Thành viên</h2>
         <Select label="Trạng thái thu thập" value={filter} onChange={(e) => setFilter(e.target.value)}>
