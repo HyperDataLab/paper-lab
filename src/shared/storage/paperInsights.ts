@@ -6,6 +6,9 @@ import {
   RhetoricRunSchema,
   SnapshotRunSchema,
   DigestRunSchema,
+  ContributionRunSchema,
+  type ContributionRun,
+  type ContributionPending,
   type DigestRun,
   type ArgumentPending,
   type ArgumentRun,
@@ -38,6 +41,8 @@ export function createPaperInsightsRepository(
     argumentPending: null,
     snapshotRuns: [],
     digestRuns: [],
+    contributionRuns: [],
+    contributionPending: null,
     decisions: [],
   });
   async function requirePaper(paperId: string) {
@@ -61,6 +66,33 @@ export function createPaperInsightsRepository(
   }
   return {
     get,
+    async saveContributionPending(paperId: string, pending: ContributionPending | null) {
+      return db.transaction('rw', [db.papers, db.paperInsights], async () => {
+        await requirePaper(paperId);
+        const value = PaperInsightsRecordSchema.parse({
+          ...((await get(paperId)) ?? empty(paperId)),
+          updatedAt: now(),
+          contributionPending: pending,
+        });
+        await db.paperInsights.put(value);
+        return value;
+      });
+    },
+    async saveContributionRun(paperId: string, input: ContributionRun) {
+      const run = ContributionRunSchema.parse(input);
+      return db.transaction('rw', [db.papers, db.paperInsights], async () => {
+        await requirePaper(paperId);
+        const previous = (await get(paperId)) ?? empty(paperId);
+        const value = PaperInsightsRecordSchema.parse({
+          ...previous,
+          updatedAt: now(),
+          contributionRuns: [...previous.contributionRuns, run],
+          contributionPending: null,
+        });
+        await db.paperInsights.put(value);
+        return value;
+      });
+    },
     async saveRhetoricPending(paperId: string, pending: RhetoricPending | null) {
       return db.transaction('rw', [db.papers, db.paperInsights], async () => {
         await requirePaper(paperId);

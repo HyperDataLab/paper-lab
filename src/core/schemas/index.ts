@@ -24,3 +24,4 @@ export * from './library';
 export * from './stance';
 export * from './paperModel';
 export * from './corpus';
+export * from './contribution';

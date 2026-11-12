@@ -2,22 +2,10 @@ import { z } from 'zod';
 import { PaperParagraphSchema, SectionSchema } from './paper';
 import { RhetoricCategorySchema } from './paperInsights';
 import { StanceCategorySchema } from './stance';
+import { NCG_UNITS } from './ncgUnits';
+export { NCG_UNITS } from './ncgUnits';
 
 /** NLPContributionGraph information units (SemEval-2021 Task 11). */
-export const NCG_UNITS = [
-  'ResearchProblem',
-  'Approach',
-  'Model',
-  'Code',
-  'Dataset',
-  'ExperimentalSetup',
-  'Hyperparameters',
-  'Baselines',
-  'Results',
-  'Tasks',
-  'Experiments',
-  'AblationAnalysis',
-] as const;
 
 export const PaperModelMetadataSchema = z.object({
   title: z.string(),

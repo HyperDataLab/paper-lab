@@ -2,6 +2,8 @@
 
 The paper's **Data table** space opens a Columns view over its own Extraction project. It lists each column vertically with its value, status and evidence drawer, shows the remaining capacity out of 50 columns, and offers extraction, export and a link to compare additional papers. CSV opens in Excel; JSON retains extraction evidence, while RIS and BibTeX export the paper's metadata.
 
+The Contribution graph view groups verified triples by NCG information unit. Expand a triple to read its sentence and open its location; the analysis action shows its estimated AI calls and the ZIP export includes an out-of-domain note when applicable.
+
 UI and interaction rules for PaperLab. Implements PRD §6 (Highlight and annotation UX) and §9 (Accessibility).
 
 ## 1. Navigation: collapsible sidebar driven by a module registry

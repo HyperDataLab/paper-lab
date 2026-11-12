@@ -65,7 +65,7 @@ import { useBatchRun } from './useBatchRun';
 import { PaperOverview } from './PaperOverview';
 import { PaperReview } from './PaperReview';
 import type { ReactNode } from 'react';
-import { PaperDataTable } from './PaperDataTable';
+import { PaperDataViews } from './PaperDataViews';
 import { Transparency } from '@/shared/report/Transparency';
 import { captureCalibration } from '@/shared/calibration/data';
 import { Loading } from '@/shared/ui/StateNote';
@@ -1352,7 +1352,7 @@ export default function PaperMapPage() {
                       mode === 'info' && openBlocks.includes('metadata') && <PaperMetadata paper={paper} />,
                     )}
                   </div>
-                  {mode === 'data' && <PaperDataTable paper={paper} />}
+                  {mode === 'data' && <PaperDataViews paper={paper} onLocation={openLocation} />}
                   <div hidden={mode !== 'arguments'} className={styles.blocks}>
                     {mode === 'arguments' && overview(['science', 'argument'], 'Arguments overview', batch)}
                     {issuesBlock('argIssues', ['claim', 'evidence'], mode === 'arguments')}
