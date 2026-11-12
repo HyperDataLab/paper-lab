@@ -7,12 +7,15 @@ import { exampleCorpus } from '@/core/corpus/contract';
 import { addMember } from '@/core/corpus/intake';
 import { CorpusSchema } from '@/core/schemas/corpus';
 import { AuthContext } from '@/shared/auth/authContext';
+import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import Page from './Page';
 import DetailPage from './DetailPage';
 
+// The labelling card needs a model client; no test here lets it reach the network.
+const client = { completeJson: vi.fn(() => Promise.reject(new Error('no network in tests'))) };
 function setup(path: string) {
   vi.stubGlobal('crypto', webcrypto);
   const repo = createRepositories(createDb(`corpus-ui-${crypto.randomUUID()}`));
@@ -20,10 +23,12 @@ function setup(path: string) {
     render(
       <MemoryRouter initialEntries={[path]}>
         <StorageProvider repositories={repo}>
-          <Routes>
-            <Route path="/corpus" element={<Page />} />
-            <Route path="/corpus/:id" element={<DetailPage />} />
-          </Routes>
+          <LlmProvider innerClient={client}>
+            <Routes>
+              <Route path="/corpus" element={<Page />} />
+              <Route path="/corpus/:id" element={<DetailPage />} />
+            </Routes>
+          </LlmProvider>
         </StorageProvider>
       </MemoryRouter>,
     );

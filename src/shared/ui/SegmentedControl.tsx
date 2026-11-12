@@ -13,6 +13,7 @@ export function SegmentedControl({
   onChange: (value: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const selected = options.some((option) => option.value === value);
   function keyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key) || options.length === 0)
       return;
@@ -28,12 +29,13 @@ export function SegmentedControl({
   }
   return (
     <div ref={ref} role="radiogroup" aria-label={label} className={styles.segments} onKeyDown={keyDown}>
-      {options.map((option) => (
+      {options.map((option, index) => (
         <Button
           key={option.value}
           role="radio"
           aria-checked={value === option.value}
-          tabIndex={value === option.value ? 0 : -1}
+          // With nothing chosen yet, the first option keeps the group reachable by Tab.
+          tabIndex={value === option.value || (index === 0 && !selected) ? 0 : -1}
           size="sm"
           className={styles.segment}
           onClick={() => onChange(option.value)}
