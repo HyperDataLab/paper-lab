@@ -4,7 +4,7 @@ import { sliceCp } from '@/core/text';
 import { Badge } from '@/shared/ui/Badge';
 import { Card } from '@/shared/ui/Card';
 import { Chip } from '@/shared/ui/Chip';
-import { roleLabels } from '../evaluate/roleLabels';
+import { roleLabels } from '@/modules/evaluate';
 import styles from './page.module.css';
 
 import { checkLabels } from './checkLabels';

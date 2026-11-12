@@ -5,7 +5,7 @@ import type { Analysis, Paper, PaperOverviewRecord, PaperRun } from '@/core/sche
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
-import { labels } from '@/modules/evaluate/issueLabels';
+import { labels } from '@/modules/evaluate';
 import { SECTION_ROLE_LABELS } from './sectionRoles';
 import { OverviewTable, type OverviewFocus } from './OverviewTable';
 import { OverviewTransitions } from './OverviewTransitions';

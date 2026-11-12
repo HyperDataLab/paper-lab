@@ -16,6 +16,7 @@
     "build": "tsc -b && vite build",
     "check:router-cors": "node scripts/check-router-cors.mjs",
     "check:jats": "node scripts/jats-fixtures.mjs && bash scripts/check-jats-dtd.sh",
+    "check:cycles": "node scripts/check-cycles.mjs",
     "schema:paper-model": "node scripts/paper-model-schema.mjs",
     "schema:corpus": "node scripts/paper-model-schema.mjs",
     "schema:corpus-profile": "node scripts/paper-model-schema.mjs",

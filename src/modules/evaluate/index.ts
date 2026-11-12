@@ -12,3 +12,7 @@ const module: ModuleDefinition = {
   page: lazy(() => import('./Page')),
 };
 export default module;
+export { labels, statuses } from './issueLabels';
+export { roleLabels, continuityLabels, relationLabels } from './roleLabels';
+export { ParagraphModes } from './ParagraphModes';
+export { ScoresView } from './ScoresView';

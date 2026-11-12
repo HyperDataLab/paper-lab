@@ -23,7 +23,7 @@ export const stageLabels = { 'title-abstract': 'Tiêu đề và tóm tắt', 'fu
 
 export const prismaLabels: Record<PrismaBoxKey, string> = {
   identified: 'Bản ghi tìm được từ cơ sở dữ liệu',
-  identifiedOtherMethods: 'Bản ghi tìm được bằng cách khác (trích dẫn…)',
+  identifiedOtherMethods: 'Bản ghi tìm được qua trích dẫn',
   duplicatesRemoved: 'Bản ghi trùng đã loại',
   awaitingDuplicateCheck: 'Bản ghi chờ xác nhận trùng',
   recordsOutsideSearches: 'Bài thêm ngoài lượt tìm kiếm',

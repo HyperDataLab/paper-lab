@@ -24,7 +24,7 @@ import { IconButton } from '@/shared/ui/IconButton';
 import { Empty, Loading } from '@/shared/ui/StateNote';
 import { Card } from '@/shared/ui/Card';
 import { PageHeader } from '@/shared/ui/PageHeader';
-import { labels as issueLabels } from '@/modules/evaluate/issueLabels';
+import { labels as issueLabels } from '@/modules/evaluate';
 import { LENSES } from '@/core/prompts';
 import { DIMENSIONS } from '@/core/scoring/rubric';
 import { MeasurementGoldCard } from './MeasurementGold';

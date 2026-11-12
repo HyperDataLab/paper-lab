@@ -72,6 +72,29 @@ refactor of a 1,478-line page with flaky tests and no merge gate cannot be verif
 | Q2  | Fix the two flaky UI tests at the cause                                                 | Codex, Opus fallback                       | each passes 20 full-suite runs in CI-like load (`--maxWorkers=2`)  |
 | Q3  | CI split into fast and test jobs; deploy refuses without green `main`                   | Claude (`.github`) + Codex (deploy script) | a lint error fails in about a minute                               |
 | Q4  | Dropped (owner, 2026-11-11): no Playwright; jsdom tests plus hand checks in the browser | —                                          | —                                                                  |
-| Q5  | ESLint rule between feature modules; `knip`; cycle check                                | Codex                                      | violations listed, then fixed or allowed explicitly                |
+| Q5  | ESLint rule between feature modules; `knip`; cycle check                                | Codex                                      | implemented; module test run incomplete; details below             |
 | Q6  | Split `PaperMapPage.tsx`: tab and space state into a tested hook, blocks into files     | Codex, after Q2–Q3                         | page under 500 lines; behaviour unchanged by the existing UI tests |
 | Q7  | Split `repositories.ts` by store                                                        | Codex                                      | same                                                               |
+
+### Q5 results
+
+ESLint now checks static imports, re-exports, dynamic imports and `require` for cross-module internals.
+The original 20 violations (paths below are relative to `src/modules`) were:
+
+- `calibration/Page.tsx` -> `evaluate/issueLabels`.
+- `corpus/acquisition.ts` -> `paper-import/importPaperFile`.
+- `generate/GenerationResult.tsx` -> `evaluate/roleLabels`; `generate/Page.tsx` -> `evaluate/ParagraphModes`.
+- `generate/generate-ui.test.tsx` -> `evaluate/Page`, `history/Page`.
+- `history/storage-ui.test.tsx` -> `evaluate/Page`, `transfer/Page`.
+- `paper-import/OverviewTransitions.tsx` -> `evaluate/roleLabels`, `evaluate/issueLabels`;
+  `PaperOverview.tsx` and `findingTitle.ts` -> `evaluate/issueLabels`;
+  `paper-ui.test.tsx` -> `evaluate/Page`; `probe-ui.test.tsx` -> `evaluate/ScoresView`.
+- `report/ComparePage.tsx` -> `evaluate/issueLabels`, `revise/checkLabels`;
+  `report/ReportPage.tsx` -> `evaluate/issueLabels`.
+- `revise/Page.tsx` -> `evaluate/issueLabels`; `revise/revise-ui.test.tsx` -> `evaluate/Page`, `history/Page`.
+
+These use public entries now, except seven test page imports explicitly allowed in `eslint.config.js` to keep
+pages lazy. The cycle checker includes type-only and dynamic imports and reports strongly connected components;
+it is available as `npm run check:cycles` but is not in CI. A schema-barrel cycle was removed. Two type-only
+cycles remain: `core/reviewPanel/index.ts` <-> `metrics.ts` and `shared/storage/db.ts` <-> `pdfFiles.ts`.
+Knip was unavailable in the offline npm cache, so the unused-file and export audit was skipped.

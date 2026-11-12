@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 import type { Analysis, Revision } from '@/core/schemas';
 import { sliceCp } from '@/core/text';
-import { labels } from '../evaluate/issueLabels';
+import { labels } from '@/modules/evaluate';
 import { buildRevision } from '@/core/revision';
 import { createLlmRevisionProvider } from '@/shared/llm/llmRevisionProvider';
 import { describeLlmError } from '@/shared/llm/describeError';

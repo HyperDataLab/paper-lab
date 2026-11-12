@@ -14,3 +14,4 @@ const module: ModuleDefinition = {
   hiddenFromSearch: true,
 };
 export default module;
+export { checkLabels } from './checkLabels';

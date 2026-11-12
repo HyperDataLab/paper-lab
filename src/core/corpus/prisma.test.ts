@@ -127,8 +127,22 @@ describe('C3b PRISMA 2020 counts', () => {
   it('C3b PRISMA numbers add up on a hand-checked fixture', () => {
     const counts = prismaCounts(fixture());
     expect(counts.sources).toEqual([
-      { source: 'openalex', kind: 'database', totalReported: 10, retrieved: 3, notExhaustive: true },
-      { source: 'scopus.ris', kind: 'import', totalReported: 4, retrieved: 4, notExhaustive: false },
+      {
+        source: 'openalex',
+        kind: 'database',
+        totalReported: 10,
+        retrieved: 3,
+        notExhaustive: true,
+        updateRound: 0,
+      },
+      {
+        source: 'scopus.ris',
+        kind: 'import',
+        totalReported: 4,
+        retrieved: 4,
+        notExhaustive: false,
+        updateRound: 0,
+      },
     ]);
     expect(counts).toMatchObject({
       identified: 7,
@@ -174,14 +188,20 @@ describe('C3b PRISMA 2020 counts', () => {
       })),
     };
     const boxes = prismaBoxes(prismaCounts(legacy));
-    expect(boxes.filter((box) => box.kind === 'reason')).toEqual([{ kind: 'reason', code: 'other', n: 1 }]);
+    expect(boxes.filter((box) => box.kind === 'reason')).toEqual([
+      { column: 'databases', kind: 'reason', code: 'other', n: 1 },
+    ]);
     expect(boxes.map((box) => (box.kind === 'box' ? box.key : box.kind)).slice(0, 4)).toEqual([
       'source',
       'source',
       'identified',
-      'identifiedOtherMethods',
+      'duplicatesRemoved',
     ]);
-    expect(boxes.at(-1)).toEqual({ kind: 'box', key: 'studiesIncluded', n: 1 });
+    expect(boxes.find((box) => box.column === 'otherMethods')).toMatchObject({
+      key: 'identifiedOtherMethods',
+      n: 0,
+    });
+    expect(boxes.at(-1)).toEqual({ column: 'total', kind: 'box', key: 'studiesIncluded', n: 1 });
   });
 
   it('C3b the screening log lists every decision with its decider', () => {
