@@ -1,5 +1,6 @@
-// Regenerates the paper-model contract (JSON Schema) and its synthetic example from PaperLab code.
-// Usage: npm run schema:paper-model
+// Regenerates the contracts with the Writing Bank (paper model, corpus, corpus profile and feature registry):
+// JSON Schemas and synthetic examples, all from PaperLab code.
+// Usage: npm run schema:paper-model (or schema:corpus, schema:corpus-profile; they run the same script)
 // The code is TypeScript with `@/` aliases, so it is loaded through Vite's SSR loader rather than plain node.
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
@@ -17,6 +18,7 @@ const server = await createServer({
 try {
   const contract = await server.ssrLoadModule('/src/core/paperModel/contract.ts');
   const corpus = await server.ssrLoadModule('/src/core/corpus/contract.ts');
+  const profile = await server.ssrLoadModule('/src/core/corpusProfile/contract.ts');
   const files = [
     [contract.PAPER_MODEL_SCHEMA_FILE, contract.paperModelJsonSchema()],
     [contract.PAPER_MODEL_SCHEMA_PUBLIC_FILE, contract.paperModelJsonSchema()],
@@ -24,6 +26,10 @@ try {
     [corpus.CORPUS_SCHEMA_FILE, corpus.corpusJsonSchema()],
     [corpus.CORPUS_SCHEMA_PUBLIC_FILE, corpus.corpusJsonSchema()],
     [corpus.CORPUS_EXAMPLE_FILE, corpus.exampleCorpus()],
+    [profile.CORPUS_PROFILE_SCHEMA_FILE, profile.corpusProfileJsonSchema()],
+    [profile.CORPUS_PROFILE_SCHEMA_PUBLIC_FILE, profile.corpusProfileJsonSchema()],
+    [profile.CORPUS_PROFILE_EXAMPLE_FILE, await profile.exampleCorpusProfile()],
+    [profile.FEATURE_REGISTRY_FILE, await profile.featureRegistryJson()],
   ];
   for (const [file, value] of files) {
     const path = resolve(root, file);

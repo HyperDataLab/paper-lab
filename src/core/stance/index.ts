@@ -17,7 +17,7 @@ export interface StanceChunk {
   paragraphs: PaperParagraph[];
 }
 
-export const isStanceSection = (section: Section) =>
+export const isStanceSection = (section: Pick<Section, 'role' | 'heading'>) =>
   !['references', 'appendix'].includes(section.role) &&
   !/^(front matter|acknowledg|funding|author contribution|conflict of interest|competing interest|data availability)/i.test(
     section.heading,
