@@ -160,3 +160,15 @@ export const CorpusProfileSchema = z.object({
 
 export type CorpusProfile = z.infer<typeof CorpusProfileSchema>;
 export type CorpusProfileFeature = z.infer<typeof CorpusProfileFeatureSchema>;
+
+export const StoredCorpusProfileSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    corpusId: z.string(),
+    savedAt: timestamp,
+    targetDigest: z.string(),
+    controlDigest: z.string(),
+    profile: CorpusProfileSchema,
+  })
+  .refine((record) => record.corpusId === record.profile.target.corpusId);
+export type StoredCorpusProfile = z.infer<typeof StoredCorpusProfileSchema>;

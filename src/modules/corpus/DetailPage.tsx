@@ -19,7 +19,7 @@ import { CorpusBuild } from './CorpusBuild';
 import { CorpusLabels } from './CorpusLabels';
 import { CorpusProfileCard } from './CorpusProfileCard';
 import { JournalHarvest } from './JournalHarvest';
-import { kinds } from './labels';
+import { kinds, memberRoleLabel, versionLabel } from './labels';
 import { downloadManifest } from './manifest';
 import { PrismaPanel } from './PrismaPanel';
 import { ProtocolForm } from './ProtocolForm';
@@ -307,7 +307,7 @@ export default function DetailPage() {
                         .filter(Boolean)
                         .join(', ') || '—'}
                     </td>
-                    <td>{m.role ?? '—'}</td>
+                    <td>{memberRoleLabel(m.role)}</td>
                     <td>
                       {
                         { sought: 'Đang tìm', retrieved: 'Đã lấy', not_retrieved: 'Không lấy được' }[
@@ -322,7 +322,7 @@ export default function DetailPage() {
                         ]
                       }
                     </td>
-                    <td>{m.version ?? '—'}</td>
+                    <td>{versionLabel(m.version)}</td>
                   </tr>
                 ))}
               </tbody>

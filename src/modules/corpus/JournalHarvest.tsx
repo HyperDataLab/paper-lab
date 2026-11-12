@@ -7,6 +7,7 @@ import { createScholarClient } from '@/shared/scholar/client';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
+import { exclusionLabel } from './labels';
 
 const workSchema = z.object({
   id: z.string(),
@@ -175,7 +176,7 @@ export function JournalHarvest({ corpus, save }: { corpus: Corpus; save: (value:
               </li>
             ))}
           </ul>
-          <p>Loại: {JSON.stringify(report.exclusions)}</p>
+          <p>{exclusionLabel(report.exclusions)}</p>
         </div>
       )}
     </Card>

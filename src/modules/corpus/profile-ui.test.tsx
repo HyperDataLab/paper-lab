@@ -37,7 +37,7 @@ it('C5a computes the profile from stored papers and offers the download', async 
   const journal = await withPapers(target, true);
   await repo.corpora.save(journal);
   await repo.corpora.save(await withPapers(control, false));
-  render(
+  const view = render(
     <StorageProvider repositories={repo}>
       <CorpusProfileCard corpus={journal} />
     </StorageProvider>,
@@ -46,7 +46,31 @@ it('C5a computes the profile from stored papers and offers the download', async 
   fireEvent.click(screen.getByRole('button', { name: 'Tính profile' }));
   expect(await screen.findByText('Thăm dò', {}, { timeout: 10_000 })).toBeInTheDocument();
   expect(screen.getByText(/6 bài tạp chí, 6 bài đối chứng/)).toBeInTheDocument();
-  expect(screen.getByRole('cell', { name: 'Tỷ lệ từ · Mở đầu' })).toBeInTheDocument();
+  expect(screen.getByRole('cell', { name: 'Tỷ lệ từ · Introduction' })).toBeInTheDocument();
   expect(screen.getByRole('table', { name: 'Cụm từ đặc trưng' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Tải corpus-profile.json' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra trên tập giữ riêng' }));
+  expect(await screen.findByText(/AUC/)).toBeInTheDocument();
+  const backup = await repo.transfer.exportAll('test');
+  const restored = createRepositories(createDb(`profile-restored-${crypto.randomUUID()}`));
+  const plan = await restored.transfer.previewImport(backup);
+  if (!plan.ok) throw new Error(plan.error);
+  await restored.transfer.applyImport(plan);
+  expect((await restored.corpusProfiles.get(journal.id))?.profile.holdout).toBeDefined();
+  view.unmount();
+  const reload = (corpus: Corpus) =>
+    render(
+      <StorageProvider repositories={repo}>
+        <CorpusProfileCard corpus={corpus} />
+      </StorageProvider>,
+    );
+  const reopened = reload(journal);
+  expect(await screen.findByText(/Đã tính:/)).toBeInTheDocument();
+  expect(await screen.findByText(/AUC/)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Tính lại' })).toBeInTheDocument();
+  reopened.unmount();
+  const changed = { ...journal, members: journal.members.slice(1) };
+  await repo.corpora.save(changed);
+  reload(changed);
+  expect(await screen.findByText('Corpus đã thay đổi kể từ lần tính')).toBeInTheDocument();
 }, 20_000);

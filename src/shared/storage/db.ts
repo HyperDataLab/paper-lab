@@ -1,3 +1,4 @@
+import type { StoredCorpusProfile } from '@/core/schemas/corpusProfile';
 import type { PdfFileRecord } from './pdfFiles';
 import type { ExtractionProject, PaperContextRecord, PaperInsightsRecord } from '@/core/schemas';
 import Dexie, { type Table } from 'dexie';
@@ -36,6 +37,7 @@ export class ParagraphDb extends Dexie {
   paperContext!: Table<PaperContextRecord, string>;
   paperInsights!: Table<PaperInsightsRecord, string>;
   corpora!: Table<Corpus, string>;
+  corpusProfiles!: Table<StoredCorpusProfile, string>;
   corpusSync!: Table<{ id: string; version: string; snapshot: string }, string>;
   extractionProjects!: Table<ExtractionProject, string>;
   reviewNgrams!: Table<ReviewNgram, [string, string]>;
@@ -71,6 +73,7 @@ export class ParagraphDb extends Dexie {
     this.version(17).stores({ pdfFiles: 'sha256' });
     this.version(18).stores({ corpora: 'id, updatedAt, kind' });
     this.version(19).stores({ corpusSync: 'id' });
+    this.version(20).stores({ corpusProfiles: 'corpusId' });
   }
 }
 export function createDb(name?: string) {

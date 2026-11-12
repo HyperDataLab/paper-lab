@@ -134,11 +134,17 @@ it('C1c exports a manifest accepted by CorpusSchema', async () => {
 });
 it('C1d shows Vietnamese member labels', async () => {
   const corpus = exampleCorpus();
+  const member = corpus.members[0];
+  if (!member) throw new Error('missing member');
+  member.role = 'held_out';
+  member.version = 'acceptedVersion';
   const { repo, mount } = setup(`/corpus/${corpus.id}`);
   await repo.corpora.save(corpus);
   mount();
   expect(await screen.findByRole('cell', { name: 'Đang tìm' })).toBeInTheDocument();
   expect(screen.getByRole('cell', { name: 'Siêu dữ liệu' })).toBeInTheDocument();
+  expect(screen.getByRole('cell', { name: 'Giữ riêng kiểm tra' })).toBeInTheDocument();
+  expect(screen.getByRole('cell', { name: 'Bản chấp nhận' })).toBeInTheDocument();
 });
 it('C1d offers both choices after a stale write', async () => {
   const corpus = { ...exampleCorpus(), id: crypto.randomUUID() };
