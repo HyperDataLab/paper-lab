@@ -9,6 +9,7 @@ import type {
   RhetoricItem,
   RhetoricOutput,
   RhetoricRun,
+  Section,
 } from '../schemas';
 import { planStance, type StanceChunk } from '../stance';
 
@@ -33,15 +34,13 @@ const SKIP_HEADING =
   /^(front matter|acknowledg|funding|author contribution|conflicts? of interest|competing interest)/iu;
 
 /** Data-availability statements are kept in on purpose, unlike the stance sections. */
+export const isRhetoricSection = (section: Pick<Section, 'role' | 'heading'>) =>
+  !['references', 'appendix'].includes(section.role) && !SKIP_HEADING.test(section.heading);
+
 export function defaultRhetoricSections(paper: Paper) {
   const prose = new Set(paper.paragraphs.filter((p) => p.kind === 'body').map((p) => p.sectionId));
   return paper.sections
-    .filter(
-      (section) =>
-        prose.has(section.id) &&
-        !['references', 'appendix'].includes(section.role) &&
-        !SKIP_HEADING.test(section.heading),
-    )
+    .filter((section) => prose.has(section.id) && isRhetoricSection(section))
     .map((section) => section.id);
 }
 

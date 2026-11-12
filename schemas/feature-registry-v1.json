@@ -1,0 +1,439 @@
+{
+  "id": "paperlab-feature-registry",
+  "version": 1,
+  "features": [
+    {
+      "id": "section.ABSTRACT.word_share",
+      "family": "structure",
+      "section": "ABSTRACT",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Section body words divided by article body words."
+    },
+    {
+      "id": "section.ABSTRACT.sentence_length",
+      "family": "linguistic",
+      "section": "ABSTRACT",
+      "granularity": "paper",
+      "metricType": "mean",
+      "unit": "words per sentence",
+      "operationalDefinition": "Mean words per indexed body sentence in the section."
+    },
+    {
+      "id": "section.INTRODUCTION.word_share",
+      "family": "structure",
+      "section": "INTRODUCTION",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Section body words divided by article body words."
+    },
+    {
+      "id": "section.INTRODUCTION.sentence_length",
+      "family": "linguistic",
+      "section": "INTRODUCTION",
+      "granularity": "paper",
+      "metricType": "mean",
+      "unit": "words per sentence",
+      "operationalDefinition": "Mean words per indexed body sentence in the section."
+    },
+    {
+      "id": "section.RELATED_WORK.word_share",
+      "family": "structure",
+      "section": "RELATED_WORK",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Section body words divided by article body words."
+    },
+    {
+      "id": "section.RELATED_WORK.sentence_length",
+      "family": "linguistic",
+      "section": "RELATED_WORK",
+      "granularity": "paper",
+      "metricType": "mean",
+      "unit": "words per sentence",
+      "operationalDefinition": "Mean words per indexed body sentence in the section."
+    },
+    {
+      "id": "section.METHODS.word_share",
+      "family": "structure",
+      "section": "METHODS",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Section body words divided by article body words."
+    },
+    {
+      "id": "section.METHODS.sentence_length",
+      "family": "linguistic",
+      "section": "METHODS",
+      "granularity": "paper",
+      "metricType": "mean",
+      "unit": "words per sentence",
+      "operationalDefinition": "Mean words per indexed body sentence in the section."
+    },
+    {
+      "id": "section.RESULTS.word_share",
+      "family": "structure",
+      "section": "RESULTS",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Section body words divided by article body words."
+    },
+    {
+      "id": "section.RESULTS.sentence_length",
+      "family": "linguistic",
+      "section": "RESULTS",
+      "granularity": "paper",
+      "metricType": "mean",
+      "unit": "words per sentence",
+      "operationalDefinition": "Mean words per indexed body sentence in the section."
+    },
+    {
+      "id": "section.DISCUSSION.word_share",
+      "family": "structure",
+      "section": "DISCUSSION",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Section body words divided by article body words."
+    },
+    {
+      "id": "section.DISCUSSION.sentence_length",
+      "family": "linguistic",
+      "section": "DISCUSSION",
+      "granularity": "paper",
+      "metricType": "mean",
+      "unit": "words per sentence",
+      "operationalDefinition": "Mean words per indexed body sentence in the section."
+    },
+    {
+      "id": "section.CONCLUSION.word_share",
+      "family": "structure",
+      "section": "CONCLUSION",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Section body words divided by article body words."
+    },
+    {
+      "id": "section.CONCLUSION.sentence_length",
+      "family": "linguistic",
+      "section": "CONCLUSION",
+      "granularity": "paper",
+      "metricType": "mean",
+      "unit": "words per sentence",
+      "operationalDefinition": "Mean words per indexed body sentence in the section."
+    },
+    {
+      "id": "section.OTHER.word_share",
+      "family": "structure",
+      "section": "OTHER",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Section body words divided by article body words."
+    },
+    {
+      "id": "section.OTHER.sentence_length",
+      "family": "linguistic",
+      "section": "OTHER",
+      "granularity": "paper",
+      "metricType": "mean",
+      "unit": "words per sentence",
+      "operationalDefinition": "Mean words per indexed body sentence in the section."
+    },
+    {
+      "id": "section.APPENDIX.word_share",
+      "family": "structure",
+      "section": "APPENDIX",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Section body words divided by article body words."
+    },
+    {
+      "id": "section.APPENDIX.sentence_length",
+      "family": "linguistic",
+      "section": "APPENDIX",
+      "granularity": "paper",
+      "metricType": "mean",
+      "unit": "words per sentence",
+      "operationalDefinition": "Mean words per indexed body sentence in the section."
+    },
+    {
+      "id": "paragraph.length",
+      "family": "paragraph",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "mean",
+      "unit": "words per paragraph",
+      "operationalDefinition": "Mean words per body block."
+    },
+    {
+      "id": "citation.rate",
+      "family": "citation",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "rate",
+      "unit": "per 100 words",
+      "operationalDefinition": "Citation markers per 100 body words."
+    },
+    {
+      "id": "stance.hedges",
+      "family": "stance",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "rate",
+      "unit": "per 1000 words",
+      "operationalDefinition": "Non-rejected hedges annotations per 1000 words of the body sections the stance labeller reads (appendices and boilerplate excluded); machine labels included."
+    },
+    {
+      "id": "stance.boosters",
+      "family": "stance",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "rate",
+      "unit": "per 1000 words",
+      "operationalDefinition": "Non-rejected boosters annotations per 1000 words of the body sections the stance labeller reads (appendices and boilerplate excluded); machine labels included."
+    },
+    {
+      "id": "rhetoric.territory",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "operationalDefinition": "Presence of a non-rejected territory annotation in the paper; machine labels included."
+    },
+    {
+      "id": "rhetoric.niche",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "operationalDefinition": "Presence of a non-rejected niche annotation in the paper; machine labels included."
+    },
+    {
+      "id": "rhetoric.occupy",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "operationalDefinition": "Presence of a non-rejected occupy annotation in the paper; machine labels included."
+    },
+    {
+      "id": "rhetoric.result_statement",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "operationalDefinition": "Presence of a non-rejected result_statement annotation in the paper; machine labels included."
+    },
+    {
+      "id": "rhetoric.comparison",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "operationalDefinition": "Presence of a non-rejected comparison annotation in the paper; machine labels included."
+    },
+    {
+      "id": "rhetoric.explanation",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "operationalDefinition": "Presence of a non-rejected explanation annotation in the paper; machine labels included."
+    },
+    {
+      "id": "rhetoric.limitation",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "operationalDefinition": "Presence of a non-rejected limitation annotation in the paper; machine labels included."
+    },
+    {
+      "id": "rhetoric.implication",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "operationalDefinition": "Presence of a non-rejected implication annotation in the paper; machine labels included."
+    },
+    {
+      "id": "rhetoric.threat_internal",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "operationalDefinition": "Presence of a non-rejected threat_internal annotation in the paper; machine labels included."
+    },
+    {
+      "id": "rhetoric.threat_external",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "operationalDefinition": "Presence of a non-rejected threat_external annotation in the paper; machine labels included."
+    },
+    {
+      "id": "rhetoric.threat_construct",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "operationalDefinition": "Presence of a non-rejected threat_construct annotation in the paper; machine labels included."
+    },
+    {
+      "id": "rhetoric.threat_conclusion",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "operationalDefinition": "Presence of a non-rejected threat_conclusion annotation in the paper; machine labels included."
+    },
+    {
+      "id": "rhetoric.data_availability",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "operationalDefinition": "Presence of a non-rejected data_availability annotation in the paper; machine labels included."
+    },
+    {
+      "id": "rhetoric.code_availability",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "operationalDefinition": "Presence of a non-rejected code_availability annotation in the paper; machine labels included."
+    },
+    {
+      "id": "claim.descriptive",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Share of typed claims labelled descriptive in argument runs; machine labels."
+    },
+    {
+      "id": "claim.comparative",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Share of typed claims labelled comparative in argument runs; machine labels."
+    },
+    {
+      "id": "claim.correlational",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Share of typed claims labelled correlational in argument runs; machine labels."
+    },
+    {
+      "id": "claim.causal",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Share of typed claims labelled causal in argument runs; machine labels."
+    },
+    {
+      "id": "claim.mechanistic",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Share of typed claims labelled mechanistic in argument runs; machine labels."
+    },
+    {
+      "id": "claim.predictive",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Share of typed claims labelled predictive in argument runs; machine labels."
+    },
+    {
+      "id": "claim.methodological",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Share of typed claims labelled methodological in argument runs; machine labels."
+    },
+    {
+      "id": "claim.generalisation",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Share of typed claims labelled generalisation in argument runs; machine labels."
+    },
+    {
+      "id": "claim.novelty",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Share of typed claims labelled novelty in argument runs; machine labels."
+    },
+    {
+      "id": "claim.null",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Share of typed claims labelled null in argument runs; machine labels."
+    },
+    {
+      "id": "claim.theoretical",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Share of typed claims labelled theoretical in argument runs; machine labels."
+    },
+    {
+      "id": "claim.recommendation",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "share",
+      "unit": "proportion",
+      "operationalDefinition": "Share of typed claims labelled recommendation in argument runs; machine labels."
+    }
+  ],
+  "digest": "sha256:ce51cd2825ebb2dc87d9aeeada54795bb7c7789d70fb23f4a0d1e5476a12ee27"
+}

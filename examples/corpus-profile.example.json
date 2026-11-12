@@ -1,0 +1,2337 @@
+{
+  "format": "paperlab-corpus-profile",
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-12T00:00:00.000Z",
+  "registry": {
+    "id": "paperlab-feature-registry",
+    "version": 1,
+    "digest": "sha256:ce51cd2825ebb2dc87d9aeeada54795bb7c7789d70fb23f4a0d1e5476a12ee27"
+  },
+  "target": {
+    "corpusId": "example-journal",
+    "kind": "journal",
+    "title": "Synthetic journal",
+    "releaseId": "example-journal-r1",
+    "releaseDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "members": 7,
+    "heldOut": 1,
+    "fullText": 7,
+    "profiled": 6,
+    "notOnDevice": 0,
+    "yearBuckets": [{ "from": 2024, "to": 2025, "papers": 7 }],
+    "withoutYear": 0
+  },
+  "control": {
+    "corpusId": "example-control",
+    "kind": "control",
+    "title": "Synthetic control",
+    "releaseId": "example-control-r1",
+    "releaseDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "members": 7,
+    "heldOut": 1,
+    "fullText": 7,
+    "profiled": 6,
+    "notOnDevice": 0,
+    "yearBuckets": [{ "from": 2024, "to": 2025, "papers": 7 }],
+    "withoutYear": 0
+  },
+  "seed": 42,
+  "thresholds": {
+    "alpha": 0.05,
+    "minCohensD": 0.2,
+    "minProportionDifference": 0.1,
+    "bootstrapResamples": 2000,
+    "minPapersPerCorpus": 150,
+    "minPapersPerBucket": 20,
+    "bucketYears": 2
+  },
+  "features": [
+    {
+      "featureId": "section.ABSTRACT.word_share",
+      "family": "structure",
+      "section": "ABSTRACT",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "deterministic",
+      "target": { "n": 6, "mean": 0, "sd": 0, "median": 0, "q1": 0, "q3": 0 },
+      "control": { "n": 6, "mean": 0, "sd": 0, "median": 0, "q1": 0, "q3": 0 },
+      "comparison": null,
+      "machineShare": null,
+      "coverage": { "target": { "measured": 6, "papers": 6 }, "control": { "measured": 6, "papers": 6 } }
+    },
+    {
+      "featureId": "section.ABSTRACT.sentence_length",
+      "family": "linguistic",
+      "section": "ABSTRACT",
+      "metricType": "mean",
+      "unit": "words per sentence",
+      "extractor": "deterministic",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": null,
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "section.INTRODUCTION.word_share",
+      "family": "structure",
+      "section": "INTRODUCTION",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "deterministic",
+      "target": {
+        "n": 6,
+        "mean": 0.5370662679486209,
+        "sd": 0.013771381607151427,
+        "median": 0.5289915966386555,
+        "q1": 0.5279761904761905,
+        "q3": 0.5478934817170111
+      },
+      "control": {
+        "n": 6,
+        "mean": 0.24894460761498172,
+        "sd": 0.016348531779462053,
+        "median": 0.25290697674418605,
+        "q1": 0.24107142857142855,
+        "q3": 0.2596056622851365
+      },
+      "comparison": {
+        "effectSize": 19.06198993805293,
+        "effectMetric": "cohens_d",
+        "ci95Low": 16.554715284228187,
+        "ci95High": 35.00015855673405,
+        "pValue": 0.0050749891071898935,
+        "qValue": 0.006089986928627872,
+        "bootstrapUnit": "paper"
+      },
+      "machineShare": null,
+      "coverage": { "target": { "measured": 6, "papers": 6 }, "control": { "measured": 6, "papers": 6 } }
+    },
+    {
+      "featureId": "section.INTRODUCTION.sentence_length",
+      "family": "linguistic",
+      "section": "INTRODUCTION",
+      "metricType": "mean",
+      "unit": "words per sentence",
+      "extractor": "deterministic",
+      "target": {
+        "n": 6,
+        "mean": 19.25,
+        "sd": 0.9354143466934853,
+        "median": 19.25,
+        "q1": 18.625,
+        "q3": 19.875
+      },
+      "control": { "n": 6, "mean": 11, "sd": 0.8944271909999159, "median": 11, "q1": 10.25, "q3": 11.75 },
+      "comparison": {
+        "effectSize": 9.014913017684524,
+        "effectMetric": "cohens_d",
+        "ci95Low": 7.798867231800892,
+        "ci95High": 15.170259518616653,
+        "pValue": 0.004846724687550374,
+        "qValue": 0.006089986928627872,
+        "bootstrapUnit": "paper"
+      },
+      "machineShare": null,
+      "coverage": { "target": { "measured": 6, "papers": 6 }, "control": { "measured": 6, "papers": 6 } }
+    },
+    {
+      "featureId": "section.RELATED_WORK.word_share",
+      "family": "structure",
+      "section": "RELATED_WORK",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "deterministic",
+      "target": { "n": 6, "mean": 0, "sd": 0, "median": 0, "q1": 0, "q3": 0 },
+      "control": { "n": 6, "mean": 0, "sd": 0, "median": 0, "q1": 0, "q3": 0 },
+      "comparison": null,
+      "machineShare": null,
+      "coverage": { "target": { "measured": 6, "papers": 6 }, "control": { "measured": 6, "papers": 6 } }
+    },
+    {
+      "featureId": "section.RELATED_WORK.sentence_length",
+      "family": "linguistic",
+      "section": "RELATED_WORK",
+      "metricType": "mean",
+      "unit": "words per sentence",
+      "extractor": "deterministic",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": null,
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "section.METHODS.word_share",
+      "family": "structure",
+      "section": "METHODS",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "deterministic",
+      "target": {
+        "n": 6,
+        "mean": 0.23742313742313745,
+        "sd": 0.007867982680394698,
+        "median": 0.2361111111111111,
+        "q1": 0.23132507507507508,
+        "q3": 0.24117063492063492
+      },
+      "control": {
+        "n": 6,
+        "mean": 0.38526585854695056,
+        "sd": 0.012973975741965618,
+        "median": 0.38207070707070706,
+        "q1": 0.37777777777777777,
+        "q3": 0.39310253699788583
+      },
+      "comparison": {
+        "effectSize": -13.779540794298708,
+        "effectMetric": "cohens_d",
+        "ci95Low": -26.057833897565075,
+        "ci95High": -11.523063486078827,
+        "pValue": 0.004846724687550374,
+        "qValue": 0.006089986928627872,
+        "bootstrapUnit": "paper"
+      },
+      "machineShare": null,
+      "coverage": { "target": { "measured": 6, "papers": 6 }, "control": { "measured": 6, "papers": 6 } }
+    },
+    {
+      "featureId": "section.METHODS.sentence_length",
+      "family": "linguistic",
+      "section": "METHODS",
+      "metricType": "mean",
+      "unit": "words per sentence",
+      "extractor": "deterministic",
+      "target": { "n": 6, "mean": 17, "sd": 0, "median": 17, "q1": 17, "q3": 17 },
+      "control": { "n": 6, "mean": 17, "sd": 0, "median": 17, "q1": 17, "q3": 17 },
+      "comparison": null,
+      "machineShare": null,
+      "coverage": { "target": { "measured": 6, "papers": 6 }, "control": { "measured": 6, "papers": 6 } }
+    },
+    {
+      "featureId": "section.RESULTS.word_share",
+      "family": "structure",
+      "section": "RESULTS",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "deterministic",
+      "target": {
+        "n": 6,
+        "mean": 0.22551059462824166,
+        "sd": 0.012975822733901595,
+        "median": 0.2245798319327731,
+        "q1": 0.21730922098569158,
+        "q3": 0.23422619047619048
+      },
+      "control": {
+        "n": 6,
+        "mean": 0.36578953383806767,
+        "sd": 0.018199607466931562,
+        "median": 0.36038961038961037,
+        "q1": 0.35595238095238096,
+        "q3": 0.36808300395256915
+      },
+      "comparison": {
+        "effectSize": -8.87559059207756,
+        "effectMetric": "cohens_d",
+        "ci95Low": -19.89469072281915,
+        "ci95High": -7.412202355323765,
+        "pValue": 0.0050749891071898935,
+        "qValue": 0.006089986928627872,
+        "bootstrapUnit": "paper"
+      },
+      "machineShare": null,
+      "coverage": { "target": { "measured": 6, "papers": 6 }, "control": { "measured": 6, "papers": 6 } }
+    },
+    {
+      "featureId": "section.RESULTS.sentence_length",
+      "family": "linguistic",
+      "section": "RESULTS",
+      "metricType": "mean",
+      "unit": "words per sentence",
+      "extractor": "deterministic",
+      "target": {
+        "n": 6,
+        "mean": 16.166666666666668,
+        "sd": 1.1690451944500122,
+        "median": 16,
+        "q1": 15.25,
+        "q3": 16.75
+      },
+      "control": {
+        "n": 6,
+        "mean": 16.166666666666668,
+        "sd": 1.1690451944500122,
+        "median": 16,
+        "q1": 15.25,
+        "q3": 16.75
+      },
+      "comparison": {
+        "effectSize": 0,
+        "effectMetric": "cohens_d",
+        "ci95Low": -1.2524485821702995,
+        "ci95High": 1.2413220787308414,
+        "pValue": 0.9999999989503827,
+        "qValue": 0.9999999989503827,
+        "bootstrapUnit": "paper"
+      },
+      "machineShare": null,
+      "coverage": { "target": { "measured": 6, "papers": 6 }, "control": { "measured": 6, "papers": 6 } }
+    },
+    {
+      "featureId": "section.DISCUSSION.word_share",
+      "family": "structure",
+      "section": "DISCUSSION",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "deterministic",
+      "target": { "n": 6, "mean": 0, "sd": 0, "median": 0, "q1": 0, "q3": 0 },
+      "control": { "n": 6, "mean": 0, "sd": 0, "median": 0, "q1": 0, "q3": 0 },
+      "comparison": null,
+      "machineShare": null,
+      "coverage": { "target": { "measured": 6, "papers": 6 }, "control": { "measured": 6, "papers": 6 } }
+    },
+    {
+      "featureId": "section.DISCUSSION.sentence_length",
+      "family": "linguistic",
+      "section": "DISCUSSION",
+      "metricType": "mean",
+      "unit": "words per sentence",
+      "extractor": "deterministic",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": null,
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "section.CONCLUSION.word_share",
+      "family": "structure",
+      "section": "CONCLUSION",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "deterministic",
+      "target": { "n": 6, "mean": 0, "sd": 0, "median": 0, "q1": 0, "q3": 0 },
+      "control": { "n": 6, "mean": 0, "sd": 0, "median": 0, "q1": 0, "q3": 0 },
+      "comparison": null,
+      "machineShare": null,
+      "coverage": { "target": { "measured": 6, "papers": 6 }, "control": { "measured": 6, "papers": 6 } }
+    },
+    {
+      "featureId": "section.CONCLUSION.sentence_length",
+      "family": "linguistic",
+      "section": "CONCLUSION",
+      "metricType": "mean",
+      "unit": "words per sentence",
+      "extractor": "deterministic",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": null,
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "section.OTHER.word_share",
+      "family": "structure",
+      "section": "OTHER",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "deterministic",
+      "target": { "n": 6, "mean": 0, "sd": 0, "median": 0, "q1": 0, "q3": 0 },
+      "control": { "n": 6, "mean": 0, "sd": 0, "median": 0, "q1": 0, "q3": 0 },
+      "comparison": null,
+      "machineShare": null,
+      "coverage": { "target": { "measured": 6, "papers": 6 }, "control": { "measured": 6, "papers": 6 } }
+    },
+    {
+      "featureId": "section.OTHER.sentence_length",
+      "family": "linguistic",
+      "section": "OTHER",
+      "metricType": "mean",
+      "unit": "words per sentence",
+      "extractor": "deterministic",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": null,
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "section.APPENDIX.word_share",
+      "family": "structure",
+      "section": "APPENDIX",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "deterministic",
+      "target": { "n": 6, "mean": 0, "sd": 0, "median": 0, "q1": 0, "q3": 0 },
+      "control": { "n": 6, "mean": 0, "sd": 0, "median": 0, "q1": 0, "q3": 0 },
+      "comparison": null,
+      "machineShare": null,
+      "coverage": { "target": { "measured": 6, "papers": 6 }, "control": { "measured": 6, "papers": 6 } }
+    },
+    {
+      "featureId": "section.APPENDIX.sentence_length",
+      "family": "linguistic",
+      "section": "APPENDIX",
+      "metricType": "mean",
+      "unit": "words per sentence",
+      "extractor": "deterministic",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": null,
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "paragraph.length",
+      "family": "paragraph",
+      "section": "ARTICLE",
+      "metricType": "mean",
+      "unit": "words per paragraph",
+      "extractor": "deterministic",
+      "target": {
+        "n": 6,
+        "mean": 23.88888888888889,
+        "sd": 0.779363462966675,
+        "median": 24,
+        "q1": 23.5,
+        "q3": 24.5
+      },
+      "control": {
+        "n": 6,
+        "mean": 14.722222222222221,
+        "sd": 0.49065338146265824,
+        "median": 14.833333333333332,
+        "q1": 14.416666666666668,
+        "q3": 15
+      },
+      "comparison": {
+        "effectSize": 14.076366889346602,
+        "effectMetric": "cohens_d",
+        "ci95Low": 11.482104513104913,
+        "ci95High": 28.00197823150006,
+        "pValue": 0.004846724687550374,
+        "qValue": 0.006089986928627872,
+        "bootstrapUnit": "paper"
+      },
+      "machineShare": null,
+      "coverage": { "target": { "measured": 6, "papers": 6 }, "control": { "measured": 6, "papers": 6 } }
+    },
+    {
+      "featureId": "citation.rate",
+      "family": "citation",
+      "section": "ARTICLE",
+      "metricType": "rate",
+      "unit": "per 100 words",
+      "extractor": "deterministic",
+      "target": { "n": 6, "mean": 0, "sd": 0, "median": 0, "q1": 0, "q3": 0 },
+      "control": { "n": 6, "mean": 0, "sd": 0, "median": 0, "q1": 0, "q3": 0 },
+      "comparison": null,
+      "machineShare": null,
+      "coverage": { "target": { "measured": 6, "papers": 6 }, "control": { "measured": 6, "papers": 6 } }
+    },
+    {
+      "featureId": "stance.hedges",
+      "family": "stance",
+      "section": "ARTICLE",
+      "metricType": "rate",
+      "unit": "per 1000 words",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "stance.boosters",
+      "family": "stance",
+      "section": "ARTICLE",
+      "metricType": "rate",
+      "unit": "per 1000 words",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "rhetoric.territory",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "rhetoric.niche",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "rhetoric.occupy",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "rhetoric.result_statement",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "rhetoric.comparison",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "rhetoric.explanation",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "rhetoric.limitation",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "rhetoric.implication",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "rhetoric.threat_internal",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "rhetoric.threat_external",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "rhetoric.threat_construct",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "rhetoric.threat_conclusion",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "rhetoric.data_availability",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "rhetoric.code_availability",
+      "family": "rhetorical",
+      "section": "ARTICLE",
+      "metricType": "prevalence",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "claim.descriptive",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "claim.comparative",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "claim.correlational",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "claim.causal",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "claim.mechanistic",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "claim.predictive",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "claim.methodological",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "claim.generalisation",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "claim.novelty",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "claim.null",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "claim.theoretical",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    },
+    {
+      "featureId": "claim.recommendation",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "metricType": "share",
+      "unit": "proportion",
+      "extractor": "llm",
+      "target": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "control": { "n": 0, "mean": null, "sd": null, "median": null, "q1": null, "q3": null },
+      "comparison": null,
+      "machineShare": { "target": null, "control": null },
+      "coverage": { "target": { "measured": 0, "papers": 6 }, "control": { "measured": 0, "papers": 6 } }
+    }
+  ],
+  "distinctiveFeatureIds": [
+    "section.INTRODUCTION.word_share",
+    "section.INTRODUCTION.sentence_length",
+    "section.METHODS.word_share",
+    "section.RESULTS.word_share",
+    "paragraph.length"
+  ],
+  "phrases": {
+    "tokenizerVersion": "paperlab-phrase-1+pl-tok-2",
+    "normalisation": "Body sentences only (publisher boilerplate, references and title removed). Word tokens of the PaperLab tokenizer; NFKC, lower-cased, curly apostrophes made straight; numbers, citation markers, punctuation and symbols dropped. N-grams of 1–5 tokens never cross a sentence boundary.",
+    "rules": {
+      "maxWords": 5,
+      "minTargetPrevalence": 0.05,
+      "minTargetPapers": 5,
+      "alpha": 0.05,
+      "top": 50,
+      "maxEvidence": 3,
+      "maxExcerptChars": 300
+    },
+    "tested": 155,
+    "items": [
+      {
+        "phraseId": "phrase.3.3538dd2f",
+        "text": "a toy idea",
+        "words": 3,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "4ec5882747baa778#1",
+            "excerpt": "It extends a toy idea word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "de8133adc767012e#1",
+            "excerpt": "It extends a toy idea word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "c7d69b634baa7698#1",
+            "excerpt": "It extends a toy idea word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.1.9c7f8847",
+        "text": "best",
+        "words": 1,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.2.9ca20bc8",
+        "text": "best of",
+        "words": 2,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.3.845f59f6",
+        "text": "best of our",
+        "words": 3,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.4.173052d6",
+        "text": "best of our knowledge",
+        "words": 4,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.5.c5912692",
+        "text": "best of our knowledge this",
+        "words": 5,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.1.9d85d64e",
+        "text": "extends",
+        "words": 1,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "4ec5882747baa778#1",
+            "excerpt": "It extends a toy idea word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "de8133adc767012e#1",
+            "excerpt": "It extends a toy idea word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "c7d69b634baa7698#1",
+            "excerpt": "It extends a toy idea word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.2.85f19311",
+        "text": "extends a",
+        "words": 2,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "4ec5882747baa778#1",
+            "excerpt": "It extends a toy idea word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "de8133adc767012e#1",
+            "excerpt": "It extends a toy idea word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "c7d69b634baa7698#1",
+            "excerpt": "It extends a toy idea word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.3.e1aa3435",
+        "text": "extends a toy",
+        "words": 3,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "4ec5882747baa778#1",
+            "excerpt": "It extends a toy idea word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "de8133adc767012e#1",
+            "excerpt": "It extends a toy idea word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "c7d69b634baa7698#1",
+            "excerpt": "It extends a toy idea word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.4.3eae754c",
+        "text": "extends a toy idea",
+        "words": 4,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "4ec5882747baa778#1",
+            "excerpt": "It extends a toy idea word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "de8133adc767012e#1",
+            "excerpt": "It extends a toy idea word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "c7d69b634baa7698#1",
+            "excerpt": "It extends a toy idea word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.1.faf0de9a",
+        "text": "idea",
+        "words": 1,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "4ec5882747baa778#1",
+            "excerpt": "It extends a toy idea word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "de8133adc767012e#1",
+            "excerpt": "It extends a toy idea word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "c7d69b634baa7698#1",
+            "excerpt": "It extends a toy idea word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.2.e8efc56f",
+        "text": "is new",
+        "words": 2,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.1.47388410",
+        "text": "it",
+        "words": 1,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "4ec5882747baa778#1",
+            "excerpt": "It extends a toy idea word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "de8133adc767012e#1",
+            "excerpt": "It extends a toy idea word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "c7d69b634baa7698#1",
+            "excerpt": "It extends a toy idea word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.2.b0c60ee9",
+        "text": "it extends",
+        "words": 2,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "4ec5882747baa778#1",
+            "excerpt": "It extends a toy idea word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "de8133adc767012e#1",
+            "excerpt": "It extends a toy idea word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "c7d69b634baa7698#1",
+            "excerpt": "It extends a toy idea word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.3.76d941be",
+        "text": "it extends a",
+        "words": 3,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "4ec5882747baa778#1",
+            "excerpt": "It extends a toy idea word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "de8133adc767012e#1",
+            "excerpt": "It extends a toy idea word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "c7d69b634baa7698#1",
+            "excerpt": "It extends a toy idea word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.4.75659932",
+        "text": "it extends a toy",
+        "words": 4,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "4ec5882747baa778#1",
+            "excerpt": "It extends a toy idea word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "de8133adc767012e#1",
+            "excerpt": "It extends a toy idea word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "c7d69b634baa7698#1",
+            "excerpt": "It extends a toy idea word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.5.9ff1a8f1",
+        "text": "it extends a toy idea",
+        "words": 5,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "4ec5882747baa778#1",
+            "excerpt": "It extends a toy idea word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "de8133adc767012e#1",
+            "excerpt": "It extends a toy idea word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "c7d69b634baa7698#1",
+            "excerpt": "It extends a toy idea word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2 word3 word4 word5 word6 word0 word1 word2."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.1.3eb5feeb",
+        "text": "knowledge",
+        "words": 1,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.2.54e49be5",
+        "text": "knowledge this",
+        "words": 2,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.3.f3f08772",
+        "text": "knowledge this synthetic",
+        "words": 3,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.4.79ac3d5d",
+        "text": "knowledge this synthetic scheme",
+        "words": 4,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.5.9183f6db",
+        "text": "knowledge this synthetic scheme is",
+        "words": 5,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.1.28999611",
+        "text": "new",
+        "words": 1,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.1.69343c68",
+        "text": "of",
+        "words": 1,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.2.ecaac796",
+        "text": "of our",
+        "words": 2,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.3.c23448f6",
+        "text": "of our knowledge",
+        "words": 3,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.4.428afa32",
+        "text": "of our knowledge this",
+        "words": 4,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.5.4f46c539",
+        "text": "of our knowledge this synthetic",
+        "words": 5,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.1.a91a3339",
+        "text": "our",
+        "words": 1,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.2.68ad50f1",
+        "text": "our knowledge",
+        "words": 2,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.3.9430d51b",
+        "text": "our knowledge this",
+        "words": 3,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.4.5fbbd6ec",
+        "text": "our knowledge this synthetic",
+        "words": 4,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.5.a0e1f033",
+        "text": "our knowledge this synthetic scheme",
+        "words": 5,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.1.567d0982",
+        "text": "scheme",
+        "words": 1,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.2.4fee684a",
+        "text": "scheme is",
+        "words": 2,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.3.e7455988",
+        "text": "scheme is new",
+        "words": 3,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.2.7c9cd00f",
+        "text": "synthetic scheme",
+        "words": 2,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.3.8fb6fa1d",
+        "text": "synthetic scheme is",
+        "words": 3,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.4.1e3feca7",
+        "text": "synthetic scheme is new",
+        "words": 4,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.2.c8b8b3c2",
+        "text": "the best",
+        "words": 2,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.3.60a87597",
+        "text": "the best of",
+        "words": 3,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.4.7daf0429",
+        "text": "the best of our",
+        "words": 4,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.5.1df73f01",
+        "text": "the best of our knowledge",
+        "words": 5,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.1.da2bd281",
+        "text": "this",
+        "words": 1,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.2.fd7fc51e",
+        "text": "this synthetic",
+        "words": 2,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.3.f656bad9",
+        "text": "this synthetic scheme",
+        "words": 3,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.4.51d65fbf",
+        "text": "this synthetic scheme is",
+        "words": 4,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.5.c0347e79",
+        "text": "this synthetic scheme is new",
+        "words": 5,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.1.42454824",
+        "text": "to",
+        "words": 1,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      },
+      {
+        "phraseId": "phrase.2.9f3811bf",
+        "text": "to the",
+        "words": 2,
+        "targetPapers": 6,
+        "controlPapers": 0,
+        "targetPrevalence": 1,
+        "controlPrevalence": 0,
+        "g2": 16.635532333438686,
+        "logRatio": 3.700439718141092,
+        "pValue": 0.00004531829251569145,
+        "qValue": 0.00013008028407281803,
+        "evidence": [
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100000",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100001",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          },
+          {
+            "memberExportId": "p00000000-0000-4000-8000-000000100002",
+            "sentenceKey": "1e77615a5fadd010#1",
+            "excerpt": "To the best of our knowledge this synthetic scheme is new."
+          }
+        ]
+      }
+    ]
+  },
+  "interpretationStatus": "exploratory",
+  "interpretationReason": "Below the minimums of CORPUS_PLAN section 4. Synthetic journal: 7 full-text papers, fewer than 150; Synthetic journal: 2024–2025 has 7 (fewer than 20 per bucket); Synthetic control: 7 full-text papers, fewer than 150; Synthetic control: 2024–2025 has 7 (fewer than 20 per bucket).",
+  "holdoutVerified": false,
+  "warnings": [],
+  "methodNotes": [
+    "Values are per paper: body blocks only, publisher boilerplate (competing interests, CRediT, data availability, acknowledgements, funding, front matter), references and title removed; one paper model per member.",
+    "Profiled papers are build members that were retrieved, read in full text and have a paper on this device; held-out members are never profiled.",
+    "Continuous features compare corpora with Cohen's d (pooled SD); prevalence features with the difference in proportions. The 95% CI is a percentile bootstrap of that same effect over 2000 resamples of whole papers, independently within each corpus, seeded from the profile seed.",
+    "p values are two-sided Mann–Whitney U (normal approximation, tie and continuity corrected). q values are Benjamini–Hochberg over every registry feature with a p value; phrases form a separate family.",
+    "A feature is distinctive when q < 0.05 and |d| ≥ 0.2 or |difference in proportions| ≥ 0.1.",
+    "Machine-label features (stance, rhetoric, claim types) count a paper only when its latest run covers every body section except appendices; machineShare is the share of counted labels no person has confirmed.",
+    "Phrases: document frequency (papers using the phrase, counted once per paper) compared by G² (1 df) and Log Ratio; tested only when used by at least 5% of target papers and at least 5 papers (owner decision 5); only phrases the target uses more are listed, top 50 by G² with q < 0.05; evidence excerpts are at most 300 characters (decision 6).",
+    "Year buckets are 2 years wide from the earliest protocol year (or paper year when the protocol names none); sizes and buckets count full-text members, held-out ones included.",
+    "Not yet done: author-cluster bootstrap, leaving each control journal out, confound checks and the held-out test (C5b)."
+  ]
+}

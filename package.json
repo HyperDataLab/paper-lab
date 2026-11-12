@@ -17,6 +17,7 @@
     "check:router-cors": "node scripts/check-router-cors.mjs",
     "schema:paper-model": "node scripts/paper-model-schema.mjs",
     "schema:corpus": "node scripts/paper-model-schema.mjs",
+    "schema:corpus-profile": "node scripts/paper-model-schema.mjs",
     "bench:arguments": "node scripts/bench-arguments.mjs"
   },
   "dependencies": {
