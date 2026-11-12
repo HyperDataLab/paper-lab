@@ -118,6 +118,7 @@
                 ]
               },
               "retrieval": { "type": "string", "enum": ["sought", "retrieved", "not_retrieved"] },
+              "retrievalReason": { "type": "string" },
               "textRead": { "type": "string", "enum": ["FULL_TEXT", "ABSTRACT_ONLY", "METADATA_ONLY"] },
               "authorIds": { "type": "array", "items": { "type": "string" } },
               "countries": { "type": "array", "items": { "type": "string" } },
@@ -318,6 +319,38 @@
             "required": ["id", "candidate", "input"],
             "additionalProperties": false
           }
+        },
+        "buildQueue": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string", "enum": ["running", "paused", "cancelled", "complete"] },
+            "pending": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              }
+            },
+            "failed": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "memberId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "reason": { "type": "string" }
+                },
+                "required": ["memberId", "reason"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": ["status", "pending", "failed"],
+          "additionalProperties": false
         },
         "kind": { "type": "string", "const": "journal" },
         "protocol": {
@@ -514,6 +547,7 @@
                 ]
               },
               "retrieval": { "type": "string", "enum": ["sought", "retrieved", "not_retrieved"] },
+              "retrievalReason": { "type": "string" },
               "textRead": { "type": "string", "enum": ["FULL_TEXT", "ABSTRACT_ONLY", "METADATA_ONLY"] },
               "authorIds": { "type": "array", "items": { "type": "string" } },
               "countries": { "type": "array", "items": { "type": "string" } },
@@ -714,6 +748,38 @@
             "required": ["id", "candidate", "input"],
             "additionalProperties": false
           }
+        },
+        "buildQueue": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string", "enum": ["running", "paused", "cancelled", "complete"] },
+            "pending": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              }
+            },
+            "failed": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "memberId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "reason": { "type": "string" }
+                },
+                "required": ["memberId", "reason"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": ["status", "pending", "failed"],
+          "additionalProperties": false
         },
         "kind": { "type": "string", "const": "control" },
         "protocol": {
@@ -910,6 +976,7 @@
                 ]
               },
               "retrieval": { "type": "string", "enum": ["sought", "retrieved", "not_retrieved"] },
+              "retrievalReason": { "type": "string" },
               "textRead": { "type": "string", "enum": ["FULL_TEXT", "ABSTRACT_ONLY", "METADATA_ONLY"] },
               "authorIds": { "type": "array", "items": { "type": "string" } },
               "countries": { "type": "array", "items": { "type": "string" } },
@@ -1110,6 +1177,38 @@
             "required": ["id", "candidate", "input"],
             "additionalProperties": false
           }
+        },
+        "buildQueue": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string", "enum": ["running", "paused", "cancelled", "complete"] },
+            "pending": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              }
+            },
+            "failed": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "memberId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "reason": { "type": "string" }
+                },
+                "required": ["memberId", "reason"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": ["status", "pending", "failed"],
+          "additionalProperties": false
         },
         "kind": { "type": "string", "const": "topic" },
         "protocol": {
