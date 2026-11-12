@@ -108,7 +108,7 @@ export function decideCandidate(
       ? {
           ...candidate,
           status,
-          reason: reason ?? candidate.suggestion?.reason ?? null,
+          reason: reason ?? null,
           decidedAt: status === 'candidate' ? null : at,
         }
       : candidate,

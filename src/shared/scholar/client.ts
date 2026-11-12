@@ -139,7 +139,7 @@ export function createScholarClient(options: { email?: string | null }, deps: De
     ].filter(Boolean);
     const url = `https://api.openalex.org/works?search=${encodeURIComponent(query)}${filters.length ? `&filter=${filters.join(',')}` : ''}&per-page=${options.perPage}&select=${SEARCH_FIELDS}`;
     const body = (await getJson(url, signal)) as { results?: unknown[]; meta?: { count?: number } } | null;
-    return { results: body?.results ?? [], total: body?.meta?.count ?? 0 };
+    return { results: body?.results ?? [], total: body?.meta?.count ?? 0, url };
   }
   /** One hop along the citation graph: works citing this one, or works it cites. */
   async function citationWorks(

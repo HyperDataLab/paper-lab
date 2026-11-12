@@ -74,6 +74,254 @@
             ]
           }
         },
+        "deep": {
+          "type": "object",
+          "properties": {
+            "plan": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "concepts": { "type": "array", "items": { "type": "string" } },
+                    "queries": { "type": "array", "items": { "type": "string" } },
+                    "inclusion": { "type": "array", "items": { "type": "string" } },
+                    "exclusion": { "type": "array", "items": { "type": "string" } },
+                    "fromYear": {
+                      "anyOf": [
+                        { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+                        { "type": "null" }
+                      ]
+                    },
+                    "toYear": {
+                      "anyOf": [
+                        { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+                        { "type": "null" }
+                      ]
+                    },
+                    "perQuery": { "type": "integer", "minimum": 1, "maximum": 50 },
+                    "approvedAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        { "type": "null" }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "concepts",
+                    "queries",
+                    "inclusion",
+                    "exclusion",
+                    "fromYear",
+                    "toYear",
+                    "perQuery",
+                    "approvedAt"
+                  ],
+                  "additionalProperties": false
+                },
+                { "type": "null" }
+              ]
+            },
+            "rounds": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": { "type": "string" },
+                  "at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "kind": { "type": "string", "enum": ["query", "cites", "cited_by"] },
+                  "input": { "type": "string" },
+                  "found": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "added": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "note": { "type": ["string", "null"] }
+                },
+                "required": ["id", "at", "kind", "input", "found", "added", "note"],
+                "additionalProperties": false
+              }
+            },
+            "candidates": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": { "type": "string" },
+                  "openalexId": { "type": ["string", "null"] },
+                  "doi": { "type": ["string", "null"] },
+                  "title": { "type": "string" },
+                  "year": {
+                    "anyOf": [
+                      { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+                      { "type": "null" }
+                    ]
+                  },
+                  "authors": { "type": "array", "items": { "type": "string" } },
+                  "venue": { "type": ["string", "null"] },
+                  "abstract": { "type": ["string", "null"] },
+                  "citedBy": {
+                    "anyOf": [
+                      { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                      { "type": "null" }
+                    ]
+                  },
+                  "foundBy": { "type": "array", "items": { "type": "string" } },
+                  "status": { "type": "string", "enum": ["candidate", "included", "excluded", "uncertain"] },
+                  "suggestion": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "decision": { "type": "string", "enum": ["included", "excluded", "uncertain"] },
+                          "reason": { "type": "string" }
+                        },
+                        "required": ["decision", "reason"],
+                        "additionalProperties": false
+                      },
+                      { "type": "null" }
+                    ]
+                  },
+                  "reason": { "type": ["string", "null"] },
+                  "decidedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      { "type": "null" }
+                    ]
+                  }
+                },
+                "required": [
+                  "key",
+                  "openalexId",
+                  "doi",
+                  "title",
+                  "year",
+                  "authors",
+                  "venue",
+                  "abstract",
+                  "citedBy",
+                  "foundBy",
+                  "status",
+                  "suggestion",
+                  "reason",
+                  "decidedAt"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "syntheses": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "model": { "type": "string" },
+                  "promptVersion": { "type": "string" },
+                  "paperKeys": { "type": "array", "items": { "type": "string" } },
+                  "claims": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "kind": { "type": "string", "enum": ["theme", "agreement", "disagreement", "gap"] },
+                        "text": { "type": "string" },
+                        "paperKeys": { "type": "array", "items": { "type": "string" } },
+                        "caveat": { "type": ["string", "null"] },
+                        "supported": { "type": "boolean" },
+                        "citations": {
+                          "default": [],
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "paperKey": { "type": "string" },
+                              "fieldKey": { "type": "string" },
+                              "fieldLabel": { "type": "string" },
+                              "value": { "type": "string" },
+                              "fullText": { "type": "boolean" },
+                              "humanVerified": { "type": "boolean" },
+                              "quotes": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "paragraphId": { "type": ["string", "null"] },
+                                    "section": { "type": ["string", "null"] },
+                                    "page": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        { "type": "null" }
+                                      ]
+                                    },
+                                    "start": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                                    "end": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "quote": { "type": "string" }
+                                  },
+                                  "required": ["paragraphId", "section", "page", "start", "end", "quote"],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "paperKey",
+                              "fieldKey",
+                              "fieldLabel",
+                              "value",
+                              "fullText",
+                              "humanVerified",
+                              "quotes"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": ["kind", "text", "paperKeys", "caveat", "supported", "citations"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "droppedRefs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                },
+                "required": [
+                  "id",
+                  "createdAt",
+                  "model",
+                  "promptVersion",
+                  "paperKeys",
+                  "claims",
+                  "droppedRefs"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": ["plan", "rounds", "candidates", "syntheses"],
+          "additionalProperties": false
+        },
         "members": {
           "type": "array",
           "items": {
@@ -600,6 +848,254 @@
             ]
           }
         },
+        "deep": {
+          "type": "object",
+          "properties": {
+            "plan": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "concepts": { "type": "array", "items": { "type": "string" } },
+                    "queries": { "type": "array", "items": { "type": "string" } },
+                    "inclusion": { "type": "array", "items": { "type": "string" } },
+                    "exclusion": { "type": "array", "items": { "type": "string" } },
+                    "fromYear": {
+                      "anyOf": [
+                        { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+                        { "type": "null" }
+                      ]
+                    },
+                    "toYear": {
+                      "anyOf": [
+                        { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+                        { "type": "null" }
+                      ]
+                    },
+                    "perQuery": { "type": "integer", "minimum": 1, "maximum": 50 },
+                    "approvedAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        { "type": "null" }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "concepts",
+                    "queries",
+                    "inclusion",
+                    "exclusion",
+                    "fromYear",
+                    "toYear",
+                    "perQuery",
+                    "approvedAt"
+                  ],
+                  "additionalProperties": false
+                },
+                { "type": "null" }
+              ]
+            },
+            "rounds": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": { "type": "string" },
+                  "at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "kind": { "type": "string", "enum": ["query", "cites", "cited_by"] },
+                  "input": { "type": "string" },
+                  "found": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "added": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "note": { "type": ["string", "null"] }
+                },
+                "required": ["id", "at", "kind", "input", "found", "added", "note"],
+                "additionalProperties": false
+              }
+            },
+            "candidates": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": { "type": "string" },
+                  "openalexId": { "type": ["string", "null"] },
+                  "doi": { "type": ["string", "null"] },
+                  "title": { "type": "string" },
+                  "year": {
+                    "anyOf": [
+                      { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+                      { "type": "null" }
+                    ]
+                  },
+                  "authors": { "type": "array", "items": { "type": "string" } },
+                  "venue": { "type": ["string", "null"] },
+                  "abstract": { "type": ["string", "null"] },
+                  "citedBy": {
+                    "anyOf": [
+                      { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                      { "type": "null" }
+                    ]
+                  },
+                  "foundBy": { "type": "array", "items": { "type": "string" } },
+                  "status": { "type": "string", "enum": ["candidate", "included", "excluded", "uncertain"] },
+                  "suggestion": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "decision": { "type": "string", "enum": ["included", "excluded", "uncertain"] },
+                          "reason": { "type": "string" }
+                        },
+                        "required": ["decision", "reason"],
+                        "additionalProperties": false
+                      },
+                      { "type": "null" }
+                    ]
+                  },
+                  "reason": { "type": ["string", "null"] },
+                  "decidedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      { "type": "null" }
+                    ]
+                  }
+                },
+                "required": [
+                  "key",
+                  "openalexId",
+                  "doi",
+                  "title",
+                  "year",
+                  "authors",
+                  "venue",
+                  "abstract",
+                  "citedBy",
+                  "foundBy",
+                  "status",
+                  "suggestion",
+                  "reason",
+                  "decidedAt"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "syntheses": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "model": { "type": "string" },
+                  "promptVersion": { "type": "string" },
+                  "paperKeys": { "type": "array", "items": { "type": "string" } },
+                  "claims": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "kind": { "type": "string", "enum": ["theme", "agreement", "disagreement", "gap"] },
+                        "text": { "type": "string" },
+                        "paperKeys": { "type": "array", "items": { "type": "string" } },
+                        "caveat": { "type": ["string", "null"] },
+                        "supported": { "type": "boolean" },
+                        "citations": {
+                          "default": [],
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "paperKey": { "type": "string" },
+                              "fieldKey": { "type": "string" },
+                              "fieldLabel": { "type": "string" },
+                              "value": { "type": "string" },
+                              "fullText": { "type": "boolean" },
+                              "humanVerified": { "type": "boolean" },
+                              "quotes": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "paragraphId": { "type": ["string", "null"] },
+                                    "section": { "type": ["string", "null"] },
+                                    "page": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        { "type": "null" }
+                                      ]
+                                    },
+                                    "start": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                                    "end": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "quote": { "type": "string" }
+                                  },
+                                  "required": ["paragraphId", "section", "page", "start", "end", "quote"],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "paperKey",
+                              "fieldKey",
+                              "fieldLabel",
+                              "value",
+                              "fullText",
+                              "humanVerified",
+                              "quotes"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": ["kind", "text", "paperKeys", "caveat", "supported", "citations"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "droppedRefs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                },
+                "required": [
+                  "id",
+                  "createdAt",
+                  "model",
+                  "promptVersion",
+                  "paperKeys",
+                  "claims",
+                  "droppedRefs"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": ["plan", "rounds", "candidates", "syntheses"],
+          "additionalProperties": false
+        },
         "members": {
           "type": "array",
           "items": {
@@ -1125,6 +1621,254 @@
               }
             ]
           }
+        },
+        "deep": {
+          "type": "object",
+          "properties": {
+            "plan": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "concepts": { "type": "array", "items": { "type": "string" } },
+                    "queries": { "type": "array", "items": { "type": "string" } },
+                    "inclusion": { "type": "array", "items": { "type": "string" } },
+                    "exclusion": { "type": "array", "items": { "type": "string" } },
+                    "fromYear": {
+                      "anyOf": [
+                        { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+                        { "type": "null" }
+                      ]
+                    },
+                    "toYear": {
+                      "anyOf": [
+                        { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+                        { "type": "null" }
+                      ]
+                    },
+                    "perQuery": { "type": "integer", "minimum": 1, "maximum": 50 },
+                    "approvedAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        { "type": "null" }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "concepts",
+                    "queries",
+                    "inclusion",
+                    "exclusion",
+                    "fromYear",
+                    "toYear",
+                    "perQuery",
+                    "approvedAt"
+                  ],
+                  "additionalProperties": false
+                },
+                { "type": "null" }
+              ]
+            },
+            "rounds": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": { "type": "string" },
+                  "at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "kind": { "type": "string", "enum": ["query", "cites", "cited_by"] },
+                  "input": { "type": "string" },
+                  "found": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "added": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "note": { "type": ["string", "null"] }
+                },
+                "required": ["id", "at", "kind", "input", "found", "added", "note"],
+                "additionalProperties": false
+              }
+            },
+            "candidates": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": { "type": "string" },
+                  "openalexId": { "type": ["string", "null"] },
+                  "doi": { "type": ["string", "null"] },
+                  "title": { "type": "string" },
+                  "year": {
+                    "anyOf": [
+                      { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+                      { "type": "null" }
+                    ]
+                  },
+                  "authors": { "type": "array", "items": { "type": "string" } },
+                  "venue": { "type": ["string", "null"] },
+                  "abstract": { "type": ["string", "null"] },
+                  "citedBy": {
+                    "anyOf": [
+                      { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                      { "type": "null" }
+                    ]
+                  },
+                  "foundBy": { "type": "array", "items": { "type": "string" } },
+                  "status": { "type": "string", "enum": ["candidate", "included", "excluded", "uncertain"] },
+                  "suggestion": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "decision": { "type": "string", "enum": ["included", "excluded", "uncertain"] },
+                          "reason": { "type": "string" }
+                        },
+                        "required": ["decision", "reason"],
+                        "additionalProperties": false
+                      },
+                      { "type": "null" }
+                    ]
+                  },
+                  "reason": { "type": ["string", "null"] },
+                  "decidedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      { "type": "null" }
+                    ]
+                  }
+                },
+                "required": [
+                  "key",
+                  "openalexId",
+                  "doi",
+                  "title",
+                  "year",
+                  "authors",
+                  "venue",
+                  "abstract",
+                  "citedBy",
+                  "foundBy",
+                  "status",
+                  "suggestion",
+                  "reason",
+                  "decidedAt"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "syntheses": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "model": { "type": "string" },
+                  "promptVersion": { "type": "string" },
+                  "paperKeys": { "type": "array", "items": { "type": "string" } },
+                  "claims": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "kind": { "type": "string", "enum": ["theme", "agreement", "disagreement", "gap"] },
+                        "text": { "type": "string" },
+                        "paperKeys": { "type": "array", "items": { "type": "string" } },
+                        "caveat": { "type": ["string", "null"] },
+                        "supported": { "type": "boolean" },
+                        "citations": {
+                          "default": [],
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "paperKey": { "type": "string" },
+                              "fieldKey": { "type": "string" },
+                              "fieldLabel": { "type": "string" },
+                              "value": { "type": "string" },
+                              "fullText": { "type": "boolean" },
+                              "humanVerified": { "type": "boolean" },
+                              "quotes": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "paragraphId": { "type": ["string", "null"] },
+                                    "section": { "type": ["string", "null"] },
+                                    "page": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        { "type": "null" }
+                                      ]
+                                    },
+                                    "start": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                                    "end": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "quote": { "type": "string" }
+                                  },
+                                  "required": ["paragraphId", "section", "page", "start", "end", "quote"],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "paperKey",
+                              "fieldKey",
+                              "fieldLabel",
+                              "value",
+                              "fullText",
+                              "humanVerified",
+                              "quotes"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": ["kind", "text", "paperKeys", "caveat", "supported", "citations"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "droppedRefs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                },
+                "required": [
+                  "id",
+                  "createdAt",
+                  "model",
+                  "promptVersion",
+                  "paperKeys",
+                  "claims",
+                  "droppedRefs"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": ["plan", "rounds", "candidates", "syntheses"],
+          "additionalProperties": false
         },
         "members": {
           "type": "array",

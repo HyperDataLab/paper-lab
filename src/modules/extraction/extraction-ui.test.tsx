@@ -183,7 +183,11 @@ it('Deep Research waits for an approved plan and leaves screening decisions to a
   await waitFor(async () => expect((await repo.extraction.get(saved.id))?.papers).toHaveLength(1));
   const stored = await repo.extraction.get(saved.id);
   expect(stored?.papers.map((paper) => [paper.key, paper.access])).toEqual([['search:W9', 'METADATA_ONLY']]);
-  expect(stored?.deep?.candidates[0]).toMatchObject({ status: 'included', reason: 'Đúng chủ đề' });
+  expect(stored?.deep?.candidates[0]).toMatchObject({
+    status: 'included',
+    reason: null,
+    suggestion: { reason: 'Đúng chủ đề' },
+  });
   expect(stored?.deep?.plan?.approvedAt).not.toBeNull();
 });
 
