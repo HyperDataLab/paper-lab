@@ -56,7 +56,13 @@ export function PaperMeasurement({
   const [record, setRecord] = useState<MeasurementsRecord>();
   const [loading, setLoading] = useState(true);
   const [sections, setSections] = usePaperScope(paper, defaultMeasurementSections);
-  const estimate = estimateMeasurementCalls(planExtraction(paper, sections));
+  const units = planExtraction(paper, sections);
+  const estimate = estimateMeasurementCalls(units);
+  // A resumed run only extracts the parts the checkpoint lacks, then classifies and reconciles again.
+  const pendingUnits = record?.pending?.checkpoint.units;
+  const resumeEstimate = pendingUnits
+    ? estimateMeasurementCalls(units.filter((unit) => !pendingUnits[unit.id]))
+    : undefined;
   const { budget, setBudget } = useRunBudget(estimate);
   // A resumed run gets a fresh allowance on top of the calls it already made.
   const [cap, setCap] = useState(0);
@@ -211,7 +217,7 @@ export function PaperMeasurement({
     ready: !loading,
     start: () => start(null),
     resume: record?.pending ? () => start(record.pending ?? null) : null,
-    resumeEstimate: record?.pending ? Math.max(0, estimate - record.pending.callsUsed) : undefined,
+    resumeEstimate,
     stop: () => controller.current?.abort(),
   });
   if (loading) return <Loading label="Đang tải hồ sơ đo lường…" />;
