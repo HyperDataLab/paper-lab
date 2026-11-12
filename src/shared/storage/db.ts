@@ -16,6 +16,7 @@ import type {
   StanceRecord,
   PaperProbesRecord,
   CalibrationLabelSet,
+  Corpus,
 } from '@/core/schemas';
 import type { ReviewNgram } from '@/core/reviewPanel';
 export class ParagraphDb extends Dexie {
@@ -34,6 +35,7 @@ export class ParagraphDb extends Dexie {
   stance!: Table<StanceRecord, string>;
   paperContext!: Table<PaperContextRecord, string>;
   paperInsights!: Table<PaperInsightsRecord, string>;
+  corpora!: Table<Corpus, string>;
   extractionProjects!: Table<ExtractionProject, string>;
   reviewNgrams!: Table<ReviewNgram, [string, string]>;
   calibrationLabels!: Table<CalibrationLabelSet, string>;
@@ -66,6 +68,7 @@ export class ParagraphDb extends Dexie {
     this.version(15).stores({ paperInsights: 'paperId' });
     this.version(16).stores({ extractionProjects: 'id, updatedAt' });
     this.version(17).stores({ pdfFiles: 'sha256' });
+    this.version(18).stores({ corpora: 'id, updatedAt, kind' });
   }
 }
 export function createDb(name?: string) {

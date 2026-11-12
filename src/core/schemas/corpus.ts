@@ -45,9 +45,12 @@ const search = z.union([
 const memberId = z.uuid();
 export const CorpusMemberSchema = z.object({
   memberId,
+  title: z.string().optional(),
   identifiers: z.object({
     doi: z.string().optional(),
+    doiAliases: z.array(z.string()).optional(),
     openalexId: z.string().optional(),
+    openalexIdAliases: z.array(z.string()).optional(),
     sha256: z.array(z.string()),
     paperIds: z.array(z.string()),
     libraryIds: z.array(z.string()),

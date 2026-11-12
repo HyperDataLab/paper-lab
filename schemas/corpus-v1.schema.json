@@ -84,11 +84,14 @@
                 "format": "uuid",
                 "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
               },
+              "title": { "type": "string" },
               "identifiers": {
                 "type": "object",
                 "properties": {
                   "doi": { "type": "string" },
+                  "doiAliases": { "type": "array", "items": { "type": "string" } },
                   "openalexId": { "type": "string" },
+                  "openalexIdAliases": { "type": "array", "items": { "type": "string" } },
                   "sha256": { "type": "array", "items": { "type": "string" } },
                   "paperIds": { "type": "array", "items": { "type": "string" } },
                   "libraryIds": { "type": "array", "items": { "type": "string" } }
@@ -438,11 +441,14 @@
                 "format": "uuid",
                 "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
               },
+              "title": { "type": "string" },
               "identifiers": {
                 "type": "object",
                 "properties": {
                   "doi": { "type": "string" },
+                  "doiAliases": { "type": "array", "items": { "type": "string" } },
                   "openalexId": { "type": "string" },
+                  "openalexIdAliases": { "type": "array", "items": { "type": "string" } },
                   "sha256": { "type": "array", "items": { "type": "string" } },
                   "paperIds": { "type": "array", "items": { "type": "string" } },
                   "libraryIds": { "type": "array", "items": { "type": "string" } }
@@ -792,11 +798,14 @@
                 "format": "uuid",
                 "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
               },
+              "title": { "type": "string" },
               "identifiers": {
                 "type": "object",
                 "properties": {
                   "doi": { "type": "string" },
+                  "doiAliases": { "type": "array", "items": { "type": "string" } },
                   "openalexId": { "type": "string" },
+                  "openalexIdAliases": { "type": "array", "items": { "type": "string" } },
                   "sha256": { "type": "array", "items": { "type": "string" } },
                   "paperIds": { "type": "array", "items": { "type": "string" } },
                   "libraryIds": { "type": "array", "items": { "type": "string" } }

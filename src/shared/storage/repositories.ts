@@ -48,6 +48,7 @@ import { createMeasurementsRepository } from './measurements';
 import { createLibraryRepository } from './library';
 import { createStanceRepository } from './stance';
 import { createPaperInsightsRepository } from './paperInsights';
+import { CorpusSchema, type Corpus } from '@/core/schemas/corpus';
 import { createExtractionRepository } from './extractionProjects';
 import { createPdfFilesRepository } from './pdfFiles';
 export class SourceImmutableError extends Error {
@@ -736,6 +737,25 @@ export function createRepositories(
       await db.calibrationLabels.delete(id);
     },
   };
+  const corpora = {
+    async get(id: string) {
+      const row = await db.corpora.get(id);
+      return row ? CorpusSchema.parse(row) : undefined;
+    },
+    async list() {
+      return (await db.corpora.orderBy('updatedAt').reverse().toArray()).map((row) =>
+        CorpusSchema.parse(row),
+      );
+    },
+    async save(input: Corpus) {
+      const value = CorpusSchema.parse(input);
+      await db.corpora.put(value);
+      return value;
+    },
+    async delete(id: string) {
+      await db.corpora.delete(id);
+    },
+  };
   const transfer = {
     async exportAll(appVersion: string) {
       const a = await readAnalyses();
@@ -763,6 +783,7 @@ export function createRepositories(
         (await db.stance.toArray()).map((value) => StanceRecordSchema.parse(value)),
         (await db.paperInsights.toArray()).map((value) => PaperInsightsRecordSchema.parse(value)),
         (await db.extractionProjects.toArray()).map((value) => ExtractionProjectSchema.parse(value)),
+        await corpora.list(),
       );
     },
     async previewImport(raw: unknown) {
@@ -844,6 +865,7 @@ export function createRepositories(
           db.stance,
           db.paperInsights,
           db.extractionProjects,
+          db.corpora,
           db.reviewNgrams,
           db.calibrationLabels,
         ],
@@ -1012,6 +1034,11 @@ export function createRepositories(
             if (!existing || record.updatedAt > existing.updatedAt)
               await db.extractionProjects.put(ExtractionProjectSchema.parse(record));
           }
+          for (const record of plan.corpora) {
+            const existing = await db.corpora.get(record.id);
+            if (!existing || record.updatedAt > existing.updatedAt)
+              await db.corpora.put(CorpusSchema.parse(record));
+          }
           for (const record of plan.library) {
             const existing = await db.library.where('doi').equals(record.doi).first();
             if (existing && record.updatedAt <= existing.updatedAt) continue;
@@ -1053,6 +1080,7 @@ export function createRepositories(
     paperContext,
     paperInsights,
     extraction,
+    corpora,
     pdfFiles,
     calibrationLabels,
     transfer,
