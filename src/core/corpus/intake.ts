@@ -204,3 +204,29 @@ export function addFromDois(corpus: Corpus, text: string, options: IntakeOptions
   }
   return addAll(corpus, inputs, invalid, options);
 }
+
+/**
+ * Adds a batch of search records: identifier matches are duplicates, title-year matches wait for a person to
+ * confirm. Every record lands in exactly one of added, duplicates or pending.
+ */
+export function intakeRecords(corpus: Corpus, inputs: IntakeInput[], at: string) {
+  let result = corpus;
+  const counts = { added: 0, duplicates: 0, pending: 0 };
+  for (const input of inputs) {
+    const intake = addMember(result, input, at);
+    result = intake.corpus;
+    if (intake.matched === 'new') counts.added++;
+    else if (intake.matched === 'identifier') counts.duplicates++;
+    else {
+      counts.pending++;
+      result = {
+        ...result,
+        pendingConfirmations: [
+          ...(result.pendingConfirmations ?? []),
+          { id: crypto.randomUUID(), candidate: intake.candidate, input },
+        ],
+      };
+    }
+  }
+  return { corpus: result, ...counts };
+}

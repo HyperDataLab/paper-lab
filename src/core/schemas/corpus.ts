@@ -41,7 +41,14 @@ const search = z.union([
     truncated: z.boolean(),
     updateRound: count,
   }),
-  z.object({ fileName: z.string(), format: z.enum(['ris', 'csv']), records: count }),
+  z.object({
+    fileName: z.string(),
+    format: z.enum(['ris', 'csv']),
+    records: count,
+    added: count.optional(),
+    duplicates: count.optional(),
+    runAt: timestamp.optional(),
+  }),
 ]);
 const memberId = z.uuid();
 export const CorpusMemberSchema = z.object({
@@ -77,6 +84,10 @@ export const CorpusMemberSchema = z.object({
       reasonCode: z.string(),
       reasonText: z.string(),
       decider: z.object({ kind: z.enum(['person', 'ai-suggestion']), name: z.string().optional() }),
+      /** The AI suggestion a person accepted to make this decision; its reason stays apart from the person's. */
+      acceptedSuggestion: z
+        .object({ decision: z.enum(['include', 'exclude', 'uncertain']), reason: z.string() })
+        .optional(),
       at: timestamp,
     }),
   ),
@@ -196,5 +207,7 @@ export const CorpusSchema = z.discriminatedUnion('kind', [
 ]);
 export type Corpus = z.infer<typeof CorpusSchema>;
 export type CorpusMember = z.infer<typeof CorpusMemberSchema>;
+export type CorpusDecision = CorpusMember['decisions'][number];
+export type CorpusSearch = Corpus['searches'][number];
 export type CorpusLabelScheme = z.infer<typeof labelScheme>;
 export type CorpusLabelQueue = NonNullable<Corpus['labelQueue']>;

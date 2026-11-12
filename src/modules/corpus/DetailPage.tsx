@@ -20,6 +20,7 @@ import { CorpusProfileCard } from './CorpusProfileCard';
 import { JournalHarvest } from './JournalHarvest';
 import { kinds } from './labels';
 import { downloadManifest } from './manifest';
+import { PrismaPanel } from './PrismaPanel';
 import { ProtocolForm } from './ProtocolForm';
 import { TopicSearch } from './TopicSearch';
 import styles from './corpus.module.css';
@@ -230,6 +231,7 @@ export default function DetailPage() {
 
       {corpus.kind !== 'topic' && <JournalHarvest corpus={corpus} save={save} />}
       {corpus.kind === 'topic' && <TopicSearch corpus={corpus} save={save} />}
+      {corpus.kind === 'topic' && <PrismaPanel corpus={corpus} />}
       <CorpusBuild corpus={corpus} save={save} />
       <CorpusLabels corpus={corpus} save={save} />
       {corpus.kind === 'journal' && <CorpusProfileCard corpus={corpus} />}

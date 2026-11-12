@@ -278,7 +278,7 @@ export function cellCounts(project: ExtractionProject) {
   return { counts, stale: project.cells.filter((item) => isStale(item, project)).length };
 }
 
-const csvCell = (value: string) => {
+export const csvCell = (value: string) => {
   const text = /^[=+@\t\r-]/u.test(value) ? `'${value}` : value;
   return /[",\n\r]/u.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 };
