@@ -55,6 +55,7 @@ export function ProtocolForm({
                   .filter(Boolean),
                 ...(source.trim() ? { openalexSourceId: source.trim() } : {}),
               },
+              ...(journal?.venues.slice(1) ?? []),
             ],
             years,
             articleTypes: lines(types),

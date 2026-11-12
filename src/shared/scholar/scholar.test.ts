@@ -20,6 +20,20 @@ function setup(routes: Record<string, () => Response>) {
 const client = (s: ReturnType<typeof setup>, email: string | null = null) =>
   createScholarClient({ email }, { fetch: s.fetch, sleep: s.sleep });
 
+it('C4a fetches a cursor page without sending the scholar email', async () => {
+  const s = setup({ openalex: () => json({ results: [{ id: 'W1' }], meta: { next_cursor: 'next' } }) });
+  const page = await client(s, 'a@b.org').harvestWorks(
+    'https://api.openalex.org/works?filter=type:article',
+    '*',
+  );
+  expect(page).toEqual({ results: [{ id: 'W1' }], nextCursor: 'next' });
+  const url = new URL(s.calls[0] ?? '');
+  expect(url.searchParams.get('cursor')).toBe('*');
+  expect(url.searchParams.get('per-page')).toBe('200');
+  expect(url.searchParams.has('email')).toBe(false);
+  expect(s.sleep).toHaveBeenCalledWith(200);
+});
+
 it('F1 uses OpenAlex and sends the email only to Unpaywall', async () => {
   const s = setup({
     openalex: () => json(work),

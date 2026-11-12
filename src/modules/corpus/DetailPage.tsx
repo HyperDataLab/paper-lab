@@ -11,6 +11,7 @@ import { DataTable } from '@/shared/ui/DataTable';
 import { Select } from '@/shared/ui/Select';
 import { Intake } from './Intake';
 import { CorpusBuild } from './CorpusBuild';
+import { JournalHarvest } from './JournalHarvest';
 import { kinds } from './labels';
 import { ProtocolForm } from './ProtocolForm';
 import styles from './corpus.module.css';
@@ -180,6 +181,7 @@ export default function DetailPage() {
       <Card>
         <Intake corpus={corpus} save={save} />
       </Card>
+      {corpus.kind !== 'topic' && <JournalHarvest corpus={corpus} save={save} />}
       <CorpusBuild corpus={corpus} save={save} />
       <Card>
         <h2>Thành viên</h2>
