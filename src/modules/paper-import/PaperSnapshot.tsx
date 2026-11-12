@@ -1,7 +1,7 @@
 import { PROMPT_VERSIONS } from '@/core/prompts';
 import { runFreshness } from '@/core/runFreshness';
 import { useStoredChanged } from './paperJobs';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { insightStates } from '@/core/rhetoric';
 import type { Finding, Paper, PaperInsightsRecord, SnapshotField } from '@/core/schemas';
 import { describeLlmError } from '@/shared/llm/describeError';
@@ -44,6 +44,7 @@ export function PaperSnapshot({
   const [running, setRunning] = useState(false);
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
+  const controller = useRef<AbortController | null>(null);
   useEffect(() => {
     let active = true;
     void repo.paperInsights.get(paper.id).then((value) => {
@@ -61,15 +62,18 @@ export function PaperSnapshot({
     [run, record],
   );
   async function start() {
+    const abort = new AbortController();
+    controller.current = abort;
     setRunning(true);
     setError('');
     try {
-      if (!(await llm.ensureConsent('paper'))) return;
-      const result = await llmSnapshot(llm.client, paper, { config: llm.config });
+      if (!(await llm.ensureConsent('paper'))) return 'declined';
+      if (abort.signal.aborted) return;
+      const result = await llmSnapshot(llm.client, paper, { config: llm.config, signal: abort.signal });
       setRecord(await repo.paperInsights.saveSnapshotRun(paper.id, result));
       notifyStoredChanged();
     } catch (cause) {
-      setError(describeLlmError(cause) ?? 'Không tạo được snapshot.');
+      if (!abort.signal.aborted) setError(describeLlmError(cause) ?? 'Không tạo được snapshot.');
     } finally {
       setRunning(false);
     }
@@ -96,6 +100,7 @@ export function PaperSnapshot({
     estimate: 1,
     ready: loaded,
     start,
+    stop: () => controller.current?.abort(),
   });
   if (compact) {
     // A rejected fact stays in place, dimmed, so the decision can be undone.

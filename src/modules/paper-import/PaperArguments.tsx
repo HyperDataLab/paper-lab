@@ -82,7 +82,8 @@ export function PaperArguments({
     setError('');
     const pending = resume ? (record?.argumentPending ?? null) : null;
     try {
-      if (!(await llm.ensureConsent('paper')) || abort.signal.aborted) return;
+      if (!(await llm.ensureConsent('paper'))) return 'declined';
+      if (abort.signal.aborted) return;
       setUsed(pending?.callsUsed ?? 0);
       setCap((pending?.callsUsed ?? 0) + budget);
       const result = await llmArgument(llm.client, paper, {

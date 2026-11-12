@@ -63,9 +63,9 @@ export function useBatchRun(paper: Paper) {
     };
   }, [paper.id, repo]);
   async function execute(value: PaperRun) {
-    if (busy.current || !(await ensureConsent('paper'))) return;
+    if (busy.current) return;
+    if (!(await ensureConsent('paper'))) return 'declined';
     busy.current = true;
-    signal.current = {};
     const analyzer = createPaperParagraphAnalyzer(client, repo, paper);
     try {
       const result = await runBatch(
@@ -124,7 +124,10 @@ export function useBatchRun(paper: Paper) {
     }
   }
   async function start(plan: RunPlan) {
-    if (busy.current || !(await ensureConsent('paper'))) return;
+    if (busy.current) return;
+    signal.current = {};
+    if (!(await ensureConsent('paper'))) return 'declined';
+    if (signal.current.action) return;
     const now = new Date().toISOString();
     const value: PaperRun = {
       schemaVersion: 1,
@@ -153,7 +156,7 @@ export function useBatchRun(paper: Paper) {
     try {
       await repo.paperRuns.create(value);
       setRun(value);
-      await execute(value);
+      return await execute(value);
     } catch (cause) {
       setError(String(cause));
     }
@@ -174,13 +177,15 @@ export function useBatchRun(paper: Paper) {
     analyses,
     error,
     start,
-    resume: (budget: number) =>
-      run &&
-      void execute(
+    resume: (budget: number) => {
+      if (!run) return null;
+      signal.current = {};
+      return execute(
         run.status === 'budget_exceeded'
           ? { ...run, budget, plan: { ...run.plan, budget, withinBudget: run.plan.total <= budget } }
           : run,
-      ),
+      );
+    },
     retry,
     pause: () => {
       signal.current.action = 'pause';

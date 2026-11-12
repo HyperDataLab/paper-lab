@@ -1,5 +1,5 @@
 import { Sparkles } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FindingLocation } from '@/core/paperFindings';
 import type { DigestItem, DigestText, Paper, PaperInsightsRecord } from '@/core/schemas';
 import { describeLlmError } from '@/shared/llm/describeError';
@@ -39,6 +39,7 @@ export function PaperDigest({
   const [loaded, setLoaded] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState('');
+  const controller = useRef<AbortController | null>(null);
   useEffect(() => {
     let active = true;
     void repo.paperInsights.get(paper.id).then((value) => {
@@ -53,21 +54,31 @@ export function PaperDigest({
   const run = record?.digestRuns.at(-1);
 
   async function start(runKeyFacts = true) {
+    const abort = new AbortController();
+    controller.current = abort;
     setRunning(true);
     setError('');
     try {
-      if (!(await llm.ensureConsent('paper'))) return;
+      if (!(await llm.ensureConsent('paper'))) return 'declined';
+      if (abort.signal.aborted) return;
       if (runKeyFacts) onStart?.();
-      const result = await llmDigest(llm.client, paper, { config: llm.config });
+      const result = await llmDigest(llm.client, paper, { config: llm.config, signal: abort.signal });
       setRecord(await repo.paperInsights.saveDigestRun(paper.id, result));
       notifyStoredChanged();
     } catch (cause) {
-      setError(describeLlmError(cause) ?? 'Không tóm tắt được bài.');
+      if (!abort.signal.aborted) setError(describeLlmError(cause) ?? 'Không tóm tắt được bài.');
     } finally {
       setRunning(false);
     }
   }
-  useReportJob('digest', { running, done: !!run, estimate: 1, ready: loaded, start: () => start(false) });
+  useReportJob('digest', {
+    running,
+    done: !!run,
+    estimate: 1,
+    ready: loaded,
+    start: () => start(false),
+    stop: () => controller.current?.abort(),
+  });
 
   /** The pages a part comes from, each opening its paragraph; and what code could not check. */
   const sources = (part: DigestText | DigestItem) => (

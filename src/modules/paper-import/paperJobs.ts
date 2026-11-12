@@ -27,13 +27,16 @@ export interface JobReport {
   ready: boolean;
   /** Starts a fresh run with the current scope and ceiling; null when the analysis needs the reader first. */
   start: (() => Promise<unknown>) | null;
+  resume?: (() => Promise<unknown>) | null;
+  resumeEstimate?: number;
   /** Stops the run in flight, keeping what is already saved. */
   stop?: () => void;
 }
 
 /** What the page can show about a job without touching its functions. */
-export type JobFacts = Omit<JobReport, 'start' | 'stop' | 'sectionRun'> & {
+export type JobFacts = Omit<JobReport, 'start' | 'stop' | 'sectionRun' | 'resume'> & {
   startable: boolean;
+  resumable?: boolean;
   /** The sections this analysis can be run for on its own right now. */
   sections: SectionChoice[];
 };
@@ -58,6 +61,8 @@ export function useReportJob(id: JobId, report: JobReport) {
  * the first waits for the reader's own notes, the second needs scored paragraphs.
  */
 export const RUN_ALL: JobId[] = ['digest', 'snapshot', 'measure', 'rhetoric', 'arguments', 'batch', 'stance'];
+export const RUN_ALL_CONCURRENCY = 3;
+export type RunProgress = { labels: string[]; completed: number; total: number } | { incomplete: string[] };
 
 /** Notify the paper page after a stored result changes; standalone panels need no provider. */
 export const StoredChangedContext = createContext<() => void>(() => {});

@@ -25,6 +25,8 @@ export function useJobReports() {
         before.done === report.done &&
         JSON.stringify(before.stale) === JSON.stringify(report.stale) &&
         before.estimate === report.estimate &&
+        before.resumeEstimate === report.resumeEstimate &&
+        before.resumable === Boolean(report.resume) &&
         before.budget === report.budget &&
         before.ready === report.ready &&
         before.startable === (report.start !== null) &&
@@ -38,6 +40,8 @@ export function useJobReports() {
           running,
           done,
           estimate,
+          resumeEstimate: report.resumeEstimate,
+          resumable: Boolean(report.resume),
           budget,
           ready,
           stale,

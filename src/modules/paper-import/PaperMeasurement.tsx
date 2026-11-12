@@ -100,7 +100,8 @@ export function PaperMeasurement({
     setUsed(callsUsed);
     setCap(callsUsed + budget);
     try {
-      if (!(await llm.ensureConsent('paper')) || abort.signal.aborted) return;
+      if (!(await llm.ensureConsent('paper'))) return 'declined';
+      if (abort.signal.aborted) return;
       const result = await llmMeasurement(llm.client, paper, {
         sectionIds,
         config: llm.config,
@@ -209,6 +210,8 @@ export function PaperMeasurement({
     budget,
     ready: !loading,
     start: () => start(null),
+    resume: record?.pending ? () => start(record.pending ?? null) : null,
+    resumeEstimate: record?.pending ? Math.max(0, estimate - record.pending.callsUsed) : undefined,
     stop: () => controller.current?.abort(),
   });
   if (loading) return <Loading label="Đang tải hồ sơ đo lường…" />;

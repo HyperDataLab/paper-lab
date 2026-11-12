@@ -106,7 +106,8 @@ export function PaperRhetoric({
     setError('');
     const pending = resume ? (record?.rhetoricPending ?? null) : null;
     try {
-      if (!(await llm.ensureConsent('paper')) || abort.signal.aborted) return;
+      if (!(await llm.ensureConsent('paper'))) return 'declined';
+      if (abort.signal.aborted) return;
       setUsed(pending?.callsUsed ?? 0);
       setCap((pending?.callsUsed ?? 0) + budget);
       const result = await llmRhetoric(llm.client, paper, {
