@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { canonicalDigest } from '@/core/corpus';
 import { CorpusSchema, type Corpus } from '@/core/schemas/corpus';
+import { useAuth } from '@/shared/auth/authContext';
+import { CorpusConflict, pullCorpus, pushCorpus } from '@/shared/corpusSync';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
@@ -15,6 +17,11 @@ import styles from './corpus.module.css';
 export default function DetailPage() {
   const { id } = useParams();
   const repo = useRepositories();
+  const { user, getIdToken } = useAuth();
+  const [conflict, setConflict] = useState<{ version: string | null }>();
+  const conflictRef = useRef(false);
+  const queue = useRef<Promise<void>>(Promise.resolve());
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [corpus, setCorpus] = useState<Corpus>();
   const [loaded, setLoaded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -36,6 +43,52 @@ export default function DetailPage() {
   async function save(value: Corpus) {
     const saved = await repo.corpora.save(value);
     setCorpus(saved);
+    if (user) {
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => {
+        queue.current = queue.current
+          .then(async () => {
+            if (conflictRef.current) return;
+            const latest = await repo.corpora.get(saved.id);
+            const token = await getIdToken();
+            if (!latest || !token) return;
+            const state = await repo.corpora.syncState(saved.id);
+            try {
+              const version = await pushCorpus(latest, state?.version ?? null, token);
+              await repo.corpora.setSyncState(latest.id, version, latest);
+            } catch (e) {
+              if (e instanceof CorpusConflict) {
+                conflictRef.current = true;
+                setConflict({ version: e.version });
+              } else setError(String(e));
+            }
+          })
+          .catch((e: unknown) => setError(String(e)));
+      }, 500);
+    }
+  }
+  async function resolveConflict(keep: boolean) {
+    if (!corpus || !conflict) return;
+    try {
+      const token = await getIdToken();
+      if (!token) return;
+      if (keep) {
+        const latest = await repo.corpora.get(corpus.id);
+        if (!latest) return;
+        const version = await pushCorpus(latest, conflict.version, token);
+        await repo.corpora.setSyncState(latest.id, version, latest);
+      } else {
+        const value = await pullCorpus(corpus.id, token);
+        await repo.corpora.save(value.corpus);
+        await repo.corpora.setSyncState(value.corpus.id, value.version, value.corpus);
+        setCorpus(value.corpus);
+      }
+      conflictRef.current = false;
+      setConflict(undefined);
+    } catch (e) {
+      if (e instanceof CorpusConflict) setConflict({ version: e.version });
+      else setError(String(e));
+    }
   }
   if (!loaded) return <p>Đang tải…</p>;
   if (!corpus) return <p role="alert">Không tìm thấy corpus. {error}</p>;
@@ -115,6 +168,14 @@ export default function DetailPage() {
         </p>
       </header>
       {error && <p role="alert">Có lỗi xảy ra. {error}</p>}
+      {!user && <p>Đăng nhập để đồng bộ corpus.</p>}
+      {conflict && (
+        <div role="alert">
+          <p>Corpus đã được người khác sửa</p>
+          <Button onClick={() => void resolveConflict(false)}>Tải bản mới</Button>
+          <Button onClick={() => void resolveConflict(true)}>Giữ bản của tôi</Button>
+        </div>
+      )}
       <Card>
         <Intake corpus={corpus} save={save} />
       </Card>
@@ -154,8 +215,20 @@ export default function DetailPage() {
                       .join(' · ') || '—'}
                   </td>
                   <td>{m.role ?? '—'}</td>
-                  <td>{m.retrieval}</td>
-                  <td>{m.textRead}</td>
+                  <td>
+                    {
+                      { sought: 'Đang tìm', retrieved: 'Đã lấy', not_retrieved: 'Không lấy được' }[
+                        m.retrieval
+                      ]
+                    }
+                  </td>
+                  <td>
+                    {
+                      { FULL_TEXT: 'Toàn văn', ABSTRACT_ONLY: 'Tóm tắt', METADATA_ONLY: 'Siêu dữ liệu' }[
+                        m.textRead
+                      ]
+                    }
+                  </td>
                   <td>{m.version ?? '—'}</td>
                 </tr>
               ))}
