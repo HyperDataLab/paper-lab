@@ -13,6 +13,7 @@ import { SEGMENTER_VERSION } from '../text';
 import { paperLabAnnotations } from './annotations';
 import { sentenceIndex } from './sentenceIndex';
 import { SENTENCE_KEY_VERSION } from './sentenceKey';
+import { contributionKnowledge, verifyContribution } from '../contribution';
 
 /** The parent is the nearest earlier section with a smaller level, so a jump from 1 to 3 still nests. */
 export function sectionTree(paper: Paper): PaperModelSection[] {
@@ -74,6 +75,27 @@ export function buildPaperModel({
 }): PaperModel {
   const sentences = sentenceIndex(paper);
   const labels = paperLabAnnotations(sentences, insights, stance);
+  const contribution = insights?.contributionRuns?.at(-1);
+  const verified = contribution ? verifyContribution(contribution, sentences) : null;
+  const contributionAnnotations =
+    contribution && verified
+      ? verified.sentences.map((item) => ({
+          key: item.sentenceId,
+          scheme: 'ncg-unit' as const,
+          label: item.unit,
+          attrs: { domain: contribution.domain },
+          span: null,
+          text: sentences.find((sentence) => sentence.key === item.sentenceId)?.text ?? '',
+          origin: 'ai' as const,
+          state: 'machine' as const,
+          source: {
+            runId: contribution.id,
+            model: contribution.model,
+            promptVersion: contribution.promptVersion,
+          },
+          second: null,
+        }))
+      : [];
   return PaperModelSchema.parse({
     format: 'paperlab-paper-model',
     schemaVersion: 1,
@@ -108,9 +130,24 @@ export function buildPaperModel({
       })),
     },
     sentences,
-    annotations: labels.annotations,
-    annotationRuns: labels.runs,
-    knowledge: { phrases: [], triples: [] },
+    annotations: [...labels.annotations, ...contributionAnnotations],
+    annotationRuns: [
+      ...labels.runs,
+      ...(contribution && verified
+        ? [
+            {
+              scheme: 'ncg-unit',
+              runId: contribution.id,
+              model: contribution.model,
+              promptVersion: contribution.promptVersion,
+              createdAt: contribution.createdAt,
+              items: contribution.sentences.length,
+              skipped: contribution.sentences.length - verified.sentences.length,
+            },
+          ]
+        : []),
+    ],
+    knowledge: contributionKnowledge(contribution, sentences),
   });
 }
 

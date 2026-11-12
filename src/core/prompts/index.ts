@@ -24,6 +24,7 @@ export const PROMPT_VERSIONS = {
   argument: 'argument-3',
   snapshot: 'snapshot-1',
   digest: 'digest-1',
+  contribution: 'contribution-1',
   extraction: 'extraction-1',
   extractionVerify: 'extraction-verify-1',
   searchPlan: 'search-plan-1',
@@ -48,3 +49,4 @@ export * from './stance';
 export * from './rhetoric';
 export * from './digest';
 export * from './extraction';
+export * from './contribution';

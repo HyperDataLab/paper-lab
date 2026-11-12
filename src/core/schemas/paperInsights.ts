@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ContributionPendingSchema, ContributionRunSchema } from './contribution';
 import { ClaimTypeSchema } from '../argument/claimTypes';
 
 export const RHETORIC_CATEGORIES = [
@@ -258,6 +259,8 @@ export const PaperInsightsRecordSchema = z.object({
   argumentPending: ArgumentPendingSchema.nullable().default(null),
   snapshotRuns: z.array(SnapshotRunSchema).default([]),
   digestRuns: z.array(DigestRunSchema).default([]),
+  contributionRuns: z.array(ContributionRunSchema).default([]),
+  contributionPending: ContributionPendingSchema.nullable().default(null),
   decisions: z.array(InsightDecisionSchema),
 });
 export type RhetoricItem = z.infer<typeof RhetoricItemSchema>;

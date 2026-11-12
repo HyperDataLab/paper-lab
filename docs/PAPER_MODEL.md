@@ -132,7 +132,7 @@ A "Xuất" menu offers the export files.
    exports.
 4. **R17d** (done) JATS Archiving export with raw `mixed-citation`. DTD validation, parsed references, table structure,
    and MathML are deferred.
-5. **R17e** contribution pass, graph view, NCG export, for ML/NLP papers.
+5. **R17e** (done) contribution pass, graph view, NCG export, for ML/NLP papers.
 
 Deferred: CoreSC `conceptID` linking across sentences (one concept per sentence for now); PREV_OWN by self-citation
 (needs parsed author names on both sides); table header structure and MathML.

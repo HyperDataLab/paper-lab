@@ -1,6 +1,6 @@
 import { useStoredChanged } from './paperJobs';
 import { latestStyleWarning } from '@/core/probe';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Analysis, Paper, PaperOverviewRecord, PaperRun } from '@/core/schemas';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
@@ -27,6 +27,7 @@ export function PaperOverview({
   const repo = useRepositories();
   const notifyStoredChanged = useStoredChanged();
   const [record, setRecord] = useState<PaperOverviewRecord>();
+  const reviewGeneration = useRef(0);
   const [error, setError] = useState('');
   const [styleWarning, setStyleWarning] = useState<string | null>(null);
   useEffect(() => {
@@ -40,10 +41,11 @@ export function PaperOverview({
   }, [paper.id, repo]);
   useEffect(() => {
     let active = true;
+    const generation = reviewGeneration.current;
     void repo.paperOverviews
       .get(paper.id)
       .then((value) => {
-        if (active) setRecord(value);
+        if (active && generation === reviewGeneration.current) setRecord(value);
       })
       .catch((cause: unknown) => {
         if (active) setError(String(cause));
@@ -53,8 +55,11 @@ export function PaperOverview({
     };
   }, [repo, paper, analyses, run]);
   async function review(id: string, status: 'confirmed_by_human' | 'dismissed_by_human' | 'candidate') {
+    reviewGeneration.current++;
     try {
-      setRecord(await repo.paperOverviews.reviewTransition(paper.id, id, status));
+      const updated = await repo.paperOverviews.reviewTransition(paper.id, id, status);
+      reviewGeneration.current++;
+      setRecord(updated);
       notifyStoredChanged();
     } catch (cause) {
       setError(String(cause));

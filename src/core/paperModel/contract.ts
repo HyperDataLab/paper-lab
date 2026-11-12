@@ -123,6 +123,8 @@ export function exampleInsights(paper: Paper): PaperInsightsRecord {
     argumentPending: null,
     snapshotRuns: [],
     digestRuns: [],
+    contributionRuns: [],
+    contributionPending: null,
     decisions: [
       { run_id: RUN, item_id: 'i1', decision: 'confirm', at },
       { run_id: RUN, item_id: 'i3', decision: 'dismiss', at },
