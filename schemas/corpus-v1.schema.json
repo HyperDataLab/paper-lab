@@ -66,7 +66,14 @@
                 "properties": {
                   "fileName": { "type": "string" },
                   "format": { "type": "string", "enum": ["ris", "csv"] },
-                  "records": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                  "records": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "added": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "duplicates": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "runAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  }
                 },
                 "required": ["fileName", "format", "records"],
                 "additionalProperties": false
@@ -386,6 +393,15 @@
                         "name": { "type": "string" }
                       },
                       "required": ["kind"],
+                      "additionalProperties": false
+                    },
+                    "acceptedSuggestion": {
+                      "type": "object",
+                      "properties": {
+                        "decision": { "type": "string", "enum": ["include", "exclude", "uncertain"] },
+                        "reason": { "type": "string" }
+                      },
+                      "required": ["decision", "reason"],
                       "additionalProperties": false
                     },
                     "at": {
@@ -840,7 +856,14 @@
                 "properties": {
                   "fileName": { "type": "string" },
                   "format": { "type": "string", "enum": ["ris", "csv"] },
-                  "records": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                  "records": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "added": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "duplicates": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "runAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  }
                 },
                 "required": ["fileName", "format", "records"],
                 "additionalProperties": false
@@ -1160,6 +1183,15 @@
                         "name": { "type": "string" }
                       },
                       "required": ["kind"],
+                      "additionalProperties": false
+                    },
+                    "acceptedSuggestion": {
+                      "type": "object",
+                      "properties": {
+                        "decision": { "type": "string", "enum": ["include", "exclude", "uncertain"] },
+                        "reason": { "type": "string" }
+                      },
+                      "required": ["decision", "reason"],
                       "additionalProperties": false
                     },
                     "at": {
@@ -1614,7 +1646,14 @@
                 "properties": {
                   "fileName": { "type": "string" },
                   "format": { "type": "string", "enum": ["ris", "csv"] },
-                  "records": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                  "records": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "added": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "duplicates": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "runAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  }
                 },
                 "required": ["fileName", "format", "records"],
                 "additionalProperties": false
@@ -1934,6 +1973,15 @@
                         "name": { "type": "string" }
                       },
                       "required": ["kind"],
+                      "additionalProperties": false
+                    },
+                    "acceptedSuggestion": {
+                      "type": "object",
+                      "properties": {
+                        "decision": { "type": "string", "enum": ["include", "exclude", "uncertain"] },
+                        "reason": { "type": "string" }
+                      },
+                      "required": ["decision", "reason"],
                       "additionalProperties": false
                     },
                     "at": {

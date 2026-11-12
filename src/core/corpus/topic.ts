@@ -1,7 +1,7 @@
 import { emptyDeep, mergeCandidates, papersFromCandidates } from '../extraction/deep';
 import type { Candidate, Corpus, ExtractionProject } from '../schemas';
 import { newCorpus } from './index';
-import { addMember } from './intake';
+import { addMember, intakeRecords } from './intake';
 import { normalTitle } from '../text/normalizeTitle';
 
 export function recordTopicSearch(
@@ -14,24 +14,7 @@ export function recordTopicSearch(
 ): Corpus {
   const deep = corpus.deep ?? emptyDeep();
   const merged = mergeCandidates(deep.candidates, candidates);
-  let result = corpus;
-  let added = 0;
-  let duplicates = 0;
-  for (const candidate of candidates) {
-    const intake = addMember(result, candidate, at);
-    result = intake.corpus;
-    if (intake.matched === 'new') added++;
-    if (intake.matched === 'identifier') duplicates++;
-    if (intake.matched === 'title-year') {
-      result = {
-        ...result,
-        pendingConfirmations: [
-          ...(result.pendingConfirmations ?? []),
-          { id: crypto.randomUUID(), candidate: intake.candidate, input: candidate },
-        ],
-      };
-    }
-  }
+  const { corpus: result, added, duplicates } = intakeRecords(corpus, candidates, at);
   const url = new URL(requestUrl);
   return {
     ...result,
