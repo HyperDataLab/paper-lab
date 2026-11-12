@@ -55,6 +55,129 @@ function setup(budget = 20) {
   return { run, analyze, save, sleep, deps: { paper, analyze, save, sleep, now: () => at } };
 }
 describe('P2 runBatch', () => {
+  it('bounds concurrent requests, completes each item once, and serializes checkpoints', async () => {
+    const t = setup(100);
+    const first = paper.paragraphs[0];
+    if (!first) throw new Error('missing paragraph');
+    const many: Paper = {
+      ...paper,
+      paragraphs: Array.from({ length: 12 }, (_, i) => ({
+        ...first,
+        id: `p${i}`,
+        textHash: `h${i}`,
+        order: i,
+      })),
+    };
+    t.run.items = many.paragraphs.map((p) => ({
+      paragraphId: p.id,
+      textHash: p.textHash,
+      analysisId: null,
+      status: 'pending',
+      stepsDone: [],
+      calls: 0,
+      error: null,
+    }));
+    let active = 0;
+    let peak = 0;
+    let release = () => {};
+    const firstWave = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let saves = 0;
+    const counts: number[] = [];
+    t.analyze.mockImplementation(async (_p, _c, step, _id, onRequest) => {
+      if (step !== 'detectors') {
+        await onRequest?.();
+        peak = Math.max(peak, ++active);
+        if (active === 5) release();
+        await firstWave;
+        active--;
+      }
+      return 'analysis';
+    });
+    t.save.mockImplementation(async (run) => {
+      expect(++saves).toBe(1);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      counts.push(run.callsUsed);
+      saves--;
+    });
+    const result = await runBatch(t.run, { ...t.deps, paper: many });
+    expect(peak).toBe(5);
+    expect(result.items.every((item) => item.status === 'done' && item.stepsDone.length === 2)).toBe(true);
+    expect(t.analyze.mock.calls.filter((call) => call[2] === 'judge')).toHaveLength(12);
+    expect(counts).toEqual([...counts].sort((a, b) => a - b));
+  });
+  it('enforces the budget across simultaneous requests', async () => {
+    const t = setup(2);
+    t.run.callsByStep = {};
+    const result = await runBatch(t.run, t.deps);
+    expect(result.status).toBe('budget_exceeded');
+    expect(result.callsUsed).toBe(2);
+    expect(Object.values(result.callsByStep ?? {}).reduce((a, b) => a + b, 0)).toBe(2);
+  });
+  it('does not claim another item after pause and resumes the remainder', async () => {
+    const t = setup();
+    const first = paper.paragraphs[0];
+    if (!first) throw new Error('missing paragraph');
+    const many: Paper = {
+      ...paper,
+      paragraphs: Array.from({ length: 8 }, (_, i) => ({
+        ...first,
+        id: `p${i}`,
+        textHash: `h${i}`,
+        order: i,
+      })),
+    };
+    t.run.items = many.paragraphs.map((p) => ({
+      paragraphId: p.id,
+      textHash: p.textHash,
+      analysisId: null,
+      status: 'pending',
+      stepsDone: [],
+      calls: 0,
+      error: null,
+    }));
+    const signal: BatchSignal = {};
+    t.analyze.mockImplementation(async (_p, _c, step) => {
+      if (step === 'judge') signal.action = 'pause';
+      return 'analysis';
+    });
+    const paused = await runBatch(t.run, { ...t.deps, paper: many }, signal);
+    expect(t.analyze.mock.calls.filter((call) => call[2] === 'detectors')).toHaveLength(5);
+    delete signal.action;
+    t.analyze.mockResolvedValue('analysis');
+    const result = await runBatch(paused, { ...t.deps, paper: many }, signal);
+    expect(result.items.every((item) => item.status === 'done')).toBe(true);
+  });
+  it('holds new requests during a shared 429 cooldown', async () => {
+    const t = setup();
+    let release = () => {};
+    const wait = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let sleeping = false;
+    t.sleep.mockImplementation(async () => {
+      sleeping = true;
+      await wait;
+    });
+    let first = true;
+    t.analyze.mockImplementation(async (_p, _c, step, _id, onRequest) => {
+      if (step !== 'detectors') {
+        await onRequest?.();
+        expect(sleeping).toBe(false);
+        if (first) {
+          first = false;
+          throw { status: 429 };
+        }
+      }
+      return 'analysis';
+    });
+    const running = runBatch(t.run, t.deps);
+    await vi.waitFor(() => expect(sleeping).toBe(true));
+    sleeping = false;
+    release();
+    expect((await running).status).toBe('done');
+  });
   it('P7 records a snapshot per executed step and actual calls including retries', async () => {
     const t = setup();
     t.run.callsByStep = {};
@@ -84,9 +207,9 @@ describe('P2 runBatch', () => {
   it('retries transient failures with exponential backoff', async () => {
     const t = setup();
     let attempts = 0;
-    t.analyze.mockImplementation(async (_p, _c, step, _id, onRequest) => {
+    t.analyze.mockImplementation(async (p, _c, step, _id, onRequest) => {
       if (step !== 'detectors') await onRequest?.();
-      if (step === 'judge' && attempts++ < 2) throw { status: attempts === 1 ? 429 : 503 };
+      if (p.id === 'p0' && step === 'judge' && attempts++ < 2) throw { status: attempts === 1 ? 429 : 503 };
       return '00000000-0000-4000-8000-000000000003';
     });
     const result = await runBatch(t.run, t.deps);
@@ -197,6 +320,44 @@ describe('P2 runBatch', () => {
     );
     expect(limited.status).toBe('budget_exceeded');
     expect(limited.callsUsed).toBe(0);
+  });
+  it('processes transition chunks concurrently without duplicating pairs', async () => {
+    const t = setup(20);
+    t.run.plan.steps = ['transitions'];
+    const pairs: TransitionPair[] = Array.from({ length: 72 }, (_, i) => ({
+      pairId: `pair-${i}`,
+      sectionId: 's',
+      sectionRole: 'methods',
+      from: {
+        paragraphId: 'p0',
+        analysisId: 'a',
+        span: { start: 0, end: 1 },
+        quote: 'F',
+        sentence: 'First.',
+      },
+      to: { paragraphId: 'p1', analysisId: 'b', span: { start: 0, end: 1 }, quote: 'S', sentence: 'Second.' },
+    }));
+    let active = 0;
+    let peak = 0;
+    let release = () => {};
+    const wave = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const result = await runBatch(t.run, {
+      ...t.deps,
+      getTransitionPairs: async () => pairs,
+      analyzeTransitions: async (_chunk, onRequest) => {
+        await onRequest();
+        peak = Math.max(peak, ++active);
+        if (active === 5) release();
+        await wave;
+        active--;
+      },
+    });
+    expect(peak).toBe(5);
+    expect(result.transitionDone).toHaveLength(72);
+    expect(new Set(result.transitionDone).size).toBe(72);
+    expect(result.callsUsed).toBe(6);
   });
   it('P2 uses neighbouring body paragraphs across section boundaries', async () => {
     const t = setup();

@@ -67,6 +67,7 @@ export function useBatchRun(paper: Paper) {
     if (!(await ensureConsent('paper'))) return 'declined';
     busy.current = true;
     const analyzer = createPaperParagraphAnalyzer(client, repo, paper);
+    let transitionSave = Promise.resolve();
     try {
       const result = await runBatch(
         value,
@@ -86,20 +87,24 @@ export function useBatchRun(paper: Paper) {
           ...analyzer,
           getTransitionPairs: async () => transitionPairs(paper, await repo.analyses.listByPaper(paper.id)),
           analyzeTransitions: async (pairs, onRequest) => {
-            const current = await repo.paperOverviews.get(paper.id);
-            if (!current) throw new Error('Paper not found');
-            const old = current.transitions;
             const result = await createLlmParagraphTransition(client).analyze(
               pairs,
-              old?.findings,
+              (await repo.paperOverviews.get(paper.id))?.transitions?.findings,
               undefined,
               onRequest,
             );
-            const judgedAt = new Date().toISOString();
-            await repo.paperOverviews.save({
-              ...current,
-              transitions: mergeTransitions(old, result, judgedAt),
-            });
+            // Merges run one at a time; a failed one does not block the next.
+            transitionSave = transitionSave
+              .catch(() => {})
+              .then(async () => {
+                const current = await repo.paperOverviews.get(paper.id);
+                if (!current) throw new Error('Paper not found');
+                await repo.paperOverviews.save({
+                  ...current,
+                  transitions: mergeTransitions(current.transitions, result, new Date().toISOString()),
+                });
+              });
+            await transitionSave;
             notifyStoredChanged();
           },
           analyze: (...args) => readableErrors(() => analyzer.analyze(...args)),

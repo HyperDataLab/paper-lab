@@ -1,4 +1,5 @@
 import { useRef, useState, type RefObject } from 'react';
+import { BATCH_CONCURRENCY } from '@/core/batch';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Dialog } from '@/shared/ui/Dialog';
@@ -64,8 +65,11 @@ export function RunAllCard({
   const calls = (fact: JobFacts | undefined) =>
     fact?.resumable ? (fact.resumeEstimate ?? fact.estimate) : (fact?.estimate ?? 0);
   const total = todo.reduce((sum, row) => sum + calls(row.fact), 0);
-  // Calls inside one analysis still run one after another, so the longest analysis bounds the wait.
-  const longest = Math.max(0, ...todo.map((row) => calls(row.fact)));
+  // The batch runs paragraph requests in a pool; other analyses remain sequential.
+  const longest = Math.max(
+    0,
+    ...todo.map((row) => calls(row.fact) / (row.id === 'batch' ? BATCH_CONCURRENCY : 1)),
+  );
   const minutes = Math.ceil((Math.max(longest, total / RUN_ALL_CONCURRENCY) * SECONDS_PER_CALL) / 60);
 
   async function run(ids: JobId[]) {

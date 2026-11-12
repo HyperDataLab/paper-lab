@@ -32,6 +32,8 @@ Status: ⬜ not started · 🟨 in progress · ✅ accepted.
 | P6   | Score robustness probe (style-only rewrite → score sensitivity)                         | ✅     |
 | P7   | Calibration and transparency                                                            | ✅     |
 
+The P2 batch runs up to five paragraph or transition requests concurrently, with a shared budget and 429 cooldown.
+
 ## Paper library (adapted from SLR Paper Fetcher)
 
 | #   | Slice                                                                   | Status |

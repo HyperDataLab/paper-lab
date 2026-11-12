@@ -40,6 +40,9 @@ export type BatchDeps = {
   ) => Promise<void>;
 };
 export class BatchBudgetExceededError extends Error {}
+// Router measurements showed 4–6 simultaneous calls without errors; further calls queued.
+export const BATCH_CONCURRENCY = 5;
+class BatchStoppedError extends Error {}
 
 function retryable(error: unknown): boolean {
   if (typeof error !== 'object' || error === null) return false;
@@ -82,21 +85,32 @@ export async function runBatch(
   signal: BatchSignal = {},
 ): Promise<PaperRun> {
   const run = structuredClone(input);
+  const snapshots = new Map<string, Promise<void>>();
   const snapshot = async (step: BatchStep | 'detectors') => {
     if (!deps.captureCalibration) return;
     run.calibrationSnapshots ??= {};
-    if (!(step in run.calibrationSnapshots)) run.calibrationSnapshots[step] = await deps.captureCalibration();
+    if (!(step in run.calibrationSnapshots)) {
+      let pending = snapshots.get(step);
+      if (!pending) {
+        pending = deps.captureCalibration().then((value) => {
+          if (run.calibrationSnapshots) run.calibrationSnapshots[step] = value;
+        });
+        snapshots.set(step, pending);
+      }
+      await pending;
+    }
   };
+  let saving = Promise.resolve();
   const checkpoint = async () => {
     run.updatedAt = deps.now();
-    await deps.save(structuredClone(run));
+    const state = structuredClone(run);
+    // One failed save must not reject every later one, so each save starts after the previous settles.
+    const current = saving.catch(() => {}).then(() => deps.save(state));
+    saving = current.then(() => {});
+    await current;
   };
-  const stop = async () => {
-    if (!signal.action) return false;
-    run.status = signal.action === 'pause' ? 'paused' : 'cancelled';
-    await checkpoint();
-    return true;
-  };
+  let halted = false;
+  let cooldown: Promise<void> = Promise.resolve();
   type Item = PaperRun['items'][number];
   const paragraphOf = (item: Item) =>
     deps.paper.paragraphs.find((p) => p.id === item.paragraphId && p.textHash === item.textHash);
@@ -120,11 +134,27 @@ export async function runBatch(
     return id;
   };
   const counted = (step: BatchStep, item?: Item) => async () => {
+    await cooldown;
+    if (signal.action || halted) throw new BatchStoppedError();
     if (run.callsUsed >= run.budget) throw new BatchBudgetExceededError();
     run.callsUsed++;
     if (run.callsByStep) run.callsByStep[step] = (run.callsByStep[step] ?? 0) + 1;
     if (item) item.calls++;
-    await checkpoint();
+    try {
+      await checkpoint();
+      let waitFor = cooldown;
+      for (;;) {
+        await waitFor;
+        if (signal.action) throw new BatchStoppedError();
+        if (waitFor === cooldown) break;
+        waitFor = cooldown;
+      }
+    } catch (error) {
+      run.callsUsed--;
+      if (run.callsByStep) run.callsByStep[step] = (run.callsByStep[step] ?? 1) - 1;
+      if (item) item.calls--;
+      throw error;
+    }
   };
   /** False means the user paused or cancelled while waiting to retry. */
   const withRetries = async (call: () => Promise<void>) => {
@@ -134,27 +164,26 @@ export async function runBatch(
         return true;
       } catch (error) {
         if (!retryable(error) || attempt >= 3) throw error;
-        await deps.sleep(1000 * 2 ** attempt++);
-        if (await stop()) return false;
+        const delay = 1000 * 2 ** attempt++;
+        if (typeof error === 'object' && error !== null && 'status' in error && error.status === 429) {
+          const previous = cooldown;
+          cooldown = previous.then(() => deps.sleep(delay));
+          await cooldown;
+        } else await deps.sleep(delay);
+        if (signal.action || halted) return false;
       }
     }
   };
-  const syntaxMembers = async (item: Item, paragraph: PaperParagraph, analysisId: string) => {
-    const candidates = run.items.slice(run.items.indexOf(item) + 1).flatMap((other) => {
-      const next = paragraphOf(other);
-      return next &&
-        next.sectionId === paragraph.sectionId &&
-        !other.stepsDone.includes('syntax') &&
-        ['pending', 'failed'].includes(other.status)
-        ? [{ item: other, paragraph: next }]
-        : [];
-    });
-    const [group = []] = groupSyntaxBatches([{ item, paragraph }, ...candidates], (member) =>
-      sentenceCountOf(member.paragraph.text),
-    );
+  const syntaxMembers = async (
+    item: Item,
+    paragraph: PaperParagraph,
+    analysisId: string,
+    group: { item: Item; paragraph: PaperParagraph }[],
+  ) => {
     const members = [{ item, paragraph, analysisId }];
     for (const member of group.slice(1)) {
       try {
+        if (member.item.status === 'failed') member.item.status = 'pending';
         if (await adoptCached(member.item, member.paragraph)) continue;
         members.push({ ...member, analysisId: await ensureAnalysis(member.item, member.paragraph) });
       } catch (error) {
@@ -171,8 +200,9 @@ export async function runBatch(
     paragraph: PaperParagraph,
     analysisId: string,
     analyzeSyntaxBatch: NonNullable<BatchDeps['analyzeSyntaxBatch']>,
+    group: { item: Item; paragraph: PaperParagraph }[],
   ) => {
-    const members = await syntaxMembers(item, paragraph, analysisId);
+    const members = await syntaxMembers(item, paragraph, analysisId, group);
     for (const group of members.length > 1 ? [members, members.slice(0, 1)] : [members]) {
       let completed: string[] = [];
       try {
@@ -205,35 +235,63 @@ export async function runBatch(
   };
   run.status = 'running';
   await checkpoint();
-  for (const item of run.items) {
-    if (['done', 'cached', 'skipped'].includes(item.status)) continue;
-    if (await stop()) return run;
+  const claimed = new Set<Item>();
+  const claim = () => {
+    if (signal.action || halted) return [];
+    const item = run.items.find(
+      (entry) => !claimed.has(entry) && !['done', 'cached', 'skipped'].includes(entry.status),
+    );
+    if (!item) return [];
+    claimed.add(item);
+    const paragraph = paragraphOf(item);
+    if (
+      !paragraph ||
+      !deps.analyzeSyntaxBatch ||
+      !run.plan.steps.includes('syntax') ||
+      item.stepsDone.includes('syntax')
+    )
+      return [{ item, paragraph }];
+    const candidates = run.items.slice(run.items.indexOf(item) + 1).flatMap((other) => {
+      const next = paragraphOf(other);
+      return next &&
+        !claimed.has(other) &&
+        next.sectionId === paragraph.sectionId &&
+        !other.stepsDone.includes('syntax') &&
+        ['pending', 'failed'].includes(other.status)
+        ? [{ item: other, paragraph: next }]
+        : [];
+    });
+    const [group = []] = groupSyntaxBatches([{ item, paragraph }, ...candidates], (member) =>
+      sentenceCountOf(member.paragraph.text),
+    );
+    for (const member of group) claimed.add(member.item);
+    return group;
+  };
+  const processItem = async (item: Item, group: { item: Item; paragraph: PaperParagraph }[]) => {
     const paragraph = paragraphOf(item);
     if (!paragraph) {
       item.status = 'failed';
       item.error = 'Paragraph not found or changed';
       await checkpoint();
-      continue;
+      return;
     }
     try {
-      if (await adoptCached(item, paragraph)) continue;
+      if (await adoptCached(item, paragraph)) return;
       item.status = 'running';
       item.error = null;
       const analysisId = await ensureAnalysis(item, paragraph);
       for (const step of run.plan.steps) {
         if (step === 'transitions') continue;
         if (item.stepsDone.includes(step)) continue;
-        if (await stop()) {
+        if (signal.action || halted) {
           item.status = 'pending';
-          await checkpoint();
-          return run;
+          return;
         }
         await snapshot(step);
         if (step === 'syntax' && deps.analyzeSyntaxBatch) {
-          if (!(await runSyntax(item, paragraph, analysisId, deps.analyzeSyntaxBatch))) {
+          if (!(await runSyntax(item, paragraph, analysisId, deps.analyzeSyntaxBatch, group))) {
             item.status = 'pending';
-            await checkpoint();
-            return run;
+            return;
           }
           continue;
         }
@@ -251,30 +309,63 @@ export async function runBatch(
         });
         if (!finished) {
           item.status = 'pending';
-          await checkpoint();
-          return run;
+          return;
         }
         item.stepsDone.push(step);
         await checkpoint();
       }
       item.status = 'done';
     } catch (error) {
-      if (error instanceof BatchBudgetExceededError) {
+      if (error instanceof BatchStoppedError || error instanceof BatchBudgetExceededError) {
         item.status = 'pending';
-        run.status = 'budget_exceeded';
-        await checkpoint();
-        return run;
+        if (error instanceof BatchBudgetExceededError) {
+          halted = true;
+          run.status = 'budget_exceeded';
+        }
+        return;
       }
       item.status = 'failed';
       item.error = error instanceof Error ? error.message : String(error);
     }
     await checkpoint();
+  };
+  const worker = async () => {
+    for (;;) {
+      const group = claim();
+      if (!group.length) return;
+      const valid = group.filter(
+        (entry): entry is { item: Item; paragraph: PaperParagraph } => !!entry.paragraph,
+      );
+      for (const [index, entry] of group.entries()) {
+        if (signal.action || halted) return;
+        if (index > 0 && ['cached', 'failed'].includes(entry.item.status)) continue;
+        await processItem(
+          entry.item,
+          valid
+            .slice(index)
+            .filter(
+              (member) =>
+                member.item === entry.item ||
+                (!member.item.stepsDone.includes('syntax') &&
+                  !['cached', 'failed'].includes(member.item.status)),
+            ),
+        );
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: BATCH_CONCURRENCY }, () => worker()));
+  if (signal.action || halted) {
+    if (signal.action) run.status = signal.action === 'pause' ? 'paused' : 'cancelled';
+    await checkpoint();
+    return run;
   }
   if (run.plan.steps.includes('transitions')) {
     if (!deps.getTransitionPairs || !deps.analyzeTransitions)
       throw new Error('Transition provider not configured');
     const pairs = await deps.getTransitionPairs();
     run.transitionDone ??= [];
+    const transitionDone = run.transitionDone;
+    const chunks: TransitionPair[][] = [];
     for (const section of deps.paper.sections.filter((s) => run.plan.sectionIds.includes(s.id))) {
       const available = pairs.filter((p) => p.sectionId === section.id);
       const bodies = deps.paper.paragraphs
@@ -296,19 +387,38 @@ export async function runBatch(
       for (let i = 0; i < available.length; i += 12) {
         const chunk = available.slice(i, i + 12).filter((p) => !run.transitionDone?.includes(p.pairId));
         if (!chunk.length) continue;
-        if (await stop()) return run;
+        chunks.push(chunk);
+      }
+    }
+    let nextChunk = 0;
+    const transitionWorker = async () => {
+      while (!signal.action && !halted && nextChunk < chunks.length) {
+        const chunk = chunks[nextChunk++];
+        if (!chunk) return;
         try {
           await snapshot('transitions');
           const analyzeTransitions = deps.analyzeTransitions;
-          if (!(await withRetries(() => analyzeTransitions(chunk, counted('transitions'))))) return run;
+          if (
+            !analyzeTransitions ||
+            !(await withRetries(() => analyzeTransitions(chunk, counted('transitions'))))
+          )
+            return;
         } catch (error) {
-          run.status = error instanceof BatchBudgetExceededError ? 'budget_exceeded' : 'failed';
-          await checkpoint();
-          return run;
+          if (!(error instanceof BatchStoppedError)) {
+            halted = true;
+            run.status = error instanceof BatchBudgetExceededError ? 'budget_exceeded' : 'failed';
+          }
+          return;
         }
-        run.transitionDone.push(...chunk.map((p) => p.pairId));
+        transitionDone.push(...chunk.map((p) => p.pairId));
         await checkpoint();
       }
+    };
+    await Promise.all(Array.from({ length: BATCH_CONCURRENCY }, () => transitionWorker()));
+    if (signal.action || halted) {
+      if (signal.action) run.status = signal.action === 'pause' ? 'paused' : 'cancelled';
+      await checkpoint();
+      return run;
     }
   }
   run.status = 'done';
