@@ -105,7 +105,8 @@ src/
 - Offset tests must cover Unicode (emoji, combining marks, CJK), multiple spaces, citations `(Smith et al., 2010)`,
   abbreviations (`e.g.`, `Fig. 2`, `et al.`), decimals and punctuation (AC-11).
 - LLM is mocked in unit tests with recorded fixtures under `src/test/fixtures/llm/`. Never call the network in tests.
-- E2E (Playwright, later) runs against `vite preview` with a mocked 9router.
+- No browser (Playwright) tests: the owner dropped them on 2026-11-11 because installs and reruns slowed CI. UI
+  behaviour is covered by Vitest + Testing Library in jsdom, and checked by hand in the browser when it matters.
 
 ## Commands
 
