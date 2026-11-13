@@ -7,11 +7,44 @@ import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { CorpusTopics } from './CorpusTopics';
 
-const mocks = vi.hoisted(() => ({ consent: vi.fn(), complete: vi.fn(), token: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  consent: vi.fn(),
+  complete: vi.fn(),
+  token: vi.fn(),
+  user: null as object | null,
+}));
 vi.mock('@/shared/llm/LlmProvider', () => ({
   useLlm: () => ({ ensureConsent: mocks.consent, client: { completeJson: mocks.complete } }),
 }));
-vi.mock('@/shared/auth/authContext', () => ({ useAuth: () => ({ user: null, getIdToken: mocks.token }) }));
+vi.mock('@/shared/auth/authContext', () => ({
+  useAuth: () => ({ user: mocks.user, getIdToken: mocks.token }),
+}));
+
+it('starts a server job and shows its progress', async () => {
+  mocks.user = {};
+  mocks.token.mockResolvedValue('token');
+  const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+    if (init?.method === 'POST') return Response.json({ jobId: 'job' }, { status: 202 });
+    if (String(_url).endsWith('/run/job'))
+      return Response.json({ state: 'failed', progress: 'Embedding', error: 'test stop' });
+    return new Response(null, { status: 404 });
+  });
+  const repo = createRepositories(createDb(`topics-run-${crypto.randomUUID()}`));
+  const view = render(
+    <StorageProvider repositories={repo}>
+      <CorpusTopics corpus={exampleCorpus()} onData={() => {}} />
+    </StorageProvider>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Tính chủ đề trên máy chủ' }));
+  expect(await screen.findByRole('status')).toHaveTextContent('Embedding');
+  expect(fetchMock).toHaveBeenCalledWith(
+    expect.stringContaining('/topics/run'),
+    expect.objectContaining({ method: 'POST' }),
+  );
+  view.unmount();
+  fetchMock.mockRestore();
+  mocks.user = null;
+});
 
 it('shows an empty state and reviews a stored snapshot and AI candidate', async () => {
   const corpus = exampleCorpus();

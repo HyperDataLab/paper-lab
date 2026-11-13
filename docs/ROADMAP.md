@@ -81,6 +81,12 @@ A separate menu: one matrix per project, rows are papers, columns are fields, ev
 | X3  | Deep Research: search plan, OpenAlex discovery, screening, cross-paper synthesis             | ✅     |
 | X4  | Citation grounding: each synthesis citation shows the verified passage, links into the paper | ✅     |
 
+## Corpus topics
+
+The corpus topics service runs BERTopic and KeyBERT in a separate Cloudflare container, with snapshots
+stored in the shared R2 bucket and cached locally. Deployment is controlled through the
+`deploy/topics-worker` branch; see `topics-worker/README.md`.
+
 ## Open decisions
 
 - Hosting: Firebase Hosting (ADR-0001) or an Oracle Cloud Always Free VM (ADR-0005, proposed). Keep the app
