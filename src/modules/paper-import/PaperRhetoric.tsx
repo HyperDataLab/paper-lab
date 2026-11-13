@@ -23,7 +23,7 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { FindingCard, ReviewActions } from '@/shared/ui/FindingCard';
 import { usePaperScope, useRunBudget } from './paperScope';
-import { RunSetup } from './RunSetup';
+import { RunSetup, ScopeWarning } from './RunSetup';
 import { acceptsSectionRun, useReportJob } from './paperJobs';
 import styles from './measurement.module.css';
 import { Loading } from '@/shared/ui/StateNote';
@@ -271,6 +271,9 @@ export function PaperRhetoric({
           )}
         </ActionBar>
         {(!run || showSetup) && !running && setup}
+        {(!(!run || showSetup) || running) && (
+          <ScopeWarning paper={paper} sections={sections} onSections={setSections} />
+        )}
         {error && <div role="alert">{error}</div>}
         {run && run.failedSectionIds.length > 0 && (
           <p role="status">

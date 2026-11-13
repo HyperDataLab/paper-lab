@@ -58,6 +58,7 @@ export function PaperColumn({
           <RunAllCard compact {...runAll} />
         </div>
       )}
+      {!wide && <RunAllCard compact {...runAll} />}
       {pane === 'fulltext' && error}
       {/* A PDF paper is read as its PDF; the parsed text is only shown when the PDF is not here. */}
       {pane === 'fulltext' && paper.source.kind === 'pdf' && (
@@ -67,7 +68,6 @@ export function PaperColumn({
       {pane === 'fulltext' && paper.source.kind !== 'pdf' && fullText}
 
       <div hidden={pane !== 'summary'} className={styles.blocks}>
-        {!wide && <RunAllCard {...runAll} />}
         {/* A reader's summary written by AI from the whole paper, with one button to make it. */}
         {nav.shown('snapshot') && <PaperSnapshot compact paper={paper} onLocation={onLocation} />}
         {/* Kept mounted while another tab shows, so a summary being written is not lost. */}

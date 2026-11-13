@@ -10,7 +10,7 @@ import { Checkbox } from '@/shared/ui/Checkbox';
 import { TextField } from '@/shared/ui/TextField';
 import type { useBatchRun } from './useBatchRun';
 import { mainBodySections, usePaperScope, useRunBudget } from './paperScope';
-import { RunSetup } from './RunSetup';
+import { RunSetup, ScopeWarning } from './RunSetup';
 import { acceptsSectionRun, useReportJob } from './paperJobs';
 import styles from './page.module.css';
 
@@ -89,6 +89,7 @@ export function BatchPanel({ paper, batch }: { paper: Paper; batch: ReturnType<t
           </Button>
         )}
       </div>
+      {!showSetup && <ScopeWarning paper={paper} sections={sections} onSections={setSections} />}
       {showSetup && (
         <RunSetup
           paper={paper}

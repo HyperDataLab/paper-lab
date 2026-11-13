@@ -25,7 +25,7 @@ import { Card } from '@/shared/ui/Card';
 import { Select } from '@/shared/ui/Select';
 import { Tree, type TreeNode } from '@/shared/ui/Tree';
 import { usePaperScope, useRunBudget } from './paperScope';
-import { RunSetup } from './RunSetup';
+import { RunSetup, ScopeWarning } from './RunSetup';
 import { acceptsSectionRun, useReportJob } from './paperJobs';
 import { PlaceText } from './PlaceText';
 import styles from './measurement.module.css';
@@ -334,6 +334,9 @@ export function PaperStance({
           )}
         </ActionBar>
         {(!run || showSetup) && !running && setup}
+        {(!(!run || showSetup) || running) && (
+          <ScopeWarning paper={paper} sections={sections} onSections={setSections} />
+        )}
         {error && <div role="alert">{error}</div>}
       </Card>
       {run && metrics && (

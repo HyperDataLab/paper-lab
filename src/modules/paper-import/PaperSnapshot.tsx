@@ -16,6 +16,7 @@ import { ReviewActions } from '@/shared/ui/FindingCard';
 import { useReportJob } from './paperJobs';
 import styles from './snapshot.module.css';
 import { PlaceText } from './PlaceText';
+import { PdfLocationButton } from './PdfLocationButton';
 
 const LABELS: Record<SnapshotField, string> = {
   methods: 'Methods',
@@ -116,11 +117,9 @@ export function PaperSnapshot({
               <dd>
                 <span>{item.value}</span>
                 {item.source && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
+                  <PdfLocationButton
                     className={styles.page}
-                    title={item.source.excerpt}
+                    page={item.source.page}
                     onClick={() =>
                       item.source &&
                       onLocation({
@@ -129,9 +128,7 @@ export function PaperSnapshot({
                         end: item.source.end,
                       })
                     }
-                  >
-                    {item.source.page ? `Tr. ${item.source.page}` : 'Câu gốc'}
-                  </Button>
+                  ></PdfLocationButton>
                 )}
                 {states.get(item.id) === 'dismissed' ? (
                   <Button

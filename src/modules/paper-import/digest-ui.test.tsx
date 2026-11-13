@@ -157,7 +157,10 @@ it('R13 key facts sit above the summary as a strip, each with its page; a reject
   // Only what the paper states is shown; a field it does not state takes no room.
   expect(within(strip).getByText('Results')).toBeInTheDocument();
   expect(within(strip).queryByText('Duration')).toBeNull();
-  fireEvent.click(within(strip).getByRole('button', { name: 'Tr. 2' }));
+  const pageButton = within(strip).getByRole('button', { name: 'Mở trang 2 trong PDF' });
+  expect(pageButton).toHaveAttribute('title', 'Mở trong PDF');
+  expect(pageButton.querySelector('svg')).toBeInTheDocument();
+  fireEvent.click(pageButton);
   expect(onLocation).toHaveBeenCalledWith({ paragraphId: 'r1', start: 0, end: 13 });
   fireEvent.click(within(strip).getByRole('button', { name: 'Bác bỏ Results' }));
   const undo = await within(strip).findByRole('button', { name: 'Hoàn tác' });

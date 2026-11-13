@@ -12,6 +12,7 @@ import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { FindingsList } from './FindingsList';
 import PaperMapPage from './PaperMapPage';
+import { ScopeWarning } from './RunSetup';
 
 const at = '2026-01-01T00:00:00.000Z';
 const paper: Paper = {
@@ -57,6 +58,45 @@ beforeEach(() => {
   localStorage.clear();
 });
 afterEach(() => vi.unstubAllGlobals());
+
+it('offers to reset a narrow shared scope', () => {
+  const reset = vi.fn();
+  render(<ScopeWarning paper={paper} sections={['a']} onSections={reset} />);
+  expect(screen.getByText(/Phạm vi đang là 1\/2 mục/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Đặt lại Phần chính' }));
+  expect(reset).toHaveBeenCalledWith(['a', 'b']);
+});
+
+it('shows the related sentence on a claim-strength card', () => {
+  const finding: PaperFinding = {
+    id: 'drift',
+    source: 'checks',
+    criterion: 'claim',
+    title: 'Claim',
+    code: 'claim_strength_drift',
+    reason: null,
+    locations: [
+      { paragraphId: 'p1', start: 0, end: 15 },
+      { paragraphId: 'p2', start: 0, end: 13 },
+    ],
+    sectionId: null,
+    severity: 'low',
+    origin: 'rule',
+    status: 'open',
+    view: 'science-checks',
+  };
+  render(
+    <FindingsList
+      paper={paper}
+      findings={[finding]}
+      focusId={null}
+      onLocation={vi.fn()}
+      onOpenSource={vi.fn()}
+      onDecide={vi.fn()}
+    />,
+  );
+  expect(screen.getByText(/Câu liên quan:/)).toHaveTextContent('See Figure 2.');
+});
 
 it('R15 the page switch keeps every space reachable and the split label follows its state', async () => {
   const repo = createRepositories(createDb(`columns-${crypto.randomUUID()}`));

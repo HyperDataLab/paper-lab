@@ -7,6 +7,7 @@ import {
   describeStale,
   RUN_ALL,
   RUN_ALL_CONCURRENCY,
+  RUN_ALL_PURPOSES,
   type JobFacts,
   type JobId,
   type JobReport,
@@ -55,10 +56,6 @@ export function RunAllCard({
   const rows = RUN_ALL.map((id) => ({ id, fact: facts[id] }));
   const loading = rows.some((row) => !row.fact?.ready);
   const remaining = rows.filter((row) => row.fact?.ready && (!row.fact.done || row.fact.stale)).length;
-  const remainingNames = rows
-    .filter((row) => row.fact?.ready && (!row.fact.done || row.fact.stale))
-    .map((row) => labels[row.id])
-    .join(', ');
   const todo = rows.filter(
     (row) =>
       row.fact?.ready &&
@@ -88,7 +85,15 @@ export function RunAllCard({
     const update = () => {
       const running = [...active];
       setPhase({ kind: 'running', active: running, completed: done.length, total: ids.length });
-      onProgress?.({ labels: running.map((id) => labels[id]), completed: done.length, total: ids.length });
+      onProgress?.({
+        labels: running.map((id) => labels[id]),
+        completed: RUN_ALL_PURPOSES.filter((p) =>
+          p.jobs.every(
+            (id) => done.includes(id) || (!ids.includes(id) && facts[id]?.done && !facts[id]?.stale),
+          ),
+        ).length,
+        total: RUN_ALL_PURPOSES.length,
+      });
     };
     async function worker() {
       while (!stopping.current && next < ids.length) {
@@ -164,23 +169,51 @@ export function RunAllCard({
     ) : (
       <Button
         disabled={loading}
-        title={remainingNames ? `Còn lại: ${remainingNames}` : undefined}
-        hidden={!loading && remaining === 0}
+        variant={remaining === 0 && !loading ? 'secondary' : 'primary'}
         onClick={() => {
           onPrepare();
           setPhase({ kind: 'confirm' });
         }}
       >
-        Phân tích toàn bài · còn {loading ? '…' : remaining}
+        {remaining === 0 && !loading ? 'Phân tích lại' : 'Phân tích bài báo'}
       </Button>
     );
   const progress = (
     <>
-      {phase.kind === 'running' && (
-        <p role="status">
-          Đang chạy {phase.active.length} phân tích: {phase.active.map((id) => labels[id]).join(', ')} ·{' '}
-          {phase.completed}/{phase.total} xong.
-        </p>
+      {(phase.kind === 'running' || phase.kind === 'finished') && (
+        <div role="status">
+          {RUN_ALL_PURPOSES.map((purpose) => {
+            const hasResult = purpose.jobs.some(
+              (id) =>
+                facts[id]?.done ||
+                facts[id]?.resumable ||
+                (phase.kind === 'finished' && phase.done.includes(id)),
+            );
+            const allDone = purpose.jobs.every(
+              (id) =>
+                (facts[id]?.done && !facts[id]?.stale) ||
+                (phase.kind === 'finished' && phase.done.includes(id)),
+            );
+            const active = phase.kind === 'running' && purpose.jobs.some((id) => phase.active.includes(id));
+            const partial =
+              (phase.kind === 'finished' && purpose.jobs.some((id) => phase.incomplete.includes(id))) ||
+              hasResult;
+            const state = allDone ? 'Xong' : active ? 'Đang chạy' : partial ? 'Xong một phần' : 'Chờ';
+            return (
+              <div key={purpose.label}>
+                <strong>{purpose.label}</strong> · {state} — {purpose.description}{' '}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={!hasResult}
+                  onClick={() => onOpen(purpose.destination)}
+                >
+                  Xem {purpose.label}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
       )}
       {phase.kind === 'stopped' && (
         <p role="alert">
@@ -191,55 +224,39 @@ export function RunAllCard({
           để xem lý do hoặc chạy tiếp.
         </p>
       )}
-      {phase.kind === 'finished' && (
-        <div role="status">
-          <p>
-            Xong {phase.done.length}/{phase.done.length + phase.incomplete.length} phân tích
-            {phase.incomplete.length > 0 &&
-              ` · ${phase.incomplete.length} chưa trọn vẹn: ${phase.incomplete.map((id) => labels[id]).join(', ')}`}
-          </p>
-          {phase.incomplete.map((id) => (
-            <Button key={id} size="sm" variant="ghost" onClick={() => onOpen(id)}>
-              Mở {labels[id]}
-            </Button>
-          ))}
-          <ul>
-            {RUN_ALL.map((id) => (
-              <li key={id}>
-                {labels[id]}:{' '}
-                {phase.done.includes(id)
-                  ? 'Xong'
-                  : phase.incomplete.includes(id)
-                    ? 'Chưa trọn vẹn'
-                    : 'Bỏ qua'}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </>
   );
   const dialog = phase.kind === 'confirm' && (
     <Dialog
-      title="Phân tích toàn bài?"
+      title="Phân tích bài báo?"
       description="Mỗi phân tích gửi các mục đã chọn của bài cho AI. Kết quả AI được chấp nhận mặc định; bạn bác bỏ những gì không đúng."
       onClose={() => setPhase({ kind: 'idle' })}
     >
-      <p>Còn lại: {remainingNames || 'Không có'}.</p>
-      <ul className={styles.runAllList}>
-        {rows.map((row) => (
-          <li key={row.id}>
-            <span>{labels[row.id]}</span>
-            <span className={styles.muted}>{status(row.fact)}</span>
+      <ul>
+        {RUN_ALL_PURPOSES.map((purpose) => (
+          <li key={purpose.label}>
+            <strong>{purpose.label}</strong> — {purpose.description}
           </li>
         ))}
       </ul>
       <p>
-        Tổng ước tính: ~{total} lượt gọi AI cho {todo.length} phân tích (chưa tính thử lại). Các phân tích
-        chạy song song, khoảng {minutes} phút
-        {todo.some((row) => row.id === 'batch') && '; Coherence & sentences chiếm phần lớn'}. Mỗi phân tích
-        vẫn có trần riêng. Các kiểm tra không dùng AI cũng được chạy nếu chưa có.
+        Khoảng {minutes} phút · tổng ước tính ~{total} lượt gọi AI (chưa tính thử lại).
       </p>
+      <details>
+        <summary>Nâng cao</summary>
+        <p>Giới hạn lượt gọi được đặt trong từng phân tích và Cài đặt.</p>
+        <ul className={styles.runAllList}>
+          {rows.map((row) => (
+            <li key={row.id}>
+              <span>{labels[row.id]}</span>
+              <span className={styles.muted}>
+                {status(row.fact)}
+                {row.fact?.budget != null && ` · trần ${row.fact.budget}`}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </details>
       <div className={styles.runActions}>
         <Button data-dialog-initial-focus onClick={() => setPhase({ kind: 'idle' })}>
           Huỷ
@@ -266,7 +283,7 @@ export function RunAllCard({
     <Card padding="md">
       <div className={styles.runAll}>
         <div>
-          <h2>Phân tích toàn bài</h2>
+          <h2>Phân tích bài báo</h2>
           <p className={styles.muted}>
             Chạy song song các phân tích AI còn thiếu, dùng phạm vi mục đã nhớ cho bài này và giới hạn chạy
             trong Cài đặt. Phân tích đã có kết quả được bỏ qua.

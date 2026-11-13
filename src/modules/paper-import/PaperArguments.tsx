@@ -19,7 +19,7 @@ import { FindingCard, ReviewActions } from '@/shared/ui/FindingCard';
 import { ArgumentDiagram } from './ArgumentDiagram';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { usePaperScope, useRunBudget } from './paperScope';
-import { RunSetup } from './RunSetup';
+import { RunSetup, ScopeWarning } from './RunSetup';
 import { acceptsSectionRun, useReportJob } from './paperJobs';
 import styles from './argument.module.css';
 import { Loading } from '@/shared/ui/StateNote';
@@ -257,6 +257,9 @@ export function PaperArguments({
           )}
         </ActionBar>
         {(!run || showSetup) && !running && setup}
+        {(!(!run || showSetup) || running) && (
+          <ScopeWarning paper={paper} sections={sections} onSections={setSections} />
+        )}
         {error && <div role="alert">{error}</div>}
         {run && run.failedSectionIds.length > 0 && (
           <p role="status">
