@@ -7,16 +7,34 @@ const ARXIV_ID = /(\d{4}\.\d{4,5}(?:v\d+)?|[a-z-]+(?:\.[a-z]{2})?\/\d{7}(?:v\d+)
 const content = (element: Element | null | undefined) =>
   element?.textContent?.replace(/\s+/gu, ' ').trim() || null;
 const first = (root: Element | Document, selector: string) => root.querySelector(selector);
+const splitPerson = (person: Element): GrobidPerson[] => {
+  const parts = [...person.querySelectorAll('forename, surname')];
+  const people: GrobidPerson[] = [];
+  let current: GrobidPerson = { forename: '', surname: '' };
+  for (const part of parts) {
+    const name = content(part);
+    if (!name) continue;
+    if (
+      (part.localName === 'surname' && current.surname) ||
+      (part.localName === 'forename' && part.getAttribute('type') === 'first' && current.forename)
+    ) {
+      people.push(current);
+      current = { forename: '', surname: '' };
+    }
+    if (part.localName === 'surname') current.surname = name;
+    else current.forename = [current.forename, name].filter(Boolean).join(' ');
+  }
+  if (current.forename || current.surname) people.push(current);
+  return people;
+};
 const people = (root: Element): GrobidPerson[] =>
-  [...root.querySelectorAll('author persName')]
-    .map((person) => ({
-      forename: [...person.querySelectorAll('forename')]
-        .map((part) => content(part))
-        .filter(Boolean)
-        .join(' '),
-      surname: content(first(person, 'surname')) ?? '',
-    }))
-    .filter((person) => person.forename || person.surname);
+  [...root.querySelectorAll('author persName, author orgName')].flatMap((person) =>
+    person.localName === 'orgName'
+      ? content(person)
+        ? [{ forename: '', surname: content(person) ?? '' }]
+        : []
+      : splitPerson(person),
+  );
 const identifier = (root: Element, type: string) => {
   const node = [...root.querySelectorAll('idno')].find(
     (item) => item.getAttribute('type')?.toLowerCase() === type,
