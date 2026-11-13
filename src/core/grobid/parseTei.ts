@@ -48,6 +48,26 @@ const dateOf = (root: Element) => {
   return date?.getAttribute('when') || content(date);
 };
 
+const referenceYear = (
+  root: Element,
+): { year: number | null; yearSource?: 'date' | 'text'; suffix?: string } => {
+  for (const date of root.querySelectorAll('date[when]')) {
+    const match = date.getAttribute('when')?.match(/\b(?:19|20)\d{2}\b/u);
+    if (match) return { year: Number(match[0]), yearSource: 'date' };
+  }
+  for (const element of [...root.querySelectorAll('imprint, monogr title, analytic title, note'), root]) {
+    const copy = element.cloneNode(true) as Element;
+    copy.querySelectorAll('idno, ptr, ref, biblScope').forEach((node) => node.remove());
+    const text = (copy.textContent ?? '')
+      .replace(/(?:https?:\/\/|www\.)\S+|\b10\.\d{4,9}\/\S+|\barxiv\s*:\s*\S+/giu, ' ')
+      .replace(/\b(?:vol(?:ume)?|issue|no|pp?|pages?)\.?\s*[:.]?\s*\d+(?:\s*[-–]\s*\d+)?/giu, ' ');
+    const match = text.match(/\b((?:19|20)\d{2})([a-z])?\b/u);
+    if (match)
+      return { year: Number(match[1]), yearSource: 'text', ...(match[2] ? { suffix: match[2] } : {}) };
+  }
+  return { year: null };
+};
+
 export function parseGrobidTei(xml: string): GrobidResult {
   const document = new DOMParser().parseFromString(xml, 'application/xml');
   if (document.querySelector('parsererror') || document.documentElement.localName !== 'TEI')
@@ -62,15 +82,14 @@ export function parseGrobidTei(xml: string): GrobidResult {
     const id =
       item.getAttribute('xml:id') || item.getAttributeNS('http://www.w3.org/XML/1998/namespace', 'id');
     if (!id) return [];
-    const date = dateOf(item);
-    const yearMatch = date?.match(/\b(?:19|20)\d{2}\b/u);
+    const year = referenceYear(item);
     return [
       {
         id,
         authors: people(item),
         title: content(first(item, 'analytic title')) ?? content(first(item, 'monogr title')),
         venue: content(first(item, 'analytic') ? first(item, 'monogr title') : null),
-        year: yearMatch ? Number(yearMatch[0]) : null,
+        ...year,
         doi: identifier(item, 'doi'),
         arxivId: identifier(item, 'arxiv'),
         rawText: content(first(item, 'note[type="raw_reference"]')),

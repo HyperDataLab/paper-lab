@@ -20,6 +20,11 @@ export const GrobidResultSchema = z.object({
       title: z.string().nullable(),
       venue: z.string().nullable(),
       year: z.number().int().nullable(),
+      yearSource: z.enum(['date', 'text']).optional(),
+      suffix: z
+        .string()
+        .regex(/^[a-z]$/u)
+        .optional(),
       doi: z.string().nullable(),
       arxivId: z.string().nullable(),
       rawText: z.string().nullable(),
@@ -41,7 +46,8 @@ export const GrobidResultSchema = z.object({
  * Text and offsets in the result are GROBID's own; every location shown is anchored again in the PDF.js text.
  */
 export const GrobidRecordSchema = z.object({
-  schemaVersion: z.literal(1),
+  // 2: references carry year/suffix read from text; older records are re-parsed from the cached TEI.
+  schemaVersion: z.literal(2),
   paperId: z.uuid(),
   sha256: z.string(),
   version: z.literal(GROBID_VERSION),

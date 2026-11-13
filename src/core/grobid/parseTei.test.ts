@@ -27,6 +27,7 @@ describe('GROBID TEI', () => {
       title: 'Prior work',
       venue: 'Journal',
       year: 2020,
+      yearSource: 'date',
       doi: '10.1234/example',
       arxivId: null,
       rawText: 'Synthetic reference.',
@@ -44,6 +45,20 @@ describe('GROBID TEI', () => {
     ]);
   });
   it('rejects invalid XML', () => expect(() => parseGrobidTei('<TEI>')).toThrow());
+  it('extracts years and suffixes from reference text while ignoring identifiers and scopes', () => {
+    const result = parseGrobidTei(`<TEI><text><back><listBibl>
+      <biblStruct xml:id="title"><monogr><title>Conference, 2025a</title><imprint/></monogr></biblStruct>
+      <biblStruct xml:id="imprint"><monogr><imprint>Published in 2023</imprint></monogr></biblStruct>
+      <biblStruct xml:id="ids"><monogr><imprint><biblScope unit="volume">2021</biblScope><biblScope unit="page">2019</biblScope></imprint></monogr><idno type="DOI">10.1234/2025.2020</idno><note>https://example.org/2024 arXiv:2022.12345 doi:10.1234/2018.123</note></biblStruct>
+      <biblStruct xml:id="date"><monogr><title>Meeting 2025b</title><imprint><date when="2020-01-01"/></imprint></monogr></biblStruct>
+      </listBibl></back></text></TEI>`);
+    expect(result.references.map(({ year, yearSource, suffix }) => [year, yearSource, suffix])).toEqual([
+      [2025, 'text', 'a'],
+      [2023, 'text', undefined],
+      [null, undefined, undefined],
+      [2020, 'date', undefined],
+    ]);
+  });
   it('splits explicit name sequences and preserves an unstructured merged name', () => {
     const result = parseGrobidTei(`<TEI><teiHeader><fileDesc><sourceDesc><biblStruct><analytic>
       <author><persName><forename type="first">Ann</forename><surname>One</surname><forename type="first">Bo</forename><surname>Two</surname></persName></author>

@@ -43,7 +43,7 @@ export async function requestGrobid(
 ): Promise<GrobidRecord> {
   const sha = paperSha(paper) ?? '';
   const record = (fields: Pick<GrobidRecord, 'status' | 'error' | 'result'>): GrobidRecord => ({
-    schemaVersion: 1,
+    schemaVersion: 2,
     paperId: paper.id,
     sha256: sha,
     version: GROBID_VERSION,
