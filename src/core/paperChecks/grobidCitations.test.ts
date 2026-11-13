@@ -72,6 +72,18 @@ describe('GROBID leftover pairing', () => {
     expect(pairLeftoverCitations(citations('(Li, 2025)'), refs).size).toBe(0);
     expect(pairLeftoverCitations(citations('(Li, 2025a)', '(Li, 2025b)', '(Li, 2025)'), refs).size).toBe(0);
   });
+  it('pairs sibling suffixes when GROBID lost the year of one reference', () => {
+    const li = (id: string, year: number | null) => ({ ...reference(id, 'Li'), year });
+    expect([
+      ...pairLeftoverCitations(citations('Li et al. (2025a)', 'Li et al., 2025b;'), [
+        li('noYear', null),
+        li('dated', 2025),
+      ]),
+    ]).toEqual([
+      [0, 'noYear'],
+      [1, 'dated'],
+    ]);
+  });
   it('marks leftover links and removes both findings', () => {
     const paper = structuredClone(grobidPaper);
     const body = paper.paragraphs[0];
