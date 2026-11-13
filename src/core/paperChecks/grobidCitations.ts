@@ -1,5 +1,5 @@
 import { anchorCitation } from '../grobid/anchor';
-import { isCutCitation, resolveCitation } from '../grobid/citationFallback';
+import { isCutCitation, pairLeftoverCitations, resolveCitation } from '../grobid/citationFallback';
 import { grobidReferenceItems } from '../grobid/merge';
 import type { CheckResult, Finding, GrobidResult, Paper } from '../schemas';
 import { finding, result, type Located } from './common';
@@ -14,7 +14,11 @@ import { paperReferenceParagraphs } from './references';
 export function grobidCitationsReferences(
   paper: Paper,
   grobid: GrobidResult,
-): { check: CheckResult; suppressed: number } {
+): {
+  check: CheckResult;
+  suppressed: number;
+  resolutions: { referenceId: string | null; matchedBy: 'link' | 'author-year' | 'leftover' | null }[];
+} {
   const id = 'citations_references';
   const refs = paperReferenceParagraphs(paper);
   const body = paper.paragraphs.filter((p) => !refs.includes(p) && p.kind === 'body');
@@ -22,11 +26,34 @@ export function grobidCitationsReferences(
   const cited = new Set<string>();
   let suppressed = 0;
   const missing = new Map<string, Located[]>();
-  for (const citation of grobid.citations) {
-    const linked =
-      citation.referenceId && known.has(citation.referenceId)
-        ? citation.referenceId
-        : resolveCitation(citation.text, grobid.references);
+  const resolutions = grobid.citations.map((citation) => {
+    if (citation.referenceId && known.has(citation.referenceId))
+      return { referenceId: citation.referenceId, matchedBy: 'link' as const };
+    const referenceId = resolveCitation(citation.text, grobid.references);
+    return { referenceId, matchedBy: referenceId ? ('author-year' as const) : null };
+  });
+  const initialCited = new Set(
+    resolutions.flatMap((entry) => (entry.referenceId ? [entry.referenceId] : [])),
+  );
+  const unresolvedIndexes = resolutions.flatMap((entry, index) => (entry.referenceId ? [] : [index]));
+  const leftovers = unresolvedIndexes.flatMap((index) => {
+    const citation = grobid.citations[index];
+    return citation ? [citation] : [];
+  });
+  const pairs = pairLeftoverCitations(
+    leftovers,
+    grobid.references.filter((reference) => !initialCited.has(reference.id)),
+  );
+  const finalResolutions: {
+    referenceId: string | null;
+    matchedBy: 'link' | 'author-year' | 'leftover' | null;
+  }[] = resolutions;
+  pairs.forEach((referenceId, index) => {
+    const originalIndex = unresolvedIndexes[index];
+    if (originalIndex !== undefined) finalResolutions[originalIndex] = { referenceId, matchedBy: 'leftover' };
+  });
+  for (const [index, citation] of grobid.citations.entries()) {
+    const linked = finalResolutions[index]?.referenceId;
     if (linked) {
       cited.add(linked);
       continue;
@@ -74,6 +101,7 @@ export function grobidCitationsReferences(
     );
   }
   return {
+    resolutions: finalResolutions,
     check: result(
       id,
       'Trích dẫn và tài liệu tham khảo',

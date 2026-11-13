@@ -45,6 +45,12 @@ describe('GROBID TEI', () => {
     ]);
   });
   it('rejects invalid XML', () => expect(() => parseGrobidTei('<TEI>')).toThrow());
+  it('retains structured reference text when raw reference text is absent', () => {
+    const result = parseGrobidTei(
+      '<TEI><text><back><listBibl><biblStruct xml:id="b"><analytic><title>Study</title></analytic><monogr><title>Venue</title><imprint><publisher>AAAI Press</publisher></imprint></monogr><note>Proceedings</note></biblStruct></listBibl></back></text></TEI>',
+    );
+    expect(result.references[0]?.referenceText).toBe('Study Venue AAAI Press Proceedings');
+  });
   it('extracts years and suffixes from reference text while ignoring identifiers and scopes', () => {
     const result = parseGrobidTei(`<TEI><text><back><listBibl>
       <biblStruct xml:id="title"><monogr><title>Conference, 2025a</title><imprint/></monogr></biblStruct>

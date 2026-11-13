@@ -28,6 +28,7 @@ export const GrobidResultSchema = z.object({
       doi: z.string().nullable(),
       arxivId: z.string().nullable(),
       rawText: z.string().nullable(),
+      referenceText: z.string().optional(),
     }),
   ),
   /** One entry per link target; `referenceId` is null when GROBID could not resolve the marker. */
@@ -46,8 +47,8 @@ export const GrobidResultSchema = z.object({
  * Text and offsets in the result are GROBID's own; every location shown is anchored again in the PDF.js text.
  */
 export const GrobidRecordSchema = z.object({
-  // 2: references carry year/suffix read from text; older records are re-parsed from the cached TEI.
-  schemaVersion: z.literal(2),
+  // 3: references retain structured text for citation matching; older records are re-parsed from cached TEI.
+  schemaVersion: z.literal(3),
   paperId: z.uuid(),
   sha256: z.string(),
   version: z.literal(GROBID_VERSION),
