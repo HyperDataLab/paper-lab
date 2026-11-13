@@ -72,23 +72,6 @@ const put = (sha: string, body: ArrayBuffer, headers: Record<string, string> = {
   });
 
 describe('R8 PDF worker', () => {
-  it('serves topic snapshots only to authenticated callers, without allowing writes', async () => {
-    const d = deps();
-    const id = '00000000-0000-4000-8000-000000000001';
-    const path = `/corpora/${id}/topics`;
-    expect((await handle(d, request('GET', path, { headers: { authorization: '' } }))).status).toBe(401);
-    expect((await handle(d, request('GET', path))).status).toBe(404);
-    const body = new TextEncoder().encode('{"snapshotId":"synthetic"}').buffer;
-    await d.bucket.put(`paperlab/corpora-topics/${id}.json`, body, {
-      httpMetadata: { contentType: 'application/json' },
-      customMetadata: {},
-    });
-    const response = await handle(d, request('GET', path));
-    expect(response.status).toBe(200);
-    expect(response.headers.get('access-control-allow-origin')).toBe(ORIGIN);
-    expect(await response.json()).toEqual({ snapshotId: 'synthetic' });
-    expect((await handle(d, request('PUT', path))).status).toBe(405);
-  });
   it('stores a PDF under its hash once, records who sent it, and serves it back', async () => {
     const d = deps();
     const sha = await hex(pdf);

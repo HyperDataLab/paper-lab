@@ -4,7 +4,7 @@ import { PROMPT_VERSIONS } from '@/core/prompts';
 import type { Corpus } from '@/core/schemas/corpus';
 import type { CorpusTopics as Snapshot, TopicName } from '@/core/schemas/corpusTopics';
 import { useAuth } from '@/shared/auth/authContext';
-import { pullCorpusTopics } from '@/shared/corpusSync';
+import { corpusTopicsStatus, pullCorpusTopics, startCorpusTopics } from '@/shared/corpusSync';
 import { useLlm } from '@/shared/llm/LlmProvider';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
@@ -33,6 +33,46 @@ export function CorpusTopics({
   const [sort, setSort] = useState('size');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [controls, setControls] = useState<Corpus[]>([]);
+  const [controlId, setControlId] = useState('');
+  const [progress, setProgress] = useState('');
+  const [running, setRunning] = useState(false);
+  useEffect(() => {
+    void repo.corpora
+      .list()
+      .then((items) => setControls(items.filter((item) => item.kind === 'control' && item.id !== corpus.id)));
+  }, [corpus.id, repo]);
+  async function runTopics() {
+    setRunning(true);
+    setError('');
+    try {
+      const token = await getIdToken();
+      if (!token) throw new Error('Cần đăng nhập');
+      const jobId = await startCorpusTopics(corpus.id, token, controlId ? [controlId] : []);
+      for (;;) {
+        const status = await corpusTopicsStatus(corpus.id, jobId, token);
+        setProgress(`${status.state}${status.progress ? `: ${status.progress}` : ''}`);
+        if (status.state === 'failed') throw new Error(status.error ?? 'Tính chủ đề thất bại');
+        if (status.state === 'done') break;
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+      }
+      const latest = await pullCorpusTopics(corpus.id, token);
+      if (!latest) throw new Error('Không tìm thấy kết quả');
+      await repo.corpusTopics.save(latest);
+      setSnapshot(latest);
+      setNames(await repo.corpusTopics.names(latest.snapshotId));
+      const others = await Promise.all(
+        latest.corpora
+          .filter((item) => item.corpusId !== corpus.id)
+          .map((item) => repo.corpora.get(item.corpusId)),
+      );
+      setOtherCorpora(others.filter((item): item is Corpus => item !== undefined));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setRunning(false);
+    }
+  }
   useEffect(() => {
     onData(snapshot, names);
   }, [snapshot, names, onData]);
@@ -132,11 +172,30 @@ export function CorpusTopics({
     <Card>
       <section aria-label="Chủ đề">
         <h2>Chủ đề</h2>
+        <p>Tính trên Cloudflare, khoảng 2–4 phút cho khoảng 300 bài.</p>
+        {user && (
+          <>
+            <Select
+              label="Corpus đối chứng (tùy chọn)"
+              value={controlId}
+              onChange={(event) => setControlId(event.target.value)}
+            >
+              <option value="">Không chọn</option>
+              {controls.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title}
+                </option>
+              ))}
+            </Select>
+            <Button disabled={running} onClick={() => void runTopics()}>
+              Tính chủ đề trên máy chủ
+            </Button>
+            {progress && <p role="status">{progress}</p>}
+          </>
+        )}
         {error && <p role="alert">Không thể tải hoặc đặt tên chủ đề. {error}</p>}
         {!snapshot ? (
-          <p>
-            Chưa có snapshot. Người duy trì chạy BERTopic + KeyBERT bên ngoài ứng dụng và tải kết quả lên.
-          </p>
+          <p>Chưa có snapshot.</p>
         ) : (
           <>
             <p>
