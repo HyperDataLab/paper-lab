@@ -3,7 +3,7 @@ import { IconButton } from '@/shared/ui/IconButton';
 import { useEffect, useState } from 'react';
 import type { Criterion, FindingLocation, FindingStatus, PaperFinding } from '@/core/paperFindings';
 import type { Paper } from '@/core/schemas';
-import { sliceCp } from '@/core/text/offsets';
+import { displayQuote, displayReason } from './findingText';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Chip } from '@/shared/ui/Chip';
@@ -156,7 +156,8 @@ export function FindingsList({
               <span className={styles.groupCount}>{groupCount(entry.id)}</span>
             </>
           ) : null;
-        const quote = paragraph && first ? `“${sliceCp(paragraph.text, first.start, first.end)}”` : undefined;
+        const quote =
+          paragraph && first ? `“${displayQuote(paragraph.text, first.start, first.end)}”` : undefined;
         return (
           <div key={finding.id} id={`finding-${finding.id}`} className={styles.findingRow}>
             {heading && <h3>{heading}</h3>}
@@ -201,7 +202,25 @@ export function FindingsList({
                 }
               >
                 {/* A rule check's evidence is often just the quoted words; saying them twice adds nothing. */}
-                {quote === `“${finding.reason}”` ? null : finding.reason}
+                {finding.code === 'claim_strength_drift'
+                  ? null
+                  : quote === `“${finding.reason}”`
+                    ? null
+                    : displayReason(finding.reason)}
+                {finding.code === 'claim_strength_drift' &&
+                  finding.locations.slice(1).map((location, index) => {
+                    const related = paper.paragraphs.find((item) => item.id === location.paragraphId);
+                    return (
+                      related && (
+                        <p key={index}>
+                          Câu liên quan:{' '}
+                          <Button size="sm" variant="ghost" onClick={() => onLocation(location)}>
+                            “{displayQuote(related.text, location.start, location.end)}”
+                          </Button>
+                        </p>
+                      )
+                    );
+                  })}
               </FindingCard>
             </div>
           </div>

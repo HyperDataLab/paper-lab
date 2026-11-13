@@ -1,4 +1,5 @@
 import type { Paper } from '@/core/schemas';
+import { ArrowUpRight } from 'lucide-react';
 import { placeOf } from './paperLabels';
 import styles from './page.module.css';
 
@@ -17,7 +18,14 @@ export function PlaceText({ paper, paragraphId }: { paper: Paper; paragraphId: s
       <span className={styles.section} data-role={place.role}>
         {place.label}
       </span>
-      {place.page ? ` · Tr. ${place.page}` : ''}
+      {place.page ? (
+        <>
+          {' '}
+          · Tr. {place.page} <ArrowUpRight size={12} aria-hidden="true" />
+        </>
+      ) : (
+        ''
+      )}
     </span>
   );
 }

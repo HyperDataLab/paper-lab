@@ -10,6 +10,8 @@ import { SECTION_ROLE_LABELS } from './sectionRoles';
 import { OverviewTable, type OverviewFocus } from './OverviewTable';
 import { OverviewTransitions } from './OverviewTransitions';
 import { Loading } from '@/shared/ui/StateNote';
+import { mainBodySections } from './paperScope';
+import { paperAnalyses } from '@/core/paperOverview';
 
 export function PaperOverview({
   paper,
@@ -77,13 +79,17 @@ export function PaperOverview({
     );
   if (!record) return <Loading label="Đang tải tổng quan…" />;
   const overview = record.overview;
+  const scope = new Set(run?.plan.sectionIds ?? mainBodySections(paper));
+  const scoped = paper.paragraphs.filter((item) => item.kind === 'body' && scope.has(item.sectionId));
+  const selectedAnalyses = paperAnalyses(paper, analyses);
+  const analysed = scoped.filter((item) => selectedAnalyses.has(item.id)).length;
   return (
     <>
       <Card>
         <h2>Kết quả theo mục</h2>
         <p>
-          Đã phân tích {overview.analysed}/{overview.bodyParagraphs} đoạn (
-          {new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(overview.coverage * 100)} %)
+          Đã phân tích {analysed}/{scoped.length} đoạn trong phạm vi (
+          {paper.paragraphs.filter((item) => item.kind === 'body').length} đoạn cả bài)
         </p>
         {record.transitions?.stale && (
           <p role="status">

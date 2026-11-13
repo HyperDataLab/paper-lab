@@ -231,7 +231,7 @@ export const SPACES: { id: Space; label: string }[] = [
   { id: 'arguments', label: 'Arguments' },
   { id: 'writing', label: 'Writing style' },
   { id: 'extract', label: 'Trích xuất' },
-  { id: 'data', label: 'Data table' },
+  { id: 'data', label: 'Contribution graph' },
 ];
 export const isSpace = (mode: Mode): mode is Space =>
   mode === 'arguments' || mode === 'writing' || mode === 'extract' || mode === 'data';
