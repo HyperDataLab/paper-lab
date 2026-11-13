@@ -34,6 +34,7 @@ export const GROBID_CACHE_TAG = 'grobid-0.9.0-crf';
 const GROBID_SHA = /^\/grobid\/fulltext\/([0-9a-f]{64})$/;
 const SHA = /^\/pdfs\/([0-9a-f]{64})$/;
 const CORPUS = /^\/corpora\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const CORPUS_TOPICS = /^\/corpora\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/topics$/i;
 const CORPUS_PREFIX = 'paperlab/corpora/';
 
 function cors(request: Request, deps: Deps): Record<string, string> {
@@ -66,8 +67,16 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
   const path = new URL(request.url).pathname;
   const match = SHA.exec(path);
   const corpusMatch = CORPUS.exec(path);
+  const topicsMatch = CORPUS_TOPICS.exec(path);
   const grobidMatch = GROBID_SHA.exec(path);
-  if (!match && !corpusMatch && !grobidMatch && path !== '/grobid/fulltext' && path !== '/corpora')
+  if (
+    !match &&
+    !corpusMatch &&
+    !topicsMatch &&
+    !grobidMatch &&
+    path !== '/grobid/fulltext' &&
+    path !== '/corpora'
+  )
     return json(400, { error: 'invalid path' }, headers);
 
   const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
@@ -79,6 +88,13 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
     return cause instanceof NotAllowedError
       ? json(403, { error: 'account not allowed' }, headers)
       : json(401, { error: 'invalid token' }, headers);
+  }
+
+  if (topicsMatch) {
+    if (request.method !== 'GET') return json(405, { error: 'method not allowed' }, headers);
+    const object = await deps.bucket.get(`paperlab/corpora-topics/${topicsMatch[1]}.json`);
+    if (!object) return json(404, { error: 'not stored' }, headers);
+    return new Response(object.body, { headers: { ...headers, 'Content-Type': 'application/json' } });
   }
 
   if (path === '/grobid/fulltext' || grobidMatch) {

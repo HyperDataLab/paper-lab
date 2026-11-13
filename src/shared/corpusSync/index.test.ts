@@ -1,8 +1,38 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { exampleCorpus } from '@/core/corpus/contract';
-import { CorpusConflict, pullCorpus, pullCorpora, pushCorpus } from './index';
+import { CorpusConflict, pullCorpus, pullCorpora, pullCorpusTopics, pushCorpus } from './index';
 
 afterEach(() => vi.unstubAllGlobals());
+it('validates topic snapshots and treats a missing snapshot as empty', async () => {
+  const snapshot = {
+    format: 'paperlab-corpus-topics',
+    schemaVersion: 1,
+    snapshotId: 'run',
+    createdAt: '2026-01-01T00:00:00Z',
+    corpora: [{ corpusId: 'a', kind: 'journal', title: 'A' }],
+    pipeline: {
+      tag: 'test',
+      embeddingModel: 'test',
+      parameters: {},
+      seed: 1,
+      textSource: 'abstract',
+      openalexFetchedAt: '2026-01-01T00:00:00Z',
+    },
+    quality: { outlierShare: 0 },
+    topics: [],
+    members: [],
+  };
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce(new Response(null, { status: 404 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify(snapshot)))
+    .mockResolvedValueOnce(new Response(JSON.stringify(snapshot)));
+  vi.stubGlobal('fetch', fetchMock);
+  expect(await pullCorpusTopics('a', 'token')).toBeUndefined();
+  expect(await pullCorpusTopics('a', 'token')).toEqual(snapshot);
+  expect(fetchMock.mock.calls[1]?.[1].headers).toEqual({ Authorization: 'Bearer token' });
+  await expect(pullCorpusTopics('other', 'token')).rejects.toThrow();
+});
 it('C1d creates and updates with conditional versions and validates remote corpora', async () => {
   const corpus = exampleCorpus();
   const fetchMock = vi
