@@ -35,6 +35,27 @@ describe('GROBID author-year fallback', () => {
     expect(resolveCitation('(Rao, 2025)', references)).toBeNull();
     expect(resolveCitation('(Rao, 2025c)', references)).toBeNull();
   });
+  it('uses explicit text suffixes even when reference order differs', () => {
+    const refs = [
+      { ...reference('b', 'Rao'), yearSource: 'text' as const, suffix: 'b' },
+      { ...reference('a', 'Rao'), yearSource: 'text' as const, suffix: 'a' },
+    ];
+    expect(resolveCitation('(Rao, 2025a)', refs)).toBe('a');
+    expect(resolveCitation('(Rao, 2025b)', refs)).toBe('b');
+    expect(resolveCitation('(Rao, 2025c)', refs)).toBeNull();
+  });
+  it('uses a yearless reference only for a unique surname and an unsuffixed citation', () => {
+    const yearless = { ...reference('a', 'Rao'), year: null };
+    expect(resolveCitation('(Rao, 2025)', [yearless])).toBe('a');
+    expect(resolveCitation('(Rao, 2025a)', [yearless])).toBeNull();
+    expect(resolveCitation('(Rao, 2025)', [yearless, reference('b', 'Rao', 2024)])).toBeNull();
+  });
+  it('matches an organisation at the start of an analytic or monograph title', () => {
+    expect(resolveCitation('(AAAI, 2025)', [{ ...reference('a', ''), title: 'AAAI: proceedings' }])).toBe(
+      'a',
+    );
+    expect(resolveCitation('(AAAI, 2025)', [{ ...reference('b', ''), venue: 'AAAI Conference' }])).toBe('b');
+  });
   it('counts fallback links as cited and skips a cut surname', () => {
     const paper = structuredClone(grobidPaper);
     const body = paper.paragraphs[0];
