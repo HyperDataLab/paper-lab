@@ -118,3 +118,34 @@ Saffron goes to the Corpus backlog.
 - Permission to download the GROBID Docker image (~500 MB, CRF) and, later, the spaCy/MiniLM models for the spike.
 - Where the server runs: Cloud Run needs billing on the Google project (the free tier likely covers a small lab); a
   small VM (e.g. Fly.io or a lab machine) avoids that. Creating it is a deploy and waits for the owner's word.
+
+## GROBID on Cloudflare Containers: measured (2026-11-13)
+
+Deployed as `paperlab-pdf-worker` + `GrobidContainer` (`grobid/grobid:0.9.0-crf`, `standard-2`) on the HyperDataLab
+account; called from the live app with a lab sign-in, on the 32-page test paper (1.36 MB).
+
+| Call                                  | Wall time |
+| ------------------------------------- | --------- |
+| First call, container cold            | 61.8 s    |
+| Same PDF again (R2 cache hit)         | 0.47 s    |
+| 32-page PDF, container warm, no cache | 9.0 s     |
+| 3-page PDF, container warm, no cache  | 4.5 s     |
+
+What came back, compared with the browser parser:
+
+| Field                         | GROBID                                                                            | Browser parser today           |
+| ----------------------------- | --------------------------------------------------------------------------------- | ------------------------------ |
+| Title                         | correct                                                                           | file name                      |
+| Header authors                | 4 names, two of them merged into one entry                                        | none                           |
+| arXiv id / date               | found (`2605.03202v2`, 2026-07-05)                                                | none                           |
+| DOI                           | none in the header (arXiv DOI must be derived from the id)                        | none                           |
+| References                    | 76 entries; 74 with authors, 75 with title, 65 with year, 41 with DOI or arXiv id | entries merged, 18 false cards |
+| In-text citations → reference | 71 of 100 linked                                                                  | matched by heuristics          |
+| Sentences in the body         | 780                                                                               | 869 / 818 (two definitions)    |
+| Line-break hyphens left       | 0                                                                                 | quotes cut at "pa-"            |
+| Appendices                    | mostly kept in the body (4 annex heads, 16 appendix-like heads in body)           | appendix sections hard to read |
+
+Conclusion: use GROBID for the header, references and citation links (the parts the browser parser gets wrong),
+derive `10.48550/arXiv.<id>` for arXiv papers, and keep PDF.js for rendering and quote anchoring. Appendix detection
+still needs our own rule (heading letters A–H after the references). The cold start (~1 min) happens at most once per
+10 idle minutes; importing a paper can start the call in the background so it is warm by the time the reader looks.
