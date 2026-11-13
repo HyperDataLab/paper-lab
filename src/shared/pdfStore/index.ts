@@ -4,7 +4,7 @@ import type { Repositories } from '@/shared/storage/repositories';
 /** The lab's PDF worker. Not a secret: it refuses every request without a lab account's token. */
 export const PDF_WORKER_URL: string =
   (import.meta.env.VITE_PDF_WORKER_URL as string | undefined) ||
-  'https://paperlab-pdf-worker.fgrading.workers.dev';
+  'https://paperlab-pdf-worker.hyperdatalab.workers.dev';
 
 /** The hex digest a paper was imported with, or null for papers that did not come from a file. */
 export const paperSha = (paper: Pick<Paper, 'source'>) => {
