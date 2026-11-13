@@ -1,7 +1,8 @@
 import { generateKeyPair, SignJWT, type JWTVerifyGetKey } from 'jose';
-import { describe, expect, it } from 'vitest';
-import { handle, MAX_BYTES, PREFIX, type Bucket, type Deps } from './app';
+import { describe, expect, it, vi } from 'vitest';
+import { GROBID_CACHE_TAG, handle, MAX_BYTES, PREFIX, type Bucket, type Deps } from './app';
 import { emailAllowed, NotAllowedError, verifyFirebaseToken } from './auth';
+import { GrobidStartingError } from './grobid-error';
 
 const ORIGIN = 'https://hyperdatalab-paragraph-lab.web.app';
 const pdf = new TextEncoder().encode('%PDF-1.7 test file').buffer;
@@ -134,7 +135,7 @@ describe('R8 PDF worker', () => {
       new Request('https://worker.test/pdfs/x', { method: 'OPTIONS', headers: { origin: ORIGIN } }),
     );
     expect(allowed.status).toBe(204);
-    expect(allowed.headers.get('access-control-allow-methods')).toBe('GET, HEAD, PUT');
+    expect(allowed.headers.get('access-control-allow-methods')).toBe('GET, HEAD, PUT, POST');
     const other = await handle(
       deps(),
       new Request('https://worker.test/pdfs/x', {
@@ -143,6 +144,75 @@ describe('R8 PDF worker', () => {
       }),
     );
     expect(other.headers.get('access-control-allow-origin')).toBeNull();
+  });
+});
+
+describe('GROBID full text', () => {
+  const post = (body: ArrayBuffer = pdf) =>
+    request('POST', '/grobid/fulltext', { body, headers: { 'content-type': 'application/pdf' } });
+
+  it('requires authentication, permits POST in CORS, and rejects other methods', async () => {
+    const d = deps();
+    expect(
+      (await handle(d, new Request('https://worker.test/grobid/fulltext', { method: 'POST' }))).status,
+    ).toBe(401);
+    expect((await handle(d, request('GET', '/grobid/fulltext'))).status).toBe(405);
+    const preflight = await handle(d, request('OPTIONS', '/grobid/fulltext'));
+    expect(preflight.headers.get('access-control-allow-methods')).toContain('POST');
+    expect(preflight.headers.get('access-control-expose-headers')).toContain('X-Grobid-Cache');
+  });
+
+  it('rejects invalid PDFs and oversized bodies', async () => {
+    const d = deps();
+    expect((await handle(d, post(new TextEncoder().encode('hello').buffer))).status).toBe(400);
+    expect((await handle(d, post(new ArrayBuffer(MAX_BYTES + 1)))).status).toBe(413);
+    expect((await handle(d, request('POST', '/grobid/fulltext', { body: pdf }))).status).toBe(415);
+  });
+
+  it('caches successful TEI and skips GROBID on a hit, including the stored PDF route', async () => {
+    const grobid = vi.fn(async () => new Response('<TEI/>'));
+    const d = deps({ grobid });
+    const sha = await hex(pdf);
+    const miss = await handle(d, post());
+    expect(miss.headers.get('x-grobid-cache')).toBe('miss');
+    expect(miss.headers.get('content-type')).toBe('application/xml');
+    expect(miss.headers.get('x-grobid-ms')).toMatch(/^\d+$/);
+    expect(d.objects.has(`paperlab/tei/${sha}-${GROBID_CACHE_TAG}.xml`)).toBe(true);
+    expect(await miss.text()).toBe('<TEI/>');
+    const hit = await handle(d, post());
+    expect(hit.headers.get('x-grobid-cache')).toBe('hit');
+    expect(await hit.text()).toBe('<TEI/>');
+    await handle(d, put(sha, pdf));
+    expect((await handle(d, request('POST', `/grobid/fulltext/${sha}`))).headers.get('x-grobid-cache')).toBe(
+      'hit',
+    );
+    expect(grobid).toHaveBeenCalledOnce();
+    expect(grobid).toHaveBeenCalledWith(pdf);
+  });
+
+  it('returns 404 for an absent stored PDF', async () => {
+    expect((await handle(deps(), request('POST', `/grobid/fulltext/${'a'.repeat(64)}`))).status).toBe(404);
+  });
+
+  it('returns 502 for GROBID errors without caching', async () => {
+    const d = deps({ grobid: async () => new Response('partial', { status: 500 }) });
+    const response = await handle(d, post());
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({ error: 'grobid error', status: 500 });
+    expect(d.objects.size).toBe(0);
+  });
+
+  it('returns 503 and a retry hint when readiness times out', async () => {
+    const d = deps({
+      grobid: async () => {
+        throw new GrobidStartingError();
+      },
+    });
+    const response = await handle(d, post());
+    expect(response.status).toBe(503);
+    expect(response.headers.get('retry-after')).toBe('30');
+    expect(await response.json()).toEqual({ error: 'grobid starting' });
+    expect(d.objects.size).toBe(0);
   });
 });
 
