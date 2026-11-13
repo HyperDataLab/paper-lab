@@ -1,4 +1,5 @@
 import { normalizeDoi } from '@/core/library/doi';
+import type { ShownMetadata } from '@/core/grobid/merge';
 import type { PaperMetadata } from '@/core/schemas';
 
 export interface MetadataDraft {
@@ -13,13 +14,14 @@ export interface MetadataDraft {
   keywords: string;
 }
 
-export const SOURCE_LABELS: Record<PaperMetadata['source'], string> = {
+export const SOURCE_LABELS: Record<ShownMetadata['source'], string> = {
   manual: 'Nhập tay',
   openalex: 'OpenAlex',
   library: 'Thư viện DOI',
+  grobid: 'GROBID (đọc từ PDF)',
 };
 
-export function draftFrom(metadata: PaperMetadata | null, title: string, doi: string): MetadataDraft {
+export function draftFrom(metadata: ShownMetadata | null, title: string, doi: string): MetadataDraft {
   return {
     title: metadata?.title ?? title,
     authors: (metadata?.authors ?? []).join('\n'),
@@ -41,7 +43,7 @@ const orNull = (value: string) => value.trim() || null;
  */
 export function metadataFromDraft(
   draft: MetadataDraft,
-  base: PaperMetadata | null,
+  base: ShownMetadata | null,
   fetchedAt: string,
 ): { metadata: PaperMetadata } | { error: string } {
   const year = draft.year.trim();

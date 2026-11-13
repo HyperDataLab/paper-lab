@@ -62,6 +62,7 @@ export function createPapersRepository(db: ParagraphDb, deps: StorageDeps) {
           db.stance,
           db.paperContext,
           db.paperInsights,
+          db.grobid,
           db.reviewNgrams,
           db.auditEvents,
         ],
@@ -76,6 +77,7 @@ export function createPapersRepository(db: ParagraphDb, deps: StorageDeps) {
             await db.stance.delete(id);
             await db.paperContext.delete(id);
             await db.paperInsights.delete(id);
+            await db.grobid.delete(id);
             await db.library
               .where('paper_id')
               .equals(id)

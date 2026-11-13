@@ -9,6 +9,7 @@ import {
   paperRis,
   projectPaperFromPaper,
 } from '@/core/extraction';
+import { mergeGrobidMetadata } from '@/core/grobid/merge';
 import { paperIdentity } from '@/core/paperIdentity';
 import type { ExtractionProject, Paper, PaperMetadata } from '@/core/schemas';
 import { ExtractionMatrix } from '@/modules/extraction';
@@ -16,6 +17,7 @@ import { downloadText } from '@/shared/calibration/download';
 import type { Repositories } from '@/shared/storage/repositories';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Loading } from '@/shared/ui/StateNote';
+import { useGrobidState } from './grobidContext';
 
 /**
  * The extraction table that belongs to a paper, made on first visit with this paper as its row and the default
@@ -50,6 +52,7 @@ export function PaperExtraction({ paper }: { paper: Paper }) {
   const [project, setProject] = useState<ExtractionProject | null>(null);
   const [metadata, setMetadata] = useState<PaperMetadata | null>(null);
   const [error, setError] = useState('');
+  const grobidRecord = useGrobidState().record;
   useEffect(() => {
     let active = true;
     void repo.paperContext
@@ -70,15 +73,17 @@ export function PaperExtraction({ paper }: { paper: Paper }) {
   }, [paper, repo]);
   if (error) return <p role="alert">Không mở được bảng trích xuất: {error}</p>;
   if (!project) return <Loading label="Đang mở bảng trích xuất…" />;
+  // RIS and BibTeX use GROBID's header for fields the stored metadata leaves empty.
+  const shown = mergeGrobidMetadata(metadata, grobidRecord, paper).metadata;
   const citation = {
-    title: metadata?.title || paperIdentity(paper).title,
-    authors: metadata?.authors ?? [],
-    year: metadata?.year ?? null,
-    venue: metadata?.venue ?? null,
-    doi: metadata?.doi ?? null,
-    volume: metadata?.volume ?? null,
-    issue: metadata?.issue ?? null,
-    pages: metadata?.pages ?? null,
+    title: shown?.title || paperIdentity(paper).title,
+    authors: shown?.authors ?? [],
+    year: shown?.year ?? null,
+    venue: shown?.venue ?? null,
+    doi: shown?.doi ?? null,
+    volume: shown?.volume ?? null,
+    issue: shown?.issue ?? null,
+    pages: shown?.pages ?? null,
   };
   return (
     <ExtractionMatrix

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { paperIdentity } from '@/core/paperIdentity';
 import { type Paper, type Section, type Finding, type PaperMetadata as Metadata } from '@/core/schemas';
+import { mergeGrobidMetadata, usableGrobid } from '@/core/grobid/merge';
 import { runPaperChecks } from '@/core/paperChecks';
 import type { FindingStatus, PaperFinding, PaperMark } from '@/core/paperFindings';
 import { analyzeText } from '@/core/text';
@@ -17,6 +18,7 @@ import type { Criterion } from './criteria';
 import { decideFinding } from './decideFinding';
 import { EvidencePanel } from './EvidencePanel';
 import { FindingsList } from './FindingsList';
+import { GrobidContext } from './grobidContext';
 import type { IssuesKit } from './IssuesBlock';
 import { JobProgress } from './JobProgress';
 import { lookupPaperMetadata } from './lookupPaperMetadata';
@@ -32,6 +34,7 @@ import { BLOCKS, BLOCK_IDS, JOBS, JOB_IDS, MODES, PANES, type ViewId } from './p
 import { pdfMarks, pdfNeedle } from './pdfMarks';
 import type { PdfTarget } from './PdfViewer';
 import { useBatchRun } from './useBatchRun';
+import { useGrobid } from './useGrobid';
 import { useJobReports } from './useJobReports';
 import { usePaperFindings } from './usePaperFindings';
 import { usePaperNavigation } from './usePaperNavigation';
@@ -84,6 +87,12 @@ export default function PaperMapPage() {
     place: `${pane}:${mode}`,
     onError: setError,
   });
+  // Asked in the background once the paper is open; the parsed text is used alone until (or unless) it arrives.
+  const grobid = useGrobid(paper, notifyStoredChanged);
+  const shownMetadata = useMemo(
+    () => (paper ? mergeGrobidMetadata(metadata, grobid.record, paper).metadata : metadata),
+    [paper, metadata, grobid.record],
+  );
   // The same marks on the PDF, limited to the layers that are switched on.
   const marksOnPdf = useMemo(
     () =>
@@ -253,7 +262,7 @@ export default function PaperMapPage() {
         repo.paperChecks.save({
           schemaVersion: 1,
           paperId: paper.id,
-          report: runPaperChecks(paper),
+          report: runPaperChecks(paper, new Date(), usableGrobid(grobid.record)),
           decisions: [],
           calibrationSnapshot,
         }),
@@ -328,161 +337,167 @@ export default function PaperMapPage() {
       </div>
     );
   return (
-    <div className={`${styles.page} ${styles.paperPage}`}>
-      <PaperHeader
-        nav={nav}
-        paper={paper}
-        title={shownTitle}
-        metadata={metadata}
-        counts={counts}
-        findings={findings}
-        onInfo={() => setInfoOpen(true)}
-      />
-      <Drawer
-        open={infoOpen}
-        onClose={() => {
-          setInfoOpen(false);
-          void repo.paperContext.get(paper.id).then((context) => setMetadata(context?.metadata ?? null));
-        }}
-        side="right"
-        label="Thông tin xuất bản"
-        title="Thông tin xuất bản"
-      >
-        {infoOpen && <PaperMetadata paper={paper} />}
-      </Drawer>
-      <Drawer
-        open={markDrawer !== null}
-        onClose={() => setMarkDrawer(null)}
-        side="right"
-        label="Issue"
-        title="Issue"
-      >
-        {markDrawer && (
-          <FindingsList
-            paper={paper}
-            findings={findings.filter((finding) => finding.id === markDrawer)}
-            focusId={markDrawer}
-            onLocation={(location) => {
-              setMarkDrawer(null);
-              openLocation(location);
-            }}
-            onOpenSource={(view) => {
-              setMarkDrawer(null);
-              setTab(view as ViewId);
-            }}
-            onDecide={decide}
-          />
-        )}
-      </Drawer>
-      <StoredChangedContext.Provider value={notifyStoredChanged}>
-        <BatchWorkspace paper={paper}>
-          {(batch) => (
-            <JobsContext.Provider value={reportJob}>
-              {!wide && (
-                <div className={styles.paperTabs}>
-                  <Tabs label="Bài báo">
-                    {PANES.map((item) => (
-                      <PaneTab key={item.id} item={item} nav={nav} />
-                    ))}
-                    {progressChip}
-                    <span className={styles.tabDivider} aria-hidden="true" />
-                    {MODES.map((item) => (
-                      <ModeTab key={item.id} item={item} nav={nav} />
-                    ))}
-                  </Tabs>
-                </div>
-              )}
-              <EvidencePanel
-                paper={paper}
-                location={evidence}
-                onClose={() => setEvidence(null)}
-                onOpenReader={openInReader}
-              />
-              <div
-                className={
-                  wide
-                    ? nav.showRight && !nav.inSpace && nav.centreVisible
-                      ? styles.workspace
-                      : styles.workspaceSingle
-                    : undefined
-                }
-              >
-                <PaperColumn
-                  nav={nav}
-                  columnRef={centreColumn}
-                  paper={paper}
-                  progressChip={progressChip}
-                  runAll={{
-                    jobs,
-                    facts: jobFacts,
-                    labels: jobLabels,
-                    onProgress: setRunProgress,
-                    onPrepare: nav.prepareAll,
-                    onOpen: (job) => {
-                      if (job === 'digest') setTab('profile');
-                      else if (job === 'arguments') nav.openSpace('arguments');
-                      else if (job === 'batch') nav.openSpace('writing');
-                      else setTab(JOBS[job].views[0] ?? 'profile');
-                    },
-                    onRunChecks: () => {
-                      if (!checks) runChecks();
-                    },
-                  }}
-                  error={errorBox('Không thể xử lý bài báo.')}
-                  pdf={{
-                    target: pdfTarget,
-                    marks: marksOnPdf,
-                    onMark: (id) => {
-                      const mark = marks.find((item) => item.id === id);
-                      if (mark) openMark(mark);
-                    },
-                    back: backButton,
-                    find,
-                  }}
-                  reader={{
-                    paper,
-                    selected,
-                    onSelect: setSelected,
-                    filter,
-                    onClearFilter: () => setFilter(null),
-                    highlight,
-                    candidateCounts,
-                    batch,
-                    onEditRole: (role) => void editRole(role),
-                    marks,
-                    layers,
-                    onLayers: setLayers,
-                    onMark: openMark,
-                  }}
-                  onLocation={openLocation}
-                  onDigestStart={() => {
-                    if (!jobFacts.snapshot?.done) void jobs.current.snapshot?.start?.();
-                  }}
-                />
-                <AnalysisColumn
-                  nav={nav}
-                  columnRef={rightColumn}
-                  paper={paper}
-                  kit={kit}
-                  issues={issues}
-                  focusFinding={focusFinding}
-                  batch={batch}
-                  checks={checks}
-                  stored={stored}
-                  onLocation={openLocation}
-                  onFilter={(ids) => {
-                    setFilter(ids);
-                    const first = paper.paragraphs.find((paragraph) => ids.includes(paragraph.id));
-                    if (first) setSelected(first.sectionId);
-                    showPage(first?.pageStart);
-                    setTab('map');
-                  }}
-                />
-              </div>
-            </JobsContext.Provider>
+    <GrobidContext.Provider value={grobid}>
+      <div className={`${styles.page} ${styles.paperPage}`}>
+        <PaperHeader
+          nav={nav}
+          paper={paper}
+          title={
+            shownMetadata?.title && shownMetadata.title !== metadata?.title
+              ? paperIdentity(paper, { metadata: shownMetadata }).title
+              : shownTitle
+          }
+          metadata={shownMetadata}
+          counts={counts}
+          findings={findings}
+          onInfo={() => setInfoOpen(true)}
+        />
+        <Drawer
+          open={infoOpen}
+          onClose={() => {
+            setInfoOpen(false);
+            void repo.paperContext.get(paper.id).then((context) => setMetadata(context?.metadata ?? null));
+          }}
+          side="right"
+          label="Thông tin xuất bản"
+          title="Thông tin xuất bản"
+        >
+          {infoOpen && <PaperMetadata paper={paper} />}
+        </Drawer>
+        <Drawer
+          open={markDrawer !== null}
+          onClose={() => setMarkDrawer(null)}
+          side="right"
+          label="Issue"
+          title="Issue"
+        >
+          {markDrawer && (
+            <FindingsList
+              paper={paper}
+              findings={findings.filter((finding) => finding.id === markDrawer)}
+              focusId={markDrawer}
+              onLocation={(location) => {
+                setMarkDrawer(null);
+                openLocation(location);
+              }}
+              onOpenSource={(view) => {
+                setMarkDrawer(null);
+                setTab(view as ViewId);
+              }}
+              onDecide={decide}
+            />
           )}
-        </BatchWorkspace>
-      </StoredChangedContext.Provider>
-    </div>
+        </Drawer>
+        <StoredChangedContext.Provider value={notifyStoredChanged}>
+          <BatchWorkspace paper={paper}>
+            {(batch) => (
+              <JobsContext.Provider value={reportJob}>
+                {!wide && (
+                  <div className={styles.paperTabs}>
+                    <Tabs label="Bài báo">
+                      {PANES.map((item) => (
+                        <PaneTab key={item.id} item={item} nav={nav} />
+                      ))}
+                      {progressChip}
+                      <span className={styles.tabDivider} aria-hidden="true" />
+                      {MODES.map((item) => (
+                        <ModeTab key={item.id} item={item} nav={nav} />
+                      ))}
+                    </Tabs>
+                  </div>
+                )}
+                <EvidencePanel
+                  paper={paper}
+                  location={evidence}
+                  onClose={() => setEvidence(null)}
+                  onOpenReader={openInReader}
+                />
+                <div
+                  className={
+                    wide
+                      ? nav.showRight && !nav.inSpace && nav.centreVisible
+                        ? styles.workspace
+                        : styles.workspaceSingle
+                      : undefined
+                  }
+                >
+                  <PaperColumn
+                    nav={nav}
+                    columnRef={centreColumn}
+                    paper={paper}
+                    progressChip={progressChip}
+                    runAll={{
+                      jobs,
+                      facts: jobFacts,
+                      labels: jobLabels,
+                      onProgress: setRunProgress,
+                      onPrepare: nav.prepareAll,
+                      onOpen: (job) => {
+                        if (job === 'digest') setTab('profile');
+                        else if (job === 'arguments') nav.openSpace('arguments');
+                        else if (job === 'batch') nav.openSpace('writing');
+                        else setTab(JOBS[job].views[0] ?? 'profile');
+                      },
+                      onRunChecks: () => {
+                        if (!checks) runChecks();
+                      },
+                    }}
+                    error={errorBox('Không thể xử lý bài báo.')}
+                    pdf={{
+                      target: pdfTarget,
+                      marks: marksOnPdf,
+                      onMark: (id) => {
+                        const mark = marks.find((item) => item.id === id);
+                        if (mark) openMark(mark);
+                      },
+                      back: backButton,
+                      find,
+                    }}
+                    reader={{
+                      paper,
+                      selected,
+                      onSelect: setSelected,
+                      filter,
+                      onClearFilter: () => setFilter(null),
+                      highlight,
+                      candidateCounts,
+                      batch,
+                      onEditRole: (role) => void editRole(role),
+                      marks,
+                      layers,
+                      onLayers: setLayers,
+                      onMark: openMark,
+                    }}
+                    onLocation={openLocation}
+                    onDigestStart={() => {
+                      if (!jobFacts.snapshot?.done) void jobs.current.snapshot?.start?.();
+                    }}
+                  />
+                  <AnalysisColumn
+                    nav={nav}
+                    columnRef={rightColumn}
+                    paper={paper}
+                    kit={kit}
+                    issues={issues}
+                    focusFinding={focusFinding}
+                    batch={batch}
+                    checks={checks}
+                    stored={stored}
+                    onLocation={openLocation}
+                    onFilter={(ids) => {
+                      setFilter(ids);
+                      const first = paper.paragraphs.find((paragraph) => ids.includes(paragraph.id));
+                      if (first) setSelected(first.sectionId);
+                      showPage(first?.pageStart);
+                      setTab('map');
+                    }}
+                  />
+                </div>
+              </JobsContext.Provider>
+            )}
+          </BatchWorkspace>
+        </StoredChangedContext.Provider>
+      </div>
+    </GrobidContext.Provider>
   );
 }

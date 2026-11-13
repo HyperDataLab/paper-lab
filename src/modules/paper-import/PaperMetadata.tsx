@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { normalizeDoi } from '@/core/library/doi';
 import { paperBibtex, paperRis } from '@/core/extraction';
 import { paperIdentity } from '@/core/paperIdentity';
+import { mergeGrobidMetadata, usableGrobid, type GrobidField } from '@/core/grobid/merge';
 import { buildPaperModel, paperModelToJats, sentenceIndex } from '@/core/paperModel';
 import type { Paper, PaperContextRecord, PaperMetadata as Metadata } from '@/core/schemas';
 import { arxivDoiFromFileName, metadataFromLibrary, paperDoi, referenceList } from '@/core/scholarlyContext';
@@ -12,6 +13,8 @@ import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { SheetSection } from '@/shared/ui/SheetSection';
 import { TextField } from '@/shared/ui/TextField';
+import { useGrobidState } from './grobidContext';
+import { GrobidStatus } from './GrobidStatus';
 import {
   draftFrom,
   metadataFromDraft,
@@ -37,6 +40,12 @@ const FIELDS: { name: Exclude<keyof MetadataDraft, 'authors'>; label: string; hi
   { name: 'doi', label: 'DOI' },
   { name: 'keywords', label: 'Từ khoá', hint: 'Cách nhau bằng dấu phẩy.' },
 ];
+const FILLED_LABELS: Record<GrobidField, string> = {
+  title: 'tên',
+  authors: 'tác giả',
+  year: 'năm',
+  doi: 'DOI',
+};
 const TYPES: Record<string, string> = {
   article: 'Bài báo',
   preprint: 'Bản thảo (preprint)',
@@ -55,9 +64,14 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
   const [message, setMessage] = useState('');
   const [draft, setDraft] = useState<MetadataDraft | null>(null);
   const [formError, setFormError] = useState('');
+  const grobidRecord = useGrobidState().record;
+  const grobid = useMemo(() => usableGrobid(grobidRecord), [grobidRecord]);
   const counts = useMemo(
-    () => ({ sentences: sentenceIndex(paper).length, references: referenceList(paper).length }),
-    [paper],
+    () => ({
+      sentences: sentenceIndex(paper).length,
+      references: referenceList(paper, undefined, grobid).length,
+    }),
+    [paper, grobid],
   );
   useEffect(() => {
     let active = true;
@@ -75,7 +89,11 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
       active = false;
     };
   }, [paper.id, repo]);
-  const metadata = record?.metadata ?? library;
+  // Stored metadata first; GROBID's header only fills what is still empty.
+  const { metadata, filled } = useMemo(
+    () => mergeGrobidMetadata(record?.metadata ?? library, grobidRecord, paper),
+    [record, library, grobidRecord, paper],
+  );
   async function save(next: Metadata, checkedDoi: string | null = next.doi) {
     // Same record the DOI lookup writes; a paper with no lookup yet gets a fresh one.
     const at = next.fetchedAt;
@@ -116,7 +134,7 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
         repo.paperInsights.get(paper.id),
         repo.stance.get(paper.id),
       ]);
-      const model = buildPaperModel({ paper, metadata, insights, stance, now: new Date() });
+      const model = buildPaperModel({ paper, metadata, insights, stance, grobid, now: new Date() });
       const name = paperModelFileName(model.document.metadata.title);
       if (jats) {
         const xml = paperModelToJats(model);
@@ -191,9 +209,10 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
         {running
           ? 'Đang tra cứu…'
           : metadata
-            ? `Nguồn: ${SOURCE_LABELS[metadata.source]} · ${new Date(metadata.fetchedAt).toLocaleString('vi-VN')}`
+            ? `Nguồn: ${SOURCE_LABELS[metadata.source]} · ${new Date(metadata.fetchedAt).toLocaleString('vi-VN')}${filled.length && metadata.source !== 'grobid' ? ` · thêm từ GROBID: ${filled.map((field) => FILLED_LABELS[field]).join(', ')}` : ''}`
             : 'Chưa có metadata. Chỉ DOI được gửi tới OpenAlex.'}
       </p>
+      <GrobidStatus />
 
       <SheetSection title="Tra cứu theo DOI">
         <form

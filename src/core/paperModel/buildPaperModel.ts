@@ -1,7 +1,8 @@
+import type { ShownMetadata } from '../grobid/merge';
 import {
   PaperModelSchema,
+  type GrobidResult,
   type Paper,
-  type PaperMetadata,
   type PaperModel,
   type PaperModelMetadata,
   type PaperModelSection,
@@ -43,7 +44,7 @@ function abstractOf(paper: Paper): string | null {
   return text || null;
 }
 
-function metadataOf(paper: Paper, metadata: PaperMetadata | null): PaperModelMetadata {
+function metadataOf(paper: Paper, metadata: ShownMetadata | null): PaperModelMetadata {
   return {
     title: metadata?.title ?? paper.title,
     authors: metadata?.authors ?? [],
@@ -56,7 +57,8 @@ function metadataOf(paper: Paper, metadata: PaperMetadata | null): PaperModelMet
     pages: metadata?.pages ?? null,
     keywords: metadata?.keywords ?? [],
     abstract: abstractOf(paper),
-    source: metadata?.source ?? 'parsed',
+    // GROBID read the same PDF, so its header counts as parsed in the exported contract.
+    source: !metadata || metadata.source === 'grobid' ? 'parsed' : metadata.source,
   };
 }
 
@@ -65,12 +67,14 @@ export function buildPaperModel({
   metadata,
   insights,
   stance,
+  grobid = null,
   now,
 }: {
   paper: Paper;
-  metadata: PaperMetadata | null;
+  metadata: ShownMetadata | null;
   insights?: PaperInsightsRecord | null;
   stance?: StanceRecord | null;
+  grobid?: GrobidResult | null;
   now: Date;
 }): PaperModel {
   const sentences = sentenceIndex(paper);
@@ -122,7 +126,7 @@ export function buildPaperModel({
         text: p.text,
         textHash: p.textHash,
       })),
-      references: referenceList(paper, now).map((item, index) => ({
+      references: referenceList(paper, now, grobid).map((item, index) => ({
         id: `ref${index + 1}`,
         text: item.text,
         year: item.year,

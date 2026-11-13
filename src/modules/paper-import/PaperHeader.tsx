@@ -25,7 +25,7 @@ export function PaperHeader({
   paper: Paper;
   /** The title as the publication records give it, once known. */
   title: string | null;
-  metadata: PaperMetadata | null;
+  metadata: Pick<PaperMetadata, 'authors' | 'venue' | 'year' | 'doi'> | null;
   counts: { sentences: number; words: number } | null;
   findings: PaperFinding[];
   onInfo: () => void;
