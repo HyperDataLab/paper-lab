@@ -1,6 +1,11 @@
 import type { StoredCorpusProfile } from '@/core/schemas/corpusProfile';
 import type { PdfFileRecord } from './pdfFiles';
-import type { ExtractionProject, PaperContextRecord, PaperInsightsRecord } from '@/core/schemas';
+import type {
+  ExtractionProject,
+  GrobidRecord,
+  PaperContextRecord,
+  PaperInsightsRecord,
+} from '@/core/schemas';
 import Dexie, { type Table } from 'dexie';
 import type {
   Analysis,
@@ -43,6 +48,7 @@ export class ParagraphDb extends Dexie {
   reviewNgrams!: Table<ReviewNgram, [string, string]>;
   calibrationLabels!: Table<CalibrationLabelSet, string>;
   pdfFiles!: Table<PdfFileRecord, string>;
+  grobid!: Table<GrobidRecord, string>;
   constructor(name = 'paragraph-lab') {
     super(name);
     this.version(1).stores({
@@ -74,6 +80,7 @@ export class ParagraphDb extends Dexie {
     this.version(18).stores({ corpora: 'id, updatedAt, kind' });
     this.version(19).stores({ corpusSync: 'id' });
     this.version(20).stores({ corpusProfiles: 'corpusId' });
+    this.version(21).stores({ grobid: 'paperId' });
   }
 }
 export function createDb(name?: string) {

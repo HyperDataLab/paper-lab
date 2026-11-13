@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { usableGrobid } from '@/core/grobid/merge';
 import type { Finding, Paper, PaperContextRecord } from '@/core/schemas';
 import {
   doisToCheck,
@@ -15,6 +16,7 @@ import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { FindingCard } from '@/shared/ui/FindingCard';
+import { useGrobidState } from './grobidContext';
 import { PlaceText } from './PlaceText';
 import styles from './page.module.css';
 
@@ -26,7 +28,9 @@ export function PaperReferences({
   onLocation: (location: Finding['locations'][number]) => void;
 }) {
   const repo = useRepositories();
-  const items = useMemo(() => referenceList(paper), [paper]);
+  const grobidRecord = useGrobidState().record;
+  const grobid = useMemo(() => usableGrobid(grobidRecord), [grobidRecord]);
+  const items = useMemo(() => referenceList(paper, undefined, grobid), [paper, grobid]);
   const stats = useMemo(() => referenceStats(items), [items]);
   const dois = useMemo(() => doisToCheck(paper, items), [paper, items]);
   const [record, setRecord] = useState<PaperContextRecord>();
@@ -83,6 +87,7 @@ export function PaperReferences({
           <Stat value={stats.withDoi} label="Tài liệu có DOI" />
         </StatGrid>
         <p className={styles.tabHelp}>
+          {grobid?.references.length ? 'Danh sách lấy từ GROBID. ' : ''}
           Năm được ước tính từ nội dung từng mục. {stats.total - stats.withYear} mục không đọc được năm nên
           không tính vào tỷ lệ.
         </p>

@@ -22,6 +22,7 @@ import { createStanceRepository } from './stance';
 import { createPaperInsightsRepository } from './paperInsights';
 import { createExtractionRepository } from './extractionProjects';
 import { createPdfFilesRepository } from './pdfFiles';
+import { createGrobidRepository } from './grobid';
 import { createTransferRepository } from './transfer';
 export function createRepositories(
   db: ParagraphDb,
@@ -85,6 +86,7 @@ export function createRepositories(
     corpora,
     corpusProfiles: createCorpusProfilesRepository(db),
     pdfFiles,
+    grobid: createGrobidRepository(db),
     calibrationLabels,
     transfer,
   };

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Paper, PaperChecksRecord } from '@/core/schemas';
+import { usableGrobid } from '@/core/grobid/merge';
 import { runPaperChecks } from '@/core/paperChecks';
 import { collectFindings, collectMarks, type FindingInputs } from '@/core/paperFindings';
 import { captureCalibration } from '@/shared/calibration/data';
@@ -38,12 +39,12 @@ export function usePaperFindings({
           if (!active) return;
           if (value) return setChecks(value);
           // Nothing checked yet: the rule checks use no AI, so they run on their own when the paper opens.
-          const stored = await repo.papers.get(id);
+          const [stored, grobid] = await Promise.all([repo.papers.get(id), repo.grobid.get(id)]);
           if (!stored || !active) return;
           const saved = await repo.paperChecks.save({
             schemaVersion: 1,
             paperId: stored.id,
-            report: runPaperChecks(stored),
+            report: runPaperChecks(stored, new Date(), usableGrobid(grobid)),
             decisions: [],
             calibrationSnapshot: await captureCalibration(repo),
           });

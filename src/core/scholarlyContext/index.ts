@@ -1,7 +1,8 @@
 import { normalizeDoi } from '../library/doi';
 import { referenceEntries, paperReferenceParagraphs } from '../paperChecks/references';
 import type { Located } from '../paperChecks/common';
-import type { Finding, LibraryItem, Paper, PaperMetadata, RetractedWork } from '../schemas';
+import { grobidReferenceItems } from '../grobid/merge';
+import type { Finding, GrobidResult, LibraryItem, Paper, PaperMetadata, RetractedWork } from '../schemas';
 
 const DOI_TEXT = /\b10\.\d{4,9}\/[^\s"<>]+/iu;
 const NOT_YEARS = /https?:\/\/\S+|\b10\.\d{4,9}\/\S+|arxiv[:\s]\S+/giu;
@@ -35,7 +36,16 @@ function yearIn(text: string, latest: number) {
 const isUnfinished = (text: string) =>
   !/(?:[.?!)\]]|\/\S*|\d{4}\.\d{4,5}(?:v\d+)?|(?<!\d)(?:19|20)\d{2}[a-z]?)\s*$/u.test(text);
 
-export function referenceList(paper: Paper, now = new Date()): ReferenceItem[] {
+/** With a GROBID reference list, that list is used; otherwise entries are read from the reference section. */
+export function referenceList(
+  paper: Paper,
+  now = new Date(),
+  grobid: GrobidResult | null = null,
+): ReferenceItem[] {
+  if (grobid?.references.length)
+    return grobidReferenceItems(grobid, paperReferenceParagraphs(paper)).map(
+      ({ text, year, doi, location }) => ({ text, year, doi, location }),
+    );
   const merged: { text: string; first: Located | undefined }[] = [];
   for (const entry of referenceEntries(paperReferenceParagraphs(paper))) {
     const previous = merged.at(-1);

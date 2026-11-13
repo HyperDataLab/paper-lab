@@ -32,7 +32,10 @@ export function detectTitle(paper: Paper): string | null {
 /** Title, authors and year to show for a paper: looked-up metadata first, the file name last. */
 export function paperIdentity(
   paper: Paper,
-  known: { metadata?: PaperMetadata | null; library?: LibraryItem | null } = {},
+  known: {
+    metadata?: Pick<PaperMetadata, 'title' | 'authors' | 'year' | 'venue'> | null;
+    library?: LibraryItem | null;
+  } = {},
 ): PaperIdentity {
   const { metadata, library } = known;
   const detected = detectTitle(paper);
