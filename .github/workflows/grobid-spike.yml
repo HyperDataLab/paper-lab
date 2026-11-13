@@ -1,0 +1,58 @@
+# Manual spike (docs/ARCH_FAST_ANALYSIS.md, step 2): run GROBID (CRF image) on a public arXiv paper and
+# report what it extracts and how long it takes. Nothing is committed; the TEI is kept as a run artifact.
+name: GROBID spike
+
+on:
+  workflow_dispatch:
+    inputs:
+      arxiv:
+        description: arXiv id, e.g. 2605.03202v2
+        required: true
+      image:
+        description: GROBID image
+        default: grobid/grobid:0.9.0-crf
+
+permissions:
+  contents: read
+
+jobs:
+  spike:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start GROBID
+        run: |
+          start=$(date +%s)
+          docker run -d --name grobid -p 8070:8070 "${{ inputs.image }}" \
+            || docker run -d --name grobid -p 8070:8070 lfoppiano/grobid:0.9.0-RC2-crf
+          for i in $(seq 1 90); do
+            curl -sf http://localhost:8070/api/isalive && break
+            sleep 2
+          done
+          echo "GROBID ready after $(( $(date +%s) - start )) s (pull + start)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Fetch the paper
+        run: curl -sfL -o paper.pdf "https://arxiv.org/pdf/${{ inputs.arxiv }}"
+      - name: Process (header, full text, references, sentences)
+        run: |
+          for run in 1 2; do
+            t0=$(date +%s.%N)
+            curl -sf -o paper.tei.xml \
+              --form input=@paper.pdf \
+              --form consolidateHeader=0 \
+              --form consolidateCitations=0 \
+              --form segmentSentences=1 \
+              --form teiCoordinates=s \
+              --form teiCoordinates=ref \
+              --form teiCoordinates=biblStruct \
+              http://localhost:8070/api/processFulltextDocument
+            t1=$(date +%s.%N)
+            echo "processFulltextDocument run $run: $(echo "$t1 - $t0" | bc) s" >> "$GITHUB_STEP_SUMMARY"
+          done
+      - name: Summarise
+        run: node scripts/grobid-summary.mjs paper.tei.xml >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: grobid-tei
+          path: paper.tei.xml
+          retention-days: 7
