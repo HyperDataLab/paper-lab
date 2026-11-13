@@ -19,8 +19,8 @@ const hyphenBreaks = count(/\w-\s+\w/g);
 const rows = [
   ['Title', first(/<titleStmt>\s*<title[^>]*>([^<]*)</)],
   ['Authors in header', String((header.match(/<author>/g) ?? []).length)],
-  ['DOI', first(/<idno type="DOI">([^<]*)</)],
-  ['arXiv id', first(/<idno type="arXiv">([^<]*)</)],
+  ['DOI', header.match(/<idno type="DOI">([^<]*)</)?.[1] ?? '—'],
+  ['arXiv id', header.match(/<idno type="arXiv">([^<]*)</)?.[1] ?? '—'],
   ['Date', first(/<date type="published" when="([^"]*)"/)],
   ['Body sections (head)', String((body.match(/<head/g) ?? []).length)],
   ['Body paragraphs', String((body.match(/<p[ >]/g) ?? []).length)],
