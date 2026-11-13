@@ -55,7 +55,10 @@ function containsWord(text: string, word: string): boolean {
 
 /** Pair only unclaimed references; repeated occurrences of the same marker share one claim. */
 export function pairLeftoverCitations(citations: Citation[], references: Reference[]): Map<number, string> {
-  const groups = new Map<string, { marker: Marker; indexes: number[]; candidates: Reference[] }>();
+  const groups = new Map<
+    string,
+    { marker: Marker; indexes: number[]; candidates: Reference[]; matching: Reference[] }
+  >();
   citations.forEach((citation, index) => {
     const marker = markerOf(citation.text);
     if (!marker) return;
@@ -75,7 +78,7 @@ export function pairLeftoverCitations(citations: Citation[], references: Referen
       );
     });
     const exact = matching.filter((reference) => reference.year === marker.year);
-    groups.set(key, { marker, indexes: [index], candidates: exact.length ? exact : matching });
+    groups.set(key, { marker, indexes: [index], candidates: exact.length ? exact : matching, matching });
   });
   const all = [...groups.values()];
   const paired = new Map<number, string>();
@@ -91,20 +94,22 @@ export function pairLeftoverCitations(citations: Citation[], references: Referen
     )
       assign(group, reference);
   }
+  const claimedBy = (reference: Reference) => [...paired.values()].includes(reference.id);
   const suffixGroups = new Map<string, typeof all>();
   for (const group of all) {
     if (!group.marker.suffix || paired.has(group.indexes[0] ?? -1)) continue;
     const key = `${group.marker.author}|${group.marker.year}`;
     suffixGroups.set(key, [...(suffixGroups.get(key) ?? []), group]);
   }
+  // Siblings (2025a, 2025b) also consider references with no year: GROBID often loses the year of one of them.
   for (const siblings of suffixGroups.values()) {
-    const candidates = references.filter((reference) =>
-      siblings.some((group) => group.candidates.includes(reference)),
+    const candidates = references.filter(
+      (reference) => !claimedBy(reference) && siblings.some((group) => group.matching.includes(reference)),
     );
     if (
       siblings.length < 2 ||
       candidates.length !== siblings.length ||
-      siblings.some((group) => group.candidates.length !== candidates.length) ||
+      siblings.some((group) => candidates.some((reference) => !group.matching.includes(reference))) ||
       all.some(
         (group) => !siblings.includes(group) && group.candidates.some((ref) => candidates.includes(ref)),
       )
