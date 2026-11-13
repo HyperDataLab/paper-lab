@@ -1316,3 +1316,8 @@ mark.textMark {
 .blockToggle[data-open='true'] svg {
   transform: rotate(180deg);
 }
+@media (max-width: 767px) {
+  .headerLabel {
+    display: none;
+  }
+}

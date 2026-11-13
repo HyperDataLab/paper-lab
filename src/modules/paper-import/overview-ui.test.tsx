@@ -188,7 +188,7 @@ it('P3 shows distributions, recurring filters, transition review and stale notic
   const openCoherence1 = screen.queryByRole('button', { name: 'Mở Coherence & sentences' });
   if (openCoherence1) fireEvent.click(openCoherence1);
   fireEvent.click(screen.getByRole('radio', { name: 'Paragraph structure & flow' }));
-  expect(await screen.findByText('Đã phân tích 3/4 đoạn (75 %)')).toBeInTheDocument();
+  expect(await screen.findByText('Đã phân tích 3/4 đoạn trong phạm vi (4 đoạn cả bài)')).toBeInTheDocument();
   expect(screen.getByText(/Kết quả chuyển đoạn đã cũ/)).toBeInTheDocument();
   expect(screen.getAllByText('Chưa đủ dữ liệu').length).toBeGreaterThan(0);
   expect(screen.getByText(/Tổng quan chỉ thống kê kết quả/)).toBeInTheDocument();

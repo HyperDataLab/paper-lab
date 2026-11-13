@@ -92,7 +92,7 @@ it('R15 the page switch keeps every space reachable and the split label follows 
       .map((tab) => tab.textContent?.replace(/\d+$/, '')),
   ).toEqual(['Issues', 'Citations']);
   expect(within(spaces).getByRole('tab', { name: /^Writing style/ })).toBeInTheDocument();
-  expect(within(spaces).getByRole('tab', { name: 'Data table' })).toBeInTheDocument();
+  expect(within(spaces).getByRole('tab', { name: 'Contribution graph' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Ẩn phân tích' }));
   expect(screen.getByRole('button', { name: 'Hiện phân tích' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Hiện phân tích' }));

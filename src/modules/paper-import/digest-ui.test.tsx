@@ -11,6 +11,7 @@ import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { PaperDigest } from './PaperDigest';
+import { uniquePageSources } from './digestSources';
 import { PaperSnapshot } from './PaperSnapshot';
 
 const at = '2026-01-01T00:00:00.000Z';
@@ -71,6 +72,16 @@ beforeEach(() => {
   localStorage.clear();
 });
 
+it('keeps the first existing source for each page in order', () => {
+  const sources = [
+    { paragraphId: 'missing', page: 1 },
+    { paragraphId: 'i1', page: 1 },
+    { paragraphId: 'i1', page: 1 },
+    { paragraphId: 'r1', page: 2 },
+  ];
+  expect(uniquePageSources(sources, paper)).toEqual([sources[1], sources[3]]);
+});
+
 it('R12 one button writes the reader summary, section by section, each part opening its page', async () => {
   acceptConsent(getConfig(), true);
   const repo = createRepositories(createDb(`digest-${crypto.randomUUID()}`));
@@ -104,7 +115,9 @@ it('R12 one button writes the reader summary, section by section, each part open
     .getByText(/seen in 12 journals/)
     .closest('li') as HTMLElement;
   expect(within(scope).getByText('Số chưa đối chiếu được')).toBeInTheDocument();
-  fireEvent.click(within(results).getAllByRole('button', { name: 'Tr. 2' })[0] as HTMLElement);
+  const page = within(results).getAllByRole('button', { name: 'Mở trang 2 trong PDF' })[0] as HTMLElement;
+  expect(page).toHaveAttribute('title', 'Mở trong PDF');
+  fireEvent.click(page);
   expect(onLocation).toHaveBeenCalledWith({ paragraphId: 'r1', start: 0, end: 42 });
   // The summary is kept: it is read back next time, and can be written again.
   expect((await repo.paperInsights.get(paper.id))?.digestRuns).toHaveLength(1);

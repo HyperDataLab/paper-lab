@@ -55,6 +55,10 @@ export function RunAllCard({
   const rows = RUN_ALL.map((id) => ({ id, fact: facts[id] }));
   const loading = rows.some((row) => !row.fact?.ready);
   const remaining = rows.filter((row) => row.fact?.ready && (!row.fact.done || row.fact.stale)).length;
+  const remainingNames = rows
+    .filter((row) => row.fact?.ready && (!row.fact.done || row.fact.stale))
+    .map((row) => labels[row.id])
+    .join(', ');
   const todo = rows.filter(
     (row) =>
       row.fact?.ready &&
@@ -160,6 +164,7 @@ export function RunAllCard({
     ) : (
       <Button
         disabled={loading}
+        title={remainingNames ? `Còn lại: ${remainingNames}` : undefined}
         hidden={!loading && remaining === 0}
         onClick={() => {
           onPrepare();
@@ -220,6 +225,7 @@ export function RunAllCard({
       description="Mỗi phân tích gửi các mục đã chọn của bài cho AI. Kết quả AI được chấp nhận mặc định; bạn bác bỏ những gì không đúng."
       onClose={() => setPhase({ kind: 'idle' })}
     >
+      <p>Còn lại: {remainingNames || 'Không có'}.</p>
       <ul className={styles.runAllList}>
         {rows.map((row) => (
           <li key={row.id}>

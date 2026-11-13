@@ -55,9 +55,10 @@ export function PaperHeader({
               paper={paper}
               parserCounts={`${paper.source.pageCount ?? 'Không rõ'} trang · ${paper.sections.length} mục · ${bodyCount} đoạn nội dung${counts ? ` · ${counts.sentences} câu · ${counts.words} từ` : ''}`}
             />
-            <IconButton label="Thông tin xuất bản" onClick={onInfo}>
-              <Info size={18} />
-            </IconButton>
+            <Button aria-label="Thông tin xuất bản" variant="ghost" onClick={onInfo}>
+              <Info size={18} aria-hidden="true" />
+              <span className={styles.headerLabel}>Thông tin xuất bản</span>
+            </Button>
           </div>
         </div>
         <p className={styles.paperMeta}>

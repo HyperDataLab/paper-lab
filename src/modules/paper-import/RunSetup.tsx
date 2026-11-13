@@ -3,6 +3,7 @@ import type { Paper, Section } from '@/core/schemas';
 import { Button } from '@/shared/ui/Button';
 import { TextField } from '@/shared/ui/TextField';
 import { SectionPicker } from './SectionPicker';
+import { mainBodySections } from './paperScope';
 import styles from './page.module.css';
 
 /**
@@ -48,6 +49,8 @@ export function RunSetup({
   const chosen = paper.sections.filter((section) => sections.includes(section.id) && count(section) > 0);
   const [open, setOpen] = useState(chosen.length === 0);
   const over = estimate > budget;
+  const main = mainBodySections(paper);
+  const narrow = main.some((id) => !sections.includes(id));
   return (
     <div className={styles.runSetup}>
       <p className={styles.runSummary}>
@@ -65,11 +68,20 @@ export function RunSetup({
           {open ? 'Ẩn tuỳ chọn' : 'Tuỳ chọn'}
         </Button>
       </div>
+      {narrow && (
+        <p>
+          Phạm vi đang là {sections.length}/{paper.sections.length} mục —{' '}
+          <Button size="sm" variant="ghost" onClick={() => onSections(main)}>
+            Đặt lại Phần chính
+          </Button>
+        </p>
+      )}
       {over && (
         <p role="alert">Ước tính vượt trần số lượt gọi. Nâng trần trong Tuỳ chọn hoặc trong Cài đặt.</p>
       )}
       {open && (
         <div className={styles.runOptions}>
+          <p>Phạm vi này dùng chung cho mọi phân tích của bài.</p>
           <SectionPicker
             paper={paper}
             value={sections}

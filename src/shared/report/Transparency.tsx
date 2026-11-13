@@ -16,7 +16,6 @@ import { downloadJson } from '@/shared/calibration/download';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Drawer } from '@/shared/ui/Drawer';
-import { IconButton } from '@/shared/ui/IconButton';
 import { Download, ScrollText } from 'lucide-react';
 import { Empty } from '@/shared/ui/StateNote';
 import styles from './transparency.module.css';
@@ -412,9 +411,10 @@ export function Transparency({
     );
   return (
     <>
-      <IconButton label="Minh bạch" onClick={() => setOpen(true)}>
-        <ScrollText size={18} />
-      </IconButton>
+      <Button aria-label="Minh bạch" variant="ghost" onClick={() => setOpen(true)}>
+        <ScrollText size={18} aria-hidden="true" />
+        <span className={styles.headerLabel}>Minh bạch</span>
+      </Button>
       <Drawer
         open={open}
         onClose={() => setOpen(false)}

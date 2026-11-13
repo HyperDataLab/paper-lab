@@ -70,3 +70,8 @@
   color: var(--text-muted);
   cursor: pointer;
 }
+@media (max-width: 767px) {
+  .headerLabel {
+    display: none;
+  }
+}

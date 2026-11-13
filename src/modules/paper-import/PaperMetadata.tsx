@@ -1,6 +1,8 @@
 import { FileCode2, FileJson, Info, Pencil, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { normalizeDoi } from '@/core/library/doi';
+import { paperBibtex, paperRis } from '@/core/extraction';
+import { paperIdentity } from '@/core/paperIdentity';
 import { buildPaperModel, paperModelToJats, sentenceIndex } from '@/core/paperModel';
 import type { Paper, PaperContextRecord, PaperMetadata as Metadata } from '@/core/schemas';
 import { arxivDoiFromFileName, metadataFromLibrary, paperDoi, referenceList } from '@/core/scholarlyContext';
@@ -316,6 +318,34 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
         )}
       </SheetSection>
 
+      <SheetSection title="Xuất trích dẫn">
+        <div className={styles.downloads}>
+          {(['RIS', 'BibTeX'] as const).map((format) => (
+            <Button
+              key={format}
+              onClick={() => {
+                const citation = {
+                  title: metadata?.title || paperIdentity(paper).title,
+                  authors: metadata?.authors ?? [],
+                  year: metadata?.year ?? null,
+                  venue: metadata?.venue ?? null,
+                  doi: metadata?.doi ?? null,
+                  volume: metadata?.volume ?? null,
+                  issue: metadata?.issue ?? null,
+                  pages: metadata?.pages ?? null,
+                };
+                downloadText(
+                  format === 'RIS' ? 'paper.ris' : 'paper.bib',
+                  format === 'RIS' ? paperRis(citation) : paperBibtex(citation),
+                  format === 'RIS' ? 'application/x-research-info-systems' : 'text/plain;charset=utf-8',
+                );
+              }}
+            >
+              {format} của bài này
+            </Button>
+          ))}
+        </div>
+      </SheetSection>
       <SheetSection title="Paper model">
         <p className={styles.note}>
           Toàn bộ bài dưới dạng có cấu trúc: {counts.sentences} câu · {counts.references} tài liệu tham khảo.

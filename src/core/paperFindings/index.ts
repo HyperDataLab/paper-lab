@@ -115,7 +115,7 @@ export function collectFindings(input: FindingInputs): PaperFinding[] {
         source: 'checks',
         ...place,
         title: finding.message,
-        code: null,
+        code: finding.checkId,
         reason: finding.evidence.join(' · ') || null,
         locations: finding.locations,
         severity: finding.severity === 'moderate' ? 'medium' : 'low',
