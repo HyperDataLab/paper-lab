@@ -10,6 +10,16 @@ Keeps PaperLab's original PDFs in the lab's R2 bucket (`paper-fetch`, under `pap
 - CORS answers only the origins in `ALLOWED_ORIGINS` (`wrangler.toml`).
 - The bucket is reached through the R2 binding, so the Worker holds no keys or secrets.
 
+## GROBID full text
+
+`POST /grobid/fulltext` accepts a PDF (up to 25 MiB); `POST /grobid/fulltext/<sha256>` reads an
+existing PDF from R2. Both require the same sign-in and return TEI XML, with `X-Grobid-Cache` and
+`X-Grobid-Ms` headers. TEI is cached in R2 by PDF hash and GROBID version. The first request after
+idle may take 30–60 seconds to start; after 120 seconds it returns 503 with a retry hint.
+The container is billed while running, including idle time, and stops after 10 minutes of inactivity;
+R2 and Worker usage have their own charges. The CRF image is pulled from a registry without Docker.
+`npx wrangler deploy` requires the Workers Paid plan for Containers.
+
 ## Deploy
 
 ```bash

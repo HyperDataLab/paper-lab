@@ -7,7 +7,23 @@ FIREBASE_PROJECT_ID = "hyperdatalab-paragraph-lab"
 ALLOWED_DOMAIN = "hyperdatalab.org"
 ALLOWED_ORIGINS = "https://hyperdatalab-paragraph-lab.web.app,https://hyperdatalab-paragraph-lab.firebaseapp.com,http://localhost:5174"
 
-# The lab's shared bucket; PaperLab writes only under paperlab/pdfs/.
+# The lab's shared bucket; PaperLab writes under paperlab/.
 [[r2_buckets]]
 binding = "BUCKET"
 bucket_name = "paper-fetch"
+
+# The CRF image fits the available memory without the larger deep-learning models.
+# Bumping the GROBID image version also requires changing GROBID_CACHE_TAG.
+[[containers]]
+class_name = "GrobidContainer"
+image = "docker.io/grobid/grobid:0.9.0-crf"
+instance_type = "standard-2"
+max_instances = 2
+
+[[durable_objects.bindings]]
+name = "GROBID"
+class_name = "GrobidContainer"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["GrobidContainer"]

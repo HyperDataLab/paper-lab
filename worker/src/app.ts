@@ -1,4 +1,5 @@
 import { NotAllowedError } from './auth';
+import { GrobidStartingError } from './grobid-error';
 
 /** The part of an R2 bucket this worker uses, so the logic runs in tests without Cloudflare. */
 export interface Bucket {
@@ -24,10 +25,13 @@ export interface Deps {
   bucket: Bucket;
   allowedOrigins: string[];
   now: () => Date;
+  grobid?: (pdf: ArrayBuffer) => Promise<Response>;
 }
 
 export const MAX_BYTES = 25 * 1024 * 1024;
 export const PREFIX = 'paperlab/pdfs/';
+export const GROBID_CACHE_TAG = 'grobid-0.9.0-crf';
+const GROBID_SHA = /^\/grobid\/fulltext\/([0-9a-f]{64})$/;
 const SHA = /^\/pdfs\/([0-9a-f]{64})$/;
 const CORPUS = /^\/corpora\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const CORPUS_PREFIX = 'paperlab/corpora/';
@@ -37,7 +41,8 @@ function cors(request: Request, deps: Deps): Record<string, string> {
   if (!origin || !deps.allowedOrigins.includes(origin)) return { Vary: 'Origin' };
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, HEAD, PUT',
+    'Access-Control-Allow-Methods': 'GET, HEAD, PUT, POST',
+    'Access-Control-Expose-Headers': 'X-Grobid-Cache, X-Grobid-Ms',
     'Access-Control-Allow-Headers': 'authorization, content-type, if-match, if-none-match',
     'Access-Control-Max-Age': '3600',
     Vary: 'Origin',
@@ -61,7 +66,9 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
   const path = new URL(request.url).pathname;
   const match = SHA.exec(path);
   const corpusMatch = CORPUS.exec(path);
-  if (!match && !corpusMatch && path !== '/corpora') return json(400, { error: 'invalid path' }, headers);
+  const grobidMatch = GROBID_SHA.exec(path);
+  if (!match && !corpusMatch && !grobidMatch && path !== '/grobid/fulltext' && path !== '/corpora')
+    return json(400, { error: 'invalid path' }, headers);
 
   const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
   if (!token) return json(401, { error: 'sign-in required' }, headers);
@@ -72,6 +79,60 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
     return cause instanceof NotAllowedError
       ? json(403, { error: 'account not allowed' }, headers)
       : json(401, { error: 'invalid token' }, headers);
+  }
+
+  if (path === '/grobid/fulltext' || grobidMatch) {
+    if (request.method !== 'POST') return json(405, { error: 'method not allowed' }, headers);
+    const start = Date.now();
+    let body: ArrayBuffer;
+    let sha = grobidMatch?.[1];
+    if (sha) {
+      const object = await deps.bucket.get(`${PREFIX}${sha}.pdf`);
+      if (!object) return json(404, { error: 'not stored' }, headers);
+      if (object.size > MAX_BYTES) return json(413, { error: 'file too large' }, headers);
+      body = await new Response(object.body).arrayBuffer();
+    } else {
+      if ((request.headers.get('content-type') ?? '').split(';')[0]?.trim() !== 'application/pdf')
+        return json(415, { error: 'expected application/pdf' }, headers);
+      if (Number(request.headers.get('content-length')) > MAX_BYTES)
+        return json(413, { error: 'file too large' }, headers);
+      body = await request.arrayBuffer();
+    }
+    if (body.byteLength > MAX_BYTES) return json(413, { error: 'file too large' }, headers);
+    if (new TextDecoder().decode(body.slice(0, 4)) !== '%PDF')
+      return json(400, { error: 'not a PDF' }, headers);
+    sha ??= await sha256Hex(body);
+    const cacheKey = `paperlab/tei/${sha}-${GROBID_CACHE_TAG}.xml`;
+    const cached = await deps.bucket.get(cacheKey);
+    const resultHeaders = (state: string) => ({
+      ...headers,
+      'Content-Type': 'application/xml',
+      'X-Grobid-Cache': state,
+      'X-Grobid-Ms': String(Date.now() - start),
+    });
+    if (cached) return new Response(cached.body, { headers: resultHeaders('hit') });
+    let response: Response;
+    try {
+      if (!deps.grobid) throw new Error('GROBID unavailable');
+      response = await deps.grobid(body);
+    } catch (error) {
+      if (error instanceof GrobidStartingError)
+        return json(503, { error: 'grobid starting' }, { ...headers, 'Retry-After': '30' });
+      return json(502, { error: 'grobid unavailable' }, headers);
+    }
+    if (response.status !== 200)
+      return json(502, { error: 'grobid error', status: response.status }, headers);
+    let tei: ArrayBuffer;
+    try {
+      tei = await response.arrayBuffer();
+    } catch {
+      return json(502, { error: 'grobid response interrupted' }, headers);
+    }
+    await deps.bucket.put(cacheKey, tei, {
+      httpMetadata: { contentType: 'application/xml' },
+      customMetadata: {},
+    });
+    return new Response(tei, { headers: resultHeaders('miss') });
   }
 
   if (path === '/corpora' || corpusMatch) {
