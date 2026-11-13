@@ -77,7 +77,7 @@ export const grobidResult: GrobidResult = {
 
 /** A stored record for `grobidPaper`; with `null` it is a failure with a reason. */
 export const grobidRecord = (result: GrobidResult | null = grobidResult): GrobidRecord => ({
-  schemaVersion: 2,
+  schemaVersion: 3,
   paperId: grobidPaper.id,
   sha256: 'a'.repeat(64),
   version: 'grobid-0.9.0-crf',

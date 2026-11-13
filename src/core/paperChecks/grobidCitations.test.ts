@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { grobidPaper, grobidResult } from '@/test/grobidFixtures';
-import { resolveCitation } from '../grobid/citationFallback';
+import { pairLeftoverCitations, resolveCitation } from '../grobid/citationFallback';
 import { grobidCitationsReferences } from './grobidCitations';
 
 const reference = (id: string, surname: string, year = 2025) => ({
@@ -12,6 +12,84 @@ const reference = (id: string, surname: string, year = 2025) => ({
   doi: null,
   arxivId: null,
   rawText: null,
+});
+
+describe('GROBID leftover pairing', () => {
+  const citations = (...texts: string[]) =>
+    texts.map((text) => ({ referenceId: null, text, sentence: text, page: 1 }));
+  it('matches organisation text and a second author without regard to case or accents', () => {
+    const refs = [
+      { ...reference('org', ''), referenceText: 'Proceedings published by AAAI Press' },
+      {
+        ...reference('author', 'Other'),
+        authors: [
+          { forename: '', surname: 'Other' },
+          { forename: '', surname: 'García' },
+        ],
+      },
+    ];
+    expect([...pairLeftoverCitations(citations('(AAAI, 2025)', '(garcia, 2025)'), refs)]).toEqual([
+      [0, 'org'],
+      [1, 'author'],
+    ]);
+    expect(
+      pairLeftoverCitations(citations('(AAAI, 2025)'), [{ ...reference('org', ''), referenceText: 'XAAAIX' }])
+        .size,
+    ).toBe(0);
+  });
+  it('pairs a surname cut at a line-break hyphen only when one reference fits', () => {
+    const cut = reference('cut', 'Shcherbiak', 2024);
+    expect(pairLeftoverCitations(citations('Shcher-'), [cut]).get(0)).toBe('cut');
+    expect(pairLeftoverCitations(citations('Shcher-'), [cut, { ...cut, id: 'twin' }]).size).toBe(0);
+    expect(pairLeftoverCitations(citations('Sh-'), [cut]).size).toBe(0);
+  });
+  it('accepts missing years, rejects different years, and prefers exact years', () => {
+    const missing = {
+      ...reference('missing', 'Other'),
+      authors: [
+        { forename: '', surname: 'Other' },
+        { forename: '', surname: 'Rao' },
+      ],
+      year: null,
+    };
+    const exact = { ...missing, id: 'exact', year: 2025 };
+    expect(pairLeftoverCitations(citations('(Rao, 2025a)'), [missing]).get(0)).toBe('missing');
+    expect(pairLeftoverCitations(citations('(Rao, 2025a)'), [{ ...missing, year: 2024 }]).size).toBe(0);
+    expect(pairLeftoverCitations(citations('(Rao, 2025a)'), [missing, exact]).get(0)).toBe('exact');
+  });
+  it('pairs suffixes in order and leaves ambiguous claims unresolved', () => {
+    const refs = ['first', 'second'].map((id) => ({
+      ...reference(id, 'Other'),
+      authors: [
+        { forename: '', surname: 'Other' },
+        { forename: '', surname: 'Li' },
+      ],
+    }));
+    expect([...pairLeftoverCitations(citations('Li et al. (2025b)', 'Li et al. (2025a)'), refs)]).toEqual([
+      [1, 'first'],
+      [0, 'second'],
+    ]);
+    expect(pairLeftoverCitations(citations('(Li, 2025)'), refs).size).toBe(0);
+    expect(pairLeftoverCitations(citations('(Li, 2025a)', '(Li, 2025b)', '(Li, 2025)'), refs).size).toBe(0);
+  });
+  it('marks leftover links and removes both findings', () => {
+    const paper = structuredClone(grobidPaper);
+    const body = paper.paragraphs[0];
+    const refs = paper.paragraphs[1];
+    if (!body || !refs) throw new Error('Fixture is incomplete');
+    body.text = 'See (AAAI, 2025).';
+    refs.text = 'Peer Review Assessment System.';
+    const grobid = {
+      ...grobidResult,
+      references: [
+        { ...reference('org', ''), title: 'Peer Review Assessment System', referenceText: 'AAAI Press' },
+      ],
+      citations: citations('(AAAI, 2025)'),
+    };
+    const result = grobidCitationsReferences(paper, grobid);
+    expect(result.resolutions).toEqual([{ referenceId: 'org', matchedBy: 'leftover' }]);
+    expect(result.check.findings).toEqual([]);
+  });
 });
 const references = [
   reference('a', 'Rao'),

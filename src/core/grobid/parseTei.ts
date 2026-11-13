@@ -93,6 +93,14 @@ export function parseGrobidTei(xml: string): GrobidResult {
         doi: identifier(item, 'doi'),
         arxivId: identifier(item, 'arxiv'),
         rawText: content(first(item, 'note[type="raw_reference"]')),
+        ...(!content(first(item, 'note[type="raw_reference"]'))
+          ? {
+              referenceText: [...item.querySelectorAll('title, note, publisher')]
+                .map(content)
+                .filter(Boolean)
+                .join(' '),
+            }
+          : {}),
       },
     ];
   });
