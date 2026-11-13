@@ -28,7 +28,7 @@ npm ci
 npx wrangler deploy
 ```
 
-The app uses `https://paperlab-pdf-worker.fgrading.workers.dev`; set `VITE_PDF_WORKER_URL` to use another URL.
+The app uses `https://paperlab-pdf-worker.hyperdatalab.workers.dev`; set `VITE_PDF_WORKER_URL` to use another URL.
 
 Google sign-in must be enabled once in Firebase Console: Authentication → Sign-in method → Google
 (project `hyperdatalab-paragraph-lab`). The app's hosting domains are authorised there by default.
