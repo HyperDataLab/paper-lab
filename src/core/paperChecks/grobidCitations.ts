@@ -1,4 +1,5 @@
 import { anchorCitation } from '../grobid/anchor';
+import { isCutCitation, resolveCitation } from '../grobid/citationFallback';
 import { grobidReferenceItems } from '../grobid/merge';
 import type { CheckResult, Finding, GrobidResult, Paper } from '../schemas';
 import { finding, result, type Located } from './common';
@@ -18,15 +19,22 @@ export function grobidCitationsReferences(
   const refs = paperReferenceParagraphs(paper);
   const body = paper.paragraphs.filter((p) => !refs.includes(p) && p.kind === 'body');
   const known = new Set(grobid.references.map((reference) => reference.id));
-  const cited = new Set(
-    grobid.citations.flatMap((citation) =>
-      citation.referenceId && known.has(citation.referenceId) ? [citation.referenceId] : [],
-    ),
-  );
+  const cited = new Set<string>();
   let suppressed = 0;
   const missing = new Map<string, Located[]>();
   for (const citation of grobid.citations) {
-    if (citation.referenceId && known.has(citation.referenceId)) continue;
+    const linked =
+      citation.referenceId && known.has(citation.referenceId)
+        ? citation.referenceId
+        : resolveCitation(citation.text, grobid.references);
+    if (linked) {
+      cited.add(linked);
+      continue;
+    }
+    if (isCutCitation(citation.text)) {
+      suppressed += 1;
+      continue;
+    }
     // A marker is looked for on its own page first (a paragraph may start on the page before).
     const page = citation.page;
     const onPage = page ? body.filter((p) => p.pageStart === page || p.pageStart === page - 1) : [];

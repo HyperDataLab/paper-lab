@@ -44,4 +44,21 @@ describe('GROBID TEI', () => {
     ]);
   });
   it('rejects invalid XML', () => expect(() => parseGrobidTei('<TEI>')).toThrow());
+  it('splits explicit name sequences and preserves an unstructured merged name', () => {
+    const result = parseGrobidTei(`<TEI><teiHeader><fileDesc><sourceDesc><biblStruct><analytic>
+      <author><persName><forename type="first">Ann</forename><surname>One</surname><forename type="first">Bo</forename><surname>Two</surname></persName></author>
+      <author><persName><forename>Cam Dee</forename><surname>Three Four</surname></persName></author>
+      <author><persName><forename>Ed</forename><surname>Five</surname><surname>Six</surname></persName></author>
+      </analytic></biblStruct></sourceDesc></fileDesc></teiHeader><text><back><listBibl>
+      <biblStruct xml:id="b"><analytic><author><orgName>AAAI</orgName></author></analytic></biblStruct>
+      </listBibl></back></text></TEI>`);
+    expect(result.header.authors).toEqual([
+      { forename: 'Ann', surname: 'One' },
+      { forename: 'Bo', surname: 'Two' },
+      { forename: 'Cam Dee', surname: 'Three Four' },
+      { forename: 'Ed', surname: 'Five' },
+      { forename: '', surname: 'Six' },
+    ]);
+    expect(result.references[0]?.authors).toEqual([{ forename: '', surname: 'AAAI' }]);
+  });
 });
