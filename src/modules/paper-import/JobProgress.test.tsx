@@ -21,6 +21,7 @@ it('U1 progress chip reports a partial run and retains the issue count', () => {
       sequence={{ labels: ['Key facts'], completed: 0, total: 2 }}
     />,
   );
+  expect(screen.getByRole('status')).toHaveTextContent('Đang phân tích · 0/2 mục đích xong');
   rerender(<JobProgress running={[]} count={4} onOpen={() => {}} sequence={{ incomplete: ['Evidence'] }} />);
   expect(
     screen.getByRole('button', { name: 'Xong một phần · 1 chưa trọn vẹn · +2 issues' }),

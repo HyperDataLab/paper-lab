@@ -61,6 +61,26 @@ export function useReportJob(id: JobId, report: JobReport) {
  * the first waits for the reader's own notes, the second needs scored paragraphs.
  */
 export const RUN_ALL: JobId[] = ['digest', 'snapshot', 'measure', 'rhetoric', 'arguments', 'batch', 'stance'];
+export const RUN_ALL_PURPOSES: { label: string; description: string; jobs: JobId[]; destination: JobId }[] = [
+  {
+    label: 'Tóm tắt & Brief',
+    description: 'Tóm tắt bài báo và các thông tin chính.',
+    jobs: ['digest', 'snapshot'],
+    destination: 'digest',
+  },
+  {
+    label: 'Luận điểm & bằng chứng',
+    description: 'Xem lập luận, bằng chứng và độ vững của bài.',
+    jobs: ['arguments', 'measure', 'rhetoric'],
+    destination: 'arguments',
+  },
+  {
+    label: 'Văn phong & mạch lạc',
+    description: 'Xem mạch văn, câu chữ và giọng điệu.',
+    jobs: ['batch', 'stance'],
+    destination: 'batch',
+  },
+];
 export const RUN_ALL_CONCURRENCY = 3;
 export type RunProgress = { labels: string[]; completed: number; total: number } | { incomplete: string[] };
 

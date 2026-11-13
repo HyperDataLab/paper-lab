@@ -418,7 +418,12 @@ export default function PaperMapPage() {
                     labels: jobLabels,
                     onProgress: setRunProgress,
                     onPrepare: nav.prepareAll,
-                    onOpen: (job) => setTab(JOBS[job].views[0] ?? 'profile'),
+                    onOpen: (job) => {
+                      if (job === 'digest') setTab('profile');
+                      else if (job === 'arguments') nav.openSpace('arguments');
+                      else if (job === 'batch') nav.openSpace('writing');
+                      else setTab(JOBS[job].views[0] ?? 'profile');
+                    },
                     onRunChecks: () => {
                       if (!checks) runChecks();
                     },

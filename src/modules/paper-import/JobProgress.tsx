@@ -28,8 +28,7 @@ export function JobProgress({
   if (sequence && 'labels' in sequence)
     return (
       <span role="status" className={styles.runStrip}>
-        Đang chạy {sequence.labels.length} phân tích: {sequence.labels.join(', ')} · {sequence.completed}/
-        {sequence.total} xong
+        Đang phân tích · {sequence.completed}/{sequence.total} mục đích xong
       </span>
     );
   if (running.length)

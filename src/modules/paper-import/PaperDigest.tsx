@@ -1,4 +1,4 @@
-import { ArrowUpRight, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { FindingLocation } from '@/core/paperFindings';
 import type { DigestItem, DigestText, Paper, PaperInsightsRecord } from '@/core/schemas';
@@ -13,6 +13,7 @@ import { Empty, Loading } from '@/shared/ui/StateNote';
 import { useReportJob, useStoredChanged } from './paperJobs';
 import styles from './digest.module.css';
 import { uniquePageSources } from './digestSources';
+import { PdfLocationButton } from './PdfLocationButton';
 
 const FLAGS = {
   no_source: 'Không rõ nguồn',
@@ -88,19 +89,14 @@ export function PaperDigest({
         const paragraph = paper.paragraphs.find((item) => item.id === source.paragraphId);
         if (!paragraph) return null;
         return (
-          <Button
+          <PdfLocationButton
             key={source.paragraphId}
-            size="sm"
-            variant="ghost"
             className={styles.page}
-            title="Mở trong PDF"
-            aria-label={source.page ? `Mở trang ${source.page} trong PDF` : 'Mở đoạn gốc trong PDF'}
+            page={source.page}
             onClick={() =>
               onLocation({ paragraphId: paragraph.id, start: 0, end: Array.from(paragraph.text).length })
             }
-          >
-            {source.page ? `Tr. ${source.page}` : 'Đoạn gốc'} <ArrowUpRight size={12} aria-hidden="true" />
-          </Button>
+          />
         );
       })}
       {part.flags.map((flag) => (

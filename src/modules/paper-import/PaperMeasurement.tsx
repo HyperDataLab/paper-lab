@@ -34,7 +34,7 @@ import { Tree, type TreeNode } from '@/shared/ui/Tree';
 import type { Decide, ItemContext, Location } from './MeasurementItems';
 import { MeasurementDetail } from './MeasurementViews';
 import { usePaperScope, useRunBudget } from './paperScope';
-import { RunSetup } from './RunSetup';
+import { RunSetup, ScopeWarning } from './RunSetup';
 import { useReportJob } from './paperJobs';
 import styles from './measurement.module.css';
 import { Loading } from '@/shared/ui/StateNote';
@@ -341,6 +341,9 @@ export function PaperMeasurement({
           )}
         </ActionBar>
         {(!run || showSetup) && !running && setup}
+        {(!(!run || showSetup) || running) && (
+          <ScopeWarning paper={paper} sections={sections} onSections={setSections} />
+        )}
         {error && <div role="alert">{error}</div>}
       </Card>
       {profile && context && selected && (
