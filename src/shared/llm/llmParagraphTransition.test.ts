@@ -108,7 +108,8 @@ it('P3 batches at 12, retries, validates and accounts for every request', async 
   expect(sleep).toHaveBeenCalledWith(1000);
   expect(completeJson).toHaveBeenCalledTimes(3);
   const options = vi.mocked(completeJson).mock.calls.map(([value]) => value);
-  expect(options.map((value) => value.user.split('\n').length)).toEqual([12, 12, 1]);
+  // Chunks run in parallel, so the lone pair may be sent while the failed chunk of 12 waits to retry.
+  expect(options.map((value) => value.user.split('\n').length).sort((a, b) => a - b)).toEqual([1, 12, 12]);
   expect(
     options.every(
       (value) => value.promptVersion === 'para-flow-1' && value.schemaName === 'paragraph_transition',
