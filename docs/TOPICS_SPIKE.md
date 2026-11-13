@@ -3,6 +3,10 @@
 Date: 2026-11-13. Owner's choice: BERTopic for corpus topics plus KeyBERT for each paper's own keyphrases (Saffron was
 evaluated and set aside: unmaintained since 2022, English-only, no per-paper topics, hard to host).
 
+T1 reads externally produced `corpus-topics-v1` snapshots from the authenticated worker at
+`paperlab/corpora-topics/<corpus-id>.json`. The maintainer uploads the same snapshot under each covered corpus ID.
+The browser keeps snapshots and its own AI name candidates and edits locally; clustering does not run in PaperLab.
+
 ## Setup
 
 - Data: a seeded OpenAlex sample (seed 2026) of open, published research articles 2020–2025 with abstracts: 150 from

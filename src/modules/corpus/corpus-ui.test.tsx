@@ -42,6 +42,58 @@ async function detail() {
   await screen.findByRole('heading', { name: corpus.title });
   return { ...ctx, corpus };
 }
+it('shows the saved topic and weak assignment on a corpus member row', async () => {
+  const base = exampleCorpus();
+  const corpus = addMember(
+    { ...base, members: [] },
+    { title: 'Synthetic member', doi: '10.1000/topic' },
+    base.createdAt,
+  ).corpus;
+  const member = corpus.members[0];
+  if (!member) throw new Error('missing member');
+  const { repo, mount } = setup(`/corpus/${corpus.id}`);
+  await repo.corpora.save(corpus);
+  await repo.corpusTopics.save({
+    format: 'paperlab-corpus-topics',
+    schemaVersion: 1,
+    snapshotId: 'member-run',
+    createdAt: '2026-01-01T00:00:00Z',
+    corpora: [{ corpusId: corpus.id, kind: corpus.kind, title: corpus.title }],
+    pipeline: {
+      tag: 'test',
+      embeddingModel: 'test',
+      parameters: {},
+      seed: 1,
+      textSource: 'abstract',
+      openalexFetchedAt: '2026-01-01T00:00:00Z',
+    },
+    quality: { outlierShare: 0 },
+    topics: [
+      {
+        topicId: 0,
+        size: 1,
+        byCorpus: { [corpus.id]: 1 },
+        words: ['topic word'],
+        representativeMemberIds: [member.memberId],
+        openalexSubfields: [],
+      },
+    ],
+    members: [
+      {
+        corpusId: corpus.id,
+        memberId: member.memberId,
+        topicId: 0,
+        probability: 0.2,
+        weak: true,
+        keyphrases: ['key phrase'],
+        textUsed: 'abstract',
+      },
+    ],
+  });
+  mount();
+  expect(await screen.findByText(/Chủ đề: topic word/)).toHaveTextContent('gán yếu');
+  expect(screen.getByText(/Chủ đề: topic word/)).toHaveTextContent('key phrase');
+});
 it('C1c creates a topic corpus with its first protocol', async () => {
   const { repo, mount } = setup('/corpus');
   mount();

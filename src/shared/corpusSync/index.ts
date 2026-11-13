@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { CorpusSchema, type Corpus } from '@/core/schemas/corpus';
+import { CorpusTopicsSchema } from '@/core/schemas/corpusTopics';
 import { PDF_WORKER_URL } from '@/shared/pdfStore';
 
 const entry = z.object({
@@ -24,6 +25,16 @@ async function checked(response: Response) {
   return response.json() as Promise<unknown>;
 }
 const headers = (token: string) => ({ Authorization: `Bearer ${token}` });
+export async function pullCorpusTopics(id: string, token: string) {
+  const response = await fetch(`${PDF_WORKER_URL}/corpora/${encodeURIComponent(id)}/topics`, {
+    headers: headers(token),
+  });
+  if (response.status === 404) return undefined;
+  const snapshot = CorpusTopicsSchema.parse(await checked(response));
+  if (!snapshot.corpora.some((corpus) => corpus.corpusId === id))
+    throw new Error('Corpus không khớp định danh');
+  return snapshot;
+}
 export async function pullCorpora(token: string) {
   return z
     .array(entry)

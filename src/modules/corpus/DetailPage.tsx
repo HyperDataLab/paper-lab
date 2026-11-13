@@ -1,8 +1,9 @@
 import { ArrowLeft, Download, Library, Pencil, Plus } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { canonicalDigest } from '@/core/corpus';
 import { CorpusSchema, type Corpus } from '@/core/schemas/corpus';
+import type { CorpusTopics as TopicsSnapshot, TopicName } from '@/core/schemas/corpusTopics';
 import { useAuth } from '@/shared/auth/authContext';
 import { CorpusConflict, pullCorpus, pushCorpus } from '@/shared/corpusSync';
 import { useRepositories } from '@/shared/storage/StorageProvider';
@@ -18,6 +19,7 @@ import { Intake } from './Intake';
 import { CorpusBuild } from './CorpusBuild';
 import { CorpusLabels } from './CorpusLabels';
 import { CorpusProfileCard } from './CorpusProfileCard';
+import { CorpusTopics } from './CorpusTopics';
 import { JournalHarvest } from './JournalHarvest';
 import { kinds, memberRoleLabel, versionLabel } from './labels';
 import { downloadManifest } from './manifest';
@@ -40,6 +42,14 @@ export default function DetailPage() {
   const [adding, setAdding] = useState(false);
   const [filter, setFilter] = useState('all');
   const [error, setError] = useState('');
+  const [topicsData, setTopicsData] = useState<{ snapshot: TopicsSnapshot | undefined; names: TopicName[] }>({
+    snapshot: undefined,
+    names: [],
+  });
+  const receiveTopics = useCallback(
+    (snapshot: TopicsSnapshot | undefined, names: TopicName[]) => setTopicsData({ snapshot, names }),
+    [],
+  );
   useEffect(() => {
     if (id)
       void repo.corpora
@@ -237,6 +247,7 @@ export default function DetailPage() {
       <CorpusBuild corpus={corpus} save={save} />
       <CorpusLabels corpus={corpus} save={save} />
       {corpus.kind === 'journal' && <CorpusProfileCard corpus={corpus} />}
+      <CorpusTopics corpus={corpus} onData={receiveTopics} />
 
       <Card>
         <section aria-labelledby="corpus-members" className={styles.members}>
@@ -296,7 +307,24 @@ export default function DetailPage() {
               <tbody>
                 {members.map((m) => (
                   <tr key={m.memberId}>
-                    <td className={styles.memberTitle}>{m.title || m.identifiers.doi || m.exportId}</td>
+                    <td className={styles.memberTitle}>
+                      {m.title || m.identifiers.doi || m.exportId}
+                      {topicsData.snapshot?.members
+                        .filter((member) => member.corpusId === corpus.id && member.memberId === m.memberId)
+                        .map((member) => (
+                          <div key={member.memberId}>
+                            Chủ đề:{' '}
+                            {topicsData.names.find((name) => name.topicId === member.topicId)?.name ||
+                              topicsData.snapshot?.topics
+                                .find((topic) => topic.topicId === member.topicId)
+                                ?.words.join(', ') ||
+                              'Ngoại lệ'}{' '}
+                            ·{' '}
+                            {member.probability === null ? '—' : `${(member.probability * 100).toFixed(1)}%`}{' '}
+                            {member.weak && '· gán yếu'} · {member.keyphrases.join(', ')}
+                          </div>
+                        ))}
+                    </td>
                     <td className={styles.ids}>
                       {[
                         m.identifiers.doi,
