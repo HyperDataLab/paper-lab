@@ -9,5 +9,8 @@
   "dependencies": {
     "@cloudflare/containers": "^0.3.7",
     "jose": "^6.2.16"
+  },
+  "devDependencies": {
+    "vitest": "^5.1.0"
   }
 }
