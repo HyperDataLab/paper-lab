@@ -4,6 +4,7 @@ import type { LibraryItem } from '@/core/schemas';
 import { createScholarClient, type ScholarClient } from '@/shared/scholar/client';
 import { getScholarEmail } from '@/shared/scholar/settings';
 import { useRepositories } from '@/shared/storage/StorageProvider';
+import { useGrobidQueue } from '@/shared/pdfStore/useGrobidQueue';
 import { importPaperFile } from './importPaperFile';
 
 const CONCURRENCY = 2;
@@ -15,6 +16,7 @@ export function useLibrary(
   makeClient: () => ScholarClient = () => createScholarClient({ email: getScholarEmail() }),
 ) {
   const repo = useRepositories();
+  const grobid = useGrobidQueue();
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
@@ -111,6 +113,11 @@ export function useLibrary(
         error: null,
       }),
     );
+    try {
+      grobid.enqueue(item.id, paper);
+    } catch {
+      // Background processing must not change the outcome of importing the PDF.
+    }
   }
   async function downloadArxiv(targets: LibraryItem[]) {
     const abort = new AbortController();
@@ -138,6 +145,7 @@ export function useLibrary(
   }
   return {
     items,
+    grobidStatuses: grobid.statuses,
     loading,
     running,
     done,

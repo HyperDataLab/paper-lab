@@ -35,4 +35,19 @@ describe('C2 acquisition', () => {
     expect(result.retrieval).toBe('not_retrieved');
     expect(result.retrievalReason).toBeTruthy();
   });
+  it('completes the import when background processing throws', async () => {
+    mocks.lookup.mockResolvedValue({ found: true, patch: { arxiv_id: '1234' } });
+    mocks.download.mockResolvedValue(new File(['pdf'], 'paper.pdf'));
+    mocks.importFile.mockResolvedValue({ id: 'paper', source: { sha256: 'sha256:abc' } });
+    const member = exampleCorpus().members[0]!;
+    const result = await acquireMember(
+      { ...member, identifiers: { ...member.identifiers, doi: '10.1/a' } },
+      {} as Repositories,
+      undefined,
+      () => {
+        throw new Error('GROBID failed');
+      },
+    );
+    expect(result.retrieval).toBe('retrieved');
+  });
 });

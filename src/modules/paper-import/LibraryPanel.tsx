@@ -24,6 +24,7 @@ import { DataTable } from '@/shared/ui/DataTable';
 import { Select } from '@/shared/ui/Select';
 import { TextField } from '@/shared/ui/TextField';
 import { useLibrary } from './useLibrary';
+import { GrobidQueueStatus, GrobidQueueSummary } from '@/shared/pdfStore/GrobidQueueStatus';
 import styles from './library.module.css';
 import { Loading } from '@/shared/ui/StateNote';
 
@@ -294,6 +295,7 @@ export function LibraryPanel() {
               if (file && attachTarget.current) void attach(attachTarget.current, file);
             }}
           />
+          <GrobidQueueSummary statuses={library.grobidStatuses} />
           <DataTable className={styles.libraryTable} scrollClassName={styles.scroll}>
             <thead>
               <tr>
@@ -362,6 +364,11 @@ export function LibraryPanel() {
                     </td>
                     <td>
                       <Badge tone={STATUS[status].tone}>{STATUS[status].label}</Badge>
+                      {library.grobidStatuses[item.id] && (
+                        <div>
+                          <GrobidQueueStatus value={library.grobidStatuses[item.id]} />
+                        </div>
+                      )}
                       {item.file_matches_title === false && (
                         <Badge tone="warning">File có thể không khớp</Badge>
                       )}
