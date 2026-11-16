@@ -27,3 +27,4 @@ export * from './corpus';
 export * from './contribution';
 export * from './grobid';
 export * from './corpusTopics';
+export * from './experimentFacts';
