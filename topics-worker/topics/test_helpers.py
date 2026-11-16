@@ -41,6 +41,15 @@ def test_topic_fit_percentile_and_single_topic():
     assert isclose(percentile([0, 10], 0.1), 1)
 
 
+def test_topic_fit_returns_plain_python_types_for_int_subclasses():
+    class NpInt(int):
+        def __ne__(self, other):
+            return ("numpy-bool", int(self) != other)
+
+    result = topic_fit([[1, 0], [0, 1]], [NpInt(0), NpInt(1)])
+    assert all(type(member["weak"]) is bool and type(member["nearest"]) is int for member in result)
+
+
 def test_topic_fit_unassigned_and_zero_vector():
     result = topic_fit([[1, 0], [0, 0], [0, 1]], [0, 0, -1])
     assert result[1]["fit"] == 0

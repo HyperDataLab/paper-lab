@@ -19,6 +19,7 @@ def topic_fit(embeddings, topics, weak_fit_percentile=0.10):
         return [float(value) / length for value in vector] if length else [0.0 for _ in vector]
 
     vectors = [normalize(vector) for vector in embeddings]
+    topics = [int(topic) for topic in topics]  # numpy ints would make weak a numpy bool, which the schema rejects
     groups = defaultdict(list)
     for vector, topic in zip(vectors, topics):
         if topic != -1:

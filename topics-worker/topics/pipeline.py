@@ -92,7 +92,7 @@ def run(payload, progress=lambda text: print(text, flush=True)):
              if probs is not None and getattr(probs, "ndim", 0) == 2 and tid >= 0 and tid < probs.shape[1]
              else None)
         out_members.append({"corpusId": m["corpusId"], "memberId": m["memberId"], "topicId": int(topics[i]),
-                            "probability": p, "weak": fits[i]["weak"], "keyphrases": [k for k, _ in keys[i]][:8],
+                            "probability": p, "weak": bool(fits[i]["weak"]), "keyphrases": [k for k, _ in keys[i]][:8],
                             "textUsed": m["textUsed"]})
     for m in members:
         if m["textUsed"] == "none":
