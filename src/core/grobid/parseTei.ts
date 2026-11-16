@@ -93,6 +93,7 @@ export function parseGrobidTei(xml: string): GrobidResult {
         doi: identifier(item, 'doi'),
         arxivId: identifier(item, 'arxiv'),
         rawText: content(first(item, 'note[type="raw_reference"]')),
+        ...(content(first(item, 'label')) ? { label: content(first(item, 'label')) ?? '' } : {}),
         ...(!content(first(item, 'note[type="raw_reference"]'))
           ? {
               referenceText: [...item.querySelectorAll('title, note, publisher')]
@@ -121,6 +122,18 @@ export function parseGrobidTei(xml: string): GrobidResult {
       page: Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : null,
     }));
   });
+  const figures: NonNullable<GrobidResult['figures']> = [...document.querySelectorAll('text figure')].flatMap(
+    (item) => {
+      const type = item.getAttribute('type') === 'table' ? 'table' : 'figure';
+      const label = content(first(item, 'label'));
+      const head = content(first(item, 'head'));
+      const text = [label, head].find((value) => value && /\d/u.test(value));
+      if (!text) return [];
+      return [
+        { type, label: /^\s*\d/u.test(text) ? `${type === 'table' ? 'Table' : 'Fig.'} ${text}` : text },
+      ];
+    },
+  );
   return {
     version: GROBID_VERSION,
     header: {
@@ -135,6 +148,7 @@ export function parseGrobidTei(xml: string): GrobidResult {
     },
     references,
     citations,
+    ...(figures.length ? { figures } : {}),
     bodyPresent: Boolean(document.querySelector('text > body p, text > body div')),
   };
 }

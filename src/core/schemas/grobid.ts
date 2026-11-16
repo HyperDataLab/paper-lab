@@ -29,6 +29,7 @@ export const GrobidResultSchema = z.object({
       arxivId: z.string().nullable(),
       rawText: z.string().nullable(),
       referenceText: z.string().optional(),
+      label: z.string().optional(),
     }),
   ),
   /** One entry per link target; `referenceId` is null when GROBID could not resolve the marker. */
@@ -41,6 +42,7 @@ export const GrobidResultSchema = z.object({
     }),
   ),
   bodyPresent: z.boolean().optional(),
+  figures: z.array(z.object({ type: z.enum(['figure', 'table']), label: z.string() })).optional(),
 });
 
 /**

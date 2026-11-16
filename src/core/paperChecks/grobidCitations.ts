@@ -4,11 +4,12 @@ import { grobidReferenceItems } from '../grobid/merge';
 import type { CheckResult, Finding, GrobidResult, Paper } from '../schemas';
 import { finding, result, type Located } from './common';
 import { paperReferenceParagraphs } from './references';
+import { grobidReferenceGaps } from './grobidGaps';
 
 /**
  * Citations and references checked against GROBID's links instead of the text patterns. A citation GROBID
  * could not link stays a candidate finding; a reference is unused only when no in-text citation resolves to it.
- * Numbering gaps and unreadable numeric ranges are not checked here: GROBID has already resolved the numbers.
+ * Unreadable numeric ranges are not checked.
  * Findings that cannot be placed in the PDF.js text are left out and counted in `suppressed`.
  */
 export function grobidCitationsReferences(
@@ -100,6 +101,9 @@ export function grobidCitationsReferences(
       ]),
     );
   }
+  const gaps = grobidReferenceGaps(paper, grobid);
+  findings.push(...gaps.findings);
+  suppressed += gaps.suppressed;
   return {
     resolutions: finalResolutions,
     check: result(
