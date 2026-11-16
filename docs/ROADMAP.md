@@ -87,6 +87,10 @@ The corpus topics service runs BERTopic and KeyBERT in a separate Cloudflare con
 stored in the shared R2 bucket and cached locally. Deployment is controlled through the
 `deploy/topics-worker` branch; see `topics-worker/README.md`.
 
+The `corpus-topics-v1` contract accepts optional nullable member fit and weak-reason fields for older
+snapshots. Weakness follows centroid fit or an unassigned topic, independently of HDBSCAN probability.
+AI topic names are candidates until accepted, individually or in bulk.
+
 ## Open decisions
 
 - Hosting: Firebase Hosting (ADR-0001) or an Oracle Cloud Always Free VM (ADR-0005, proposed). Keep the app

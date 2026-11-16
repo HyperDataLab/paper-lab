@@ -46,6 +46,8 @@ export const CorpusTopicsSchema = z
         topicId: z.number().int().min(-1),
         probability: share.nullable(),
         weak: z.boolean(),
+        fit: z.number().min(-1).max(1).nullable().optional(),
+        weakReason: z.enum(['closer-to-other-topic', 'low-fit', 'unassigned']).nullable().optional(),
         keyphrases: z.array(z.string()).max(8),
         textUsed: z.enum(['abstract', 'title-only', 'none']),
       }),
@@ -56,13 +58,8 @@ export const CorpusTopicsSchema = z
     'topicId must be unique',
   )
   .refine(
-    (value) =>
-      value.members.every(
-        (member) =>
-          (member.topicId !== -1 && (member.probability === null || member.probability >= 0.3)) ||
-          member.weak,
-      ),
-    'outliers and low-probability assignments must be weak',
+    (value) => value.members.every((member) => member.topicId !== -1 || member.weak),
+    'unassigned members must be weak',
   );
 export type CorpusTopics = z.infer<typeof CorpusTopicsSchema>;
 

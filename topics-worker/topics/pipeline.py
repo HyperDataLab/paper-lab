@@ -92,12 +92,16 @@ def run(payload, progress=lambda text: print(text, flush=True)):
              if probs is not None and getattr(probs, "ndim", 0) == 2 and tid >= 0 and tid < probs.shape[1]
              else None)
         out_members.append({"corpusId": m["corpusId"], "memberId": m["memberId"], "topicId": int(topics[i]),
-                            "probability": p, "weak": bool(fits[i]["weak"]), "keyphrases": [k for k, _ in keys[i]][:8],
+                            "probability": p, "weak": bool(fits[i]["weak"]),
+                            "fit": round(float(fits[i]["fit"]), 4) if fits[i]["fit"] is not None else None,
+                            "weakReason": str(fits[i]["reason"]) if fits[i]["reason"] is not None else None,
+                            "keyphrases": [k for k, _ in keys[i]][:8],
                             "textUsed": m["textUsed"]})
     for m in members:
         if m["textUsed"] == "none":
             out_members.append({"corpusId": m["corpusId"], "memberId": m["memberId"], "topicId": -1,
-                                "probability": None, "weak": True, "keyphrases": [], "textUsed": "none"})
+                                "probability": None, "weak": True, "fit": None, "weakReason": "unassigned",
+                                "keyphrases": [], "textUsed": "none"})
 
     reasons = Counter(result["reason"] for result in fits if result["weak"])
     reasons["unassigned"] += sum(m["textUsed"] == "none" for m in members)
