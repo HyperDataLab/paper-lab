@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { checkpoint, doiExport, isStale, startQueue } from '@/core/corpus/queue';
 import type { Corpus } from '@/core/schemas/corpus';
 import { useRepositories } from '@/shared/storage/StorageProvider';
+import { useGrobidQueue } from '@/shared/pdfStore/useGrobidQueue';
+import { GrobidQueueStatus, GrobidQueueSummary } from '@/shared/pdfStore/GrobidQueueStatus';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { acquireMember } from './acquisition';
@@ -9,6 +11,7 @@ import { modelInputs } from './modelInputs';
 
 export function CorpusBuild({ corpus, save }: { corpus: Corpus; save: (value: Corpus) => Promise<void> }) {
   const repo = useRepositories();
+  const grobid = useGrobidQueue();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [usage, setUsage] = useState<StorageEstimate>();
@@ -54,7 +57,9 @@ export function CorpusBuild({ corpus, save }: { corpus: Corpus; save: (value: Co
       let current = corpus;
       for (const member of current.members.filter((m) => m.retrieval === 'sought')) {
         if (controller.signal.aborted) break;
-        const updated = await acquireMember(member, repo, controller.signal);
+        const updated = await acquireMember(member, repo, controller.signal, (paper) =>
+          grobid.enqueue(member.memberId, paper),
+        );
         current = {
           ...current,
           updatedAt: new Date().toISOString(),
@@ -123,6 +128,16 @@ export function CorpusBuild({ corpus, save }: { corpus: Corpus; save: (value: Co
     <Card>
       <h2>Thu thập và dựng paper model</h2>
       <p>Cần giữ tab mở trong khi chạy.</p>
+      <GrobidQueueSummary statuses={grobid.statuses} />
+      {corpus.members.map(
+        (member) =>
+          grobid.statuses[member.memberId] && (
+            <p key={member.memberId}>
+              {member.title ?? member.identifiers.doi ?? member.exportId}:{' '}
+              <GrobidQueueStatus value={grobid.statuses[member.memberId]} />
+            </p>
+          ),
+      )}
       <Button disabled={busy} onClick={() => void fetchPdfs()}>
         Lấy PDF
       </Button>{' '}

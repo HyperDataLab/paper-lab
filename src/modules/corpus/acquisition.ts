@@ -1,4 +1,5 @@
 import type { CorpusMember } from '@/core/schemas/corpus';
+import type { Paper } from '@/core/schemas';
 import { guardPaperSize } from '@/shared/paper/sizeGuard';
 import { createScholarClient } from '@/shared/scholar/client';
 import { getScholarEmail } from '@/shared/scholar/settings';
@@ -9,6 +10,7 @@ export async function acquireMember(
   member: CorpusMember,
   repo: Repositories,
   signal?: AbortSignal,
+  onImported?: (paper: Paper) => void,
 ): Promise<CorpusMember> {
   try {
     const doi = member.identifiers.doi;
@@ -48,6 +50,11 @@ export async function acquireMember(
       title: member.title ?? patch.title,
       reuseExisting: true,
     });
+    try {
+      onImported?.(paper);
+    } catch {
+      // Background processing must not change the outcome of importing the PDF.
+    }
     return {
       ...member,
       retrieval: 'retrieved',

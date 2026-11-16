@@ -400,6 +400,8 @@ authors, venue, year and DOI. Parser counts belong in Minh bạch.
 
 # Corpus screen
 
+- PDF imports from corpus acquisition and the DOI library show each GROBID request's state and a completed count. GROBID runs in the background with two requests at a time; signed-out imports wait for a lab account.
+
 - The latest profile and its held-out test stay on this device and travel in backups. Show when it was computed and flag changes to either corpus since the computation; “Tính lại” refreshes it.
 - The list pairs each corpus with its kind, member count and last update; a short form creates its first protocol.
 - The detail screen groups intake, member status, protocol history and releases in separate cards. Intake shows matching counts and asks a person to resolve title-and-year matches. The table can be filtered by retrieval status.
