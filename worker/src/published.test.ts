@@ -54,6 +54,53 @@ function setup() {
   return { call, objects };
 }
 describe('published models', () => {
+  it('publishes and caches facts, tracks review status, and retains facts after a model changes', async () => {
+    const { call, objects } = setup();
+    const modelPath = `/v1/papers/${id}/model`;
+    const path = `/v1/papers/${id}/experiment-facts`;
+    const facts = {
+      format: 'paperlab-experiment-facts',
+      schemaVersion: 1,
+      paperId: id,
+      modelEtag: 'a'.repeat(64),
+      generatedAt: '2026-01-01',
+      facts: [{ status: 'candidate' }],
+    };
+    expect((await call('PUT', path, facts)).status).toBe(404);
+    expect((await call('GET', path)).status).toBe(404);
+    const published = (await (await call('PUT', modelPath, model)).json()) as { etag: string };
+    expect((await call('PUT', path, facts)).status).toBe(409);
+    for (const invalid of [
+      { ...facts, paperId: 'wrong' },
+      { ...facts, modelEtag: 'bad' },
+      { ...facts, facts: {} },
+      { ...facts, format: 'wrong' },
+      { ...facts, schemaVersion: 2 },
+    ])
+      expect((await call('PUT', path, invalid)).status).toBe(400);
+    const valid = { ...facts, modelEtag: published.etag };
+    const first = (await (await call('PUT', path, valid)).json()) as { etag: string; updatedAt: string };
+    expect(objects.get(`paperlab/published/${id}/model.json`)?.meta).toMatchObject({
+      experimentFacts: 'candidate',
+      contentEtag: published.etag,
+    });
+    const response = await call('GET', path);
+    expect(response.headers.get('etag')).toBe(`"${first.etag}"`);
+    expect(await response.json()).toEqual(valid);
+    expect((await call('GET', path, undefined, { 'if-none-match': `"${first.etag}"` })).status).toBe(304);
+    expect(await (await call('PUT', path, { ...valid, generatedAt: 'later' })).json()).toMatchObject({
+      unchanged: true,
+      etag: first.etag,
+      updatedAt: first.updatedAt,
+    });
+    await call('PUT', path, { ...valid, facts: [{ status: 'accepted' }] });
+    expect(objects.get(`paperlab/published/${id}/model.json`)?.meta.experimentFacts).toBe('reviewed');
+    await call('PUT', modelPath, { ...model, sentences: ['changed'] });
+    expect(objects.get(`paperlab/published/${id}/model.json`)?.meta.experimentFacts).toBe('reviewed');
+    expect(((await (await call('GET', path)).json()) as typeof valid).modelEtag).toBe(published.etag);
+    expect((await call('PUT', path, valid)).status).toBe(409);
+    expect(((await (await call('GET', '/v1/papers')).json()) as { items: unknown[] }).items).toHaveLength(1);
+  });
   it('publishes, lists, reads, caches and preserves unchanged content', async () => {
     const { call, objects } = setup();
     const path = `/v1/papers/${id}/model`;
