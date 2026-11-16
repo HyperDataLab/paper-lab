@@ -15,6 +15,7 @@ import { SheetSection } from '@/shared/ui/SheetSection';
 import { TextField } from '@/shared/ui/TextField';
 import { useGrobidState } from './grobidContext';
 import { GrobidStatus } from './GrobidStatus';
+import { PublishPaperModel } from './PublishPaperModel';
 import {
   draftFrom,
   metadataFromDraft,
@@ -127,14 +128,17 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
       setFormError('Không lưu được thông tin. Vui lòng thử lại.');
     }
   }
+  async function buildModel() {
+    const [insights, stance] = await Promise.all([
+      repo.paperInsights.get(paper.id),
+      repo.stance.get(paper.id),
+    ]);
+    return buildPaperModel({ paper, metadata, insights, stance, grobid, now: new Date() });
+  }
   async function downloadModel(jats = false) {
     // Read at click time so the file carries the labels as they stand now, decisions included.
     try {
-      const [insights, stance] = await Promise.all([
-        repo.paperInsights.get(paper.id),
-        repo.stance.get(paper.id),
-      ]);
-      const model = buildPaperModel({ paper, metadata, insights, stance, grobid, now: new Date() });
+      const model = await buildModel();
       const name = paperModelFileName(model.document.metadata.title);
       if (jats) {
         const xml = paperModelToJats(model);
@@ -379,6 +383,7 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
             Tải article.xml (JATS)
           </Button>
         </div>
+        <PublishPaperModel paperId={paper.id} buildModel={buildModel} />
       </SheetSection>
     </div>
   );
