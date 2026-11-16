@@ -2,7 +2,7 @@ import type { Deps } from './app';
 
 const PREFIX = 'paperlab/published/';
 const MODEL_PATH =
-  /^\/v1\/papers\/(sha256-[0-9a-f]{64}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/model$/;
+  /^\/v1\/papers\/(sha256-[0-9a-f]{64}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(model|experiment-facts)$/;
 const MAX_BYTES = 10 * 1024 * 1024;
 type Headers = Record<string, string>;
 const json = (status: number, value: unknown, headers: Headers) =>
@@ -27,6 +27,7 @@ export async function handlePublished(deps: Deps, request: Request, email: strin
       include: ['customMetadata'],
     });
     const items = page.objects
+      .filter((object) => object.key.endsWith('/model.json'))
       .map((object) => {
         const meta = object.customMetadata ?? {};
         return {
@@ -56,7 +57,9 @@ export async function handlePublished(deps: Deps, request: Request, email: strin
   if (!match || (request.method !== 'GET' && request.method !== 'PUT'))
     return publishedError(400, 'bad_request', 'Invalid path or method.', headers);
   const id = match[1] as string;
-  const key = `${PREFIX}${id}/model.json`;
+  const isFacts = match[2] === 'experiment-facts';
+  const modelKey = `${PREFIX}${id}/model.json`;
+  const key = isFacts ? `${PREFIX}${id}/experiment-facts.json` : modelKey;
   if (request.method === 'GET') {
     const object = await deps.bucket.get(key);
     if (!object) return publishedError(404, 'not_found', `Paper ${id} was not found.`, headers);
@@ -71,6 +74,9 @@ export async function handlePublished(deps: Deps, request: Request, email: strin
     if (ifNoneMatch === etag) return new Response(null, { status: 304, headers: responseHeaders });
     return new Response(object.body, { headers: responseHeaders });
   }
+  const publishedModel = isFacts ? await deps.bucket.head(modelKey) : null;
+  if (isFacts && !publishedModel)
+    return publishedError(404, 'not_found', `Paper ${id} was not found.`, headers);
   if (Number(request.headers.get('content-length')) > MAX_BYTES)
     return publishedError(413, 'bad_request', 'Model exceeds 10 MiB.', headers);
   const body = await request.arrayBuffer();
@@ -85,7 +91,20 @@ export async function handlePublished(deps: Deps, request: Request, email: strin
   const document = record(value?.document);
   const metadata = record(document?.metadata);
   const source = record(document?.source);
-  if (
+  if (isFacts) {
+    if (
+      !value ||
+      value.format !== 'paperlab-experiment-facts' ||
+      value.schemaVersion !== 1 ||
+      value.paperId !== id ||
+      typeof value.modelEtag !== 'string' ||
+      !/^[0-9a-f]{64}$/iu.test(value.modelEtag) ||
+      !Array.isArray(value.facts)
+    )
+      return publishedError(400, 'bad_request', 'Invalid experiment facts.', headers);
+    if (value.modelEtag !== publishedModel?.customMetadata?.contentEtag)
+      return publishedError(409, 'conflict', 'Experiment facts do not match the published model.', headers);
+  } else if (
     !value ||
     value.format !== 'paperlab-paper-model' ||
     value.schemaVersion !== 1 ||
@@ -96,13 +115,36 @@ export async function handlePublished(deps: Deps, request: Request, email: strin
   // PaperLab records the file hash as `sha256:<hex>`; the list and the id use the bare hex.
   const sourceSha256 =
     typeof source?.sha256 === 'string' ? source.sha256.replace(/^sha256:/u, '').toLowerCase() : '';
-  if (id.startsWith('sha256-') && sourceSha256 !== id.slice(7))
+  if (!isFacts && id.startsWith('sha256-') && sourceSha256 !== id.slice(7))
     return publishedError(400, 'bad_request', 'Paper ID does not match the source SHA-256.', headers);
   const content = { ...value };
   delete content.generatedAt;
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(content)));
   const etag = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
   const existing = await deps.bucket.head(key);
+  if (isFacts) {
+    const unchanged = existing?.customMetadata?.contentEtag === etag;
+    const updatedAt = unchanged ? existing.customMetadata?.updatedAt : deps.now().toISOString();
+    if (!unchanged)
+      await deps.bucket.put(key, body, {
+        httpMetadata: { contentType: 'application/json' },
+        customMetadata: { contentEtag: etag, updatedAt: updatedAt as string, publishedBy: email },
+      });
+    const facts = value?.facts as unknown[];
+    const status =
+      facts.length > 0 && facts.every((fact) => record(fact)?.status === 'accepted')
+        ? 'reviewed'
+        : 'candidate';
+    if (publishedModel?.customMetadata?.experimentFacts !== status) {
+      const modelObject = await deps.bucket.get(modelKey);
+      if (!modelObject) throw new Error('Published model disappeared');
+      await deps.bucket.put(modelKey, await new Response(modelObject.body).arrayBuffer(), {
+        httpMetadata: { contentType: 'application/json' },
+        customMetadata: { ...publishedModel?.customMetadata, experimentFacts: status },
+      });
+    }
+    return json(200, { paperId: id, etag, updatedAt, unchanged }, headers);
+  }
   if (existing?.customMetadata?.contentEtag === etag)
     return json(
       200,
@@ -113,14 +155,14 @@ export async function handlePublished(deps: Deps, request: Request, email: strin
   await deps.bucket.put(key, body, {
     httpMetadata: { contentType: 'application/json' },
     customMetadata: {
-      title: metadata.title,
-      doi: typeof metadata.doi === 'string' ? metadata.doi : '',
+      title: metadata?.title as string,
+      doi: typeof metadata?.doi === 'string' ? metadata.doi : '',
       sourceSha256,
       schemaVersion: 'paper-model-v1',
       updatedAt,
       publishedBy: email,
       contentEtag: etag,
-      experimentFacts: 'none',
+      experimentFacts: existing?.customMetadata?.experimentFacts ?? 'none',
     },
   });
   return json(200, { paperId: id, etag, updatedAt, unchanged: false }, headers);

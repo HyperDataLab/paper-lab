@@ -29,6 +29,16 @@ only `FIREBASE_PROJECT_ID` is accepted. Errors are JSON with `error` and `messag
 The ETag is the SHA-256 of the JSON model with `generatedAt` removed. Republishing only a new
 `generatedAt` preserves the stored model and publication timestamp.
 
+`PUT /v1/papers/:paperId/experiment-facts` publishes facts for an existing model. For example, after
+publishing the synthetic model above, use its returned ETag in this invented body:
+`{"format":"paperlab-experiment-facts","schemaVersion":1,"paperId":"00000000-0000-4000-8000-000000000001","modelEtag":"<64-character model etag>","generatedAt":"2026-01-01T00:00:00Z","facts":[{"status":"candidate","value":"Synthetic result"}]}`.
+The model ETag must match the current published model, otherwise the response is 409; a missing model
+returns 404. The response has `paperId`, `etag`, `updatedAt`, and `unchanged`. The facts ETag hashes the
+JSON without `generatedAt`. The model list marks facts as `reviewed` when all are accepted, or `candidate`
+otherwise. Republishing a changed model preserves the old facts and their status so readers can identify
+the older model via `modelEtag`. `GET /v1/papers/:paperId/experiment-facts` returns the stored JSON and
+quoted ETag; `If-None-Match` returns 304 for unchanged content.
+
 ## GROBID full text
 
 `POST /grobid/fulltext` accepts a PDF (up to 25 MiB); `POST /grobid/fulltext/<sha256>` reads an
