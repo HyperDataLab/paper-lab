@@ -36,7 +36,7 @@ jobs:
       - run: npm test
       - name: Python helper tests (no model, no torch)
         working-directory: topics-worker/topics
-        run: pip install -q pytest==8.4.2 && python -m pytest -q test_helpers.py
+        run: pip install -q pytest==8.4.2 && python -m pytest -q test_helpers.py test_job_helpers.py test_abstracts.py
       - name: Build the image and deploy the worker
         run: npx wrangler@4.161.0 deploy
         env:
