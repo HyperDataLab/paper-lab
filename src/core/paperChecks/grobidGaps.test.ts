@@ -45,6 +45,16 @@ describe('GROBID numbering gaps', () => {
       report.checks.flatMap((check) => check.findings).filter((item) => item.id.includes('gap:grobid:')),
     ).toEqual([]);
   });
+  it('uses joined PDF entries when GROBID omits a reference label', () => {
+    const { paper, grobid } = sample(3);
+    const references = paper.paragraphs[1];
+    if (!references) throw new Error('Missing synthetic references');
+    references.text = '1. Alpha, A.: First. 2. Beta, B.: Second. 3. Gamma, C.: Third.';
+    const check = runPaperChecks(paper, new Date(), grobid).checks.find(
+      (item) => item.id === 'citations_references',
+    );
+    expect(check?.findings.some((item) => item.id.includes('gap:grobid:reference:'))).toBe(false);
+  });
   it('detects gaps from bibliography labels and citations independently', () => {
     const { paper, grobid } = sample(3);
     const listedOnly = { ...grobid, citations: [] };

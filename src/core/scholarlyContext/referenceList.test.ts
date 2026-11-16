@@ -39,6 +39,15 @@ it('numbered references joined into one paragraph are listed one by one', () => 
   expect((items[1]?.location?.start ?? 0) > 0).toBe(true);
 });
 
+it('lists joined dot and parenthesis numbered entries separately', () => {
+  const items = referenceList(paperWith(['1. Alpha, A.: First (2020). 2) Beta, B.: Second (2021).']));
+  expect(items.map((item) => item.text)).toEqual([
+    '1. Alpha, A.: First (2020).',
+    '2) Beta, B.: Second (2021).',
+  ]);
+  expect(items[1]?.location?.start).toBeGreaterThan(0);
+});
+
 it('an entry ending with an arXiv id or a year does not swallow the next one', () => {
   const items = referenceList(
     paperWith([

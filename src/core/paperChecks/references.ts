@@ -25,18 +25,25 @@ function key(text: string) {
 }
 type Piece = { paragraph: PaperParagraph; start: number; end: number; text: string; split: boolean };
 const BRACKET = /(?:^|\s)\[(\d{1,3})\]\s/gu;
+const NUMBERED = /(?:^|\s)(\d{1,3})[.)]\s+(?=\p{Lu}|\p{L}[\p{L}\p{M}'’.-]*,\s*\p{L}\.)/gu;
 
 /**
  * A paragraph of the reference list cut where its numbered entries start. Two-column PDFs often join several
- * entries into one paragraph; "[12] … [13] …" is cut only where the numbers follow each other, so a "[3]"
- * quoted inside an entry does not cut it.
+ * entries into one paragraph. Cut only consecutive numbers, so a marker quoted inside an entry does not cut it.
  */
 function pieces(paragraph: PaperParagraph): Piece[] {
   const text = paragraph.text;
-  const marks = [...text.matchAll(BRACKET)].map((m) => ({
+  const brackets = [...text.matchAll(BRACKET)].map((m) => ({
     at: m.index + m[0].indexOf('['),
     number: Number(m[1]),
   }));
+  // A bracketed citation inside a dot-numbered entry must not select the bracketed-list path.
+  const marks =
+    brackets.length && !/^\s*\d{1,3}[.)]\s/u.test(text)
+      ? brackets
+      : [...text.matchAll(NUMBERED)]
+          .map((m) => ({ at: m.index + m[0].search(/\d/u), number: Number(m[1]) }))
+          .filter((mark) => !/\b(?:fig(?:ure)?|section)\.?\s*$/iu.test(text.slice(0, mark.at)));
   const cuts: number[] = [];
   let last: number | null = null;
   for (const mark of marks) {

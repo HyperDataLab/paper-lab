@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Paper } from '../schemas';
 import { runPaperChecks, validateLocations } from './index';
+import { referenceEntries } from './references';
 
 const at = '2026-01-01T00:00:00.000Z';
 function paper(
@@ -27,6 +28,37 @@ function paper(
 }
 const check = (p: Paper, id: string) => runPaperChecks(p, new Date(at)).checks.find((c) => c.id === id);
 describe('P4 citations_references', () => {
+  it('P4 splits consecutive joined numbered references without creating citation or gap findings', () => {
+    const p = paper([
+      ['introduction', 'See [2–3].'],
+      [
+        'references',
+        '1. Alpha, A.: Title one cites [7]. Fig. 2. Results in vol. 14 (2020) 2. Beta, B., Gamma, C.: Title two. In: Proc. Y, vol. 14, pp. 583–598 (2014)\n3) Delta, D.: Title three. Z 34(3), 909–922 (2022)',
+        'reference',
+      ],
+      ['references', '4. Eps, E.: Title four (2023).', 'reference'],
+    ]);
+    const entries = referenceEntries(p.paragraphs.slice(1));
+    expect(entries.map((entry) => entry.keys[0])).toEqual(['n:1', 'n:2', 'n:3', 'n:4']);
+    expect(entries[0]?.text).toContain('Fig. 2. Results');
+    expect(check(p, 'citations_references')?.findings).toEqual([]);
+  });
+  it('P4 keeps nonconsecutive numbers and section labels inside an entry', () => {
+    const p = paper([
+      [
+        'references',
+        '1. Alpha, A.: Section 2. Results, pp. 12. 13. Also 9. Other data. 2. Beta, B.: Title.',
+        'reference',
+      ],
+    ]);
+    const entries = referenceEntries(p.paragraphs);
+    expect(entries.map((entry) => entry.keys[0])).toEqual(['n:1', 'n:2']);
+    expect(entries[0]?.text).toContain('9. Other data');
+  });
+  it('P4 preserves consecutive bracket splitting and ignores a nonconsecutive marker', () => {
+    const p = paper([['references', '[1] Alpha cites [7] earlier. [2] Beta. [3] Delta.', 'reference']]);
+    expect(referenceEntries(p.paragraphs).map((entry) => entry.keys[0])).toEqual(['n:1', 'n:2', 'n:3']);
+  });
   it('P4 reports unsafe, out-of-bound and large numeric ranges without silently dropping them', () => {
     const result = check(
       paper([
