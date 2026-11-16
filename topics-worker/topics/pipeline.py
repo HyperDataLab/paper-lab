@@ -1,15 +1,11 @@
 """Compute corpus topics inside the Cloudflare container."""
 import argparse
 import datetime as dt
-import json
 import time
-import urllib.parse
-import urllib.request
-import urllib.error
-import socket
-from helpers import abstract_of, stability, map_members
+from abstracts import fetch_texts
+from helpers import stability, map_members
 import uuid
-from collections import Counter, defaultdict
+from collections import Counter
 
 from bertopic import BERTopic
 from bertopic.representation import KeyBERTInspired
@@ -41,44 +37,6 @@ PARAMS = {"umap_neighbors": 15, "umap_components": 5, "hdbscan_min_cluster": 6, 
           "weak_probability": 0.3, "outlier_strategy": "embeddings"}
 
 
-def openalex(params):
-    url = "https://api.openalex.org/works?" + urllib.parse.urlencode(params)
-    req = urllib.request.Request(url, headers={"User-Agent": "paperlab-corpus-topics"})
-    for attempt in range(5):
-        try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                return json.load(resp)["results"]
-        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, socket.timeout) as error:
-            if isinstance(error, urllib.error.HTTPError) and error.code != 429 and error.code < 500:
-                raise
-            if attempt == 4:
-                raise
-            time.sleep(2 ** attempt)
-
-
-
-def fetch_texts(members, progress):
-    by_oa = defaultdict(list)
-    for m in members:
-        if m["openalexId"]:
-            by_oa[m["openalexId"]].append(m)
-    keys = list(by_oa)
-    for i in range(0, len(keys), 50):
-        chunk = keys[i:i + 50]
-        try:
-            works = openalex({"filter": "openalex_id:" + "|".join(chunk), "per-page": "50",
-                              "select": "id,title,abstract_inverted_index,primary_topic"})
-            for w in works:
-                for m in by_oa.get(w["id"].rsplit("/", 1)[-1], []):
-                    m["abstract"] = abstract_of(w.get("abstract_inverted_index"))
-                    m["title"] = m["title"] or (w.get("title") or "")
-                    m["oa_subfield"] = ((w.get("primary_topic") or {}).get("subfield") or {}).get("display_name")
-        except (urllib.error.URLError, TimeoutError, socket.timeout) as error:
-            print(f"OpenAlex batch failed: {error}", flush=True)
-        progress(f"Fetching abstracts {min(i + len(chunk), len(keys))}/{len(keys)}")
-        time.sleep(0.2)
-
-
 def fit(docs, emb, seed, model):
     vectorizer = CountVectorizer(stop_words=list(ENGLISH_STOP_WORDS | DOMAIN_STOP),
                                  ngram_range=(1, PARAMS["ngram_max"]), min_df=2)
@@ -101,16 +59,15 @@ def run(payload, progress=lambda text: None):
     corpora = payload["corpora"]
     members = map_members(payload["members"])
     args = argparse.Namespace(seed=42, seed2=7)
-    progress("Fetching OpenAlex abstracts")
     fetch_texts(members, progress)
-    progress(f"Fetching abstracts complete; {sum(not m.get('abstract') for m in members)}/{len(members)} members have no abstract")
     fetched_at = utc_now()
 
     for m in members:
         m["textUsed"] = "abstract" if len((m.get("abstract") or "").split()) >= 40 else (
             "title-only" if m["title"] else "none")
     usable = [m for m in members if m["textUsed"] != "none"]
-    docs = [f"{m['title']}. {m.get('abstract') or ''}".strip() for m in usable]
+    docs = [f"{m['title']}. {m.get('abstract') or ''}".strip() if m["textUsed"] == "abstract"
+            else m["title"] for m in usable]
 
     t0 = time.perf_counter()
     progress("Embedding documents")
