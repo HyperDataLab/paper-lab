@@ -9,6 +9,7 @@ export { GrobidContainer } from './grobid';
 interface Env {
   BUCKET: Bucket;
   FIREBASE_PROJECT_ID: string;
+  ACCEPTED_PROJECT_IDS?: string;
   ALLOWED_DOMAIN: string;
   ALLOWED_ORIGINS: string;
   GROBID: Parameters<typeof getContainer>[0];
@@ -54,7 +55,16 @@ export default {
   fetch(request: Request, env: Env): Promise<Response> {
     return handle(
       {
-        verifyToken: (token) => verifyFirebaseToken(token, jwks, env.FIREBASE_PROJECT_ID, env.ALLOWED_DOMAIN),
+        verifyToken: (token) =>
+          verifyFirebaseToken(
+            token,
+            jwks,
+            (env.ACCEPTED_PROJECT_IDS ?? env.FIREBASE_PROJECT_ID)
+              .split(',')
+              .map((id) => id.trim())
+              .filter(Boolean),
+            env.ALLOWED_DOMAIN,
+          ),
         bucket: env.BUCKET,
         allowedOrigins: env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim()),
         now: () => new Date(),
