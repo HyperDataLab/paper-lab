@@ -12,13 +12,18 @@ export function GrobidStatus() {
     status === 'loading'
       ? 'Cấu trúc từ GROBID: đang lấy…'
       : status === 'ready' && result
-        ? `Cấu trúc từ GROBID: đã dùng (${result.references.length} tài liệu, ${result.citations.length} trích dẫn).`
+        ? `Cấu trúc từ GROBID: đã dùng (${result.references.length} tài liệu, ${result.citations.length} trích dẫn).${record?.lastFailedAttempt ? ` Lần lấy lại thất bại (${record.lastFailedAttempt.reason}); đã giữ kết quả cũ.` : ''}`
         : `Cấu trúc từ GROBID: không dùng được (${reason ?? 'không rõ lý do'}).`;
   return (
     <ActionBar status={<span role="status">{text}</span>}>
       {refetch && (
-        <Button size="sm" disabled={status === 'loading'} onClick={refetch}>
+        <Button size="sm" disabled={status === 'loading'} onClick={() => refetch()}>
           Lấy lại từ GROBID
+        </Button>
+      )}
+      {refetch && record?.lastFailedAttempt && (
+        <Button size="sm" disabled={status === 'loading'} onClick={() => refetch(true)}>
+          Thay thế bằng kết quả mới
         </Button>
       )}
     </ActionBar>

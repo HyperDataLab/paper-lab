@@ -28,35 +28,38 @@ export function useGrobid(paper: Paper | null, onChanged: () => void): GrobidSta
     paperRef.current = paper;
   }, [paper]);
 
-  const start = useCallback(() => {
-    const current = paperRef.current;
-    if (!current) return;
-    const blocker = grobidBlocker(current, signedIn);
-    if (blocker) {
-      // A result already in use stays in use; only a paper without one shows why nothing was asked.
-      setState((old) =>
-        usableGrobid(old.record) && old.record?.paperId === current.id
-          ? old
-          : { status: 'failed', reason: blocker, record: null },
-      );
-      return;
-    }
-    running.current?.abort();
-    const controller = new AbortController();
-    running.current = controller;
-    setState((old) => ({
-      status: 'loading',
-      reason: null,
-      record: old.record?.paperId === current.id ? old.record : null,
-    }));
-    void requestGrobid(repo, current, getIdToken, controller.signal)
-      .then((record) => {
-        if (controller.signal.aborted) return;
-        setState(fromRecord(record));
-        onChanged();
-      })
-      .catch(() => undefined);
-  }, [repo, getIdToken, signedIn, onChanged]);
+  const start = useCallback(
+    (replace = false) => {
+      const current = paperRef.current;
+      if (!current) return;
+      const blocker = grobidBlocker(current, signedIn);
+      if (blocker) {
+        // A result already in use stays in use; only a paper without one shows why nothing was asked.
+        setState((old) =>
+          usableGrobid(old.record) && old.record?.paperId === current.id
+            ? old
+            : { status: 'failed', reason: blocker, record: null },
+        );
+        return;
+      }
+      running.current?.abort();
+      const controller = new AbortController();
+      running.current = controller;
+      setState((old) => ({
+        status: 'loading',
+        reason: null,
+        record: old.record?.paperId === current.id ? old.record : null,
+      }));
+      void requestGrobid(repo, current, getIdToken, controller.signal, replace)
+        .then((record) => {
+          if (controller.signal.aborted) return;
+          setState(fromRecord(record));
+          onChanged();
+        })
+        .catch(() => undefined);
+    },
+    [repo, getIdToken, signedIn, onChanged],
+  );
 
   useEffect(() => {
     if (!paperId || !ready) return;

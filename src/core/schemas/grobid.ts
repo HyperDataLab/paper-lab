@@ -40,6 +40,7 @@ export const GrobidResultSchema = z.object({
       page: z.number().int().positive().nullable(),
     }),
   ),
+  bodyPresent: z.boolean().optional(),
 });
 
 /**
@@ -57,6 +58,7 @@ export const GrobidRecordSchema = z.object({
   /** Vietnamese reason shown when `status` is `failed`. */
   error: z.string().nullable(),
   result: GrobidResultSchema.nullable(),
+  lastFailedAttempt: z.object({ at: z.iso.datetime(), reason: z.string() }).optional(),
 });
 export type GrobidPerson = z.infer<typeof PersonSchema>;
 export type GrobidResult = z.infer<typeof GrobidResultSchema>;
