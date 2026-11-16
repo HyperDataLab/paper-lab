@@ -20,6 +20,7 @@ try {
   const corpus = await server.ssrLoadModule('/src/core/corpus/contract.ts');
   const profile = await server.ssrLoadModule('/src/core/corpusProfile/contract.ts');
   const topics = await server.ssrLoadModule('/src/core/corpusTopics/contract.ts');
+  const facts = await server.ssrLoadModule('/src/core/experimentFacts/contract.ts');
   const files = [
     [contract.PAPER_MODEL_SCHEMA_FILE, contract.paperModelJsonSchema()],
     [contract.PAPER_MODEL_SCHEMA_PUBLIC_FILE, contract.paperModelJsonSchema()],
@@ -33,6 +34,9 @@ try {
     [profile.FEATURE_REGISTRY_FILE, await profile.featureRegistryJson()],
     [topics.CORPUS_TOPICS_SCHEMA_FILE, topics.corpusTopicsJsonSchema()],
     [topics.CORPUS_TOPICS_SCHEMA_PUBLIC_FILE, topics.corpusTopicsJsonSchema()],
+    [facts.EXPERIMENT_FACTS_SCHEMA_FILE, facts.experimentFactsJsonSchema()],
+    [facts.EXPERIMENT_FACTS_SCHEMA_PUBLIC_FILE, facts.experimentFactsJsonSchema()],
+    [facts.EXPERIMENT_FACTS_EXAMPLE_FILE, facts.exampleExperimentFacts()],
   ];
   for (const [file, value] of files) {
     const path = resolve(root, file);
