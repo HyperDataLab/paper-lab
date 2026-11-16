@@ -6,6 +6,7 @@ import time
 import urllib.parse
 import urllib.request
 import urllib.error
+import socket
 from helpers import abstract_of, stability, map_members
 import uuid
 from collections import Counter, defaultdict
@@ -42,8 +43,8 @@ def openalex(params):
         try:
             with urllib.request.urlopen(req, timeout=60) as resp:
                 return json.load(resp)["results"]
-        except urllib.error.HTTPError as error:
-            if error.code != 429 and error.code < 500:
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, socket.timeout) as error:
+            if isinstance(error, urllib.error.HTTPError) and error.code != 429 and error.code < 500:
                 raise
             if attempt == 4:
                 raise
@@ -51,7 +52,7 @@ def openalex(params):
 
 
 
-def fetch_texts(members):
+def fetch_texts(members, progress):
     by_oa = defaultdict(list)
     for m in members:
         if m["openalexId"]:
@@ -59,12 +60,17 @@ def fetch_texts(members):
     keys = list(by_oa)
     for i in range(0, len(keys), 50):
         chunk = keys[i:i + 50]
-        for w in openalex({"filter": "openalex_id:" + "|".join(chunk), "per-page": "50",
-                           "select": "id,title,abstract_inverted_index,primary_topic"}):
-            for m in by_oa.get(w["id"].rsplit("/", 1)[-1], []):
-                m["abstract"] = abstract_of(w.get("abstract_inverted_index"))
-                m["title"] = m["title"] or (w.get("title") or "")
-                m["oa_subfield"] = ((w.get("primary_topic") or {}).get("subfield") or {}).get("display_name")
+        try:
+            works = openalex({"filter": "openalex_id:" + "|".join(chunk), "per-page": "50",
+                              "select": "id,title,abstract_inverted_index,primary_topic"})
+            for w in works:
+                for m in by_oa.get(w["id"].rsplit("/", 1)[-1], []):
+                    m["abstract"] = abstract_of(w.get("abstract_inverted_index"))
+                    m["title"] = m["title"] or (w.get("title") or "")
+                    m["oa_subfield"] = ((w.get("primary_topic") or {}).get("subfield") or {}).get("display_name")
+        except (urllib.error.URLError, TimeoutError, socket.timeout) as error:
+            print(f"OpenAlex batch failed: {error}", flush=True)
+        progress(f"Fetching abstracts {min(i + len(chunk), len(keys))}/{len(keys)}")
         time.sleep(0.2)
 
 
@@ -91,7 +97,8 @@ def run(payload, progress=lambda text: None):
     members = map_members(payload["members"])
     args = argparse.Namespace(seed=42, seed2=7)
     progress("Fetching OpenAlex abstracts")
-    fetch_texts(members)
+    fetch_texts(members, progress)
+    progress(f"Fetching abstracts complete; {sum(not m.get('abstract') for m in members)}/{len(members)} members have no abstract")
     fetched_at = dt.datetime.now(dt.timezone.utc).isoformat()
 
     for m in members:
@@ -104,10 +111,11 @@ def run(payload, progress=lambda text: None):
     progress("Embedding documents")
     model = SentenceTransformer(MODEL)
     emb = model.encode(docs, batch_size=32, show_progress_bar=False)
-    progress("Clustering topics")
+    progress("Clustering seed 42")
     tm, raw, topics, probs = fit(docs, emb, args.seed, model)
-    progress("Checking stability")
+    progress("Clustering seed 7")
     _, _, topics2, _ = fit(docs, emb, args.seed2, model)
+    progress("Keyphrases")
     keys = KeyBERT(model=model).extract_keywords(
         docs, keyphrase_ngram_range=(1, PARAMS["keybert_ngram_max"]),
         stop_words=list(ENGLISH_STOP_WORDS | DOMAIN_STOP), use_mmr=True, diversity=0.5,

@@ -1,26 +1,30 @@
 import json
+import multiprocessing
 import threading
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
-from pipeline import run
+from job_helpers import execute_job
 
 jobs = {}
 lock = threading.Lock()
 schema = json.loads(Path(__file__).with_name("schema.json").read_text(encoding="utf-8"))
 
 
-def execute(job_id, payload):
-    job = jobs[job_id]
-    try:
-        job.update(state="running", progress="Starting")
-        result = run(payload, lambda text: job.update(progress=text))
-        Draft202012Validator(schema).validate(result)
-        job.update(state="done", progress="Complete", result=result)
-    except Exception as error:
-        job.update(state="failed", progress="Failed", error=str(error))
+def execute(job, payload):
+    def run_pipeline(payload, progress):
+        from pipeline import run
+        return run(payload, progress)
+    execute_job(job, payload, run_pipeline, lambda result: Draft202012Validator(schema).validate(result))
+
+
+def watch(job, process):
+    process.join()
+    if job["state"] not in ("done", "failed"):
+        job.update(state="failed", progress="Failed", error=f"Process exited unexpectedly (exit code {process.exitcode})")
+        print(job["error"], flush=True)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -45,8 +49,10 @@ class Handler(BaseHTTPRequestHandler):
             if any(job["state"] in ("queued", "running") for job in jobs.values()):
                 return self.send_json(409, {"error": "busy"})
             job_id = str(uuid.uuid4())
-            jobs[job_id] = {"state": "queued", "progress": "Queued"}
-            threading.Thread(target=execute, args=(job_id, payload), daemon=True).start()
+            jobs[job_id] = manager.dict(state="queued", progress="Queued")
+            process = multiprocessing.get_context("spawn").Process(target=execute, args=(jobs[job_id], payload))
+            process.start()
+            threading.Thread(target=watch, args=(jobs[job_id], process), daemon=True).start()
         self.send_json(202, {"jobId": job_id})
 
     def do_GET(self):
@@ -64,4 +70,5 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    manager = multiprocessing.get_context("spawn").Manager()
     ThreadingHTTPServer(("0.0.0.0", 8080), Handler).serve_forever()

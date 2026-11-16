@@ -85,6 +85,7 @@ export async function corpusTopicsStatus(id: string, jobId: string, token: strin
       state: z.enum(['queued', 'running', 'done', 'failed']),
       progress: z.string().optional(),
       error: z.string().optional(),
+      snapshotId: z.string().optional(),
     })
     .parse(await checked(response));
 }

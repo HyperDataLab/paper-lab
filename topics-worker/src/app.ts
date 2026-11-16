@@ -9,6 +9,8 @@ export interface Deps {
   origins: string[];
   verify(token: string): Promise<unknown>;
   container(path: string, init?: RequestInit): Promise<Response>;
+  schedule(jobId: string): Promise<void>;
+  refresh?(jobId: string): Promise<void>;
 }
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const route = new RegExp(`^/corpora/(${uuid})/topics(?:/run(?:/(${uuid}))?)?$`, 'i');
@@ -30,129 +32,230 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
       status,
       headers: { ...headers, ...extra, 'Content-Type': 'application/json' },
     });
-  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
-  const path = new URL(request.url).pathname;
-  const match = route.exec(path);
-  if (!match) return json(400, { error: 'invalid path' });
-  const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
-  if (!token) return json(401, { error: 'sign-in required' });
   try {
-    await deps.verify(token);
-  } catch (error) {
-    return json(error instanceof NotAllowedError ? 403 : 401, { error: 'invalid token' });
-  }
-  const corpusId = match[1] as string;
-  const jobId = match[2];
-  const isRun = path.endsWith('/run') || Boolean(jobId);
-  if (!isRun) {
-    if (request.method !== 'GET') return json(405, { error: 'method not allowed' });
-    const stored = await deps.bucket.get(`paperlab/corpora-topics/${corpusId}.json`);
-    return stored
-      ? new Response(stored.body, { headers: { ...headers, 'Content-Type': 'application/json' } })
-      : json(404, { error: 'not stored' });
-  }
-  const call = async (url: string, init?: RequestInit) => {
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
+    const path = new URL(request.url).pathname;
+    const match = route.exec(path);
+    if (!match) return json(400, { error: 'invalid path' });
+    const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
+    if (!token) return json(401, { error: 'sign-in required' });
     try {
-      return await deps.container(url, init);
-    } catch {
-      return null;
+      await deps.verify(token);
+    } catch (error) {
+      return json(error instanceof NotAllowedError ? 403 : 401, { error: 'invalid token' });
     }
-  };
-  if (!jobId) {
-    if (request.method !== 'POST') return json(405, { error: 'method not allowed' });
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return json(400, { error: 'invalid JSON' });
+    const corpusId = match[1] as string;
+    const jobId = match[2];
+    const isRun = path.endsWith('/run') || Boolean(jobId);
+    if (!isRun) {
+      if (request.method !== 'GET') return json(405, { error: 'method not allowed' });
+      const stored = await deps.bucket.get(`paperlab/corpora-topics/${corpusId}.json`);
+      return stored
+        ? new Response(stored.body, { headers: { ...headers, 'Content-Type': 'application/json' } })
+        : json(404, { error: 'not stored' });
     }
-    if (
-      !object(body) ||
-      (body.controlIds !== undefined &&
-        (!Array.isArray(body.controlIds) ||
-          !body.controlIds.every((id: unknown) => typeof id === 'string' && idPattern.test(id))))
-    )
-      return json(400, { error: 'invalid controls' });
-    const ids = [corpusId, ...((body.controlIds as string[] | undefined) ?? [])];
-    if (new Set(ids).size !== ids.length) return json(400, { error: 'duplicate corpus' });
-    const corpora = [];
-    const members = [];
-    for (const id of ids) {
-      const stored = await deps.bucket.get(`paperlab/corpora/${id}`);
-      if (!stored) return json(404, { error: 'corpus not stored' });
-      const corpus: unknown = await new Response(stored.body).json();
+    const call = async (url: string, init?: RequestInit) => {
+      try {
+        return await deps.container(url, init);
+      } catch (error) {
+        console.error('container request error:', error instanceof Error ? error.message : String(error));
+        return null;
+      }
+    };
+    if (!jobId) {
+      if (request.method !== 'POST') return json(405, { error: 'method not allowed' });
+      let body: unknown;
+      try {
+        body = await request.json();
+      } catch {
+        return json(400, { error: 'invalid JSON' });
+      }
       if (
-        !object(corpus) ||
-        corpus.id !== id ||
-        !Array.isArray(corpus.members) ||
-        (id !== corpusId && corpus.kind !== 'control')
+        !object(body) ||
+        (body.controlIds !== undefined &&
+          (!Array.isArray(body.controlIds) ||
+            !body.controlIds.every((id: unknown) => typeof id === 'string' && idPattern.test(id))))
       )
-        return json(400, { error: 'invalid corpus' });
-      corpora.push({
-        corpusId: id,
-        title: corpus.title,
-        kind: corpus.kind,
-        ...(corpus.releaseId ? { releaseId: corpus.releaseId } : {}),
-      });
-      for (const m of corpus.members) {
-        if (!object(m)) return json(400, { error: 'invalid member' });
-        const identifiers = object(m.identifiers) ? m.identifiers : {};
-        members.push({
+        return json(400, { error: 'invalid controls' });
+      const ids = [corpusId, ...((body.controlIds as string[] | undefined) ?? [])];
+      if (new Set(ids).size !== ids.length) return json(400, { error: 'duplicate corpus' });
+      const corpora = [];
+      const members = [];
+      for (const id of ids) {
+        const stored = await deps.bucket.get(`paperlab/corpora/${id}`);
+        if (!stored) return json(404, { error: 'corpus not stored' });
+        const corpus: unknown = await new Response(stored.body).json();
+        if (
+          !object(corpus) ||
+          corpus.id !== id ||
+          !Array.isArray(corpus.members) ||
+          (id !== corpusId && corpus.kind !== 'control')
+        )
+          return json(400, { error: 'invalid corpus' });
+        corpora.push({
           corpusId: id,
-          memberId: m.memberId,
-          title: m.title ?? '',
-          openalexId: identifiers.openalexId ?? null,
-          doi: identifiers.doi ?? null,
+          title: corpus.title,
+          kind: corpus.kind,
+          ...(corpus.releaseId ? { releaseId: corpus.releaseId } : {}),
         });
+        for (const m of corpus.members) {
+          if (!object(m)) return json(400, { error: 'invalid member' });
+          const identifiers = object(m.identifiers) ? m.identifiers : {};
+          members.push({
+            corpusId: id,
+            memberId: m.memberId,
+            title: m.title ?? '',
+            openalexId: identifiers.openalexId ?? null,
+            doi: identifiers.doi ?? null,
+          });
+        }
+      }
+      const response = await call('/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ corpora, members }),
+      });
+      if (!response) return json(503, { error: 'container starting' }, { 'Retry-After': '30' });
+      if (response.status === 503) return json(503, { error: 'container starting' }, { 'Retry-After': '30' });
+      const value: unknown = await response.json();
+      if (response.status !== 202) return json(response.status, value);
+      if (!object(value) || typeof value.jobId !== 'string' || !idPattern.test(value.jobId))
+        return json(502, { error: 'invalid job' });
+      const now = new Date().toISOString();
+      const record = {
+        jobId: value.jobId,
+        corpusIds: ids,
+        startedAt: now,
+        updatedAt: now,
+        state: 'queued',
+        progress: 'Queued',
+      };
+      await saveJob(deps.bucket, record);
+      await deps.schedule(value.jobId);
+      console.log(`jobId=${value.jobId} state=queued progress=Queued elapsed=0s`);
+      return json(202, value);
+    }
+    if (request.method !== 'GET') return json(405, { error: 'method not allowed' });
+    let record = await readJob(deps.bucket, jobId);
+    if (!record || !record.corpusIds.includes(corpusId)) return json(404, { error: 'job not found' });
+    if (deps.refresh && record.state !== 'done' && record.state !== 'failed') {
+      try {
+        await deps.refresh(jobId);
+        record = (await readJob(deps.bucket, jobId)) ?? record;
+      } catch (error) {
+        console.error('topics status refresh error:', error instanceof Error ? error.message : String(error));
       }
     }
-    const response = await call('/jobs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ corpora, members }),
-    });
-    if (!response) return json(503, { error: 'container starting' }, { 'Retry-After': '30' });
-    if (response.status === 503) return json(503, { error: 'container starting' }, { 'Retry-After': '30' });
-    const value: unknown = await response.json();
-    if (response.status !== 202) return json(response.status, value);
-    if (!object(value) || typeof value.jobId !== 'string' || !idPattern.test(value.jobId))
-      return json(502, { error: 'invalid job' });
-    await deps.bucket.put(`paperlab/topics-jobs/${corpusId}/${value.jobId}.json`, JSON.stringify({ ids }), {
-      httpMetadata: { contentType: 'application/json' },
-    });
-    return json(202, value);
+    return json(200, record);
+  } catch (error) {
+    console.error('topics handler error:', error instanceof Error ? error.message : String(error));
+    return json(500, { error: 'topics service error' });
   }
-  if (request.method !== 'GET') return json(405, { error: 'method not allowed' });
-  const pointer = await deps.bucket.get(`paperlab/topics-jobs/${corpusId}/${jobId}.json`);
-  if (!pointer) return json(404, { error: 'job not found' });
-  const saved: unknown = await new Response(pointer.body).json();
-  if (
-    !object(saved) ||
-    !Array.isArray(saved.ids) ||
-    !saved.ids.every((id: unknown) => typeof id === 'string' && idPattern.test(id))
-  )
-    return json(502, { error: 'invalid job pointer' });
-  const status = await call(`/jobs/${jobId}`);
-  if (!status) return json(503, { error: 'container starting' }, { 'Retry-After': '30' });
-  const state: unknown = await status.json();
-  if (!status.ok || !object(state) || state.state !== 'done') return json(status.status, state);
-  const result = await call(`/jobs/${jobId}/result`);
-  if (!result?.ok) return json(502, { error: 'result unavailable' });
-  const snapshot: unknown = await result.json();
-  if (
-    !object(snapshot) ||
-    snapshot.format !== 'paperlab-corpus-topics' ||
-    snapshot.schemaVersion !== 1 ||
-    typeof snapshot.snapshotId !== 'string' ||
-    !Array.isArray(snapshot.corpora) ||
-    !saved.ids.every((id: string) =>
-      (snapshot.corpora as unknown[]).some((c) => object(c) && c.corpusId === id),
-    )
-  )
-    return json(502, { error: 'invalid result' });
-  for (const id of saved.ids as string[])
-    await deps.bucket.put(`paperlab/corpora-topics/${id}.json`, JSON.stringify(snapshot), {
-      httpMetadata: { contentType: 'application/json' },
-    });
-  return json(200, { state: 'done', snapshotId: snapshot.snapshotId });
+}
+
+export interface JobRecord {
+  jobId: string;
+  corpusIds: string[];
+  startedAt: string;
+  updatedAt: string;
+  state: string;
+  progress: string;
+  error?: string;
+  snapshotId?: string;
+}
+const jobKey = (id: string) => `paperlab/corpora-topics/jobs/${id}.json`;
+export async function readJob(bucket: Bucket, id: string): Promise<JobRecord | null> {
+  const stored = await bucket.get(jobKey(id));
+  return stored ? ((await new Response(stored.body).json()) as JobRecord) : null;
+}
+export async function saveJob(bucket: Bucket, job: JobRecord): Promise<void> {
+  await bucket.put(jobKey(job.jobId), JSON.stringify(job), {
+    httpMetadata: { contentType: 'application/json' },
+  });
+}
+export async function refreshJob(
+  bucket: Bucket,
+  container: Deps['container'],
+  jobId: string,
+): Promise<boolean> {
+  const job = await readJob(bucket, jobId);
+  if (!job || job.state === 'done' || job.state === 'failed') return false;
+  try {
+    const response = await container(`/jobs/${jobId}`);
+    if (response.status === 404) {
+      const error = 'Container no longer has this job';
+      console.error(`jobId=${jobId} error=${error}`);
+      const next = {
+        ...job,
+        state: 'failed',
+        progress: 'Failed',
+        error,
+        updatedAt: new Date().toISOString(),
+      };
+      await saveJob(bucket, next);
+      console.log(
+        `jobId=${jobId} state=failed progress=Failed elapsed=${Math.round((Date.now() - Date.parse(job.startedAt)) / 1000)}s`,
+      );
+      return false;
+    }
+    if (!response.ok) throw new Error(`Container status: ${response.status}`);
+    const status: unknown = await response.json();
+    if (!object(status) || !['queued', 'running', 'done', 'failed'].includes(String(status.state)))
+      throw new Error('Invalid container status');
+    const next = {
+      ...job,
+      state: String(status.state),
+      progress: typeof status.progress === 'string' ? status.progress : job.progress,
+      updatedAt: new Date().toISOString(),
+    };
+    if (next.state === 'failed') {
+      next.error = typeof status.error === 'string' ? status.error : 'Container job failed';
+      console.error(`jobId=${jobId} error=${next.error}`);
+    }
+    if (next.state === 'done') {
+      const result = await container(`/jobs/${jobId}/result`);
+      if (!result.ok) throw new Error(`Container result: ${result.status}`);
+      const snapshot: unknown = await result.json();
+      if (
+        !object(snapshot) ||
+        snapshot.format !== 'paperlab-corpus-topics' ||
+        snapshot.schemaVersion !== 1 ||
+        typeof snapshot.snapshotId !== 'string' ||
+        !Array.isArray(snapshot.members) ||
+        !Array.isArray(snapshot.topics) ||
+        !Array.isArray(snapshot.corpora) ||
+        !job.corpusIds.every((id) =>
+          (snapshot.corpora as unknown[]).some((c) => object(c) && c.corpusId === id),
+        )
+      ) {
+        const error = 'Invalid container result';
+        console.error(`jobId=${jobId} error=${error}`);
+        await saveJob(bucket, {
+          ...job,
+          state: 'failed',
+          progress: 'Failed',
+          error,
+          updatedAt: new Date().toISOString(),
+        });
+        console.log(
+          `jobId=${jobId} state=failed progress=Failed elapsed=${Math.round((Date.now() - Date.parse(job.startedAt)) / 1000)}s`,
+        );
+        return false;
+      }
+      for (const id of job.corpusIds)
+        await bucket.put(`paperlab/corpora-topics/${id}.json`, JSON.stringify(snapshot), {
+          httpMetadata: { contentType: 'application/json' },
+        });
+      next.snapshotId = snapshot.snapshotId;
+    }
+    await saveJob(bucket, next);
+    if (job.state !== next.state || job.progress !== next.progress)
+      console.log(
+        `jobId=${jobId} state=${next.state} progress=${next.progress} elapsed=${Math.round((Date.now() - Date.parse(job.startedAt)) / 1000)}s`,
+      );
+    return next.state !== 'done' && next.state !== 'failed';
+  } catch (error) {
+    console.error(`jobId=${jobId} refresh error:`, error instanceof Error ? error.message : String(error));
+    return true;
+  }
 }

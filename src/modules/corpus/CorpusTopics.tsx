@@ -36,43 +36,104 @@ export function CorpusTopics({
   const [controls, setControls] = useState<Corpus[]>([]);
   const [controlId, setControlId] = useState('');
   const [progress, setProgress] = useState('');
-  const [running, setRunning] = useState(false);
+  const [jobId, setJobId] = useState<string | undefined>(() => {
+    try {
+      return localStorage.getItem(`paperlab-topics-job:${corpus.id}`) ?? undefined;
+    } catch {
+      return undefined;
+    }
+  });
+  const [running, setRunning] = useState(Boolean(jobId));
   useEffect(() => {
     void repo.corpora
       .list()
       .then((items) => setControls(items.filter((item) => item.kind === 'control' && item.id !== corpus.id)));
   }, [corpus.id, repo]);
+  const jobKey = `paperlab-topics-job:${corpus.id}`;
   async function runTopics() {
     setRunning(true);
     setError('');
     try {
       const token = await getIdToken();
-      if (!token) throw new Error('Cần đăng nhập');
-      const jobId = await startCorpusTopics(corpus.id, token, controlId ? [controlId] : []);
-      for (;;) {
-        const status = await corpusTopicsStatus(corpus.id, jobId, token);
-        setProgress(`${status.state}${status.progress ? `: ${status.progress}` : ''}`);
-        if (status.state === 'failed') throw new Error(status.error ?? 'Tính chủ đề thất bại');
-        if (status.state === 'done') break;
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+      if (!token) throw new Error('C?n ??ng nh?p');
+      const id = await startCorpusTopics(corpus.id, token, controlId ? [controlId] : []);
+      try {
+        localStorage.setItem(jobKey, id);
+      } catch {
+        /* Storage may be unavailable. */
       }
-      const latest = await pullCorpusTopics(corpus.id, token);
-      if (!latest) throw new Error('Không tìm thấy kết quả');
-      await repo.corpusTopics.save(latest);
-      setSnapshot(latest);
-      setNames(await repo.corpusTopics.names(latest.snapshotId));
-      const others = await Promise.all(
-        latest.corpora
-          .filter((item) => item.corpusId !== corpus.id)
-          .map((item) => repo.corpora.get(item.corpusId)),
-      );
-      setOtherCorpora(others.filter((item): item is Corpus => item !== undefined));
+      setJobId(id);
     } catch (e) {
       setError(String(e));
-    } finally {
       setRunning(false);
     }
   }
+  useEffect(() => {
+    if (!jobId || !user) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let failuresAt = 0;
+    let delay = 5000;
+    const poll = async () => {
+      try {
+        const token = await getIdToken();
+        if (!token) throw new Error('C?n ??ng nh?p');
+        const status = await corpusTopicsStatus(corpus.id, jobId, token);
+        if (!active) return;
+        failuresAt = 0;
+        delay = 5000;
+        setProgress(`${status.state}${status.progress ? `: ${status.progress}` : ''}`);
+        if (status.state === 'failed') {
+          setError(status.error ?? 'T?nh ch? ?? th?t b?i');
+          setRunning(false);
+          try {
+            localStorage.removeItem(jobKey);
+          } catch {
+            /* Storage may be unavailable. */
+          }
+          return;
+        }
+        if (status.state === 'done') {
+          const latest = await pullCorpusTopics(corpus.id, token);
+          if (!latest) throw new Error('Kh?ng t?m th?y k?t qu?');
+          await repo.corpusTopics.save(latest);
+          const savedNames = await repo.corpusTopics.names(latest.snapshotId);
+          const others = await Promise.all(
+            latest.corpora
+              .filter((item) => item.corpusId !== corpus.id)
+              .map((item) => repo.corpora.get(item.corpusId)),
+          );
+          if (!active) return;
+          setSnapshot(latest);
+          setNames(savedNames);
+          setOtherCorpora(others.filter((item): item is Corpus => item !== undefined));
+          setRunning(false);
+          try {
+            localStorage.removeItem(jobKey);
+          } catch {
+            /* Storage may be unavailable. */
+          }
+          return;
+        }
+      } catch (e) {
+        if (!active) return;
+        failuresAt ||= Date.now();
+        if (Date.now() - failuresAt >= 120000) {
+          setError(String(e));
+          setRunning(false);
+          return;
+        }
+        setProgress('M?t k?t n?i t?m th?i, ?ang th? l?i?');
+        delay = Math.min(delay * 2, 30000);
+      }
+      if (active) timer = setTimeout(() => void poll(), delay);
+    };
+    void poll();
+    return () => {
+      active = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [jobId, jobKey, user, corpus.id, getIdToken, repo]);
   useEffect(() => {
     onData(snapshot, names);
   }, [snapshot, names, onData]);
