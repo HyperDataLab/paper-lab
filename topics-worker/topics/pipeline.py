@@ -23,6 +23,11 @@ from umap import UMAP
 import bertopic as _bt
 import keybert as _kb
 
+def utc_now():
+    """ISO 8601 in UTC ending in Z, as corpus-topics-v1 (a Zod ISO datetime) requires; isoformat() gives +00:00."""
+    return dt.datetime.now(dt.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
 MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 DOMAIN_STOP = {
     "model", "models", "data", "dataset", "datasets", "method", "methods", "approach", "approaches", "proposed",
@@ -99,7 +104,7 @@ def run(payload, progress=lambda text: None):
     progress("Fetching OpenAlex abstracts")
     fetch_texts(members, progress)
     progress(f"Fetching abstracts complete; {sum(not m.get('abstract') for m in members)}/{len(members)} members have no abstract")
-    fetched_at = dt.datetime.now(dt.timezone.utc).isoformat()
+    fetched_at = utc_now()
 
     for m in members:
         m["textUsed"] = "abstract" if len((m.get("abstract") or "").split()) >= 40 else (
@@ -158,7 +163,7 @@ def run(payload, progress=lambda text: None):
 
     snapshot = {
         "format": "paperlab-corpus-topics", "schemaVersion": 1, "snapshotId": str(uuid.uuid4()),
-        "createdAt": dt.datetime.now(dt.timezone.utc).isoformat(), "corpora": corpora,
+        "createdAt": utc_now(), "corpora": corpora,
         "pipeline": {"tag": f"bertopic-{_bt.__version__}+keybert-{_kb.__version__}", "embeddingModel": MODEL,
                      "parameters": PARAMS, "seed": args.seed, "textSource": "abstract",
                      **({"openalexFetchedAt": fetched_at} if fetched_at else {})},
