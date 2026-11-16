@@ -8,6 +8,7 @@ import { ArgumentsSpace } from './ArgumentsSpace';
 import { FindingsList } from './FindingsList';
 import { IssuesBlock, type IssuesKit } from './IssuesBlock';
 import { ModeTab } from './ModeTab';
+import { OrphanedChecks } from './OrphanedChecks';
 import { PaperBlock, type BlockKit } from './PaperBlock';
 import { PaperContribution } from './PaperContribution';
 import { PaperExtraction } from './PaperExtraction';
@@ -87,15 +88,18 @@ export function AnalysisColumn({
       <div hidden={mode !== 'issues'} className={styles.blocks}>
         {/* Rendered only while showing: hidden copies of its labels would shadow the blocks below. */}
         {mode === 'issues' && (
-          <FindingsList
-            paper={paper}
-            findings={issues.findings}
-            focusId={focusFinding}
-            onLocation={onLocation}
-            onOpenSource={(view) => issues.onOpenSource(view as ViewId)}
-            onDecide={issues.onDecide}
-            onRunChecks={issues.onRunChecks}
-          />
+          <>
+            <OrphanedChecks record={checks} />
+            <FindingsList
+              paper={paper}
+              findings={issues.findings}
+              focusId={focusFinding}
+              onLocation={onLocation}
+              onOpenSource={(view) => issues.onOpenSource(view as ViewId)}
+              onDecide={issues.onDecide}
+              onRunChecks={issues.onRunChecks}
+            />
+          </>
         )}
       </div>
       <div hidden={mode !== 'citations'} className={styles.blocks}>

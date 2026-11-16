@@ -21,6 +21,9 @@ Status: ⬜ not started · 🟨 in progress · ✅ accepted.
 
 ## Phân tích bài báo — paper-level AI Review (ADR-0006, `docs/plans/AI-REVIEW.md`)
 
+Check reanalysis carries human decisions to uniquely matching anchored findings; unmatched decisions remain
+visible in the findings view and in local exports.
+
 | #    | Slice                                                                                   | Status |
 | ---- | --------------------------------------------------------------------------------------- | ------ |
 | P1   | Paper import and paper map (PDF / LaTeX / Markdown, IMRaD roles) — beta                 | ✅     |
