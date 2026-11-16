@@ -107,6 +107,13 @@
           "topicId": { "type": "integer", "minimum": -1, "maximum": 9007199254740991 },
           "probability": { "anyOf": [{ "type": "number", "minimum": 0, "maximum": 1 }, { "type": "null" }] },
           "weak": { "type": "boolean" },
+          "fit": { "anyOf": [{ "type": "number", "minimum": -1, "maximum": 1 }, { "type": "null" }] },
+          "weakReason": {
+            "anyOf": [
+              { "type": "string", "enum": ["closer-to-other-topic", "low-fit", "unassigned"] },
+              { "type": "null" }
+            ]
+          },
           "keyphrases": { "maxItems": 8, "type": "array", "items": { "type": "string" } },
           "textUsed": { "type": "string", "enum": ["abstract", "title-only", "none"] }
         },

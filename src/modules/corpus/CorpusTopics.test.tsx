@@ -87,6 +87,14 @@ it('shows an empty state and reviews a stored snapshot and AI candidate', async 
         representativeMemberIds: [],
         openalexSubfields: [{ name: 'Test field', count: 1 }],
       },
+      {
+        topicId: 1,
+        size: 0,
+        byCorpus: {},
+        words: ['second topic'],
+        representativeMemberIds: [],
+        openalexSubfields: [],
+      },
     ],
     members: [
       {
@@ -95,8 +103,32 @@ it('shows an empty state and reviews a stored snapshot and AI candidate', async 
         topicId: 0,
         probability: 0.2,
         weak: true,
+        fit: 0.1234,
+        weakReason: 'low-fit',
         keyphrases: ['phrase'],
         textUsed: 'abstract',
+      },
+      {
+        corpusId: corpus.id,
+        memberId: 'other',
+        topicId: 0,
+        probability: 0.5,
+        weak: true,
+        fit: 0.3,
+        weakReason: 'closer-to-other-topic',
+        keyphrases: [],
+        textUsed: 'title-only',
+      },
+      {
+        corpusId: corpus.id,
+        memberId: 'unassigned',
+        topicId: -1,
+        probability: null,
+        weak: true,
+        fit: null,
+        weakReason: 'unassigned',
+        keyphrases: [],
+        textUsed: 'none',
       },
     ],
   });
@@ -107,14 +139,39 @@ it('shows an empty state and reviews a stored snapshot and AI candidate', async 
   fireEvent.click(screen.getByRole('button', { name: 'Đặt tên chủ đề bằng AI' }));
   expect(mocks.complete).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Đặt tên chủ đề bằng AI' }));
-  await waitFor(async () =>
-    expect(await repo.corpusTopics.names('run')).toMatchObject([
-      { promptVersion: 'corpus-topic-name-1', candidateName: 'Tên / Name' },
-    ]),
-  );
+  await waitFor(async () => expect(await repo.corpusTopics.names('run')).toHaveLength(2));
   fireEvent.click(screen.getByRole('button', { name: 'synthetic word' }));
-  expect(screen.getByText(/gán yếu/)).toBeInTheDocument();
+  expect(screen.getAllByText(/gán yếu/)).toHaveLength(2);
+  expect(screen.getByText(/Độ khớp thấp/)).toHaveTextContent('Độ khớp 0.1234');
+  expect(screen.getByText(/Gần chủ đề khác hơn/)).toBeInTheDocument();
+  expect(
+    mocks.complete.mock.calls.some(([args]) => JSON.parse(args.user).keyphrases.includes('phrase')),
+  ).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Chấp nhận tất cả đề xuất' }));
+  await waitFor(async () =>
+    expect(
+      (await repo.corpusTopics.names('run')).every(
+        (name) =>
+          name.name === 'Tên / Name' &&
+          name.description === 'Description' &&
+          name.promptVersion === 'corpus-topic-name-2',
+      ),
+    ).toBe(true),
+  );
   fireEvent.change(screen.getByLabelText('Tên'), { target: { value: 'Edited' } });
-  fireEvent.click(screen.getByRole('button', { name: /Chấp nhận/ }));
-  await waitFor(async () => expect(await repo.corpusTopics.names('run')).toMatchObject([{ name: 'Edited' }]));
+  fireEvent.click(screen.getByRole('button', { name: 'Chấp nhận / lưu chỉnh sửa' }));
+  await waitFor(async () =>
+    expect((await repo.corpusTopics.names('run')).find((name) => name.topicId === 0)?.name).toBe('Edited'),
+  );
+  mocks.consent.mockResolvedValue(true);
+  mocks.complete
+    .mockRejectedValueOnce(new Error('failure'))
+    .mockResolvedValueOnce({ data: { name: 'New', description: 'New description' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Đặt tên chủ đề bằng AI' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Không đặt tên được 1 chủ đề');
+  expect(screen.getByRole('status')).toHaveTextContent('Đặt tên 2/2');
+  expect((await repo.corpusTopics.names('run')).find((name) => name.topicId === 1)).toMatchObject({
+    candidateName: 'New',
+    name: 'Tên / Name',
+  });
 });

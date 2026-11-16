@@ -56,6 +56,26 @@ it('validates the snapshot and rejects duplicate topics and invalid bounds', () 
   ).toBe(false);
 });
 it('keeps both published JSON Schemas in sync', () => {
-  for (const file of [CORPUS_TOPICS_SCHEMA_FILE, CORPUS_TOPICS_SCHEMA_PUBLIC_FILE])
+  for (const file of [
+    CORPUS_TOPICS_SCHEMA_FILE,
+    CORPUS_TOPICS_SCHEMA_PUBLIC_FILE,
+    'topics-worker/topics/schema.json',
+  ])
     expect(JSON.parse(readFileSync(resolve(process.cwd(), file), 'utf8'))).toEqual(corpusTopicsJsonSchema());
+});
+it('accepts older members and low probability, but requires unassigned members to be weak', () => {
+  const member = sample.members[0];
+  expect(CorpusTopicsSchema.safeParse(sample).success).toBe(true);
+  expect(
+    CorpusTopicsSchema.safeParse({ ...sample, members: [{ ...member, probability: 0.1, weak: false }] })
+      .success,
+  ).toBe(true);
+  expect(
+    CorpusTopicsSchema.safeParse({ ...sample, members: [{ ...member, topicId: -1, weak: false }] }).success,
+  ).toBe(false);
+  expect(
+    CorpusTopicsSchema.safeParse({ ...sample, members: [{ ...member, fit: -1, weakReason: 'low-fit' }] })
+      .success,
+  ).toBe(true);
+  expect(CorpusTopicsSchema.safeParse({ ...sample, members: [{ ...member, fit: 1.1 }] }).success).toBe(false);
 });
