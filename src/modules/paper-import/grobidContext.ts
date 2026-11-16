@@ -8,7 +8,7 @@ export interface GrobidState {
   reason: string | null;
   record: GrobidRecord | null;
   /** Asks GROBID again, even after a stored failure; null outside the paper workspace. */
-  refetch: (() => void) | null;
+  refetch: ((replace?: boolean) => void) | null;
 }
 
 export const GROBID_IDLE: GrobidState = { status: 'idle', reason: null, record: null, refetch: null };

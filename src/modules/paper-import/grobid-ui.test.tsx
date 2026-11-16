@@ -119,7 +119,7 @@ describe('U7 GROBID in the background', () => {
     expect(fetchMock).toHaveBeenCalled();
   });
 
-  it('a failed refetch over a used result puts the citation checks back on the text patterns', async () => {
+  it('keeps the result and citation checks after a failed refetch', async () => {
     const { repo, view } = await setup();
     await repo.grobid.save(grobidRecord());
     await repo.paperChecks.save({
@@ -134,14 +134,13 @@ describe('U7 GROBID in the background', () => {
     );
     view(repo);
     fireEvent.click(await screen.findByRole('button', { name: 'Lấy lại từ GROBID' }));
-    expect(
-      await screen.findByText('Cấu trúc từ GROBID: không dùng được (kho của lab chưa có PDF của bài này).'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/đã giữ kết quả cũ/u)).toBeInTheDocument();
     await waitFor(async () => {
       const checks = await repo.paperChecks.get(grobidPaper.id);
       const ids = checks?.report.checks.flatMap((check) => check.findings.map((f) => f.id)) ?? [];
-      expect(ids.some((id) => id.includes(':grobid:'))).toBe(false);
+      expect(ids.some((id) => id.includes(':grobid:'))).toBe(true);
     });
+    expect((await repo.grobid.get(grobidPaper.id))?.lastFailedAttempt?.reason).toContain('chưa có PDF');
   });
 
   it('does not store a lapsed session, so it is asked again after signing in', async () => {

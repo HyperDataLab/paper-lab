@@ -40,8 +40,11 @@ export async function requestGrobid(
   paper: Paper,
   getIdToken: () => Promise<string | null>,
   signal?: AbortSignal,
+  replace = false,
 ): Promise<GrobidRecord> {
   const sha = paperSha(paper) ?? '';
+  const previous = await repo.grobid.get(paper.id);
+  const good = previous?.sha256 === sha && previous.status === 'ready' && previous.result ? previous : null;
   const record = (fields: Pick<GrobidRecord, 'status' | 'error' | 'result'>): GrobidRecord => ({
     schemaVersion: 3,
     paperId: paper.id,
@@ -65,10 +68,33 @@ export async function requestGrobid(
       await repo.pdfFiles.markUploaded(sha);
     }
     const result = parseGrobidTei(await fetchGrobidTei(sha, token, signal));
+    if (good && !replace) {
+      const old = good.result;
+      const fewer = (next: number, before: number) => before >= 2 && next < before / 2;
+      if (
+        !result.bodyPresent ||
+        (old &&
+          (fewer(result.references.length, old.references.length) ||
+            fewer(result.citations.length, old.citations.length)))
+      ) {
+        return repo.grobid.save({
+          ...good,
+          lastFailedAttempt: {
+            at: new Date().toISOString(),
+            reason: 'Kết quả mới thiếu nội dung hoặc có ít tài liệu, trích dẫn hơn nhiều',
+          },
+        });
+      }
+    }
     return await store(record({ status: 'ready', error: null, result }));
   } catch (cause) {
     if (signal?.aborted) throw cause;
     const failed = record({ status: 'failed', error: reasonOf(cause), result: null });
+    if (good)
+      return repo.grobid.save({
+        ...good,
+        lastFailedAttempt: { at: failed.fetchedAt, reason: failed.error ?? 'Không rõ lý do' },
+      });
     // A lapsed session is not stored, so the request is made again on its own after signing in.
     if (cause instanceof PdfRemoteError && cause.status === 401) return failed;
     return store(failed);

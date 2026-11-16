@@ -135,5 +135,6 @@ export function parseGrobidTei(xml: string): GrobidResult {
     },
     references,
     citations,
+    bodyPresent: Boolean(document.querySelector('text > body p, text > body div')),
   };
 }
