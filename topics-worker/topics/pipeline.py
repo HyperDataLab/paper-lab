@@ -3,7 +3,7 @@ import argparse
 import datetime as dt
 import time
 from abstracts import fetch_texts
-from helpers import stability, map_members
+from helpers import stability, map_members, percentile, topic_fit
 import uuid
 from collections import Counter
 
@@ -34,7 +34,7 @@ DOMAIN_STOP = {
 }
 PARAMS = {"umap_neighbors": 15, "umap_components": 5, "hdbscan_min_cluster": 6, "hdbscan_min_samples": 3,
           "hdbscan_selection": "leaf", "ngram_max": 3, "keybert_ngram_max": 2, "keybert_top_n": 6,
-          "weak_probability": 0.3, "outlier_strategy": "embeddings"}
+          "weak_fit_percentile": 0.10, "weak_method": "centroid-cosine", "outlier_strategy": "embeddings"}
 
 
 def fit(docs, emb, seed, model):
@@ -55,7 +55,7 @@ def fit(docs, emb, seed, model):
     return tm, raw, list(reassigned), probs
 
 
-def run(payload, progress=lambda text: None):
+def run(payload, progress=lambda text: print(text, flush=True)):
     corpora = payload["corpora"]
     members = map_members(payload["members"])
     args = argparse.Namespace(seed=42, seed2=7)
@@ -84,24 +84,37 @@ def run(payload, progress=lambda text: None):
         top_n=PARAMS["keybert_top_n"], doc_embeddings=emb)
     elapsed = time.perf_counter() - t0
 
+    fits = topic_fit(emb, topics, PARAMS["weak_fit_percentile"])
     out_members = []
     for i, m in enumerate(usable):
-        p = float(probs[i].max()) if probs is not None and len(probs[i]) else None
-        weak = raw[i] == -1 or (p is not None and p < PARAMS["weak_probability"])
+        tid = int(topics[i])
+        p = (max(0.0, min(1.0, float(probs[i][tid])))
+             if probs is not None and getattr(probs, "ndim", 0) == 2 and tid >= 0 and tid < probs.shape[1]
+             else None)
         out_members.append({"corpusId": m["corpusId"], "memberId": m["memberId"], "topicId": int(topics[i]),
-                            "probability": p, "weak": bool(weak), "keyphrases": [k for k, _ in keys[i]][:8],
+                            "probability": p, "weak": fits[i]["weak"], "keyphrases": [k for k, _ in keys[i]][:8],
                             "textUsed": m["textUsed"]})
     for m in members:
         if m["textUsed"] == "none":
             out_members.append({"corpusId": m["corpusId"], "memberId": m["memberId"], "topicId": -1,
                                 "probability": None, "weak": True, "keyphrases": [], "textUsed": "none"})
 
+    reasons = Counter(result["reason"] for result in fits if result["weak"])
+    reasons["unassigned"] += sum(m["textUsed"] == "none" for m in members)
+    fit_values = [result["fit"] for result in fits if result["fit"] is not None]
+    p10 = percentile(fit_values, PARAMS["weak_fit_percentile"])
+    median = percentile(fit_values, 0.5)
+    show = lambda value: f"{value:.3f}" if value is not None else "n/a"
+    progress(f"Weak: {sum(reasons.values())} (closer-to-other-topic {reasons['closer-to-other-topic']}, "
+             f"low-fit {reasons['low-fit']}, unassigned {reasons['unassigned']}); "
+             f"fit p10={show(p10)} median={show(median)}")
+
     out_topics = []
     for tid in sorted(set(topics)):
         if tid == -1:
             continue
         idx = [i for i, t in enumerate(topics) if t == tid]
-        ranked = sorted(idx, key=lambda i: -(float(probs[i].max()) if len(probs[i]) else 0))
+        ranked = sorted(idx, key=lambda i: -fits[i]["fit"])
         out_topics.append({
             "topicId": int(tid), "size": len(idx),
             "byCorpus": dict(Counter(usable[i]["corpusId"] for i in idx)),

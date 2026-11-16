@@ -55,7 +55,9 @@ The browser keeps snapshots and its own AI name candidates and edits locally; cl
 - **Needed before use:**
   1. Topic names: one LLM call per topic over its words and 3–5 representative titles (~16 calls), shown as
      candidates the user can rename.
-  2. Outliers: assign the 20 % with `reduce_outliers` (embeddings strategy) and mark them as weak assignments.
+  2. Outliers: assign with `reduce_outliers` (embeddings strategy), then assess weak assignments using cosine fit
+     to final-topic centroids. A member is weak if another centroid is closer, its fit is below the global 10th
+     percentile (linearly interpolated), or it remains unassigned. Original outlier status alone does not mark it weak.
   3. Domain stop words ("model", "data", "learning", "deep learning", "classification") so topic words separate.
   4. Stability: fixed seeds; compare two runs and report topics that move.
   5. Scale: full text or larger corpora (1,749 open ESWA papers) need the container; KeyBERT is the slow part
