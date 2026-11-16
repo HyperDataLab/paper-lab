@@ -67,13 +67,26 @@ export async function pushCorpus(corpus: Corpus, knownVersion: string | null, to
   return z.object({ version: z.string() }).parse(await checked(response)).version;
 }
 
-export async function startCorpusTopics(id: string, token: string, controlIds: string[]) {
-  const response = await fetch(`${TOPICS_WORKER_URL}/corpora/${encodeURIComponent(id)}/topics/run`, {
-    method: 'POST',
-    headers: { ...headers(token), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ controlIds }),
-  });
-  return z.object({ jobId: z.string() }).parse(await checked(response)).jobId;
+export async function startCorpusTopics(
+  id: string,
+  token: string,
+  controlIds: string[],
+  wait: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+) {
+  // The server answers 503 while its container starts; keep asking for about two minutes.
+  for (let attempt = 0; ; attempt += 1) {
+    const response = await fetch(`${TOPICS_WORKER_URL}/corpora/${encodeURIComponent(id)}/topics/run`, {
+      method: 'POST',
+      headers: { ...headers(token), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ controlIds }),
+    });
+    if (response.status === 503 && attempt < 5) {
+      const after = Number(response.headers.get('Retry-After')) || 20;
+      await wait(Math.min(after, 30) * 1000);
+      continue;
+    }
+    return z.object({ jobId: z.string() }).parse(await checked(response)).jobId;
+  }
 }
 export async function corpusTopicsStatus(id: string, jobId: string, token: string) {
   const response = await fetch(

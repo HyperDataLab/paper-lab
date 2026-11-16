@@ -11,7 +11,10 @@ export interface Deps {
   container(path: string, init?: RequestInit): Promise<Response>;
   schedule(jobId: string): Promise<void>;
   refresh?(jobId: string): Promise<void>;
+  /** Test seam for the wait between attempts to reach a starting container. */
+  sleep?(ms: number): Promise<void>;
 }
+const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const route = new RegExp(`^/corpora/(${uuid})/topics(?:/run(?:/(${uuid}))?)?$`, 'i');
 const idPattern = new RegExp(`^${uuid}$`, 'i');
@@ -110,14 +113,36 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
           });
         }
       }
-      const response = await call('/jobs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ corpora, members }),
-      });
-      if (!response) return json(503, { error: 'container starting' }, { 'Retry-After': '30' });
-      if (response.status === 503) return json(503, { error: 'container starting' }, { 'Retry-After': '30' });
-      const value: unknown = await response.json();
+      // A container that is starting or stopping answers with plain text ("Container ..."), not JSON: wait and
+      // try again for about half a minute before asking the client to retry.
+      const payload = JSON.stringify({ corpora, members });
+      let response: Response | null = null;
+      let value: unknown = null;
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        if (attempt > 0) await (deps.sleep ?? defaultSleep)(5000);
+        response = await call('/jobs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+        });
+        if (!response) continue;
+        const text = await response.text();
+        try {
+          value = JSON.parse(text);
+        } catch {
+          console.log(
+            `container not ready (attempt ${attempt + 1}): ${response.status} ${text.slice(0, 120)}`,
+          );
+          response = null;
+          continue;
+        }
+        if (response.status === 503) {
+          response = null;
+          continue;
+        }
+        break;
+      }
+      if (!response) return json(503, { error: 'container starting' }, { 'Retry-After': '20' });
       if (response.status !== 202) return json(response.status, value);
       if (!object(value) || typeof value.jobId !== 'string' || !idPattern.test(value.jobId))
         return json(502, { error: 'invalid job' });
