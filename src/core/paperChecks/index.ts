@@ -1,6 +1,7 @@
 import type { GrobidResult, Paper, PaperCheckReport } from '../schemas';
-import { validateLocations } from './common';
+import { result, validateLocations } from './common';
 import { grobidCitationsReferences } from './grobidCitations';
+import { grobidFigureGaps } from './grobidGaps';
 import { citationsReferences, figuresTables } from './references';
 import { acronyms } from './acronyms';
 import { numbersConsistency, claimStrengthDrift, unsupportedClaims } from './language';
@@ -15,9 +16,21 @@ export function runPaperChecks(
 ): PaperCheckReport {
   const fromGrobid = grobid?.references.length ? grobidCitationsReferences(paper, grobid) : null;
   let droppedLocations = fromGrobid?.suppressed ?? 0;
+  const figures = figuresTables(paper);
+  const gaps = grobid ? grobidFigureGaps(paper, grobid) : null;
+  droppedLocations += gaps?.suppressed ?? 0;
+  const figureCheck = gaps?.findings.length
+    ? result(
+        figures.id,
+        figures.label,
+        true,
+        [...figures.findings, ...gaps.findings],
+        figures.falsePositiveNotes[0] ?? '',
+      )
+    : figures;
   const checks = [
     fromGrobid?.check ?? citationsReferences(paper),
-    figuresTables(paper),
+    figureCheck,
     acronyms(paper),
     numbersConsistency(paper),
     claimStrengthDrift(paper),

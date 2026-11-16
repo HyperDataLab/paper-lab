@@ -106,7 +106,7 @@ export function referenceEntries(refs: Paper['paragraphs']) {
     ];
   });
 }
-function numbers(text: string): { values: number[]; unchecked: string[] } {
+export function numbers(text: string): { values: number[]; unchecked: string[] } {
   const values: number[] = [];
   const unchecked: string[] = [];
   for (const part of text.replace(/[[\]]/gu, '').split(/\s*[,;]\s*/u)) {
@@ -131,6 +131,16 @@ function numbers(text: string): { values: number[]; unchecked: string[] } {
     }
   }
   return { values, unchecked };
+}
+export function numberingGaps(values: number[]) {
+  let previous = 0;
+  return [...new Set(values.filter((n) => Number.isSafeInteger(n) && n > 0))]
+    .sort((a, b) => a - b)
+    .flatMap((n) => {
+      const first = previous + 1;
+      previous = n;
+      return n > first ? [{ number: n, gap: first === n - 1 ? `${first}` : `${first}–${n - 1}` }] : [];
+    });
 }
 const parentheticalAuthor =
   /(?<=[(;])\s*\p{Lu}[\p{Ll}\p{M}]+(?:[-'’]\p{Lu}?[\p{Ll}\p{M}]+)*(?:\s+(?:et al\.|(?:and|&)\s+\p{Lu}[\p{Ll}\p{M}]+))?\s*,\s*(?:19|20)\d{2}[a-z]?(?=\s*[,;)])/gu;
@@ -201,16 +211,10 @@ export function citationsReferences(paper: Paper) {
   const numeric = entries.flatMap((e) =>
     e.keys.filter((k) => k.startsWith('n:')).map((k) => Number(k.slice(2))),
   );
-  let previous = 0;
-  for (const n of [...new Set(numeric)].sort((a, b) => a - b)) {
-    if (n > previous + 1) {
-      const loc = entries.find((e) => e.keys.includes(`n:${n}`))?.locs[0];
-      const first = previous + 1;
-      const missing = first === n - 1 ? `${first}` : `${first}–${n - 1}`;
-      if (loc)
-        findings.push(finding(id, `gap:${missing}`, 'minor', `Thiếu số thứ tự tài liệu ${missing}.`, [loc]));
-    }
-    previous = n;
+  for (const { number: n, gap: missing } of numberingGaps(numeric)) {
+    const loc = entries.find((e) => e.keys.includes(`n:${n}`))?.locs[0];
+    if (loc)
+      findings.push(finding(id, `gap:${missing}`, 'minor', `Thiếu số thứ tự tài liệu ${missing}.`, [loc]));
   }
   return result(
     id,
@@ -252,24 +256,14 @@ export function figuresTables(paper: Paper) {
     const nums = [
       ...new Set(items.map((c) => Number(c.key.split(':')[1])).filter(Number.isSafeInteger)),
     ].sort((a, b) => a - b);
-    let previous = 0;
-    for (const n of nums) {
-      if (n > previous + 1) {
-        const first = previous + 1;
-        const gap = first === n - 1 ? `${first}` : `${first}–${n - 1}`;
-        const loc = items.find((item) => Number(item.key.split(':')[1]) === n)?.loc;
-        if (loc)
-          findings.push(
-            finding(
-              id,
-              `gap:${type}:${gap}`,
-              'minor',
-              `Thiếu ${type === 'figure' ? 'Hình' : 'Bảng'} ${gap}.`,
-              [loc],
-            ),
-          );
-      }
-      previous = n;
+    for (const { number: n, gap } of numberingGaps(nums)) {
+      const loc = items.find((item) => Number(item.key.split(':')[1]) === n)?.loc;
+      if (loc)
+        findings.push(
+          finding(id, `gap:${type}:${gap}`, 'minor', `Thiếu ${type === 'figure' ? 'Hình' : 'Bảng'} ${gap}.`, [
+            loc,
+          ]),
+        );
     }
   }
   return result(
