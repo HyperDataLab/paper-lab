@@ -53,6 +53,7 @@ export const PaperChecksRecordSchema = z.object({
   paperId: z.uuid(),
   report: PaperCheckReportSchema,
   decisions: z.array(CheckDecisionSchema),
+  orphanedDecisions: z.array(z.object({ decision: CheckDecisionSchema, finding: FindingSchema })).optional(),
   reviewedAt: z.iso.datetime().optional(),
 });
 export type Finding = z.infer<typeof FindingSchema>;

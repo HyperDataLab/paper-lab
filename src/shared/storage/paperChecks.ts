@@ -5,6 +5,7 @@ import {
   type CheckDecision,
 } from '@/core/schemas';
 import { validateLocations } from '@/core/paperChecks';
+import { reconcileCheckDecisions } from '@/core/paperChecks/reconcile';
 import type { StorageDeps } from './storageShared';
 import type { createPapersRepository } from './papers';
 import type { ParagraphDb } from './db';
@@ -25,8 +26,15 @@ export function createPaperChecksRepository(
         const paper = await papers.get(parsed.paperId);
         if (!paper) throw new Error('Paper not found');
         const current = await paperChecks.get(parsed.paperId);
-        const decisions = new Map(parsed.decisions.map((d) => [d.findingId, d]));
-        for (const decision of current?.decisions ?? []) {
+        const reconciled = current ? reconcileCheckDecisions(paper, current, parsed.report) : null;
+        const decisions = new Map(
+          parsed.decisions
+            .filter(
+              (d) => !current?.decisions.some((old) => old.findingId === d.findingId && old.at === d.at),
+            )
+            .map((d) => [d.findingId, d]),
+        );
+        for (const decision of reconciled?.decisions ?? []) {
           const incoming = decisions.get(decision.findingId);
           if (!incoming || incoming.at < decision.at) decisions.set(decision.findingId, decision);
         }
@@ -40,6 +48,7 @@ export function createPaperChecksRepository(
           ...parsed,
           report: { ...parsed.report, checks, droppedLocations: parsed.report.droppedLocations + dropped },
           decisions: [...decisions.values()],
+          orphanedDecisions: reconciled?.orphanedDecisions ?? parsed.orphanedDecisions,
         });
         await db.paperChecks.put(value);
         return value;

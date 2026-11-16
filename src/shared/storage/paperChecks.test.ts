@@ -6,6 +6,34 @@ import { runPaperChecks } from '@/core/paperChecks';
 import type { Paper } from '@/core/schemas';
 import { createDb } from './db';
 import { createRepositories } from './repositories';
+import { grobidPaper, grobidResult } from '@/test/grobidFixtures';
+
+it('retains reviewed GROBID findings and lists unmatched decisions through repeated saves', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const repo = createRepositories(createDb(`checks-grobid-${crypto.randomUUID()}`));
+  await repo.papers.create(grobidPaper);
+  const report = runPaperChecks(grobidPaper, new Date(), grobidResult);
+  const findings = report.checks.flatMap((check) => check.findings);
+  const unused = findings.find((finding) => finding.id.includes('unused:grobid:'));
+  const missing = findings.find((finding) => finding.id.includes('missing:grobid:'));
+  if (!unused || !missing) throw new Error('Expected synthetic findings');
+  await repo.paperChecks.save({ schemaVersion: 1, paperId: grobidPaper.id, report, decisions: [] });
+  await repo.paperChecks.review(grobidPaper.id, unused.id, 'dismissed_by_human', 'reviewed');
+  const reviewed = await repo.paperChecks.review(grobidPaper.id, missing.id, 'confirmed_by_human');
+  const next = {
+    ...report,
+    checks: report.checks.map((check) => ({
+      ...check,
+      findings: check.findings
+        .filter((finding) => finding.id !== missing.id)
+        .map((finding) => (finding.id === unused.id ? { ...finding, id: 'changed-id' } : finding)),
+    })),
+  };
+  const saved = await repo.paperChecks.save({ ...reviewed, report: next });
+  expect(saved.decisions).toEqual([expect.objectContaining({ findingId: 'changed-id', note: 'reviewed' })]);
+  expect(saved.orphanedDecisions).toEqual([expect.objectContaining({ finding: missing })]);
+  expect((await repo.paperChecks.save(saved)).orphanedDecisions).toEqual(saved.orphanedDecisions);
+});
 
 it('P4 imports unseen review_check audit history when the local rerun is newer and removed the finding', async () => {
   vi.stubGlobal('crypto', webcrypto);
