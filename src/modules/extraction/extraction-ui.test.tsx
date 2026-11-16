@@ -11,6 +11,7 @@ import {
   catalogField,
   newProject,
   projectPaperFromPaper,
+  reviewCell,
 } from '@/core/extraction';
 import type { Candidate, ExtractionProject, Paper, ProjectField } from '@/core/schemas';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
@@ -74,6 +75,83 @@ function mount(repo: ReturnType<typeof createRepositories>, path: string) {
     </MemoryRouter>,
   );
 }
+
+it('shows one paper as filterable field rows and keeps cell and column actions', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const repo = createRepositories(createDb(`extraction-vertical-${crypto.randomUUID()}`));
+  const base = newProject({ id: crypto.randomUUID(), title: 'Một bài', researchQuestion: '', now: at });
+  const projectPaper = projectPaperFromPaper(paper);
+  const fields = ['methods_used', 'dataset', 'limitations'].map((key) => ({
+    ...(catalogField(key) as ProjectField),
+    hidden: false,
+  }));
+  const cells = cellsFromOutput(
+    {
+      fields: [
+        {
+          field_key: 'methods_used',
+          status: 'found',
+          value: 'Online survey',
+          inferred: false,
+          evidence: [{ paragraphId: 'p', quote: 'an online survey' }],
+        },
+        { field_key: 'dataset', status: 'found', value: 'Unclear sample', inferred: true, evidence: [] },
+        { field_key: 'limitations', status: 'not_found', value: null, inferred: false, evidence: [] },
+      ],
+    },
+    fields,
+    extractionSource(projectPaper, paper),
+    { paper: projectPaper, runId: crypto.randomUUID(), mode: 'STANDARD', at },
+  );
+  const first = cells[0];
+  if (!first) throw new Error('missing cell');
+  const saved = await repo.extraction.save({
+    ...base,
+    papers: [projectPaper],
+    fields,
+    cells: [reviewCell(first, 'approve', at), ...cells.slice(1)],
+  });
+  mountMatrix(repo, saved);
+  const table = screen.getByRole('table', { name: 'Trích xuất theo trường' });
+  expect(within(table).getAllByRole('row')).toHaveLength(3);
+  expect(screen.queryByRole('columnheader', { name: 'Bài báo' })).not.toBeInTheDocument();
+  expect(within(table).getByText('Không thấy')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Cần xem lại/ }));
+  expect(within(table).getAllByRole('row')).toHaveLength(1);
+  expect(within(table).getByRole('rowheader')).toHaveTextContent('Dataset');
+  fireEvent.click(screen.getByRole('button', { name: /Đã xác nhận/ }));
+  expect(within(table).getAllByRole('row')).toHaveLength(1);
+  fireEvent.click(within(table).getByRole('button', { name: 'A survey paper · Methods Used' }));
+  const drawer = await screen.findByRole('dialog', { name: 'Chi tiết ô' });
+  expect(within(drawer).getByText('an online survey')).toBeInTheDocument();
+  fireEvent.click(within(drawer).getByRole('button', { name: 'Hoàn tác' }));
+  await waitFor(async () =>
+    expect((await repo.extraction.get(saved.id))?.cells[0]?.status).toBe('EXTRACTED'),
+  );
+  fireEvent.click(within(drawer).getByRole('button', { name: 'Đóng' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tất cả' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn cột Limitations' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Ẩn cột' }));
+  await waitFor(() =>
+    expect(within(table).queryByRole('rowheader', { name: /Limitations/ })).not.toBeInTheDocument(),
+  );
+});
+
+it('keeps the horizontal matrix for two papers', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const repo = createRepositories(createDb(`extraction-horizontal-${crypto.randomUUID()}`));
+  const base = newProject({ id: crypto.randomUUID(), title: 'Hai bài', researchQuestion: '', now: at });
+  const first = projectPaperFromPaper(paper);
+  const saved = await repo.extraction.save({
+    ...base,
+    papers: [first, { ...first, key: 'second', title: 'Second paper' }],
+    fields: [{ ...(catalogField('methods_used') as ProjectField), hidden: false }],
+  });
+  mountMatrix(repo, saved);
+  expect(screen.getByRole('columnheader', { name: 'Bài báo' })).toBeInTheDocument();
+  expect(screen.getByRole('rowheader', { name: /Second paper/ })).toBeInTheDocument();
+  expect(screen.queryByRole('table', { name: 'Trích xuất theo trường' })).not.toBeInTheDocument();
+});
 
 it('creates a project, adds a template of columns and reviews a cell with its evidence', async () => {
   vi.stubGlobal('crypto', webcrypto);

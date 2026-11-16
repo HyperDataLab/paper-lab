@@ -93,6 +93,8 @@ export function ExtractionMatrix({
       ? Boolean(cell && (NEEDS_ATTENTION.includes(cell.status) || isStale(cell, project)))
       : cell?.status === 'VERIFIED');
   const single = paperKey !== undefined;
+  const scopedPapers = project.papers.filter((paper) => !single || paper.key === paperKey);
+  const verticalPaper = scopedPapers.length === 1 ? scopedPapers[0] : undefined;
   const rows = project.papers.filter(
     (paper) =>
       (!single || paper.key === paperKey) &&
@@ -125,6 +127,54 @@ export function ExtractionMatrix({
   const openedField = open && project.fields.find((field) => field.key === open.fieldKey);
   const openedPaper = open && project.papers.find((paper) => paper.key === open.paperKey);
   const exportName = `extraction-${project.title.replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 40)}`;
+  const columnHead = (field: ExtractionProject['fields'][number], vertical = false) => (
+    <div className={styles.columnHead}>
+      <span>{field.label}</span>
+      <ActionMenu
+        icon
+        label={`Tuỳ chọn cột ${field.label}`}
+        items={[
+          {
+            label: vertical ? 'Lên trên' : 'Sang trái',
+            onSelect: () => void save(moveField(project, field.key, -1)),
+          },
+          {
+            label: vertical ? 'Xuống dưới' : 'Sang phải',
+            onSelect: () => void save(moveField(project, field.key, 1)),
+          },
+          { label: 'Ẩn cột', onSelect: () => void save(updateField(project, field.key, { hidden: true })) },
+          { label: 'Xoá cột', onSelect: () => void save(removeField(project, field.key)) },
+        ]}
+      />
+    </div>
+  );
+  const cellContent = (
+    paper: ExtractionProject['papers'][number],
+    field: ExtractionProject['fields'][number],
+  ) => {
+    const cell = cellOf(paper.key, field.key);
+    const stale = Boolean(cell && isStale(cell, project));
+    return cell ? (
+      <Button
+        variant="ghost"
+        className={styles.cell}
+        aria-label={`${paper.title} · ${field.label}`}
+        onClick={() => setOpen({ paperKey: paper.key, fieldKey: field.key })}
+      >
+        {(cell.status !== 'EXTRACTED' || stale) && (
+          <span className={styles.badges}>
+            {cell.status !== 'EXTRACTED' && (
+              <Badge tone={STATUS[cell.status].tone}>{STATUS[cell.status].label}</Badge>
+            )}
+            {stale && <Badge tone="warning">Đã cũ</Badge>}
+          </span>
+        )}
+        {cell.value && <span className={styles.cellValue}>{cell.value}</span>}
+      </Button>
+    ) : (
+      <span className={styles.missing}>Chưa chạy</span>
+    );
+  };
   return (
     <div className={styles.matrixArea}>
       <ActionBar
@@ -238,6 +288,21 @@ export function ExtractionMatrix({
             </Button>
           )}
         </Empty>
+      ) : verticalPaper ? (
+        <div className={styles.verticalList} role="table" aria-label="Trích xuất theo trường">
+          {visible
+            .filter((field) => matches(cellOf(verticalPaper.key, field.key)))
+            .map((field) => (
+              <div className={styles.verticalRow} role="row" key={field.key}>
+                <div className={styles.verticalHead} role="rowheader" title={field.instruction}>
+                  {columnHead(field, true)}
+                </div>
+                <div className={styles.verticalValue} role="cell">
+                  {cellContent(verticalPaper, field)}
+                </div>
+              </div>
+            ))}
+        </div>
       ) : (
         <div className={styles.scroll}>
           <table className={styles.matrix}>
@@ -248,31 +313,7 @@ export function ExtractionMatrix({
                 </th>
                 {visible.map((field) => (
                   <th scope="col" key={field.key} title={field.instruction}>
-                    <div className={styles.columnHead}>
-                      <span>{field.label}</span>
-                      <ActionMenu
-                        icon
-                        label={`Tuỳ chọn cột ${field.label}`}
-                        items={[
-                          {
-                            label: 'Sang trái',
-                            onSelect: () => void save(moveField(project, field.key, -1)),
-                          },
-                          {
-                            label: 'Sang phải',
-                            onSelect: () => void save(moveField(project, field.key, 1)),
-                          },
-                          {
-                            label: 'Ẩn cột',
-                            onSelect: () => void save(updateField(project, field.key, { hidden: true })),
-                          },
-                          {
-                            label: 'Xoá cột',
-                            onSelect: () => void save(removeField(project, field.key)),
-                          },
-                        ]}
-                      />
-                    </div>
+                    {columnHead(field)}
                   </th>
                 ))}
                 <th scope="col" className={styles.addColumn}>
@@ -312,29 +353,9 @@ export function ExtractionMatrix({
                   </th>
                   {visible.map((field) => {
                     const cell = cellOf(paper.key, field.key);
-                    const stale = Boolean(cell && isStale(cell, project));
                     return (
                       <td key={field.key} className={matches(cell) ? undefined : styles.dim}>
-                        {cell ? (
-                          <Button
-                            variant="ghost"
-                            className={styles.cell}
-                            aria-label={`${paper.title} · ${field.label}`}
-                            onClick={() => setOpen({ paperKey: paper.key, fieldKey: field.key })}
-                          >
-                            {(cell.status !== 'EXTRACTED' || stale) && (
-                              <span className={styles.badges}>
-                                {cell.status !== 'EXTRACTED' && (
-                                  <Badge tone={STATUS[cell.status].tone}>{STATUS[cell.status].label}</Badge>
-                                )}
-                                {stale && <Badge tone="warning">Đã cũ</Badge>}
-                              </span>
-                            )}
-                            {cell.value && <span className={styles.cellValue}>{cell.value}</span>}
-                          </Button>
-                        ) : (
-                          <span className={styles.missing}>Chưa chạy</span>
-                        )}
+                        {cellContent(paper, field)}
                       </td>
                     );
                   })}
