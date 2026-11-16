@@ -94,6 +94,10 @@ describe('U7 GROBID merge rules', () => {
       ],
     };
     const report = runPaperChecks(grobidPaper, new Date(at), result);
-    expect(report.droppedLocations).toBe(1);
+    // Two findings cannot be placed: the missing reference [7], and the numbering gap 2–6 whose only anchor is [7].
+    expect(report.droppedLocations).toBe(2);
+    const ids = report.checks.flatMap((check) => check.findings.map((finding) => finding.id));
+    expect(ids.some((id) => id.includes(':missing:grobid:[7]'))).toBe(false);
+    expect(ids.some((id) => id.includes(':gap:grobid:reference:2–6'))).toBe(false);
   });
 });
