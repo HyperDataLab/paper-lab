@@ -1,7 +1,7 @@
 import { anchorCitation, anchorText } from '../grobid/anchor';
 import type { Finding, GrobidResult, Paper } from '../schemas';
 import { finding, type Located } from './common';
-import { numberingGaps, numbers, paperReferenceParagraphs } from './references';
+import { numberingGaps, numbers, paperReferenceParagraphs, referenceEntries } from './references';
 
 type Numbered = { number: number; place: Located | null };
 
@@ -31,11 +31,16 @@ export function grobidReferenceGaps(paper: Paper, grobid: GrobidResult) {
     if (!match) return [];
     return [{ number: Number(match[1] ?? match[2]), place: anchorText(refs, label ?? '') }];
   });
+  const pdfEntries = referenceEntries(refs).flatMap((entry) =>
+    entry.keys
+      .filter((key) => key.startsWith('n:'))
+      .map((key) => ({ number: Number(key.slice(2)), place: entry.locs[0] ?? null })),
+  );
   const cited = grobid.citations.flatMap((citation) => {
     if (!/^\s*\[\s*\d+(?:\s*[,;–—-]\s*\d+)*\s*\]\s*$/u.test(citation.text)) return [];
     return numbers(citation.text).values.map((number) => ({ number, place: anchorCitation(body, citation) }));
   });
-  return findingsForGaps([...listed, ...cited], 'citations_references', 'reference');
+  return findingsForGaps([...listed, ...pdfEntries, ...cited], 'citations_references', 'reference');
 }
 
 export function grobidFigureGaps(paper: Paper, grobid: GrobidResult) {
