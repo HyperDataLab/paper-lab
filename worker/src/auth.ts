@@ -19,14 +19,17 @@ export class NotAllowedError extends Error {}
 export async function verifyFirebaseToken(
   token: string,
   jwks: JWTVerifyGetKey,
-  projectId: string,
+  projectIds: string | string[],
   domain: string,
 ): Promise<{ uid: string; email: string }> {
+  const projects = typeof projectIds === 'string' ? [projectIds] : projectIds;
   const { payload } = await jwtVerify(token, jwks, {
-    issuer: `https://securetoken.google.com/${projectId}`,
-    audience: projectId,
+    issuer: projects.map((id) => `https://securetoken.google.com/${id}`),
+    audience: projects,
     algorithms: ['RS256'],
   });
+  if (typeof payload.aud !== 'string' || payload.iss !== `https://securetoken.google.com/${payload.aud}`)
+    throw new Error('issuer and audience do not match');
   const provider = (payload.firebase as { sign_in_provider?: string } | undefined)?.sign_in_provider;
   if (!payload.sub || payload.email_verified !== true || provider !== 'google.com')
     throw new Error('unverified account');

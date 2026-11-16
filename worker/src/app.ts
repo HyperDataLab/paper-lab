@@ -1,11 +1,12 @@
 import { NotAllowedError } from './auth';
 import { GrobidStartingError } from './grobid-error';
+import { handlePublished, publishedError } from './published';
 
 /** The part of an R2 bucket this worker uses, so the logic runs in tests without Cloudflare. */
 export interface Bucket {
   head(key: string): Promise<{ etag: string; customMetadata?: Record<string, string> } | null>;
   get(key: string): Promise<{ body: ReadableStream; size: number; etag: string } | null>;
-  list(options: { prefix: string; cursor?: string; include: ['customMetadata'] }): Promise<{
+  list(options: { prefix: string; cursor?: string; limit?: number; include: ['customMetadata'] }): Promise<{
     objects: { key: string; etag: string; customMetadata?: Record<string, string> }[];
     truncated: boolean;
     cursor?: string;
@@ -42,7 +43,7 @@ function cors(request: Request, deps: Deps): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, HEAD, PUT, POST',
-    'Access-Control-Expose-Headers': 'X-Grobid-Cache, X-Grobid-Ms',
+    'Access-Control-Expose-Headers': 'X-Grobid-Cache, X-Grobid-Ms, ETag, Retry-After',
     'Access-Control-Allow-Headers': 'authorization, content-type, if-match, if-none-match',
     'Access-Control-Max-Age': '3600',
     Vary: 'Origin',
@@ -64,21 +65,37 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
   const headers = cors(request, deps);
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
   const path = new URL(request.url).pathname;
+  const isV1 = path === '/v1' || path.startsWith('/v1/');
   const match = SHA.exec(path);
   const corpusMatch = CORPUS.exec(path);
   const grobidMatch = GROBID_SHA.exec(path);
-  if (!match && !corpusMatch && !grobidMatch && path !== '/grobid/fulltext' && path !== '/corpora')
+  if (!isV1 && !match && !corpusMatch && !grobidMatch && path !== '/grobid/fulltext' && path !== '/corpora')
     return json(400, { error: 'invalid path' }, headers);
 
   const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
-  if (!token) return json(401, { error: 'sign-in required' }, headers);
+  if (!token)
+    return isV1
+      ? publishedError(401, 'unauthenticated', 'Sign-in required.', headers)
+      : json(401, { error: 'sign-in required' }, headers);
   let caller: { uid: string; email: string };
   try {
     caller = await deps.verifyToken(token);
   } catch (cause) {
+    if (isV1)
+      return cause instanceof NotAllowedError
+        ? publishedError(403, 'forbidden', 'Account not allowed.', headers)
+        : publishedError(401, 'unauthenticated', 'Invalid token.', headers);
     return cause instanceof NotAllowedError
       ? json(403, { error: 'account not allowed' }, headers)
       : json(401, { error: 'invalid token' }, headers);
+  }
+
+  if (isV1) {
+    try {
+      return await handlePublished(deps, request, caller.email, headers);
+    } catch {
+      return publishedError(500, 'internal', 'An internal error occurred.', headers);
+    }
   }
 
   if (path === '/grobid/fulltext' || grobidMatch) {
