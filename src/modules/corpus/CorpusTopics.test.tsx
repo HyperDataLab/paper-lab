@@ -23,10 +23,13 @@ vi.mock('@/shared/auth/authContext', () => ({
 it('starts a server job and shows its progress', async () => {
   mocks.user = {};
   mocks.token.mockResolvedValue('token');
+  let polls = 0;
   const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
     if (init?.method === 'POST') return Response.json({ jobId: 'job' }, { status: 202 });
-    if (String(_url).endsWith('/run/job'))
+    if (String(_url).endsWith('/run/job')) {
+      if (polls++ === 0) throw new TypeError('temporary');
       return Response.json({ state: 'failed', progress: 'Embedding', error: 'test stop' });
+    }
     return new Response(null, { status: 404 });
   });
   const repo = createRepositories(createDb(`topics-run-${crypto.randomUUID()}`));
@@ -36,7 +39,9 @@ it('starts a server job and shows its progress', async () => {
     </StorageProvider>,
   );
   fireEvent.click(screen.getByRole('button', { name: 'Tính chủ đề trên máy chủ' }));
-  expect(await screen.findByRole('status')).toHaveTextContent('Embedding');
+  expect(await screen.findByRole('status')).toHaveTextContent('?ang th? l?i');
+  expect(await screen.findByText(/test stop/, {}, { timeout: 15000 })).toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent('Embedding');
   expect(fetchMock).toHaveBeenCalledWith(
     expect.stringContaining('/topics/run'),
     expect.objectContaining({ method: 'POST' }),
@@ -44,7 +49,7 @@ it('starts a server job and shows its progress', async () => {
   view.unmount();
   fetchMock.mockRestore();
   mocks.user = null;
-});
+}, 20000);
 
 it('shows an empty state and reviews a stored snapshot and AI candidate', async () => {
   const corpus = exampleCorpus();

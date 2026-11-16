@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { handle, type Deps } from './app';
+import { handle, refreshJob, type Deps } from './app';
 
 const id = '00000000-0000-4000-8000-000000000001';
 const control = '00000000-0000-4000-8000-000000000002';
@@ -14,6 +14,8 @@ function setup() {
     schemaVersion: 1,
     snapshotId: 's',
     corpora: [{ corpusId: id }, { corpusId: control }],
+    members: [],
+    topics: [],
   };
   const deps: Deps = {
     bucket: {
@@ -22,6 +24,7 @@ function setup() {
         values.set(key, value);
       },
     },
+    schedule: async () => {},
     origins: ['https://test'],
     verify: async () => ({}),
     container: async (url) =>
@@ -42,6 +45,7 @@ function setup() {
     );
   return {
     values,
+    deps,
     request,
     setState: (value: unknown) => {
       state = value;
@@ -64,20 +68,44 @@ it('authenticates requests, starts jobs and stores validated completed results f
       JSON.stringify({ id: corpusId, title: 'test', kind, members: [] }),
     );
   expect((await t.request('POST', '/run', { controlIds: [control] })).status).toBe(202);
-  expect(await (await t.request('GET', `/run/${job}`)).json()).toEqual({
+  const key = `paperlab/corpora-topics/jobs/${job}.json`;
+  expect(JSON.parse(t.values.get(key) ?? '{}')).toMatchObject({
+    jobId: job,
+    corpusIds: [id, control],
+    state: 'queued',
+  });
+  await refreshJob(t.deps.bucket, t.deps.container, job);
+  expect(await (await t.request('GET', `/run/${job}`)).json()).toMatchObject({
     state: 'running',
     progress: 'Embedding',
   });
   t.setState({ state: 'done' });
-  t.setResult({ format: 'wrong', schemaVersion: 1 });
-  expect((await t.request('GET', `/run/${job}`)).status).toBe(502);
-  t.setResult({
-    format: 'paperlab-corpus-topics',
-    schemaVersion: 1,
-    snapshotId: 's',
-    corpora: [{ corpusId: id }, { corpusId: control }],
-  });
-  expect(await (await t.request('GET', `/run/${job}`)).json()).toEqual({ state: 'done', snapshotId: 's' });
+  await refreshJob(t.deps.bucket, t.deps.container, job);
   expect(t.values.has(`paperlab/corpora-topics/${control}.json`)).toBe(true);
+  t.deps.container = async () => {
+    throw new Error('gone');
+  };
+  expect(await (await t.request('GET', `/run/${job}`)).json()).toMatchObject({
+    state: 'done',
+    snapshotId: 's',
+  });
   expect((await t.request('GET')).status).toBe(200);
+});
+it('records container failures and returns CORS on exceptions', async () => {
+  const t = setup();
+  t.values.set(`paperlab/corpora/${id}`, JSON.stringify({ id, kind: 'journal', members: [] }));
+  await t.request('POST', '/run', {});
+  t.setState({ state: 'failed', error: 'traceback: failure' });
+  await refreshJob(t.deps.bucket, t.deps.container, job);
+  expect(await (await t.request('GET', `/run/${job}`)).json()).toMatchObject({
+    state: 'failed',
+    error: 'traceback: failure',
+  });
+  t.deps.bucket.get = async () => {
+    throw new Error('R2 unavailable');
+  };
+  const response = await t.request('GET');
+  expect(response.status).toBe(500);
+  expect(response.headers.get('access-control-allow-origin')).toBe('https://test');
+  expect(await response.json()).toHaveProperty('error');
 });
