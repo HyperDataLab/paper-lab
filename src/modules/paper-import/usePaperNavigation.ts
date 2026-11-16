@@ -51,6 +51,8 @@ function scrollOf(column: HTMLElement | null) {
   return element?.scrollTop ?? 0;
 }
 function setScroll(column: HTMLElement | null, top: number) {
+  // A delayed scroll can fire after the page (or a test's DOM) is gone.
+  if (typeof document === 'undefined') return;
   const element = column && column.scrollHeight > column.clientHeight ? column : document.scrollingElement;
   if (element) element.scrollTop = top;
 }
