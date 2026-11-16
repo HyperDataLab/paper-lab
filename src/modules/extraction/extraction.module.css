@@ -344,6 +344,43 @@
   overflow: hidden;
   overflow-wrap: anywhere;
 }
+.verticalList {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  font-size: var(--text-sm);
+}
+.verticalRow {
+  display: grid;
+  grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+  border-bottom: 1px solid var(--border);
+}
+.verticalRow:last-child {
+  border-bottom: 0;
+}
+.verticalHead,
+.verticalValue {
+  min-width: 0;
+  padding: var(--space-3);
+  overflow-wrap: anywhere;
+}
+.verticalHead {
+  font-weight: 500;
+}
+.verticalValue .cellValue {
+  display: block;
+  overflow: visible;
+  white-space: pre-wrap;
+}
+@media (max-width: 680px) {
+  .verticalRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .verticalValue {
+    padding-top: 0;
+  }
+}
 .badges {
   display: flex;
   flex-wrap: wrap;
