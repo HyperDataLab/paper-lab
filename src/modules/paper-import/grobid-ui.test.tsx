@@ -89,7 +89,11 @@ describe('U7 GROBID in the background', () => {
     const ids = after?.report.checks.flatMap((check) => check.findings.map((f) => f.id)) ?? [];
     expect(ids.some((id) => id.includes(':missing:grobid:[9]'))).toBe(true);
     expect(ids.some((id) => id.includes(':unused:grobid:b1'))).toBe(true);
-    if (kept) expect(after?.decisions.map((d) => d.findingId)).toContain(kept.id);
+    // The GROBID finding has the same check, message and anchor as the PDF.js one, so the decision moves to it.
+    const moved = ids.find((id) => id.includes(':missing:grobid:[9]'));
+    expect(after?.decisions.map((d) => d.findingId)).toEqual([moved]);
+    expect(after?.decisions[0]?.status).toBe('dismissed_by_human');
+    expect(after?.orphanedDecisions ?? []).toEqual([]);
   });
 
   it('asks nothing when signed out, and says why', async () => {
