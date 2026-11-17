@@ -10,6 +10,7 @@ const groups = [
   { id: 'paper', label: 'Nghiên cứu' },
   { id: 'analysis', label: 'Viết' },
   { id: 'data', label: 'Dữ liệu' },
+  { id: 'labs', label: 'Thử nghiệm' },
   { id: 'system', label: '' },
 ] as const;
 
