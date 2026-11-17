@@ -1,5 +1,10 @@
-import { Empty } from '@/shared/ui/StateNote';
+import { Empty, Loading } from '@/shared/ui/StateNote';
+import { useResearchDesign } from '../ResearchDesignProvider';
+import { EvidenceView } from '../evidence/EvidenceView';
 
 export default function EvidenceSection() {
-  return <Empty title="Bảng so sánh" hint="Đang chuyển từ Research Design" />;
+  const state = useResearchDesign();
+  if (state.loading) return <Loading label="Đang tải bảng so sánh…" />;
+  if (state.error) return <Empty title="Không tải được bảng so sánh." hint="Tải lại trang để thử lại." />;
+  return <EvidenceView state={state} />;
 }
