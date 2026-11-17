@@ -44,7 +44,10 @@ async function mountProject(paperId: string | null, search = '') {
 
 it('shows the ordered sections on a multi-paper project and changes the linked section', async () => {
   await mountProject(null, '?other=kept');
-  const tabs = within(screen.getByRole('tablist', { name: 'Thiết kế nghiên cứu' })).getAllByRole('tab');
+  const tablist = screen.getByRole('tablist', { name: 'Thiết kế nghiên cứu' });
+  const deepResearchHeading = screen.getByRole('heading', { name: 'Kế hoạch tìm kiếm' });
+  expect(tablist.compareDocumentPosition(deepResearchHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  const tabs = within(tablist).getAllByRole('tab');
   expect(tabs.map((tab) => tab.textContent)).toEqual([
     'Đề tài và khoảng trống',
     'Câu hỏi và giả thuyết',

@@ -205,14 +205,14 @@ it('FR-302 shows a found sentence as a quote with a link to the paper and report
   expect(screen.getByRole('link', { name: 'Paper 1 · Tr. 2' })).toHaveAttribute('href', '/papers/local-1');
   fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
   await openFact('Baseline');
-  expect(await screen.findAllByText(/Không tìm thấy trong paper model đang giữ/)).not.toHaveLength(0);
-  expect(screen.getByText(/missing#1/)).toBeInTheDocument();
+  expect(await screen.findByText('Không tìm thấy vị trí trong bài')).toBeInTheDocument();
+  expect(screen.queryByText(/missing#1/)).not.toBeInTheDocument();
 });
 
 it('FR-302 disables Dùng when no anchor is found', async () => {
   setup({ missing: true });
   await openFact('Baseline');
-  await screen.findByText(/missing#1/);
+  await screen.findByText('Không tìm thấy vị trí trong bài');
   expect(screen.getByRole('button', { name: 'Dùng' })).toBeDisabled();
 });
 
