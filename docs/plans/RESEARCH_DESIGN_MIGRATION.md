@@ -88,4 +88,3 @@ gate lists what is missing.
 Open follow-ups:
 
 - Not run against the live bank API or a real model; ZIP download not tried in the browser.
-- "Gợi ý từ bảng so sánh" lives in Bảng so sánh only; the buttons RD had on Câu hỏi, Đo lường and Thiết kế are TODOs.

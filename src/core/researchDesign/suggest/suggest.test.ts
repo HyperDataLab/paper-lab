@@ -45,13 +45,13 @@ it('FR-405 sends only selected fact projections, questions and hypotheses for ea
       },
     ],
   };
-  for (const target of ['hypotheses', 'metrics', 'threats'] as const) {
+  for (const target of ['hypotheses', 'metrics', 'threats', 'analyses'] as const) {
     const result = buildSuggestionRequest({ ...args, target, draft });
     expect(result.factCount).toBe(1);
     expect(result.allow).toEqual(new Set([`${paper.id}/fact-1`]));
     expect(result.request?.feature).toBe('plan_suggestion');
     expect(result.request?.promptVersion).toBe(PROMPT_VERSION);
-    expect(PROMPT_VERSION).toBe('plan_suggestion@1');
+    expect(PROMPT_VERSION).toBe('plan_suggestion@2');
     expect(result.request?.maxOutputTokens).toBe(1500);
     expect(result.request?.messages[0]?.content).toContain(target);
     expect(result.request?.messages[0]?.content).toMatch(/cite.*ref/i);

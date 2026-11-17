@@ -32,6 +32,7 @@ import { Dialog, DialogActions } from '@/shared/ui/Dialog';
 import { Empty, Loading } from '@/shared/ui/StateNote';
 import { Tabs } from '@/shared/ui/Tabs';
 import { useResearchDesign } from '../ResearchDesignProvider';
+import { SectionSuggest } from '../evidence/SectionSuggest';
 import { ChainTab } from '../measurement/ChainTab';
 import { ConditionDialog } from '../measurement/ConditionDialog';
 import { DatasetDialog, type DatasetInput } from '../measurement/DatasetDialog';
@@ -88,7 +89,7 @@ export default function MeasurementSection() {
   const deletingUsers = deleting ? users(draft, deleting.id) : [];
   return (
     <div className={styles.stack}>
-      {/* TODO: "Gợi ý từ bảng so sánh" (suggestions for metrics) comes with the comparison-table slice. */}
+      <SectionSuggest state={state} target="metrics" />
       <RepinNotice
         flags={designFlags}
         bank={bank}

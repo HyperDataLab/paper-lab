@@ -4,8 +4,8 @@ import type { FactsDoc } from '../facts/factsDoc';
 import type { ChatRequest } from '../llm';
 import type { Paper } from '../papers';
 
-export const PROMPT_VERSION = 'plan_suggestion@1';
-type Target = 'hypotheses' | 'metrics' | 'threats';
+export const PROMPT_VERSION = 'plan_suggestion@2';
+export type Target = 'hypotheses' | 'metrics' | 'threats' | 'analyses';
 const TASKS: Record<Target, string> = {
   hypotheses:
     'Suggest testable hypotheses that the facts make worth testing and that the plan does not already have.',
@@ -13,6 +13,7 @@ const TASKS: Record<Target, string> = {
     'Suggest metrics the plan should measure, given what the cited papers measured and on which datasets.',
   threats:
     'Suggest threats to validity the plan should guard against, given how the cited papers ran their experiments.',
+  analyses: 'Suggest statistical analyses worth considering given the cited papers and the plan.',
 };
 export function buildSuggestionRequest({
   projectId,

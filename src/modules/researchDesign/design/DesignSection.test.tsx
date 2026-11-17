@@ -6,6 +6,7 @@ import { toBankDoc } from '@/core/researchDesign/bank/readSnapshot';
 import { snapshot } from '@/core/researchDesign/bank/testSupport';
 import { emptyResearchDesign } from '@/core/schemas/researchDesign';
 import DesignSection from '../sections/DesignSection';
+vi.mock('../evidence/SectionSuggest', () => ({ SectionSuggest: () => null }));
 
 const state = vi.hoisted(() => ({ current: null as unknown, save: vi.fn() }));
 vi.mock('../ResearchDesignProvider', () => ({ useResearchDesign: () => state.current }));

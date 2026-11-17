@@ -18,6 +18,7 @@ import { Dialog } from '@/shared/ui/Dialog';
 import { Empty, Loading } from '@/shared/ui/StateNote';
 import { useToast } from '@/shared/ui/toastContext';
 import { useResearchDesign } from '../ResearchDesignProvider';
+import { SectionSuggest } from '../evidence/SectionSuggest';
 import { QuestionEditor, HypothesisEditor } from '../questions/Editors';
 import { kinds, claimLabel } from '../questions/view';
 import { ChainLine } from '../analyses/ChainLine';
@@ -93,7 +94,7 @@ export default function QuestionsSection() {
     <>
       <h3>Câu hỏi và giả thuyết</h3>
       <p>Câu hỏi nghiên cứu và giả thuyết có mã ổn định, nối với khoảng trống tìm được.</p>
-      {/* TODO: Gợi ý từ bảng so sánh is owned by the comparison-table integration. */}
+      <SectionSuggest state={state} target="hypotheses" />
       <Button variant="primary" onClick={() => setEditor({ type: 'question' })}>
         Thêm câu hỏi
       </Button>

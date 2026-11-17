@@ -9,6 +9,7 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Dialog } from '@/shared/ui/Dialog';
 import { useResearchDesign } from '../ResearchDesignProvider';
+import { SectionSuggest } from '../evidence/SectionSuggest';
 import { AnalysisDialog } from '../analyses/AnalysisDialog';
 import { ChainLine } from '../analyses/ChainLine';
 import {
@@ -100,6 +101,7 @@ export default function AnalysesSection() {
     <>
       <h2>Phân tích thống kê</h2>
       <p>Khai báo trước phép kiểm định cho từng giả thuyết.</p>
+      <SectionSuggest state={state} target="analyses" />
       {error && <p role="alert">{error}</p>}
       {!draft.hypotheses.length && (
         <p>Chưa có giả thuyết nào. Thêm giả thuyết ở màn Câu hỏi và giả thuyết.</p>

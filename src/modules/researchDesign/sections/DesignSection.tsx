@@ -19,6 +19,7 @@ import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { Empty, Loading } from '@/shared/ui/StateNote';
 import { useToast } from '@/shared/ui/toastContext';
 import { useResearchDesign } from '../ResearchDesignProvider';
+import { SectionSuggest } from '../evidence/SectionSuggest';
 import { DesignDrawer } from '../design/DesignDrawer';
 import { ThreatDialog } from '../design/ThreatDialog';
 import { flagText } from '../design/flagText';
@@ -51,6 +52,7 @@ export default function DesignSection() {
     <>
       <h3>Thiết kế nghiên cứu</h3>
       <p>Chọn thiết kế, xem nó cho phép kết luận gì, ghi mối đe doạ và cách giảm.</p>
+      <SectionSuggest state={state} target="threats" />
       {bank && flags.some((f) => f.rule === 'DS-05' && f.reason === 'other_release') && (
         <Card>
           <p>Một số tham chiếu thuộc bản chụp cũ nhưng vẫn có trong bản chụp hiện tại.</p>

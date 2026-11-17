@@ -6,6 +6,7 @@ import { contentHash } from '@/core/researchDesign/bank/release';
 import { snapshot } from '@/core/researchDesign/bank/testSupport';
 import { emptyDraft, type Draft } from '@/core/researchDesign/draft/schema';
 import { emptyResearchDesign } from '@/core/schemas/researchDesign';
+import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
@@ -40,7 +41,9 @@ export function renderSection(repo: ReturnType<typeof newRepo>, url = '/') {
       <ToastContext.Provider value={toast}>
         <ResearchDesignProvider project={project}>
           <MemoryRouter initialEntries={[url]}>
-            <MeasurementSection />
+            <LlmProvider innerClient={{ completeJson: vi.fn() }}>
+              <MeasurementSection />
+            </LlmProvider>
           </MemoryRouter>
         </ResearchDesignProvider>
       </ToastContext.Provider>

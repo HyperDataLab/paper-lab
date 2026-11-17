@@ -5,6 +5,7 @@ import { bankDocSchema, type BankDoc } from '@/core/researchDesign/bank/snapshot
 import { snapshot } from '@/core/researchDesign/bank/testSupport';
 import { emptyResearchDesign } from '@/core/schemas/researchDesign';
 import QuestionsSection from '../sections/QuestionsSection';
+vi.mock('../evidence/SectionSuggest', () => ({ SectionSuggest: () => null }));
 
 const state = vi.hoisted(() => ({
   update: vi.fn(),

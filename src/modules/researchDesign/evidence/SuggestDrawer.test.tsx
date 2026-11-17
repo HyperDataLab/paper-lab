@@ -6,6 +6,10 @@ import { acceptConsent, getConfig, InvalidModelOutputError, type LlmClient } fro
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { ToastProvider } from '@/shared/ui/ToastProvider';
 import EvidenceSection from '../sections/EvidenceSection';
+import QuestionsSection from '../sections/QuestionsSection';
+import MeasurementSection from '../sections/MeasurementSection';
+import DesignSection from '../sections/DesignSection';
+import AnalysesSection from '../sections/AnalysesSection';
 import { facts, harness, model, paper, projectId } from './testSupport';
 
 vi.mock('../ResearchDesignProvider', async () => ({
@@ -15,7 +19,7 @@ vi.mock('../ResearchDesignProvider', async () => ({
 const ref = 'project-paper-1/fact-1';
 beforeEach(() => localStorage.clear());
 
-function setup(options: { used?: boolean; consent?: boolean } = {}) {
+function setup(options: { used?: boolean; consent?: boolean; section?: typeof EvidenceSection } = {}) {
   if (options.consent !== false) acceptConsent(getConfig());
   const design = emptyResearchDesign(projectId);
   if (options.used)
@@ -43,12 +47,13 @@ function setup(options: { used?: boolean; consent?: boolean } = {}) {
     live: { 'project-paper-1': { facts, model } },
     design,
   });
+  const Section = options.section ?? EvidenceSection;
   render(
     <MemoryRouter>
       <LlmProvider innerClient={client}>
         <ToastProvider>
           <context.Harness>
-            <EvidenceSection />
+            <Section />
           </context.Harness>
         </ToastProvider>
       </LlmProvider>
@@ -56,6 +61,41 @@ function setup(options: { used?: boolean; consent?: boolean } = {}) {
   );
   return { ...context, completeJson };
 }
+
+for (const [Section, label, target] of [
+  [QuestionsSection, 'Giả thuyết', 'hypotheses'],
+  [MeasurementSection, 'Metric', 'metrics'],
+  [DesignSection, 'Nguy cơ', 'threats'],
+  [AnalysesSection, 'Phân tích', 'analyses'],
+] as const) {
+  it(`FR-405 scopes ${target} suggestions and saves only on acceptance`, async () => {
+    const ctx = setup({ used: true, section: Section });
+    await open();
+    expect(screen.getByRole('radio', { name: label })).toBeChecked();
+    expect(screen.getAllByRole('radio')).toHaveLength(1);
+    await send();
+    const add = await screen.findByRole('button', { name: 'Thêm vào bản nháp' });
+    expect(ctx.save).not.toHaveBeenCalled();
+    fireEvent.click(add);
+    await waitFor(() => expect(ctx.saved).toHaveLength(1));
+    const items = ctx.saved[0]!.draft[target];
+    expect(items).toHaveLength(1);
+    expect(JSON.stringify(items[0])).toContain('Measure invented accuracy');
+  });
+}
+
+it('FR-405 disables section suggestions without selected facts or consent', () => {
+  const ctx = setup({ section: DesignSection });
+  expect(screen.getByRole('button', { name: 'Gợi ý từ bảng so sánh' })).toBeDisabled();
+  expect(screen.getByText(/Chọn dữ kiện Dùng/)).toBeInTheDocument();
+  expect(ctx.completeJson).not.toHaveBeenCalled();
+});
+
+it('FR-405 disables section suggestions without consent', () => {
+  setup({ used: true, consent: false, section: DesignSection });
+  expect(screen.getByRole('button', { name: 'Gợi ý từ bảng so sánh' })).toBeDisabled();
+  expect(screen.getByText(/Kiểm tra kết nối trong Cài đặt/)).toBeInTheDocument();
+});
 async function open() {
   fireEvent.click(await screen.findByRole('button', { name: 'Gợi ý từ bảng so sánh' }));
 }
@@ -82,7 +122,7 @@ it('FR-405 sends one minimal request with its prompt version and estimate, and r
   expect(screen.queryByText(/unknown/)).not.toBeInTheDocument();
   expect(ctx.completeJson).toHaveBeenCalledTimes(1);
   const options = ctx.completeJson.mock.calls[0]![0];
-  expect(options.promptVersion).toBe('plan-suggestion-1');
+  expect(options.promptVersion).toBe('plan-suggestion-2');
   const body = `${options.system}\n${options.user}`;
   expect(body).toContain('Accuracy');
   expect(body).not.toContain('f070f37a466398fb#1');
