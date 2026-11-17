@@ -315,6 +315,36 @@ describe('P4 figures_tables', () => {
   });
 });
 describe('P4 acronyms', () => {
+  it.each(["'25", '’25', '2025', '-25', ', 2025'])(
+    'P4 recognizes an edition suffix %s in a definition',
+    (suffix) => {
+      const separator = suffix.startsWith('-') || suffix.startsWith(',') ? '' : ' ';
+      const p = paper([['methods', `quantum vector network (QVN${separator}${suffix}) works. QVN works.`]]);
+      expect(check(p, 'acronyms')?.findings).toEqual([]);
+    },
+  );
+  it('P4 excludes conference furniture while retaining body counts and locations', () => {
+    const p = paper([
+      ['abstract', "QVN '25, March 02–04, 2025, Oslo, Norway\nQVN and QVN appear in the study."],
+      ['other', 'CCS Concepts: • QVN; Keywords: QVN\nKeywords: QVN, examples'],
+      ['other', 'Permission to make digital or hard copies of QVN is granted. QVN'],
+      ['other', '© 2025 QVN ACM ISBN 123\nhttps://doi.org/10.1234/QVN'],
+    ]);
+    const findings = check(p, 'acronyms')?.findings ?? [];
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.locations[0]?.start).toBe(Array.from(p.paragraphs[0]?.text ?? '').indexOf('\n') + 1);
+    expect(findings[0]?.evidence).toContain('2 lần xuất hiện trong nội dung');
+  });
+  it('P4 reads a venue definition in the ACM reference block without counting that block', () => {
+    const p = paper([
+      ['abstract', 'QVN and QVN are studied. XYZ and XYZ remain unknown.'],
+      ['other', 'ACM Reference Format:\nA. Author. In Quantum Vector Network (QVN ’25), 2025. XYZ XYZ.'],
+    ]);
+    const findings = check(p, 'acronyms')?.findings ?? [];
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.evidence).toContain('XYZ');
+    expect(findings[0]?.evidence).toContain('2 lần xuất hiện trong nội dung');
+  });
   it('P4 skips lowercase words, uppercase lines and model names without suppressing real acronyms', () => {
     const result = check(
       paper([

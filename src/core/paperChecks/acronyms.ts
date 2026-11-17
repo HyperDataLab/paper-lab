@@ -1,5 +1,6 @@
 import type { Finding, Paper } from '../schemas';
 import { finding, matches, result, role, type Located } from './common';
+import { definitionName, definitions, furniture } from './acronymFurniture';
 
 export const IGNORED_ACRONYMS = [
   'AI',
@@ -62,24 +63,37 @@ export function acronyms(paper: Paper) {
     );
   });
   const found = new Map<string, Occurrences>();
+  const venueDefinitions = new Set<string>();
+  for (const p of paper.paragraphs) {
+    for (const block of furniture(p)) {
+      if (!/^\s*ACM Reference Format:/iu.test(block.text)) continue;
+      for (const def of definitions(p)) {
+        if (def.start < block.start || def.end > block.end) continue;
+        const name = definitionName(def);
+        if (name) venueDefinitions.add(name);
+      }
+    }
+  }
   const lowercaseWords = new Set(
     paper.paragraphs.flatMap((p) =>
       Array.from(p.text.matchAll(/(?<![\p{L}\p{N}_])\p{Ll}+(?![\p{L}\p{N}_])/gu), (match) => match[0]),
     ),
   );
   for (const p of paragraphs) {
-    const definitions = matches(p, /\b(?:[\p{L}][\p{L}-]*\s+){1,7}\(([A-Z]{2,8})\)/gu);
+    const paragraphDefinitions = definitions(p);
+    const excluded = furniture(p);
     for (const word of matches(p, /\b[A-Z]{2,8}\d*s?\b/gu)) {
       const name = word.text.replace(/s$/u, '');
       if (
         IGNORED_ACRONYMS.includes(name.toUpperCase()) ||
+        excluded.some((block) => block.start <= word.start && block.end >= word.end) ||
         lowercaseWords.has(name.toLowerCase()) ||
         shoutedLine(word)
       )
         continue;
       const item = found.get(name) ?? { first: word, count: 0, beforeDefinition: false };
       item.count++;
-      const def = definitions.find((d) => d.start <= word.start && d.end >= word.end);
+      const def = paragraphDefinitions.find((d) => d.start <= word.start && d.end >= word.end);
       if (def) {
         const expansion = def.text.slice(0, def.text.lastIndexOf('(')).trim().toLowerCase();
         if (item.definition && item.definition.expansion !== expansion) item.conflict ??= def;
@@ -90,6 +104,7 @@ export function acronyms(paper: Paper) {
   }
   const findings: Finding[] = [];
   for (const [name, item] of found) {
+    if (venueDefinitions.has(name) && !item.conflict) continue;
     if (!item.conflict && !(item.beforeDefinition && (item.definition || item.count >= 2))) continue;
     const message = item.conflict
       ? 'Chữ viết tắt có các định nghĩa khác nhau.'
