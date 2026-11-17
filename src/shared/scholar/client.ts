@@ -2,6 +2,7 @@ import {
   mapCrossref,
   mapEuropePmc,
   mapOpenAlex,
+  mapOpenAlexKeywords,
   mapUnpaywall,
   mergeLookups,
   type CrossrefLookup,
@@ -117,6 +118,14 @@ export function createScholarClient(options: { email?: string | null }, deps: De
     );
     return work ? mapPaperMetadata(work, new Date().toISOString()) : null;
   }
+  /** Only the DOI leaves the browser. Null when OpenAlex has no record of the DOI. */
+  async function workKeywords(doi: string, signal?: AbortSignal) {
+    const work = (await getJson(
+      `https://api.openalex.org/works/https://doi.org/${encodeURIComponent(doi)}?select=keywords`,
+      signal,
+    )) as { keywords?: unknown } | null;
+    return work ? mapOpenAlexKeywords(work.keywords) : null;
+  }
   /** Only the DOI leaves the browser. Null when OpenAlex has no record or no abstract. */
   async function workAbstract(doi: string, signal?: AbortSignal) {
     const work = (await getJson(
@@ -223,6 +232,7 @@ export function createScholarClient(options: { email?: string | null }, deps: De
     downloadArxivPdf,
     workStatuses,
     paperMetadata,
+    workKeywords,
     workAbstract,
     searchWorks,
     citationWorks,

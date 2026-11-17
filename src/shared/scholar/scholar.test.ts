@@ -34,6 +34,22 @@ it('C4a fetches a cursor page without sending the scholar email', async () => {
   expect(s.sleep).toHaveBeenCalledWith(200);
 });
 
+it('fetches only the keywords of a work by DOI', async () => {
+  const s = setup({
+    openalex: () =>
+      json({
+        keywords: [
+          { id: 'https://openalex.org/keywords/alpha-term', display_name: 'Alpha term', score: 0.6 },
+        ],
+      }),
+  });
+  expect(await client(s, 'a@b.org').workKeywords(doi)).toEqual([
+    { id: 'keywords/alpha-term', name: 'Alpha term', score: 0.6 },
+  ]);
+  expect(s.calls).toEqual([`https://api.openalex.org/works/https://doi.org/10.1000%2Falpha?select=keywords`]);
+  expect(await client(setup({})).workKeywords(doi)).toBeNull();
+});
+
 it('F1 uses OpenAlex and sends the email only to Unpaywall', async () => {
   const s = setup({
     openalex: () => json(work),
