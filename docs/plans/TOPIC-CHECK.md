@@ -84,11 +84,11 @@ Until the owner deploys the Worker, development runs it with `wrangler dev` (ALL
 
 ## 6. Slices
 
-| #   | Slice                                                                                                                                                                                            | Repo             |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------- |
-| T0  | `POST /v1/tools/:name` JSON API + CORS for PaperLab origins                                                                                                                                      | lab-research-mcp |
-| T1  | Schema + checks + lab-research client + section with the researcher's inputs, PICO, plain summary, checklist, decision                                                                           | paragraph-lab    |
-| T2  | Evidence runs from the section: duplication (review mode on review track), gap curve (CSS bars), debate map, citation trajectory of neighbours; snapshots; "add as neighbour" and "mark as read" | paragraph-lab    |
-| T3  | Reference audit: metadata comparison against Crossref for a paper's reference list                                                                                                               | paragraph-lab    |
+| #   | Slice                                                                                                                                                                                            | Repo                        |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------- |
+| T0  | `POST /v1/tools/:name` JSON API + CORS for PaperLab origins                                                                                                                                      | lab-research-mcp            |
+| T1  | Schema + checks + lab-research client + section with the researcher's inputs, PICO, plain summary, checklist, decision                                                                           | paragraph-lab               |
+| T2  | Evidence runs from the section: duplication (review mode on review track), gap curve (CSS bars), debate map, citation trajectory of neighbours; snapshots; "add as neighbour" and "mark as read" | paragraph-lab (implemented) |
+| T3  | Reference audit: metadata comparison against Crossref for a paper's reference list                                                                                                               | paragraph-lab               |
 
 Owner actions: deploy the lab-research Worker with its secrets, set `VITE_LAB_RESEARCH_URL` for the PaperLab build.

@@ -19,37 +19,19 @@ export function evaluateTopicCheck(check: TopicCheck): TopicCheckItem[] {
     status,
     reasonCode,
   });
-  const evidence = (kind: TopicCheck['evidence'][number]['kind']) =>
-    [...check.evidence].filter((e) => e.kind === kind).sort((a, b) => b.ranAt.localeCompare(a.ranAt))[0];
-  const duplication = evidence('duplication');
-  const saturation = evidence('saturation');
-  const impact = evidence('impact');
-  const reviews = duplication?.result.reviews;
-  const unread =
-    Array.isArray(reviews) &&
-    reviews.some((r: unknown) => typeof r !== 'object' || r === null || !('read' in r) || r.read !== true);
-  const total = saturation?.result.total;
-  const trajectories = impact?.result.neighbours;
-  const validTrajectories =
-    Array.isArray(trajectories) &&
-    trajectories.length > 0 &&
-    trajectories.every(
-      (n: unknown) =>
-        typeof n === 'object' &&
-        n !== null &&
-        'citationsPerYear' in n &&
-        typeof n.citationsPerYear === 'number',
-    );
+  const sorted = [...check.evidence].sort((a, b) => b.ranAt.localeCompare(a.ranAt));
+  const duplication = sorted.find((e) => e.kind === 'duplication');
+  const saturation = sorted.find((e) => e.kind === 'saturation');
+  const impact = sorted.find((e) => e.kind === 'impact');
+  const unread = duplication?.result.existing_reviews?.some((r) => !(check.reviewedIds ?? []).includes(r.id));
+  const total = saturation?.result.total_estimate;
+  const trajectories = impact?.result.papers ?? [];
+  const validTrajectories = trajectories.length > 0 && trajectories.every((n) => n.ok && n.paper);
+  const year = impact ? new Date(impact.ranAt).getUTCFullYear() : 0;
   const flat =
-    Array.isArray(trajectories) &&
-    trajectories.length > 0 &&
-    trajectories.every(
-      (n: unknown) =>
-        typeof n === 'object' &&
-        n !== null &&
-        'citationsPerYear' in n &&
-        typeof n.citationsPerYear === 'number' &&
-        n.citationsPerYear <= 0,
+    validTrajectories &&
+    trajectories.every((n) =>
+      [year, year - 1, year - 2].every((y) => (n.paper?.counts_by_year[String(y)] ?? 0) <= 1),
     );
   return [
     item(
@@ -89,11 +71,7 @@ export function evaluateTopicCheck(check: TopicCheck): TopicCheckItem[] {
     ),
     item(
       'duplication',
-      !duplication
-        ? 'missing'
-        : check.track === 'review' && (!Array.isArray(reviews) || unread)
-          ? 'needs_work'
-          : 'ready',
+      !duplication ? 'missing' : check.track === 'review' && unread ? 'needs_work' : 'ready',
     ),
     item(
       'feasibility',
