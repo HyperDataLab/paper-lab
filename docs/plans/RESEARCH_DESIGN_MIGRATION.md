@@ -76,3 +76,20 @@ and CI on main, plus a browser check of the new screens.
 - Archive the `research-design` repo (read-only) after M8, and stop its session's feature work now.
 - How SRD should read frozen plans (file package only, or a route on PaperLab's worker).
 - RD's open owner steps (its Firebase project, its Worker, its secrets) are no longer needed.
+
+## Status (2026-11-17)
+
+Done on main, not deployed: M1 core (#173), area shell (#174), M2 storage and local facts (#175), provider re-read on
+conflict (#179), Câu hỏi và giả thuyết (#178, #181), Thiết kế nghiên cứu (#181), Đo lường (#182, #183), Writing Bank
+(#177), Phân tích thống kê and Ma trận chạy (#176), Bảng so sánh with AI suggestions (#180), Gói kế hoạch (#184).
+All eight sections open on a sidebar project in the browser; a question saved there survives a reload, and the plan
+gate lists what is missing.
+
+Open follow-ups:
+
+- Not all of Research Design's UI tests are ported yet: the remaining question tests (QH), and Gói kế hoạch's change-note,
+  conflict and ZIP-download tests (only PK-01, PK-02 and PK-08/RS are in).
+- Not run against the live bank API or a real model; ZIP download not tried in the browser.
+- The area sits below Deep Research on the project page; consider moving it up or giving it its own tab.
+- Bảng so sánh shows a sentence key for an anchor it cannot resolve (DESIGN §12 says places, not ids).
+- "Gợi ý từ bảng so sánh" lives in Bảng so sánh only; the buttons RD had on Câu hỏi, Đo lường and Thiết kế are TODOs.
