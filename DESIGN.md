@@ -2,6 +2,8 @@
 
 The paper's **Trích xuất** space (right of Writing style) opens the extraction matrix of the paper's own project, with this paper already chosen as its only row: add columns, run, review cells and export (CSV, JSON, plus the paper's RIS and BibTeX). The table is made on first visit from the default template. The **Data table** space holds the contribution graph. Projects (sidebar) hold multi-paper Deep Research; the project page no longer has a matrix tab.
 
+Multi-paper projects also have a **Thiết kế nghiên cứu** area. Its sections use in-page tabs, with the selected section in the URL for linking; sections being migrated show an empty state.
+
 A single-paper extraction presents fields as rows, with the column menu beside each name and the full value alongside it; on narrow screens the value sits below the name. Status filters select field rows. Matrices with multiple papers retain the horizontal comparison layout.
 
 The single-paper run drawer offers Full Extract: all catalog fields are selected by group, with optional High Quality verification. Starting adds missing catalog columns after existing columns, including when custom columns bring the total above the normal add-column limit. Project runs retain the Deep Research option.
