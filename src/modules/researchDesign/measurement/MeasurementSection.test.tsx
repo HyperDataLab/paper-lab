@@ -1,0 +1,319 @@
+import 'fake-indexeddb/auto';
+import { webcrypto } from 'node:crypto';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { emptyDraft } from '@/core/researchDesign/draft/schema';
+import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
+import { measurementDraft, newRepo, renderSection, setup } from './testSupport';
+import { claimWord } from './words';
+
+beforeEach(() => vi.stubGlobal('crypto', webcrypto));
+afterEach(() => vi.unstubAllGlobals());
+
+it.each([
+  ['conditions', 'Điều kiện', 'c-1 đang được dùng bởi a-1, lưới chạy. Gỡ liên kết trước khi xoá.'],
+  ['datasets', 'Dataset', 'd-1 đang được dùng bởi lưới chạy. Gỡ liên kết trước khi xoá.'],
+])('DL-UI refuses deleting a referenced %s', async (tab, label, message) => {
+  const draft = emptyDraft();
+  draft.conditions.push({ id: 'c-1', name: 'Condition', baseline: true, params: {} });
+  draft.datasets.push({
+    id: 'd-1',
+    name: 'Data',
+    source: 'source',
+    version: null,
+    split: null,
+    sha256: null,
+    benchmark: null,
+  });
+  draft.analyses.push({
+    id: 'a-1',
+    hypothesis: null,
+    method: null,
+    variables: [],
+    conditions: ['c-1'],
+    parameters: {},
+    assumptions: [],
+    missingPolicy: 'listwise',
+    alpha: 0.05,
+    correction: 'none',
+  });
+  draft.runMatrix.conditions = ['c-1'];
+  draft.runMatrix.datasets = ['d-1'];
+  await setup({ draft, tab });
+  await screen.findByRole('tab', { name: new RegExp(label) });
+  fireEvent.click(screen.getByRole('button', { name: 'Xoá' }));
+  const dialog = screen.getByRole('alertdialog');
+  expect(within(dialog).getByText(message)).toBeInTheDocument();
+  expect(within(dialog).queryByRole('button', { name: 'Xoá' })).not.toBeInTheDocument();
+});
+
+it('ME-01 shows tab counts and adds a variable', async () => {
+  const { stored } = await setup();
+  fireEvent.click(await screen.findByRole('tab', { name: 'Biến (0)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm biến' }));
+  fireEvent.change(screen.getByLabelText('Tên'), { target: { value: 'Test variable' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+  expect(await screen.findByText('Test variable')).toBeInTheDocument();
+  expect(screen.getByRole('tab', { name: 'Biến (1)' })).toHaveAttribute('aria-selected', 'true');
+  expect((await stored()).variables).toHaveLength(1);
+});
+
+it('ME-02 chooses a metric and follows a procedure without copying text', async () => {
+  const { stored } = await setup();
+  fireEvent.click(await screen.findByRole('tab', { name: /Metric/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm metric' }));
+  const entry = screen.getByText('Test score').parentElement!;
+  fireEvent.click(within(entry).getByRole('button', { name: 'Dùng' }));
+  expect(screen.getByLabelText('Tên')).toHaveValue('Test score');
+  expect(screen.getByLabelText('Đơn vị')).toHaveValue('points');
+  expect(screen.getByLabelText('Key MLflow')).toHaveValue('');
+  expect(screen.getByRole('combobox', { name: 'Cách gộp một lần chạy' })).toHaveTextContent('Chưa chọn');
+  expect(screen.getByLabelText('Quy trình đo')).toHaveValue('');
+  fireEvent.click(screen.getByLabelText('Theo quy trình này'));
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect((await stored()).metrics[0]).toMatchObject({
+    protocol: '',
+    protocolBank: { id: 'mp.test-procedure' },
+  });
+  expect(await screen.findByText(/còn thiếu:/)).toBeInTheDocument();
+});
+
+it('ME-03 works on the metric tab without a snapshot', async () => {
+  await setup({ bank: false });
+  fireEvent.click(await screen.findByRole('tab', { name: /Metric/ }));
+  expect(screen.getByRole('button', { name: 'Thêm metric' })).toBeInTheDocument();
+  expect(screen.queryByText(/bản chụp cũ/)).not.toBeInTheDocument();
+});
+
+it('ME-04 filters invented metrics and leaves descriptive direction unset', async () => {
+  await setup();
+  fireEvent.click(await screen.findByRole('tab', { name: /Metric/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm metric' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Phân loại (1)' }));
+  expect(screen.queryByText('Test shape')).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Tìm kiếm'), { target: { value: 'invented alias' } });
+  expect(screen.getByText('Test score')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Tất cả (2)' }));
+  fireEvent.change(screen.getByLabelText('Tìm kiếm'), { target: { value: 'shape' } });
+  expect(screen.queryByText('Test score')).not.toBeInTheDocument();
+  fireEvent.click(
+    within(screen.getByText('Test shape').parentElement!).getByRole('button', { name: 'Dùng' }),
+  );
+  expect(screen.getByRole('combobox', { name: 'Hướng tốt' })).toHaveTextContent('Chưa chọn');
+});
+
+it('ME-05 saves a benchmark with its lifecycle and flaws', async () => {
+  await setup();
+  fireEvent.click(await screen.findByRole('tab', { name: /Dataset/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm dataset' }));
+  fireEvent.click(
+    within(screen.getByText('Test suite').parentElement!).getByRole('button', { name: 'Dùng' }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+  expect(await screen.findByText(/Bão hoà · An invented flaw/)).toBeInTheDocument();
+});
+
+it('ME-06 stores condition parameter types', async () => {
+  const { stored } = await setup();
+  fireEvent.click(await screen.findByRole('tab', { name: /Điều kiện/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm điều kiện' }));
+  fireEvent.change(screen.getByLabelText('Tên'), { target: { value: 'Test condition' } });
+  for (const [key, value] of [
+    ['count', '12'],
+    ['enabled', 'true'],
+    ['label', 'abc'],
+  ]) {
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm tham số' }));
+    const keys = screen.getAllByLabelText('Tên tham số');
+    const values = screen.getAllByLabelText('Giá trị');
+    fireEvent.change(keys[keys.length - 1]!, { target: { value: key } });
+    fireEvent.change(values[values.length - 1]!, { target: { value } });
+  }
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect((await stored()).conditions[0]?.params).toEqual({ count: 12, enabled: true, label: 'abc' });
+});
+
+it('ME-07 offers a custom metric when the snapshot is absent', async () => {
+  await setup({ bank: false });
+  fireEvent.click(await screen.findByRole('tab', { name: /Metric/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm metric' }));
+  expect(screen.getByRole('link', { name: 'Writing Bank' })).toHaveAttribute(
+    'href',
+    '/?design=bank&measure=metrics',
+  );
+  expect(screen.getByRole('button', { name: 'Tự mô tả metric' })).toBeInTheDocument();
+});
+
+it('ME-08 attaches a dependent variable and refuses to delete its metric', async () => {
+  const draft = emptyDraft();
+  draft.hypotheses.push({
+    id: 'h-1',
+    statement: 'Test hypothesis',
+    kind: 'directional',
+    question: null,
+    claim: null,
+    independent: [],
+    dependent: [],
+  });
+  draft.variables.push({
+    id: 'v-1',
+    name: 'Test variable',
+    role: 'dependent',
+    construct: '',
+    metric: 'm-1',
+    levels: [],
+  });
+  draft.metrics.push({
+    id: 'm-1',
+    name: 'Test metric',
+    key: 'test/value',
+    unit: 'points',
+    goal: 'maximize',
+    aggregation: 'last',
+    protocol: 'Test protocol',
+    bank: null,
+    protocolBank: null,
+  });
+  await setup({ draft });
+  fireEvent.click(await screen.findByRole('button', { name: 'Gắn biến' }));
+  fireEvent.click(screen.getByLabelText('v-1 Test variable'));
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(await screen.findByText('test/value')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('tab', { name: /Metric/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Xoá' }));
+  expect(screen.getByText('m-1 đang được dùng bởi v-1. Gỡ liên kết trước khi xoá.')).toBeInTheDocument();
+  expect(
+    within(screen.getByRole('alertdialog')).queryByRole('button', { name: 'Xoá' }),
+  ).not.toBeInTheDocument();
+});
+
+it('ME-09 reports loading and then an error', async () => {
+  const repo = newRepo();
+  vi.spyOn(repo.researchDesigns, 'get').mockRejectedValue(new Error('offline'));
+  renderSection(repo);
+  expect(screen.getByRole('status', { name: 'Đang tải…' })).toBeInTheDocument();
+  expect(await screen.findByText('Không tải được đo lường.')).toBeInTheDocument();
+});
+
+it('ME-10 opens the tab named by the query', async () => {
+  await setup({ tab: 'metrics' });
+  expect(await screen.findByRole('tab', { name: 'Metric (0)', selected: true })).toBeInTheDocument();
+  expect(screen.getByText('Chưa có metric nào.')).toBeInTheDocument();
+});
+
+it('ME-11 shows a missing chain link once', async () => {
+  await setup({ draft: measurementDraft() });
+  expect(await screen.findByText('chưa gắn biến phụ thuộc')).toBeInTheDocument();
+  expect(screen.queryByText('h-1 chưa gắn biến phụ thuộc.')).not.toBeInTheDocument();
+  expect(screen.getAllByText('chưa có phân tích')).toHaveLength(1);
+  expect(screen.queryByText('h-1 chưa có phân tích nào.')).not.toBeInTheDocument();
+});
+
+it('ME-12 explains empty metric and dataset fields', async () => {
+  await setup({ draft: measurementDraft(), tab: 'metrics' });
+  expect((await screen.findByText('chưa có key')).parentElement).toHaveTextContent(
+    'chưa có key · chưa có đơn vị · chưa chọn hướng tốt · chưa chọn cách gộp',
+  );
+  fireEvent.click(screen.getByRole('tab', { name: 'Dataset (1)' }));
+  expect(screen.getByText('Chưa ghi nguồn')).toBeInTheDocument();
+});
+
+it('ME-13 labels variable details and metric links', async () => {
+  await setup({ draft: measurementDraft(), tab: 'variables' });
+  expect(
+    await screen.findByText('Độc lập · Khái niệm: Invented concept · Các mức: A, B'),
+  ).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Metric: m-1 Invented measure' })).toHaveAttribute(
+    'href',
+    '/?design=measurement&measure=metrics',
+  );
+  expect(screen.getByText('Hiệp biến · chưa có metric')).toBeInTheDocument();
+});
+
+it('ME-14 describes the strongest supported claim', async () => {
+  await setup();
+  fireEvent.click(await screen.findByRole('tab', { name: /Metric/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm metric' }));
+  expect(screen.getAllByText(/Nhận định mạnh nhất mà metric tự nó hỗ trợ:/).length).toBeGreaterThan(0);
+  expect(['descriptive', 'comparative', 'inferential', 'invented'].map(claimWord)).toEqual([
+    'mô tả',
+    'so sánh',
+    'suy luận thống kê',
+    'invented',
+  ]);
+});
+
+it('ME-15 names each deletion and describes the item', async () => {
+  await setup({ draft: measurementDraft(), tab: 'datasets' });
+  for (const [tab, title, description] of [
+    ['Dataset (1)', 'Xoá dataset', 'Xoá d-1 «Invented data»?'],
+    ['Điều kiện (1)', 'Xoá điều kiện', 'Xoá c-1 «Invented condition»?'],
+    ['Biến (3)', 'Xoá biến', 'Xoá v-1 «Invented factor»?'],
+  ]) {
+    fireEvent.click(await screen.findByRole('tab', { name: tab }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Xoá' })[0]!);
+    const dialog = screen.getByRole('alertdialog', { name: title, description });
+    expect(within(dialog).getByRole('button', { name: 'Xoá' }).className).toMatch(/danger/);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
+  }
+});
+
+it('ME-16 renders each tab label as one text node', async () => {
+  await setup({ draft: measurementDraft() });
+  const tab = await screen.findByRole('tab', { name: 'Biến (3)' });
+  expect(tab.childNodes).toHaveLength(1);
+  expect(tab.firstChild?.nodeType).toBe(Node.TEXT_NODE);
+});
+
+it('DS-05 re-pins a metric pinned to an older snapshot and flags a missing one', async () => {
+  const draft = measurementDraft();
+  draft.metrics[0]!.bank = { id: 'met.test-score', release: '2030.01.1' };
+  draft.metrics.push({
+    ...draft.metrics[0]!,
+    id: 'm-2',
+    name: 'Invented gone',
+    bank: { id: 'met.gone', release: '2030.01.1' },
+  });
+  const { stored, release } = await setup({ draft, tab: 'metrics' });
+  expect(
+    await screen.findByText('m-2 «Invented gone»: mục met.gone không còn trong bản chụp hiện tại.'),
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Ghim lại theo bản chụp hiện tại' }));
+  await waitFor(async () => expect((await stored()).metrics[0]?.bank?.release).toBe(release));
+  expect((await stored()).metrics[1]?.bank).toEqual({ id: 'met.gone', release: '2030.01.1' });
+  await waitFor(() =>
+    expect(screen.queryByRole('button', { name: 'Ghim lại theo bản chụp hiện tại' })).not.toBeInTheDocument(),
+  );
+});
+
+it('retries a save once after a version conflict', async () => {
+  const { repo, stored } = await setup();
+  const real = repo.researchDesigns.save.bind(repo.researchDesigns);
+  const save = vi
+    .spyOn(repo.researchDesigns, 'save')
+    .mockRejectedValueOnce(new ResearchDesignConflictError('changed'))
+    .mockImplementation(real);
+  fireEvent.click(await screen.findByRole('tab', { name: 'Biến (0)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm biến' }));
+  fireEvent.change(screen.getByLabelText('Tên'), { target: { value: 'Retried variable' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+  expect(await screen.findByText('Retried variable')).toBeInTheDocument();
+  expect(save).toHaveBeenCalledTimes(2);
+  expect((await stored()).variables).toHaveLength(1);
+});
+
+it('keeps the dialog open and names the reason when the draft refuses a change', async () => {
+  const { stored, toast } = await setup();
+  fireEvent.click(await screen.findByRole('tab', { name: /Dataset/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm dataset' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tự mô tả dataset' }));
+  fireEvent.change(screen.getByLabelText('Tên'), { target: { value: 'Invented data' } });
+  fireEvent.change(screen.getByLabelText('SHA-256'), { target: { value: 'not-a-hash' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+  await waitFor(() => expect(toast).toHaveBeenCalledWith('Mã SHA-256 không hợp lệ.'));
+  expect(screen.getByRole('dialog', { name: 'Dataset' })).toBeInTheDocument();
+  expect((await stored()).datasets).toHaveLength(0);
+});
