@@ -21,6 +21,7 @@ try {
   const profile = await server.ssrLoadModule('/src/core/corpusProfile/contract.ts');
   const topics = await server.ssrLoadModule('/src/core/corpusTopics/contract.ts');
   const facts = await server.ssrLoadModule('/src/core/experimentFacts/contract.ts');
+  const plan = await server.ssrLoadModule('/src/core/researchDesign/plan/contract.ts');
   const files = [
     [contract.PAPER_MODEL_SCHEMA_FILE, contract.paperModelJsonSchema()],
     [contract.PAPER_MODEL_SCHEMA_PUBLIC_FILE, contract.paperModelJsonSchema()],
@@ -37,11 +38,15 @@ try {
     [facts.EXPERIMENT_FACTS_SCHEMA_FILE, facts.experimentFactsJsonSchema()],
     [facts.EXPERIMENT_FACTS_SCHEMA_PUBLIC_FILE, facts.experimentFactsJsonSchema()],
     [facts.EXPERIMENT_FACTS_EXAMPLE_FILE, facts.exampleExperimentFacts()],
+    ...plan.planContractFiles(),
   ];
   for (const [file, value] of files) {
     const path = resolve(root, file);
     const options = (await prettier.resolveConfig(path)) ?? {};
-    const text = await prettier.format(JSON.stringify(value), { ...options, filepath: path });
+    // Preserve the published Research Design contract's JSON.stringify serialization.
+    const text = file.includes('experiment-plan-')
+      ? `${JSON.stringify(value, null, 2)}\n`
+      : await prettier.format(JSON.stringify(value), { ...options, filepath: path });
     await mkdir(dirname(path), { recursive: true });
     await writeFile(path, text);
     console.log(`wrote ${file}`);
