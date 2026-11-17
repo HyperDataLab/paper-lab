@@ -36,7 +36,19 @@ export const CorpusTopicsSchema = z
         byCorpus: z.record(z.string(), count),
         words: z.array(z.string()).max(10),
         representativeMemberIds: z.array(z.string()).max(5),
-        openalexSubfields: z.array(z.object({ name: z.string(), count })).max(3),
+        openalexSubfields: z
+          .array(
+            z.object({
+              name: z.string(),
+              /** OpenAlex short id `subfields/<n>`, when the source records carry it. */
+              id: z
+                .string()
+                .regex(/^subfields\/\d+$/u)
+                .optional(),
+              count,
+            }),
+          )
+          .max(3),
       }),
     ),
     members: z.array(

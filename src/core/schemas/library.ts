@@ -13,6 +13,10 @@ export const TaxonomySchema = z.object({
   subfield: z.string().nullable(),
   topic: z.string().nullable(),
   score: z.number().nullable(),
+  /** OpenAlex short ids (`domains/<n>`, `fields/<n>`, `subfields/<n>`); absent on records saved before they were kept. */
+  domainId: z.string().nullable().optional(),
+  fieldId: z.string().nullable().optional(),
+  subfieldId: z.string().nullable().optional(),
 });
 export const LibraryItemSchema = z.object({
   schemaVersion: z.literal(1),

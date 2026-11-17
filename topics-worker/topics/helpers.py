@@ -61,6 +61,22 @@ def stability(a, b):
     return sum(1 for x, y in zip(a, b) if best[x] == y) / len(a) if a else 0
 
 
+def subfield_id(subfield):
+    """OpenAlex `https://openalex.org/subfields/1702` -> `subfields/1702`; None when absent or malformed."""
+    value = re.sub(r"^https?://openalex\.org/", "", ((subfield or {}).get("id") or "").strip())
+    return value if re.fullmatch(r"subfields/[0-9]+", value) else None
+
+
+def top_subfields(members, limit=3):
+    """Most common OpenAlex subfields by name; `id` is added only when a member carried one."""
+    counts = Counter(m.get("oa_subfield") for m in members if m.get("oa_subfield"))
+    ids = {}
+    for m in members:
+        if m.get("oa_subfield") and m.get("oa_subfield_id"):
+            ids.setdefault(m["oa_subfield"], m["oa_subfield_id"])
+    return [{"name": n, **({"id": ids[n]} if n in ids else {}), "count": c} for n, c in counts.most_common(limit)]
+
+
 def map_members(members):
     result = []
     for member in members:

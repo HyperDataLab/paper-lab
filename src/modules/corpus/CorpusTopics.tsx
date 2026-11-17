@@ -368,7 +368,11 @@ export function CorpusTopics({
                           : '—'}
                       </td>
                       <td>{item.words.join(', ')}</td>
-                      <td>
+                      <td
+                        title={
+                          item.openalexSubfields.flatMap((field) => field.id ?? []).join(', ') || undefined
+                        }
+                      >
                         {item.openalexSubfields.map((field) => `${field.name} (${field.count})`).join(', ')}
                       </td>
                     </tr>

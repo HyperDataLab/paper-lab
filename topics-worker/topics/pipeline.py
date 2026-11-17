@@ -3,7 +3,7 @@ import argparse
 import datetime as dt
 import time
 from abstracts import fetch_texts
-from helpers import stability, map_members, percentile, topic_fit
+from helpers import stability, map_members, percentile, top_subfields, topic_fit
 import uuid
 from collections import Counter
 
@@ -124,8 +124,7 @@ def run(payload, progress=lambda text: print(text, flush=True)):
             "byCorpus": dict(Counter(usable[i]["corpusId"] for i in idx)),
             "words": [w for w, _ in (tm.get_topic(tid) or [])][:10],
             "representativeMemberIds": [usable[i]["memberId"] for i in ranked[:5]],
-            "openalexSubfields": [{"name": n, "count": c} for n, c in
-                                  Counter(usable[i].get("oa_subfield") for i in idx if usable[i].get("oa_subfield")).most_common(3)],
+            "openalexSubfields": top_subfields([usable[i] for i in idx]),
         })
 
     labelled = [i for i, m in enumerate(usable) if m.get("oa_subfield")]

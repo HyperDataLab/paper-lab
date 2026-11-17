@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import type { LibraryItem } from '../schemas/library';
+import { LibraryItemSchema, type LibraryItem } from '../schemas/library';
 import {
   EMPTY_FILTER,
   arxivIdFrom,
@@ -118,6 +118,40 @@ it('F1 F3 maps an OpenAlex work', () => {
     taxonomy: null,
     arxiv_id: null,
   });
+});
+
+it('keeps OpenAlex domain, field and subfield ids in short form (request 004)', () => {
+  const topic = {
+    display_name: 'Learning',
+    subfield: { id: 'https://openalex.org/subfields/1702', display_name: 'Artificial Intelligence' },
+    field: { id: 'https://openalex.org/fields/17', display_name: 'Computer Science' },
+    domain: { id: 'https://openalex.org/domains/3', display_name: 'Physical Sciences' },
+  };
+  expect(mapOpenAlex({ primary_topic: topic }).metadata.taxonomy).toMatchObject({
+    subfield: 'Artificial Intelligence',
+    subfieldId: 'subfields/1702',
+    fieldId: 'fields/17',
+    domainId: 'domains/3',
+  });
+  expect(mapOpenAlex({ primary_topic: { ...topic, subfield: null } }).metadata.taxonomy).toMatchObject({
+    subfield: null,
+    subfieldId: null,
+    fieldId: 'fields/17',
+  });
+  expect(
+    mapOpenAlex({ primary_topic: { ...topic, subfield: { id: 'https://openalex.org/fields/17' } } }).metadata
+      .taxonomy?.subfieldId,
+  ).toBeNull();
+  expect(mapOpenAlex(work).metadata.taxonomy).toMatchObject({ subfieldId: null, domainId: null });
+});
+
+it('parses library records saved before taxonomy ids were kept', () => {
+  expect(LibraryItemSchema.safeParse(item()).success).toBe(true);
+  expect(
+    LibraryItemSchema.safeParse(
+      item({ taxonomy: { ...item().taxonomy!, subfieldId: 'subfields/1702', fieldId: null } }),
+    ).success,
+  ).toBe(true);
 });
 
 it('F2 finds an arXiv id from a DOI or a link', () => {

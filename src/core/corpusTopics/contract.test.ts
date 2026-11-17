@@ -55,6 +55,22 @@ it('validates the snapshot and rejects duplicate topics and invalid bounds', () 
     CorpusTopicsSchema.safeParse({ ...sample, members: [{ ...sample.members[0], probability: 2 }] }).success,
   ).toBe(false);
 });
+it('accepts subfields with or without an OpenAlex id and rejects a malformed id (request 004)', () => {
+  const withSubfields = (openalexSubfields: unknown[]) =>
+    CorpusTopicsSchema.safeParse({ ...sample, topics: [{ ...sample.topics[0], openalexSubfields }] });
+  const parsed = withSubfields([
+    { name: 'Artificial Intelligence', id: 'subfields/1702', count: 2 },
+    { name: 'Old record', count: 1 },
+  ]);
+  expect(parsed.data?.topics[0]?.openalexSubfields.map((field) => field.id)).toEqual([
+    'subfields/1702',
+    undefined,
+  ]);
+  expect(withSubfields([{ name: 'X', id: 'https://openalex.org/subfields/1702', count: 1 }]).success).toBe(
+    false,
+  );
+  expect(withSubfields([{ name: 'X', id: 'fields/17', count: 1 }]).success).toBe(false);
+});
 it('keeps both published JSON Schemas in sync', () => {
   for (const file of [
     CORPUS_TOPICS_SCHEMA_FILE,
