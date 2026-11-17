@@ -1,0 +1,178 @@
+{
+  "format": "paperlab-corpus-profile",
+  "schemaVersion": 2,
+  "draft": true,
+  "generatedAt": "2026-11-18T00:00:00.000Z",
+  "registry": { "id": "synthetic-fixture", "version": 2, "digest": "synthetic" },
+  "scope": "admired",
+  "sample": {
+    "n": 100,
+    "rankingRule": "Synthetic citations ranked within publication year; equal numbers per year bucket.",
+    "yearBuckets": [{ "from": 2020, "to": 2024, "papers": 100 }],
+    "controlRule": "Synthetic control papers ranked by citations within publication year using the same buckets."
+  },
+  "target": {
+    "corpusId": "example",
+    "kind": "journal",
+    "title": "Example Journal",
+    "releaseId": null,
+    "releaseDigest": null,
+    "members": 100,
+    "heldOut": 0,
+    "fullText": 100,
+    "profiled": 100,
+    "notOnDevice": 0,
+    "yearBuckets": [{ "from": 2020, "to": 2024, "papers": 100 }],
+    "withoutYear": 0
+  },
+  "control": {
+    "corpusId": "control",
+    "kind": "control",
+    "title": "Example Control",
+    "releaseId": null,
+    "releaseDigest": null,
+    "members": 100,
+    "heldOut": 0,
+    "fullText": 100,
+    "profiled": 100,
+    "notOnDevice": 0,
+    "yearBuckets": [{ "from": 2020, "to": 2024, "papers": 100 }],
+    "withoutYear": 0
+  },
+  "seed": 42,
+  "thresholds": {
+    "alpha": 0.05,
+    "minCohensD": 0.2,
+    "minProportionDifference": 0.1,
+    "bootstrapResamples": 1000,
+    "minPapersPerCorpus": 150,
+    "minPapersPerBucket": 10,
+    "bucketYears": 5
+  },
+  "features": [
+    {
+      "featureId": "structure.section_count",
+      "family": "structure",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "mean",
+      "unit": "sections",
+      "extractor": "deterministic",
+      "target": { "n": 100, "mean": 5, "sd": 1, "median": 5, "q1": 4, "q3": 6 },
+      "control": { "n": 100, "mean": 4, "sd": 1, "median": 4, "q1": 3, "q3": 5 },
+      "comparison": {
+        "effectSize": 1,
+        "effectMetric": "cohens_d",
+        "ci95Low": 0.5,
+        "ci95High": 1.5,
+        "pValue": 0.01,
+        "qValue": 0.04,
+        "bootstrapUnit": "paper"
+      },
+      "machineShare": null,
+      "coverage": {
+        "target": { "measured": 100, "papers": 100 },
+        "control": { "measured": 100, "papers": 100 }
+      },
+      "fdrFamily": "core",
+      "status": "exploratory"
+    },
+    {
+      "featureId": "section.INTRODUCTION.paragraph_count",
+      "family": "paragraph",
+      "section": "INTRODUCTION",
+      "granularity": "section",
+      "metricType": "mean",
+      "unit": "paragraphs",
+      "extractor": "deterministic",
+      "target": { "n": 100, "mean": 4, "sd": 1, "median": 4, "q1": 3, "q3": 5 },
+      "control": { "n": 100, "mean": 3, "sd": 1, "median": 3, "q1": 2, "q3": 4 },
+      "comparison": null,
+      "machineShare": null,
+      "coverage": {
+        "target": { "measured": 100, "papers": 100 },
+        "control": { "measured": 100, "papers": 100 }
+      },
+      "fdrFamily": "paragraph",
+      "status": "exploratory"
+    },
+    {
+      "featureId": "section.INTRODUCTION.hedges",
+      "family": "stance",
+      "section": "INTRODUCTION",
+      "granularity": "section",
+      "metricType": "rate",
+      "unit": "per 100 words",
+      "extractor": "deterministic",
+      "target": { "n": 100, "mean": 1, "sd": 0.2, "median": 1, "q1": 0.8, "q3": 1.2 },
+      "control": { "n": 100, "mean": 0.8, "sd": 0.2, "median": 0.8, "q1": 0.6, "q3": 1 },
+      "comparison": null,
+      "machineShare": null,
+      "coverage": {
+        "target": { "measured": 100, "papers": 100 },
+        "control": { "measured": 100, "papers": 100 }
+      },
+      "fdrFamily": "style",
+      "status": "exploratory"
+    },
+    {
+      "featureId": "argument.with_data",
+      "family": "scientific",
+      "section": "ARTICLE",
+      "granularity": "paper",
+      "metricType": "prevalence",
+      "unit": "share",
+      "extractor": "llm",
+      "target": { "n": 100, "mean": 0.7, "sd": null, "median": 1, "q1": 0, "q3": 1 },
+      "control": { "n": 100, "mean": 0.6, "sd": null, "median": 1, "q1": 0, "q3": 1 },
+      "comparison": null,
+      "machineShare": { "target": 1, "control": 1 },
+      "coverage": {
+        "target": { "measured": 100, "papers": 100 },
+        "control": { "measured": 100, "papers": 100 }
+      },
+      "fdrFamily": "argument",
+      "status": "exploratory"
+    }
+  ],
+  "distinctiveFeatureIds": [],
+  "phrases": {
+    "tokenizerVersion": "synthetic",
+    "normalisation": "synthetic",
+    "rules": {
+      "maxWords": 5,
+      "minTargetPrevalence": 0.1,
+      "minTargetPapers": 10,
+      "alpha": 0.05,
+      "top": 10,
+      "maxEvidence": 3,
+      "maxExcerptChars": 300
+    },
+    "tested": 0,
+    "items": []
+  },
+  "headings": [{ "role": "INTRODUCTION", "items": [{ "heading": "Introduction", "documentShare": 0.9 }] }],
+  "sectionSequences": [
+    { "roles": ["INTRODUCTION", "METHODS", "RESULTS", "DISCUSSION"], "documentShare": 0.6 }
+  ],
+  "keywords": [
+    {
+      "id": "keywords/example-topic",
+      "name": "Example topic",
+      "targetShare": 0.4,
+      "controlShare": 0.2,
+      "g2": 8,
+      "logRatio": 1
+    }
+  ],
+  "classification": {
+    "subfields": [
+      { "id": "subfields/1702", "name": "Example subfield", "targetShare": 0.8, "controlShare": 0.7 }
+    ]
+  },
+  "interpretationStatus": "exploratory",
+  "interpretationReason": "Synthetic fixture; sample is below the profile minimum.",
+  "holdoutVerified": false,
+  "warnings": ["synthetic_fixture"],
+  "methodNotes": ["All values are invented for contract mapping."]
+}

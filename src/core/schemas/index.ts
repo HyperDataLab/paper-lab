@@ -30,3 +30,4 @@ export * from './corpusTopics';
 export * from './corpusKeywords';
 export * from './experimentFacts';
 export * from './topicCheck';
+export * from './corpusProfileV2';

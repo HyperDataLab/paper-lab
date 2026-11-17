@@ -1,0 +1,596 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyperdatalab-paragraph-lab.web.app/schemas/corpus-profile-v2.draft.schema.json",
+  "title": "PaperLab corpus profile v2 DRAFT",
+  "description": "DRAFT contract for Writing Bank mapping; the shape may change until P2 ships.",
+  "$comment": "DRAFT: synthetic fixture only; no v2 measurement implementation is implied.",
+  "type": "object",
+  "properties": {
+    "format": { "type": "string", "const": "paperlab-corpus-profile" },
+    "schemaVersion": { "type": "number", "const": 2 },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+    },
+    "registry": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "version": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+        "digest": { "type": "string" }
+      },
+      "required": ["id", "version", "digest"],
+      "additionalProperties": false
+    },
+    "target": {
+      "type": "object",
+      "properties": {
+        "corpusId": { "type": "string" },
+        "kind": { "type": "string", "enum": ["journal", "control", "topic"] },
+        "title": { "type": "string" },
+        "releaseId": { "type": ["string", "null"] },
+        "releaseDigest": { "type": ["string", "null"] },
+        "members": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "heldOut": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "fullText": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "profiled": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "notOnDevice": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "yearBuckets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+              "to": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+              "papers": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            },
+            "required": ["from", "to", "papers"],
+            "additionalProperties": false
+          }
+        },
+        "withoutYear": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+      },
+      "required": [
+        "corpusId",
+        "kind",
+        "title",
+        "releaseId",
+        "releaseDigest",
+        "members",
+        "heldOut",
+        "fullText",
+        "profiled",
+        "notOnDevice",
+        "yearBuckets",
+        "withoutYear"
+      ],
+      "additionalProperties": false
+    },
+    "control": {
+      "type": "object",
+      "properties": {
+        "corpusId": { "type": "string" },
+        "kind": { "type": "string", "enum": ["journal", "control", "topic"] },
+        "title": { "type": "string" },
+        "releaseId": { "type": ["string", "null"] },
+        "releaseDigest": { "type": ["string", "null"] },
+        "members": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "heldOut": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "fullText": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "profiled": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "notOnDevice": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "yearBuckets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+              "to": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+              "papers": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            },
+            "required": ["from", "to", "papers"],
+            "additionalProperties": false
+          }
+        },
+        "withoutYear": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+      },
+      "required": [
+        "corpusId",
+        "kind",
+        "title",
+        "releaseId",
+        "releaseDigest",
+        "members",
+        "heldOut",
+        "fullText",
+        "profiled",
+        "notOnDevice",
+        "yearBuckets",
+        "withoutYear"
+      ],
+      "additionalProperties": false
+    },
+    "seed": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "thresholds": {
+      "type": "object",
+      "properties": {
+        "alpha": { "type": "number", "minimum": 0, "maximum": 1 },
+        "minCohensD": { "type": "number", "minimum": 0 },
+        "minProportionDifference": { "type": "number", "minimum": 0 },
+        "bootstrapResamples": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "minPapersPerCorpus": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "minPapersPerBucket": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "bucketYears": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 }
+      },
+      "required": [
+        "alpha",
+        "minCohensD",
+        "minProportionDifference",
+        "bootstrapResamples",
+        "minPapersPerCorpus",
+        "minPapersPerBucket",
+        "bucketYears"
+      ],
+      "additionalProperties": false
+    },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "featureId": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{2,127}$" },
+          "family": {
+            "type": "string",
+            "enum": ["structure", "paragraph", "linguistic", "citation", "stance", "rhetorical", "scientific"]
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "ABSTRACT",
+                  "INTRODUCTION",
+                  "RELATED_WORK",
+                  "METHODS",
+                  "RESULTS",
+                  "DISCUSSION",
+                  "CONCLUSION",
+                  "OTHER",
+                  "APPENDIX"
+                ]
+              },
+              { "type": "string", "const": "ARTICLE" }
+            ]
+          },
+          "metricType": { "type": "string", "enum": ["share", "mean", "rate", "prevalence"] },
+          "unit": { "type": "string" },
+          "extractor": { "type": "string", "enum": ["deterministic", "llm"] },
+          "target": {
+            "type": "object",
+            "properties": {
+              "n": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+              "mean": { "type": ["number", "null"] },
+              "sd": { "type": ["number", "null"] },
+              "median": { "type": ["number", "null"] },
+              "q1": { "type": ["number", "null"] },
+              "q3": { "type": ["number", "null"] }
+            },
+            "required": ["n", "mean", "sd", "median", "q1", "q3"],
+            "additionalProperties": false
+          },
+          "control": {
+            "type": "object",
+            "properties": {
+              "n": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+              "mean": { "type": ["number", "null"] },
+              "sd": { "type": ["number", "null"] },
+              "median": { "type": ["number", "null"] },
+              "q1": { "type": ["number", "null"] },
+              "q3": { "type": ["number", "null"] }
+            },
+            "required": ["n", "mean", "sd", "median", "q1", "q3"],
+            "additionalProperties": false
+          },
+          "comparison": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "effectSize": { "type": "number" },
+                  "effectMetric": { "type": "string", "enum": ["cohens_d", "proportion_difference"] },
+                  "ci95Low": { "type": ["number", "null"] },
+                  "ci95High": { "type": ["number", "null"] },
+                  "pValue": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "qValue": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "bootstrapUnit": { "type": "string", "const": "paper" }
+                },
+                "required": [
+                  "effectSize",
+                  "effectMetric",
+                  "ci95Low",
+                  "ci95High",
+                  "pValue",
+                  "qValue",
+                  "bootstrapUnit"
+                ],
+                "additionalProperties": false
+              },
+              { "type": "null" }
+            ]
+          },
+          "machineShare": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "target": {
+                    "anyOf": [{ "type": "number", "minimum": 0, "maximum": 1 }, { "type": "null" }]
+                  },
+                  "control": {
+                    "anyOf": [{ "type": "number", "minimum": 0, "maximum": 1 }, { "type": "null" }]
+                  }
+                },
+                "required": ["target", "control"],
+                "additionalProperties": false
+              },
+              { "type": "null" }
+            ]
+          },
+          "coverage": {
+            "type": "object",
+            "properties": {
+              "target": {
+                "type": "object",
+                "properties": {
+                  "measured": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "papers": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                },
+                "required": ["measured", "papers"],
+                "additionalProperties": false
+              },
+              "control": {
+                "type": "object",
+                "properties": {
+                  "measured": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "papers": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                },
+                "required": ["measured", "papers"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["target", "control"],
+            "additionalProperties": false
+          },
+          "granularity": { "type": "string", "enum": ["paper", "section"] },
+          "fdrFamily": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Predeclared FDR testing family, including any core family."
+          },
+          "status": { "type": "string", "enum": ["exploratory", "supported", "inconclusive"] }
+        },
+        "required": [
+          "featureId",
+          "family",
+          "section",
+          "metricType",
+          "unit",
+          "extractor",
+          "target",
+          "control",
+          "comparison",
+          "machineShare",
+          "coverage",
+          "granularity",
+          "fdrFamily",
+          "status"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "distinctiveFeatureIds": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{2,127}$" }
+    },
+    "phrases": {
+      "type": "object",
+      "properties": {
+        "tokenizerVersion": { "type": "string" },
+        "normalisation": { "type": "string" },
+        "rules": {
+          "type": "object",
+          "properties": {
+            "maxWords": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+            "minTargetPrevalence": { "type": "number", "minimum": 0, "maximum": 1 },
+            "minTargetPapers": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "alpha": { "type": "number", "minimum": 0, "maximum": 1 },
+            "top": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "maxEvidence": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "maxExcerptChars": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+          },
+          "required": [
+            "maxWords",
+            "minTargetPrevalence",
+            "minTargetPapers",
+            "alpha",
+            "top",
+            "maxEvidence",
+            "maxExcerptChars"
+          ],
+          "additionalProperties": false
+        },
+        "tested": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "phraseId": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{2,127}$" },
+              "text": { "type": "string" },
+              "words": { "type": "integer", "minimum": 1, "maximum": 5 },
+              "targetPapers": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+              "controlPapers": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+              "targetPrevalence": { "type": "number", "minimum": 0, "maximum": 1 },
+              "controlPrevalence": { "type": "number", "minimum": 0, "maximum": 1 },
+              "g2": { "type": "number", "minimum": 0 },
+              "logRatio": { "type": "number" },
+              "pValue": { "type": "number", "minimum": 0, "maximum": 1 },
+              "qValue": { "type": "number", "minimum": 0, "maximum": 1 },
+              "evidence": {
+                "maxItems": 3,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "memberExportId": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{2,127}$" },
+                    "sentenceKey": { "type": "string" },
+                    "excerpt": { "type": "string", "maxLength": 300 }
+                  },
+                  "required": ["memberExportId", "sentenceKey", "excerpt"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "phraseId",
+              "text",
+              "words",
+              "targetPapers",
+              "controlPapers",
+              "targetPrevalence",
+              "controlPrevalence",
+              "g2",
+              "logRatio",
+              "pValue",
+              "qValue",
+              "evidence"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["tokenizerVersion", "normalisation", "rules", "tested", "items"],
+      "additionalProperties": false
+    },
+    "interpretationStatus": { "type": "string", "enum": ["exploratory", "supported", "inconclusive"] },
+    "interpretationReason": { "type": "string" },
+    "holdoutVerified": { "type": "boolean" },
+    "holdout": {
+      "type": "object",
+      "properties": {
+        "auc": { "anyOf": [{ "type": "number", "minimum": 0, "maximum": 1 }, { "type": "null" }] },
+        "ci95Low": { "anyOf": [{ "type": "number", "minimum": 0, "maximum": 1 }, { "type": "null" }] },
+        "ci95High": { "anyOf": [{ "type": "number", "minimum": 0, "maximum": 1 }, { "type": "null" }] },
+        "nTarget": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "nControl": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "droppedForAuthorOverlap": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "passed": { "type": "boolean" },
+        "rule": { "type": "string" }
+      },
+      "required": [
+        "auc",
+        "ci95Low",
+        "ci95High",
+        "nTarget",
+        "nControl",
+        "droppedForAuthorOverlap",
+        "passed",
+        "rule"
+      ],
+      "additionalProperties": false
+    },
+    "confoundChecks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "target": { "type": "string" },
+          "control": { "type": "string" },
+          "distance": { "anyOf": [{ "type": "number", "minimum": 0, "maximum": 1 }, { "type": "null" }] }
+        },
+        "required": ["name", "target", "control", "distance"],
+        "additionalProperties": false
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "methodNotes": { "type": "array", "items": { "type": "string" } },
+    "draft": {
+      "type": "boolean",
+      "const": true,
+      "description": "DRAFT: the shape may change until P2 ships."
+    },
+    "scope": { "type": "string", "enum": ["admired", "signature"] },
+    "sample": {
+      "type": "object",
+      "properties": {
+        "n": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "rankingRule": { "type": "string" },
+        "yearBuckets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+              "to": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+              "papers": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            },
+            "required": ["from", "to", "papers"],
+            "additionalProperties": false
+          }
+        },
+        "controlRule": { "type": "string" }
+      },
+      "required": ["n", "rankingRule", "yearBuckets", "controlRule"],
+      "additionalProperties": false
+    },
+    "headings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "ABSTRACT",
+              "INTRODUCTION",
+              "RELATED_WORK",
+              "METHODS",
+              "RESULTS",
+              "DISCUSSION",
+              "CONCLUSION",
+              "OTHER",
+              "APPENDIX"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "heading": { "type": "string" },
+                "documentShare": { "type": "number", "minimum": 0, "maximum": 1 }
+              },
+              "required": ["heading", "documentShare"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["role", "items"],
+        "additionalProperties": false
+      }
+    },
+    "sectionSequences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ABSTRACT",
+                "INTRODUCTION",
+                "RELATED_WORK",
+                "METHODS",
+                "RESULTS",
+                "DISCUSSION",
+                "CONCLUSION",
+                "OTHER",
+                "APPENDIX"
+              ]
+            }
+          },
+          "documentShare": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "required": ["roles", "documentShare"],
+        "additionalProperties": false
+      }
+    },
+    "keywords": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "pattern": "^keywords\\/[a-z0-9]+(?:-[a-z0-9]+)*$" },
+          "name": { "type": "string" },
+          "targetShare": { "type": "number", "minimum": 0, "maximum": 1 },
+          "controlShare": { "type": "number", "minimum": 0, "maximum": 1 },
+          "g2": { "type": "number", "minimum": 0 },
+          "logRatio": { "type": "number" }
+        },
+        "required": ["id", "name", "targetShare", "controlShare", "g2", "logRatio"],
+        "additionalProperties": false
+      }
+    },
+    "classification": {
+      "type": "object",
+      "properties": {
+        "subfields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "pattern": "^subfields\\/[0-9]+$" },
+              "name": { "type": "string" },
+              "targetShare": { "type": "number", "minimum": 0, "maximum": 1 },
+              "controlShare": { "type": "number", "minimum": 0, "maximum": 1 }
+            },
+            "required": ["id", "name", "targetShare", "controlShare"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["subfields"],
+      "additionalProperties": false
+    },
+    "evidenceLevel": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "type": "object",
+          "propertyNames": { "type": "string", "enum": ["E0", "E1", "E2", "E3", "E4", "E5"] },
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 },
+          "required": ["E0", "E1", "E2", "E3", "E4", "E5"]
+        },
+        "control": {
+          "type": "object",
+          "propertyNames": { "type": "string", "enum": ["E0", "E1", "E2", "E3", "E4", "E5"] },
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 },
+          "required": ["E0", "E1", "E2", "E3", "E4", "E5"]
+        }
+      },
+      "required": ["target", "control"],
+      "additionalProperties": false,
+      "description": "P7 (owner approved 2026-11-18, not built yet): distribution of main-claim evidence levels."
+    }
+  },
+  "required": [
+    "format",
+    "schemaVersion",
+    "generatedAt",
+    "registry",
+    "target",
+    "control",
+    "seed",
+    "thresholds",
+    "features",
+    "distinctiveFeatureIds",
+    "phrases",
+    "interpretationStatus",
+    "interpretationReason",
+    "holdoutVerified",
+    "warnings",
+    "methodNotes",
+    "draft",
+    "scope",
+    "sample",
+    "headings",
+    "sectionSequences",
+    "keywords",
+    "classification"
+  ],
+  "additionalProperties": false
+}
