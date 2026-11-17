@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { emptyTopicCheck } from '@/core/schemas/topicCheck';
 import { emptyResearchDesign } from '@/core/schemas/researchDesign';
 import { fixturePaper, fixtureRun } from '@/core/measurement/testFixture';
 import { snapshot } from '@/core/researchDesign/bank/testSupport';
@@ -171,4 +172,18 @@ it('M2 freezes once, rejects edits to frozen plans, and requires a changed draft
   await expect(
     repo.researchDesigns.save({ ...marked, publishedPlans: { '3': { publishedAt: at } } }, marked.version),
   ).rejects.toThrow();
+});
+
+it('TC storage preserves topic check through save, reload and export/import', async () => {
+  const { repo } = await setup();
+  const design = emptyResearchDesign(id);
+  design.topicCheck = { ...emptyTopicCheck(), statement: 'Synthetic topic.' };
+  await repo.researchDesigns.save(design, 0);
+  expect((await repo.researchDesigns.get(id))?.topicCheck).toEqual(design.topicCheck);
+  const backup = await repo.transfer.exportAll('test');
+  const target = createRepositories(createDb(`topic-${crypto.randomUUID()}`));
+  const plan = await target.transfer.previewImport(JSON.parse(JSON.stringify(backup)));
+  if (!plan.ok) throw new Error(plan.error);
+  await target.transfer.applyImport(plan);
+  expect((await target.researchDesigns.get(id))?.topicCheck).toEqual(design.topicCheck);
 });
