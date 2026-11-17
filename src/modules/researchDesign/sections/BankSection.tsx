@@ -6,5 +6,5 @@ export default function BankSection() {
   const state = useResearchDesign();
   if (state.loading) return <Loading label="Đang tải bản chụp…" />;
   if (state.error) return <Empty title="Không tải được bản chụp." hint={state.error.message} />;
-  return <BankPanel projectId={state.project.id} initial={state.bank} />;
+  return <BankPanel projectId={state.project.id} bank={state.bank} importBank={state.importBank} />;
 }

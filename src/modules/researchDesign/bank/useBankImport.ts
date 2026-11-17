@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { snapshotRelease } from '@/core/researchDesign/bank/release';
 import type { BankDoc } from '@/core/researchDesign/bank/snapshot';
 import { bankRefs } from '@/core/researchDesign/draft/bankRefs';
@@ -35,25 +34,24 @@ export function bankFailure(error: unknown): BankFailure {
   return 'network';
 }
 
+/** The provider's bank import: it reads the stored version itself and retries once after a version conflict. */
+export type ImportBank = (bytes: ArrayBuffer, who: string) => Promise<unknown>;
+
 /**
- * Pins a Writing Bank snapshot to the project through the repository's bank import. The checks run here first so
+ * Pins a Writing Bank snapshot to the project through the provider's bank import. The checks run here first so
  * the person sees why a file is refused; the repository checks the hash again and refuses a stale version.
  */
-export function useBankImport(projectId: string, initial: BankDoc | null) {
+export function useBankImport(projectId: string, bank: BankDoc | null, importBank: ImportBank) {
   const repo = useRepositories();
   const { user } = useAuth();
-  const [bank, setBank] = useState(initial);
 
   /** True when replacing the current snapshot would leave draft references behind, or when that is unknown. */
-  const read = async () => {
+  const referenced = async () => {
     try {
       const record = await repo.researchDesigns.get(projectId);
-      return {
-        version: record?.version ?? 0,
-        referenced: record ? bankRefs(record.draft).length > 0 : false,
-      };
+      return record ? bankRefs(record.draft).length > 0 : false;
     } catch {
-      return { version: 0, referenced: true };
+      return true;
     }
   };
 
@@ -72,23 +70,13 @@ export function useBankImport(projectId: string, initial: BankDoc | null) {
     if (!parsed.ok) return { ok: false, error: parsed.reason, issues: parsed.issues };
     if (requireRelease && !parsed.file.release)
       return { ok: false, error: 'invalid', issues: ['release: Required'] };
-    let confirmed = false;
-    // A version conflict means someone saved in between: read again and apply the import once more.
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      const current = await read();
-      if (bank && current.referenced && !confirmed) {
-        if (!(await confirm())) return { ok: false, error: 'cancelled' };
-        confirmed = true;
-      }
-      try {
-        await repo.researchDesigns.importBank(projectId, current.version, bytes, user?.email ?? 'local');
-        setBank(await repo.researchDesigns.getBank(projectId));
-        return { ok: true };
-      } catch (error) {
-        if (!(error instanceof ResearchDesignConflictError)) return { ok: false, error: 'network' };
-      }
+    if (bank && (await referenced()) && !(await confirm())) return { ok: false, error: 'cancelled' };
+    try {
+      await importBank(bytes, user?.email ?? 'local');
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: error instanceof ResearchDesignConflictError ? 'conflict' : 'network' };
     }
-    return { ok: false, error: 'conflict' };
   };
 
   const importFile = async (file: File, confirm: ConfirmReplace): Promise<BankResult> => {
@@ -113,5 +101,5 @@ export function useBankImport(projectId: string, initial: BankDoc | null) {
     return store(answer.bytes, true, confirm);
   };
 
-  return { bank, importFile, fetchLatest };
+  return { importFile, fetchLatest };
 }
