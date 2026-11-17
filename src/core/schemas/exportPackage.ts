@@ -16,6 +16,8 @@ import { StanceRecordSchema } from './stance';
 import { PaperInsightsRecordSchema } from './paperInsights';
 import { ExtractionProjectSchema } from './extraction';
 import { CalibrationLabelSetSchema } from './calibration';
+import { ResearchDesignSchema } from './researchDesign';
+import { bankDocSchema } from '../researchDesign/bank/snapshot';
 export const ExportPackageSchema = z.object({
   format: z.literal('paragraph-lab-export'),
   formatVersion: z.literal(1),
@@ -36,6 +38,16 @@ export const ExportPackageSchema = z.object({
   stance: z.array(StanceRecordSchema).default([]),
   paperInsights: z.array(PaperInsightsRecordSchema).default([]),
   extractionProjects: z.array(ExtractionProjectSchema).default([]),
+  researchDesigns: z.array(ResearchDesignSchema).default([]),
+  researchDesignBanks: z
+    .array(
+      z.object({
+        projectId: z.uuid(),
+        bank: bankDocSchema,
+        bytes: z.array(z.number().int().min(0).max(255)),
+      }),
+    )
+    .default([]),
   corpora: z.array(CorpusSchema).default([]),
   corpusProfiles: z.array(StoredCorpusProfileSchema).default([]),
 });

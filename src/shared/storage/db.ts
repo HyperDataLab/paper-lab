@@ -26,6 +26,8 @@ import type {
   Corpus,
 } from '@/core/schemas';
 import type { ReviewNgram } from '@/core/reviewPanel';
+import type { ResearchDesign } from '@/core/schemas/researchDesign';
+import type { BankDoc } from '@/core/researchDesign/bank/snapshot';
 export class ParagraphDb extends Dexie {
   analyses!: Table<Analysis, string>;
   auditEvents!: Table<AuditEvent, string>;
@@ -52,6 +54,8 @@ export class ParagraphDb extends Dexie {
   calibrationLabels!: Table<CalibrationLabelSet, string>;
   pdfFiles!: Table<PdfFileRecord, string>;
   grobid!: Table<GrobidRecord, string>;
+  researchDesigns!: Table<ResearchDesign, string>;
+  researchDesignBanks!: Table<{ projectId: string; bank: BankDoc; bytes: number[] }, string>;
   constructor(name = 'paragraph-lab') {
     super(name);
     this.version(1).stores({
@@ -88,6 +92,7 @@ export class ParagraphDb extends Dexie {
       corpusTopics: 'snapshotId, *corpusIds',
       topicNames: '[snapshotId+topicId], snapshotId',
     });
+    this.version(23).stores({ researchDesigns: 'projectId', researchDesignBanks: 'projectId' });
   }
 }
 export function createDb(name?: string) {

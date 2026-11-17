@@ -37,7 +37,7 @@ it('P3 migrates version 5 and audits transition decisions retained on rerun', as
   const db = createDb(name);
   const repo = createRepositories(db);
   expect(await repo.papers.get(paper.id)).toEqual(paper);
-  expect(db.verno).toBe(22);
+  expect(db.verno).toBe(23);
   const endpoint = {
     paragraphId: 'p1',
     analysisId: crypto.randomUUID(),

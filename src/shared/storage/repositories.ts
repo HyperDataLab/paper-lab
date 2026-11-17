@@ -25,6 +25,7 @@ import { createExtractionRepository } from './extractionProjects';
 import { createPdfFilesRepository } from './pdfFiles';
 import { createGrobidRepository } from './grobid';
 import { createTransferRepository } from './transfer';
+import { createResearchDesignRepository } from './researchDesigns';
 export function createRepositories(
   db: ParagraphDb,
   clock = () => new Date(),
@@ -84,6 +85,7 @@ export function createRepositories(
     paperContext,
     paperInsights,
     extraction,
+    researchDesigns: createResearchDesignRepository(db, now),
     corpora,
     corpusProfiles: createCorpusProfilesRepository(db),
     corpusTopics: createCorpusTopicsRepository(db),

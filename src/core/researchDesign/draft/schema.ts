@@ -28,7 +28,7 @@ const text = z.string().trim().min(1);
 const localId = (prefix: string) => z.string().regex(new RegExp(`^${prefix}-[1-9][0-9]*$`));
 export const questionId = localId('q');
 export const threatId = localId('t');
-const paperId = z.string().regex(/^p-[0-9a-f]{12}$/);
+const paperId = z.string().min(1);
 
 /** The claim types of Writing Bank (`ct.causal`, `ct.comparative`, …). What a design supports is stated in these. */
 export const claimTypeId = z.string().regex(/^ct\.[a-z0-9-]+$/);
