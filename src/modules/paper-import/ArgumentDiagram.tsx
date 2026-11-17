@@ -18,6 +18,7 @@ import { Select } from '@/shared/ui/Select';
 import styles from './argument.module.css';
 import { PlaceText } from './PlaceText';
 import { ClaimTypeBadge } from './ClaimTypes';
+import { EvidenceLevelBadge } from './EvidenceLevel';
 
 type Span = Argument['claim'];
 const ROLES: Record<DiagramRole, string> = {
@@ -263,6 +264,7 @@ export function ArgumentDiagram({
             {item.importance === 'main' ? 'Luận điểm chính' : 'Luận điểm phụ'}
           </Badge>
           <ClaimTypeBadge type={item.claimType} />
+          <EvidenceLevelBadge level={item.evidenceLevel} basis={item.evidenceBasis} />
           {state && (
             <Badge tone={state === 'confirmed' ? 'success' : 'danger'}>
               {state === 'confirmed' ? 'Đã xác nhận' : 'Đã bác bỏ'}

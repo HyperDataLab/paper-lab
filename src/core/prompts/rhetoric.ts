@@ -1,3 +1,4 @@
+import { EVIDENCE_LEVELS, EVIDENCE_LEVEL_INFO } from '../argument/evidenceLevels';
 import type { PaperParagraph } from '../schemas/paper';
 
 const safe = (text: string) =>
@@ -86,6 +87,10 @@ For each argument:
 - backing: passages that justify the warrant itself.
 - qualifier: a passage limiting how strongly or how widely the claim holds. Use null if there is none.
 - rebuttals: passages stating objections, exceptions or counter-evidence.
+- evidenceLevel: classify the kind of support the text shown reports for the claim, not whether the claim is true. Judge only from this paper's own text, mainly the data you quoted; never from your knowledge of the field or of other papers. Use the highest level whose description the reported support meets.
+${EVIDENCE_LEVELS.map((level) => `  ${level}: ${EVIDENCE_LEVEL_INFO[level].definition}`).join('\n')}
+  Use E0 when the text shown gives no support at all; use null when you cannot tell.
+- evidenceBasis: when evidenceLevel is not null, one short clause in Vietnamese naming what in the text sets that level. Otherwise null.
 Every reference is {paragraphId, quote}: the id at the start of the line and one clause copied exactly from that paragraph.
 An empty list or null is the right answer for anything the text does not give. Never fill a slot to make the structure complete.`,
     user: `<document>\n${documentBody(paragraphs)}\n</document>`,

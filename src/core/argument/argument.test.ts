@@ -23,6 +23,8 @@ const full = {
   backing: [ref('Prior audits agree')],
   qualifier: ref('This holds for LLMs'),
   rebuttals: [ref('Some disagree')],
+  evidenceLevel: 'E2' as const,
+  evidenceBasis: 'Một benchmark, không có phương sai.',
 };
 const at = '2026-01-01T00:00:00.000Z';
 const RUN = '00000000-0000-4000-8000-000000000002';
@@ -67,6 +69,14 @@ describe('D4 arguments', () => {
       chunk,
     );
     expect(items[0]).toMatchObject({ statedWarrant: null, inferredWarrant: 'Điểm phản ánh văn phong' });
+  });
+  it('P7 keeps the evidence level and drops a basis that has no level', () => {
+    expect(verifyArguments({ arguments: [full] }, chunk).items[0]).toMatchObject({
+      evidenceLevel: 'E2',
+      evidenceBasis: 'Một benchmark, không có phương sai.',
+    });
+    const { items } = verifyArguments({ arguments: [{ ...full, evidenceLevel: null }] }, chunk);
+    expect(items[0]).toMatchObject({ evidenceLevel: null, evidenceBasis: null });
   });
   it('records what could not be read', () => {
     const run = buildArgumentRun({

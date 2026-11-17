@@ -22,7 +22,7 @@ export const PROMPT_VERSIONS = {
   stanceEngagement: 'stance-engagement-1',
   rhetoric: 'rhetoric-1',
   abstractAlignment: 'abstract-align-1',
-  argument: 'argument-3',
+  argument: 'argument-4',
   snapshot: 'snapshot-1',
   digest: 'digest-1',
   contribution: 'contribution-1',

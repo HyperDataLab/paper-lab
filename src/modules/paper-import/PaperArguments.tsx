@@ -26,6 +26,7 @@ import { Loading } from '@/shared/ui/StateNote';
 import { PlaceText } from './PlaceText';
 import type { ClaimType } from '@/core/argument/claimTypes';
 import { ClaimTypeBadge, ClaimTypeFilter } from './ClaimTypes';
+import { EvidenceLevelBadge } from './EvidenceLevel';
 
 type Location = Finding['locations'][number];
 type Span = Argument['claim'];
@@ -339,6 +340,7 @@ export function PaperArguments({
                         {item.importance === 'main' ? 'Luận điểm chính' : 'Luận điểm phụ'}
                       </Badge>
                       <ClaimTypeBadge type={item.claimType} />
+                      <EvidenceLevelBadge level={item.evidenceLevel} basis={item.evidenceBasis} />
                       {state && (
                         <Badge tone={state === 'confirmed' ? 'success' : 'danger'}>
                           {state === 'confirmed' ? 'Đã xác nhận' : 'Đã bác bỏ'}
@@ -415,6 +417,7 @@ export function PaperArguments({
                   <li key={item.id}>
                     <div className={styles.node}>
                       <Badge tone="accent">I</Badge> <ClaimTypeBadge type={item.claimType} />{' '}
+                      <EvidenceLevelBadge level={item.evidenceLevel} basis={item.evidenceBasis} />{' '}
                       {item.claim.excerpt}
                     </div>
                     {into.length === 0 && <p className={styles.empty}>Chưa thấy tiền đề.</p>}

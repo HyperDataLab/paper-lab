@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ContributionPendingSchema, ContributionRunSchema } from './contribution';
 import { ClaimTypeSchema } from '../argument/claimTypes';
+import { EvidenceLevelSchema } from '../argument/evidenceLevels';
 
 export const RHETORIC_CATEGORIES = [
   'territory',
@@ -97,6 +98,9 @@ export const ArgumentOutputSchema = z.object({
       backing: z.array(RefSchema),
       qualifier: RefSchema.nullable(),
       rebuttals: z.array(RefSchema),
+      /** A machine label for the kind of support the text reports (P7). Null when it cannot be told. */
+      evidenceLevel: EvidenceLevelSchema.nullable(),
+      evidenceBasis: z.string().nullable(),
     }),
   ),
 });
@@ -112,6 +116,9 @@ export const ArgumentSchema = z.object({
   backing: z.array(SpanSchema),
   qualifier: SpanSchema.nullable(),
   rebuttals: z.array(SpanSchema),
+  /** Missing on arguments stored before prompt argument-4. */
+  evidenceLevel: EvidenceLevelSchema.nullable().optional(),
+  evidenceBasis: z.string().nullable().optional(),
 });
 export const ArgumentRunSchema = z.object({
   id: z.uuid(),
@@ -138,6 +145,8 @@ export const ArgumentPendingSchema = z.object({
       arguments: z.array(
         ArgumentOutputSchema.shape.arguments.element.extend({
           claimType: ClaimTypeSchema.nullable().default(null),
+          evidenceLevel: EvidenceLevelSchema.nullable().default(null),
+          evidenceBasis: z.string().nullable().default(null),
         }),
       ),
     }),

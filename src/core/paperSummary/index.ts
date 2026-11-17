@@ -1,5 +1,6 @@
 import type { PaperInsightsRecord, SnapshotField } from '../schemas';
 import type { ClaimType } from '../argument/claimTypes';
+import type { EvidenceLevel } from '../argument/evidenceLevels';
 
 /**
  * What the paper's author is saying, gathered from analyses that already ran: the gap and contribution
@@ -16,6 +17,8 @@ export interface SummaryQuote {
 export interface SummaryClaim {
   id: string;
   claimType: ClaimType | null;
+  evidenceLevel: EvidenceLevel | null;
+  evidenceBasis: string | null;
   claim: SummaryQuote;
   data: SummaryQuote[];
   /** The author's own qualifier and the rebuttals they raise. */
@@ -77,6 +80,8 @@ export function summarizePaper(insights: PaperInsightsRecord | undefined): Paper
       .map((item) => ({
         id: item.id,
         claimType: item.claimType,
+        evidenceLevel: item.evidenceLevel ?? null,
+        evidenceBasis: item.evidenceBasis ?? null,
         claim: quote(item.id, item.claim),
         data: item.data.map((span, index) => quote(`${item.id}:data:${index}`, span)),
         limits: [
