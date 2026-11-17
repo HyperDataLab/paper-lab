@@ -91,6 +91,25 @@ it('authenticates requests, starts jobs and stores validated completed results f
   });
   expect((await t.request('GET')).status).toBe(200);
 });
+it('routes POST /nlp/parse behind the same sign-in to the nlp container', async () => {
+  const t = setup();
+  const parse = (deps: Deps, token = 'Bearer test') =>
+    handle(
+      new Request('https://test/nlp/parse', {
+        method: 'POST',
+        headers: { authorization: token, origin: 'https://test' },
+        body: JSON.stringify({ sentences: [{ key: 's1', text: 'We ran it.' }] }),
+      }),
+      deps,
+    );
+  expect((await parse(t.deps, '')).status).toBe(401);
+  expect((await parse(t.deps)).status).toBe(404);
+  t.deps.nlp = async () => response({ sentences: [] });
+  const ok = await parse(t.deps);
+  expect(ok.status).toBe(200);
+  expect(ok.headers.get('access-control-allow-origin')).toBe('https://test');
+  expect((await handle(new Request('https://test/nlp/other'), t.deps)).status).toBe(400);
+});
 it('records container failures and returns CORS on exceptions', async () => {
   const t = setup();
   t.values.set(`paperlab/corpora/${id}`, JSON.stringify({ id, kind: 'journal', members: [] }));
