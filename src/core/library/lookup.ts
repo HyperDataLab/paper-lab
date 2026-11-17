@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { LibraryItem, OaSource, Taxonomy } from '../schemas/library';
+import type { LibraryItem, OaSource, PaperKeyword, Taxonomy } from '../schemas/library';
 
 const named = z.object({ display_name: z.string().nullish() }).nullish();
 const level = z.object({ id: z.string().nullish(), display_name: z.string().nullish() }).nullish();
@@ -30,6 +30,13 @@ const OpenAlexSchema = z.object({
       domain: level,
     })
     .nullish(),
+  // Loose on purpose: one malformed keyword must not fail the whole lookup.
+  keywords: z.unknown().optional(),
+});
+const KeywordEntrySchema = z.object({
+  id: z.string().nullish(),
+  display_name: z.string().nullish(),
+  score: z.number().nullish(),
 });
 const CrossrefSchema = z.object({
   message: z.object({
@@ -72,13 +79,24 @@ const EuropePmcSchema = z.object({
 
 export type LookupPatch = Pick<
   LibraryItem,
-  'title' | 'authors' | 'year' | 'venue' | 'access' | 'oa_sources' | 'arxiv_id' | 'taxonomy' | 'openalex_id'
+  | 'title'
+  | 'authors'
+  | 'year'
+  | 'venue'
+  | 'access'
+  | 'oa_sources'
+  | 'arxiv_id'
+  | 'taxonomy'
+  | 'openalex_id'
+  | 'keywords'
 >;
 export interface OpenAlexLookup {
   metadata: Pick<
     LookupPatch,
     'title' | 'authors' | 'year' | 'venue' | 'taxonomy' | 'openalex_id' | 'arxiv_id'
-  >;
+  > & {
+    keywords: PaperKeyword[];
+  };
   is_open: boolean;
   sources: OaSource[];
 }
@@ -117,6 +135,35 @@ export function openAlexLevelId(id: string | null | undefined, kind: 'domains' |
   return new RegExp(`^${kind}/\\d+$`, 'u').test(short) ? short : null;
 }
 
+export const MAX_PAPER_KEYWORDS = 20;
+/** `https://openalex.org/keywords/edge-computing` → `keywords/edge-computing`; null when it is not a keyword id. */
+export function openAlexKeywordId(id: string | null | undefined) {
+  const short = (id ?? '')
+    .trim()
+    .replace(/^https?:\/\/openalex\.org\//iu, '')
+    .toLowerCase();
+  return /^keywords\/[a-z0-9][a-z0-9-]*$/u.test(short) ? short : null;
+}
+
+/** A work's `keywords` list: malformed entries dropped, one per id, highest score first, at most 20. */
+export function mapOpenAlexKeywords(raw: unknown): PaperKeyword[] {
+  if (!Array.isArray(raw)) return [];
+  const best = new Map<string, PaperKeyword>();
+  for (const entry of raw) {
+    const parsed = KeywordEntrySchema.safeParse(entry);
+    if (!parsed.success) continue;
+    const id = openAlexKeywordId(parsed.data.id);
+    const name = parsed.data.display_name?.trim();
+    if (!id || !name) continue;
+    const score = parsed.data.score ?? 0;
+    const known = best.get(id);
+    if (!known || known.score < score) best.set(id, { id, name, score });
+  }
+  return [...best.values()]
+    .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
+    .slice(0, MAX_PAPER_KEYWORDS);
+}
+
 export function mapOpenAlex(raw: unknown): OpenAlexLookup {
   const work = OpenAlexSchema.parse(raw);
   const locations = [work.best_oa_location, ...(work.locations ?? [])].flatMap((item) => item ?? []);
@@ -141,6 +188,7 @@ export function mapOpenAlex(raw: unknown): OpenAlexLookup {
       venue: work.primary_location?.source?.display_name ?? null,
       taxonomy,
       openalex_id: work.id ?? null,
+      keywords: mapOpenAlexKeywords(work.keywords),
       arxiv_id: arxivIdFrom(
         locations.flatMap((item) => [item.landing_page_url, item.pdf_url]),
         work.doi,
@@ -235,6 +283,8 @@ export function mergeLookups(input: {
     taxonomy: openalex?.metadata.taxonomy ?? null,
     openalex_id: openalex?.metadata.openalex_id ?? null,
     arxiv_id: openalex?.metadata.arxiv_id ?? null,
+    // Without an OpenAlex record the keywords stay unknown, and stored ones are kept.
+    ...(openalex ? { keywords: openalex.metadata.keywords } : {}),
     oa_sources: sources,
     access: open ? 'open' : incomplete ? 'unknown' : 'none_found',
   };

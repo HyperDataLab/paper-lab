@@ -18,6 +18,12 @@ export const TaxonomySchema = z.object({
   fieldId: z.string().nullable().optional(),
   subfieldId: z.string().nullable().optional(),
 });
+/** An OpenAlex keyword: `id` is the short form `keywords/<slug>`, `score` is OpenAlex's 0–1 relevance. */
+export const PaperKeywordSchema = z.object({
+  id: z.string().regex(/^keywords\/[a-z0-9][a-z0-9-]*$/u),
+  name: z.string().min(1),
+  score: z.number(),
+});
 export const LibraryItemSchema = z.object({
   schemaVersion: z.literal(1),
   id: z.uuid(),
@@ -35,6 +41,11 @@ export const LibraryItemSchema = z.object({
   arxiv_id: z.string().nullable(),
   taxonomy: TaxonomySchema.nullable(),
   openalex_id: z.string().nullable(),
+  /**
+   * OpenAlex keywords, highest score first (at most 20). Absent means never asked; `[]` means OpenAlex listed none,
+   * so a backfill does not ask again.
+   */
+  keywords: z.array(PaperKeywordSchema).optional(),
   paper_id: z.uuid().nullable(),
   /** Whether the attached file seems to be this paper; null until a file is attached or when unknown. */
   file_matches_title: z.boolean().nullable(),
@@ -42,4 +53,5 @@ export const LibraryItemSchema = z.object({
 });
 export type OaSource = z.infer<typeof OaSourceSchema>;
 export type Taxonomy = z.infer<typeof TaxonomySchema>;
+export type PaperKeyword = z.infer<typeof PaperKeywordSchema>;
 export type LibraryItem = z.infer<typeof LibraryItemSchema>;
