@@ -1,0 +1,15 @@
+.page {
+  display: grid;
+  gap: var(--space-4);
+}
+.tools,
+.form {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.page pre {
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

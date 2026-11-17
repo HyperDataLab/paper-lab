@@ -10,6 +10,7 @@ import settings from '@/modules/settings';
 import paperImport from '@/modules/paper-import';
 import extraction from '@/modules/extraction';
 import corpus from '@/modules/corpus';
+import playground from '@/modules/playground';
 
 export const modules = [
   home,
@@ -22,6 +23,7 @@ export const modules = [
   history,
   transfer,
   calibration,
+  playground,
   adminRequests,
   settings,
 ];

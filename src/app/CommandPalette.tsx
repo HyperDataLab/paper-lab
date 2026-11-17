@@ -14,7 +14,7 @@ const groupLabels: Record<ModuleDefinition['group'], string> = {
   paper: 'Bài báo',
   analysis: 'Viết',
   data: 'Dữ liệu',
-  labs: 'Khám phá',
+  labs: 'Thử nghiệm',
   system: 'Hệ thống',
 };
 

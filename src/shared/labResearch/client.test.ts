@@ -40,3 +40,28 @@ it('reports invalid input', async () => {
 it('requires configuration', async () => {
   await expect(client(vi.fn(), '').callTool('x', {})).rejects.toMatchObject({ code: 'not_configured' });
 });
+it('checks public health and validates the response', async () => {
+  const fetcher = vi.fn().mockResolvedValue(new Response('{"ok":true}'));
+  expect(await client(fetcher, undefined, null).health()).toEqual({ ok: true });
+  expect(fetcher).toHaveBeenCalledWith('https://example.test/health', undefined);
+  await expect(client(vi.fn().mockResolvedValue(new Response('{}'))).health()).rejects.toMatchObject({
+    code: 'failed',
+  });
+});
+it('lists authenticated tools and rejects malformed schemas', async () => {
+  const fetcher = vi
+    .fn()
+    .mockResolvedValue(
+      new Response(JSON.stringify({ tools: [{ name: 'x', description: 'X', input_schema: {} }] })),
+    );
+  expect(await client(fetcher).listTools()).toHaveLength(1);
+  expect(fetcher).toHaveBeenCalledWith('https://example.test/v1/tools', {
+    headers: { Authorization: 'Bearer token' },
+  });
+  await expect(
+    client(
+      vi.fn().mockResolvedValue(new Response('{"tools":[{"name":"x","description":"x","input_schema":[]}]}')),
+    ).listTools(),
+  ).rejects.toMatchObject({ code: 'failed' });
+  await expect(client(vi.fn(), undefined, null).listTools()).rejects.toMatchObject({ code: 'signed_out' });
+});

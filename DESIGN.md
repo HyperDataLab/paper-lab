@@ -433,3 +433,7 @@ authors, venue, year and DOI. Parser counts belong in Minh bạch.
 ## Topic and gap check
 
 Research Design starts with a researcher-owned topic, neighbouring papers, debate, convergence, optional or review-track PICO, plain summary and decision. The checklist presents thresholds as suggestions and lets the researcher copy the statement into a chosen question. Future tools supply leads; they do not decide the topic or gap.
+
+## Playground
+
+The Thử nghiệm sidebar group opens Playground for testing lab research tools. Tools are grouped by purpose, with server-provided descriptions and forms generated from their input schemas. Results and the last ten runs remain only in the current page session.
