@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { checkDesign } from '@/core/researchDesign/draft/checkDesign';
-import { chainOf } from '@/core/researchDesign/draft/checkChain';
+import { Link } from 'react-router-dom';
 import { users } from '@/core/researchDesign/draft/measureOps';
 import {
   addQuestion,
@@ -9,7 +9,6 @@ import {
   addHypothesis,
   editHypothesis,
   removeHypothesis,
-  type DraftResult,
 } from '@/core/researchDesign/draft/ops';
 import type { Draft, DraftQuestion, DraftHypothesis } from '@/core/researchDesign/draft/schema';
 import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
@@ -21,6 +20,9 @@ import { useToast } from '@/shared/ui/toastContext';
 import { useResearchDesign } from '../ResearchDesignProvider';
 import { QuestionEditor, HypothesisEditor } from '../questions/Editors';
 import { kinds, claimLabel } from '../questions/view';
+import { ChainLine } from '../analyses/ChainLine';
+import { flagText } from '../design/flagText';
+import type { DraftResult } from '@/core/researchDesign/draft/ops';
 
 type Editor =
   | { type: 'question'; item?: DraftQuestion }
@@ -57,33 +59,17 @@ export default function QuestionsSection() {
   const flags = checkDesign(draft, state.bank);
   const rows = (hypotheses: DraftHypothesis[]) =>
     hypotheses.map((h) => {
-      const chain = chainOf(draft, h.id);
       return (
         <section key={h.id}>
           <p>
             {h.id} · {h.statement} · {kinds[h.kind]}
           </p>
           <p>{claimLabel(h.claim, state.bank?.collections['claim-types'] ?? [])}</p>
-          {chain.dependent.length ? (
-            chain.dependent.map(({ variable, metric }, index) => (
-              <p key={h.dependent[index]}>
-                {h.id} → {variable ? `${variable.id} ${variable.name}` : 'biến phụ thuộc không tồn tại'} →{' '}
-                {metric ? `${metric.id} ${metric.key || 'metric chưa có key'}` : 'chưa có metric'}
-              </p>
-            ))
-          ) : (
-            <p>{h.id} → chưa gắn biến phụ thuộc</p>
-          )}
-          {chain.independent.length > 0 && (
-            <p>
-              Biến độc lập:{' '}
-              {chain.independent.map((v) => `${v.id} ${v.name} (${v.levels.join(', ')})`).join(', ')}
-            </p>
-          )}
+          <ChainLine draft={draft} hypothesisId={h.id} />
           {flags
             .filter((f) => f.subject === h.id)
             .map((f, i) => (
-              <p key={`${f.rule}-${i}`}>Cần xem lại · {f.rule}</p>
+              <p key={`${f.rule}-${i}`}>Cần xem lại · {flagText(f, draft, state.bank)}</p>
             ))}
           <Button
             variant="ghost"
@@ -124,7 +110,16 @@ export default function QuestionsSection() {
             <p>Khoảng trống: {q.gap || 'Chưa ghi khoảng trống'}</p>
             {q.papers.map((id) => (
               <p key={id}>
-                {state.papers.papers.find((p) => p.id === id)?.title ?? 'Bài báo không còn trong dự án'}
+                {(() => {
+                  const paper = state.project.papers.find((p) => p.key === id);
+                  const title =
+                    state.papers.papers.find((p) => p.id === id)?.title ?? 'Bài báo không còn trong dự án';
+                  return paper?.source.kind === 'paper' ? (
+                    <Link to={`/papers/${paper.source.paperId}`}>{title}</Link>
+                  ) : (
+                    title
+                  );
+                })()}
               </p>
             ))}
             <Button variant="ghost" onClick={() => setEditor({ type: 'question', item: q })}>
