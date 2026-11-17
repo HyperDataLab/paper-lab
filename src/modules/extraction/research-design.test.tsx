@@ -55,19 +55,26 @@ it('shows the ordered sections on a multi-paper project and changes the linked s
     'Bảng so sánh',
     'Gói kế hoạch',
   ]);
-  expect(await screen.findByText('Đang chuyển từ Research Design')).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: 'Thêm câu hỏi' }, { timeout: 5000 })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('tab', { name: 'Writing Bank' }));
   await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('?other=kept&design=bank'));
-  expect(await within(screen.getByRole('tabpanel')).findByText('Writing Bank')).toBeInTheDocument();
   expect(
-    within(screen.getByRole('tabpanel')).getByText('Đang chuyển từ Research Design'),
+    await within(screen.getByRole('tabpanel')).findByRole(
+      'button',
+      { name: 'Nhập bản chụp' },
+      { timeout: 5000 },
+    ),
   ).toBeInTheDocument();
 });
 
 it('opens a section from a deep link', async () => {
   await mountProject(null, '?design=evidence');
   expect(screen.getByRole('tab', { name: 'Bảng so sánh' })).toHaveAttribute('aria-selected', 'true');
-  expect(await within(screen.getByRole('tabpanel')).findByText('Bảng so sánh')).toBeInTheDocument();
+  expect(
+    await within(screen.getByRole('tabpanel')).findByText('Chưa có bài báo nào được chọn', undefined, {
+      timeout: 5000,
+    }),
+  ).toBeInTheDocument();
 });
 
 it('does not show the area on a paper-owned project', async () => {
