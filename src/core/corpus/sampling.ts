@@ -8,6 +8,9 @@ export type Work = {
   primary_location?: { source?: { id?: string } | null } | null;
   biblio?: { volume?: string | null; issue?: string | null } | null;
   authorships?: { author?: { id?: string }; institutions?: { country_code?: string | null }[] }[];
+  /** OpenAlex citation count at harvest time; ranks the `admired` scope (see admired.ts). */
+  cited_by_count?: number | null;
+  primary_topic?: { subfield?: { id?: string | null } | null } | null;
 };
 export type Bucket = { from: number; to: number; target?: number };
 export type SamplingOptions = {
@@ -19,13 +22,20 @@ export type SamplingOptions = {
   seed: string;
 };
 
-export function harvestQuery(protocol: { sourceId: string; years: number[] }): string {
+/** `sort` is set for the `admired` scope only, which harvests one year at a time, most cited first. */
+export function harvestQuery(protocol: {
+  sourceId: string;
+  years: number[];
+  sort?: 'cited_by_count:desc';
+}): string {
   const years = [...protocol.years].sort((a, b) => a - b);
   if (!years.length) throw new Error('Years are required');
   const params = new URLSearchParams({
     filter: `primary_location.source.id:${protocol.sourceId},type:article,from_publication_date:${years[0]}-01-01,to_publication_date:${years.at(-1)}-12-31,open_access.oa_status:gold|diamond|hybrid|bronze`,
-    select: 'id,doi,title,publication_year,primary_location,authorships,biblio,open_access,is_retracted,type',
+    select:
+      'id,doi,title,publication_year,primary_location,authorships,biblio,open_access,is_retracted,type,cited_by_count,primary_topic',
   });
+  if (protocol.sort) params.set('sort', protocol.sort);
   return `https://api.openalex.org/works?${params}`;
 }
 

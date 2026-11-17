@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import type { Corpus } from '@/core/schemas/corpus';
+import { samplingRuleText } from '@/core/corpus/admired';
+import type { Corpus, CorpusSampling } from '@/core/schemas/corpus';
 import { TextField } from '@/shared/ui/TextField';
 import { Button } from '@/shared/ui/Button';
+import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { DialogActions } from '@/shared/ui/Dialog';
 import styles from './corpus.module.css';
 
@@ -34,6 +36,9 @@ export function ProtocolForm({
   const [issn, setIssn] = useState(journal?.venues[0]?.issn.join(', ') ?? '');
   const [source, setSource] = useState(journal?.venues[0]?.openalexSourceId ?? '');
   const [types, setTypes] = useState(journal?.articleTypes.join('\n') ?? '');
+  const [scope, setScope] = useState(journal?.sampling?.scope ?? 'signature');
+  const [topN, setTopN] = useState(journal?.sampling?.scope === 'admired' ? journal.sampling.n : 100);
+  const nOptions = [...new Set([50, 100, 200, topN])].sort((a, b) => a - b);
   const [from, setFrom] = useState(String(initial?.years[0] ?? ''));
   const [to, setTo] = useState(String(initial?.years.at(-1) ?? ''));
   const invalidYears = Boolean(
@@ -46,6 +51,13 @@ export function ProtocolForm({
       from && to
         ? Array.from({ length: Number(to) - Number(from) + 1 }, (_, i) => Number(from) + i)
         : [from, to].filter(Boolean).map(Number);
+    // A control corpus follows its target's scope, so only a journal corpus chooses one here.
+    const sampling: CorpusSampling | undefined =
+      kind !== 'journal'
+        ? journal?.sampling
+        : scope === 'admired'
+          ? { scope, n: topN, rankedBy: 'cited_by_count within publication year' }
+          : { scope };
     onSave(
       kind === 'topic'
         ? { researchQuestion: question, inclusion: lines(inclusion), exclusion: lines(exclusion), years }
@@ -64,11 +76,15 @@ export function ProtocolForm({
             years,
             articleTypes: lines(types),
             versionOfRecordOnly: journal?.versionOfRecordOnly ?? true,
-            samplingRule: journal?.samplingRule ?? '',
+            samplingRule:
+              sampling && (scope === 'admired' || journal?.sampling?.scope === 'admired')
+                ? samplingRuleText(sampling)
+                : (journal?.samplingRule ?? ''),
             seed: journal?.seed ?? '',
             strata: journal?.strata ?? [],
             capPerIssue: journal?.capPerIssue ?? null,
             exclusions: journal?.exclusions ?? [],
+            ...(sampling ? { sampling } : {}),
           },
     );
   }
@@ -109,6 +125,34 @@ export function ProtocolForm({
             value={types}
             onChange={(e) => setTypes(e.target.value)}
           />
+          {kind === 'journal' && (
+            <>
+              <SegmentedControl
+                label="Cách lấy mẫu"
+                value={scope}
+                options={[
+                  { value: 'signature', label: 'Mẫu ngẫu nhiên phân tầng (signature)' },
+                  { value: 'admired', label: 'Bài được trích dẫn nhiều nhất (admired)' },
+                ]}
+                onChange={(value) => setScope(value === 'admired' ? 'admired' : 'signature')}
+              />
+              {scope === 'admired' && (
+                <>
+                  <SegmentedControl
+                    label="Số bài N"
+                    value={String(topN)}
+                    options={nOptions.map((n) => ({ value: String(n), label: String(n) }))}
+                    onChange={(value) => setTopN(Number(value))}
+                  />
+                  <p>
+                    Xếp hạng theo số trích dẫn trong từng năm xuất bản, chia đều N bài cho các năm. Profile
+                    admired luôn là <strong>thăm dò</strong> (exploratory): dưới 150 + 150 bài và không giữ
+                    lại bài để kiểm tra.
+                  </p>
+                </>
+              )}
+            </>
+          )}
         </>
       )}
       <div className={styles.row}>

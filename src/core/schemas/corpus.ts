@@ -16,7 +16,25 @@ const journalBody = z.object({
   strata: z.array(z.string()),
   capPerIssue: count.nullable(),
   exclusions: z.array(z.string()),
+  /**
+   * Which sample this protocol draws (writing-bank doc 39 §2). Absent means `signature` (protocols before P4).
+   * `signature`: the C4a stratified random sample. `admired`: the top `n` papers by `cited_by_count`, ranked within
+   * publication year, equal numbers per year (`perYear` overrides the split); a control corpus follows the scope of
+   * the target it matches.
+   */
+  sampling: z
+    .discriminatedUnion('scope', [
+      z.object({ scope: z.literal('signature') }),
+      z.object({
+        scope: z.literal('admired'),
+        n: z.number().int().positive(),
+        perYear: z.number().int().positive().optional(),
+        rankedBy: z.literal('cited_by_count within publication year'),
+      }),
+    ])
+    .optional(),
 });
+export type CorpusSampling = NonNullable<z.infer<typeof journalBody>['sampling']>;
 const topicBody = z.object({
   researchQuestion: z.string(),
   inclusion: z.array(z.string()),
@@ -83,6 +101,13 @@ export const CorpusMemberSchema = z.object({
   textRead: z.enum(['FULL_TEXT', 'ABSTRACT_ONLY', 'METADATA_ONLY']),
   authorIds: z.array(z.string()),
   countries: z.array(z.string()),
+  /** OpenAlex `cited_by_count` when the journal harvest added the member; it drifts, so it is a snapshot. */
+  citedByCount: count.optional(),
+  /** OpenAlex primary topic subfield, e.g. `subfields/1702` (the key shared with the Writing Bank). */
+  subfieldId: z
+    .string()
+    .regex(/^subfields\/\d+$/u)
+    .optional(),
   decisions: z.array(
     z.object({
       stage: z.enum(['title-abstract', 'full-text']),

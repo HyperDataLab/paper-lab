@@ -25,7 +25,15 @@ describe('C4a journal sampling', () => {
       'primary_location.source.id:S13144211,type:article,from_publication_date:2020-01-01,to_publication_date:2025-12-31,open_access.oa_status:gold|diamond|hybrid|bronze',
     );
     expect(url.searchParams.get('select')).toBe(
-      'id,doi,title,publication_year,primary_location,authorships,biblio,open_access,is_retracted,type',
+      'id,doi,title,publication_year,primary_location,authorships,biblio,open_access,is_retracted,type,cited_by_count,primary_topic',
+    );
+    expect(url.searchParams.get('sort')).toBeNull();
+  });
+  it('P4 sorts by citations when the admired scope asks for it', () => {
+    const url = new URL(harvestQuery({ sourceId: 'S1', years: [2022], sort: 'cited_by_count:desc' }));
+    expect(url.searchParams.get('sort')).toBe('cited_by_count:desc');
+    expect(url.searchParams.get('filter')).toContain(
+      'from_publication_date:2022-01-01,to_publication_date:2022-12-31',
     );
   });
   it('excludes retractions, corrections, non-articles and missing DOI', () => {

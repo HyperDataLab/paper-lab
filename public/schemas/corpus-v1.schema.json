@@ -395,6 +395,8 @@
               "textRead": { "type": "string", "enum": ["FULL_TEXT", "ABSTRACT_ONLY", "METADATA_ONLY"] },
               "authorIds": { "type": "array", "items": { "type": "string" } },
               "countries": { "type": "array", "items": { "type": "string" } },
+              "citedByCount": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+              "subfieldId": { "type": "string", "pattern": "^subfields\\/\\d+$" },
               "decisions": {
                 "type": "array",
                 "items": {
@@ -777,7 +779,32 @@
                       { "type": "null" }
                     ]
                   },
-                  "exclusions": { "type": "array", "items": { "type": "string" } }
+                  "exclusions": { "type": "array", "items": { "type": "string" } },
+                  "sampling": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": { "scope": { "type": "string", "const": "signature" } },
+                        "required": ["scope"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "scope": { "type": "string", "const": "admired" },
+                          "n": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+                          "perYear": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "rankedBy": { "type": "string", "const": "cited_by_count within publication year" }
+                        },
+                        "required": ["scope", "n", "rankedBy"],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
                 },
                 "required": [
                   "venues",
@@ -1206,6 +1233,8 @@
               "textRead": { "type": "string", "enum": ["FULL_TEXT", "ABSTRACT_ONLY", "METADATA_ONLY"] },
               "authorIds": { "type": "array", "items": { "type": "string" } },
               "countries": { "type": "array", "items": { "type": "string" } },
+              "citedByCount": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+              "subfieldId": { "type": "string", "pattern": "^subfields\\/\\d+$" },
               "decisions": {
                 "type": "array",
                 "items": {
@@ -1588,7 +1617,32 @@
                       { "type": "null" }
                     ]
                   },
-                  "exclusions": { "type": "array", "items": { "type": "string" } }
+                  "exclusions": { "type": "array", "items": { "type": "string" } },
+                  "sampling": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": { "scope": { "type": "string", "const": "signature" } },
+                        "required": ["scope"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "scope": { "type": "string", "const": "admired" },
+                          "n": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+                          "perYear": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "rankedBy": { "type": "string", "const": "cited_by_count within publication year" }
+                        },
+                        "required": ["scope", "n", "rankedBy"],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
                 },
                 "required": [
                   "venues",
@@ -2017,6 +2071,8 @@
               "textRead": { "type": "string", "enum": ["FULL_TEXT", "ABSTRACT_ONLY", "METADATA_ONLY"] },
               "authorIds": { "type": "array", "items": { "type": "string" } },
               "countries": { "type": "array", "items": { "type": "string" } },
+              "citedByCount": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+              "subfieldId": { "type": "string", "pattern": "^subfields\\/\\d+$" },
               "decisions": {
                 "type": "array",
                 "items": {
