@@ -114,7 +114,7 @@ export function FactDrawer({
             </div>
           ) : (
             <p className={styles.missing} key={sentence.key}>
-              Không tìm thấy trong paper model đang giữ ({sentence.key})
+              Không tìm thấy vị trí trong bài
             </p>
           ),
         )}
