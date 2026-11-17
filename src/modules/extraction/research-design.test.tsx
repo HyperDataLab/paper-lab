@@ -46,6 +46,7 @@ it('shows the ordered sections on a multi-paper project and changes the linked s
   await mountProject(null, '?other=kept');
   const tabs = within(screen.getByRole('tablist', { name: 'Thiết kế nghiên cứu' })).getAllByRole('tab');
   expect(tabs.map((tab) => tab.textContent)).toEqual([
+    'Đề tài và khoảng trống',
     'Câu hỏi và giả thuyết',
     'Thiết kế nghiên cứu',
     'Đo lường',
@@ -55,7 +56,9 @@ it('shows the ordered sections on a multi-paper project and changes the linked s
     'Bảng so sánh',
     'Gói kế hoạch',
   ]);
-  expect(await screen.findByRole('button', { name: 'Thêm câu hỏi' }, { timeout: 5000 })).toBeInTheDocument();
+  expect(
+    await screen.findByRole('button', { name: 'Thêm bài gần nhất' }, { timeout: 5000 }),
+  ).toBeInTheDocument();
   fireEvent.click(screen.getByRole('tab', { name: 'Writing Bank' }));
   await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('?other=kept&design=bank'));
   expect(
