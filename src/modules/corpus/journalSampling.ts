@@ -1,7 +1,15 @@
 import { newCorpus } from '@/core/corpus';
+import { samplingRuleText } from '@/core/corpus/admired';
+import type { CorpusSampling } from '@/core/schemas/corpus';
 
 export const ESWA_SEED = 'paperlab-eswa-2026';
-export function createEswaPair(targetId: string, controlId: string, at: string) {
+export function createEswaPair(
+  targetId: string,
+  controlId: string,
+  at: string,
+  sampling: CorpusSampling = { scope: 'signature' },
+) {
+  // Only the target records a scope; the control follows the target it matches.
   const common = {
     years: [2020, 2021, 2022, 2023, 2024, 2025],
     articleTypes: ['article'],
@@ -22,7 +30,8 @@ export function createEswaPair(targetId: string, controlId: string, at: string) 
         createdAt: at,
         body: {
           ...common,
-          samplingRule: '150; minimum 20 per two-year bucket; 20% held out',
+          sampling,
+          samplingRule: samplingRuleText(sampling),
           venues: [{ name: 'Expert Systems with Applications', issn: [], openalexSourceId: 'S13144211' }],
         },
       },
