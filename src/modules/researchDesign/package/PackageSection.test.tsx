@@ -3,9 +3,12 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { emptyDraft } from '@/core/researchDesign/draft/schema';
 import { examplePlan } from '@/core/researchDesign/plan/examplePlan';
+import { checkPackage } from '@/core/researchDesign/plan/exportPackage';
 import { emptyResearchDesign, type ResearchDesign } from '@/core/schemas/researchDesign';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
 import { ToastProvider } from '@/shared/ui/ToastProvider';
+import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
+import * as downloads from './download';
 import PackageSection from '../sections/PackageSection';
 
 const mock = vi.hoisted(() => ({
@@ -14,6 +17,7 @@ const mock = vi.hoisted(() => ({
   published: false,
   freeze: vi.fn(),
   update: vi.fn(),
+  reload: vi.fn(),
 }));
 vi.mock('../ResearchDesignProvider', async () => {
   const { emptyResearchDesign } = await import('@/core/schemas/researchDesign');
@@ -33,7 +37,7 @@ vi.mock('../ResearchDesignProvider', async () => {
       save: vi.fn(),
       update: mock.update,
       freeze: mock.freeze,
-      reload: vi.fn(),
+      reload: mock.reload,
     }),
   };
 });
@@ -57,6 +61,93 @@ function show(auth?: AuthValue) {
   return render(auth ? <AuthContext.Provider value={auth}>{page}</AuthContext.Provider> : page);
 }
 const frozenRecord = () => ({ ...emptyResearchDesign('project'), frozenPlans: [examplePlan()] });
+
+afterEach(() => {
+  Object.assign(mock, { complete: false, frozen: false, published: false });
+  mock.freeze.mockReset();
+  mock.update.mockReset();
+  mock.reload.mockReset();
+  vi.restoreAllMocks();
+});
+
+it('PK-06 requires a nonblank change note for the next version', async () => {
+  mock.complete = true;
+  mock.frozen = true;
+  mock.freeze.mockResolvedValue(frozenRecord());
+  show();
+  fireEvent.click(screen.getByRole('button', { name: 'Đóng băng phiên bản 2' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Đóng băng' }));
+  expect(screen.getByText('Cần ghi thay đổi so với phiên bản trước.')).toBeInTheDocument();
+  const note = screen.getByLabelText('Thay đổi so với phiên bản trước và lý do');
+  fireEvent.change(note, { target: { value: '   ' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Đóng băng' }));
+  expect(mock.freeze).not.toHaveBeenCalled();
+  fireEvent.change(note, { target: { value: '  Synthetic change  ' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Đóng băng' }));
+  await waitFor(
+    () =>
+      expect(mock.freeze).toHaveBeenCalledWith(
+        2,
+        'local',
+        'Synthetic change',
+        expect.anything(),
+        expect.any(String),
+      ),
+    { timeout: 5000 },
+  );
+});
+
+it('PK-07 shows a freeze conflict and reloads the stored record', async () => {
+  mock.complete = true;
+  mock.freeze.mockRejectedValue(new ResearchDesignConflictError('conflict'));
+  mock.reload.mockResolvedValue(undefined);
+  show();
+  fireEvent.click(screen.getByRole('button', { name: 'Đóng băng phiên bản 1' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Đóng băng' }));
+  expect(
+    await screen.findByText('Phiên bản vừa thay đổi. Danh sách đã được tải lại.', {}, { timeout: 5000 }),
+  ).toBeInTheDocument();
+  expect(mock.reload).toHaveBeenCalledOnce();
+});
+
+it('PK-05 downloads bytes and revokes the object URL', () => {
+  vi.useFakeTimers();
+  const create = vi.fn((_blob: Blob) => 'blob:synthetic');
+  const revoke = vi.fn();
+  const originalCreate = Object.getOwnPropertyDescriptor(URL, 'createObjectURL');
+  const originalRevoke = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL');
+  Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: create });
+  Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revoke });
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  try {
+    downloads.download('plan.zip', new Uint8Array([1, 2]), 'application/zip');
+    expect(create.mock.calls[0]?.[0]).toBeInstanceOf(Blob);
+    expect(click).toHaveBeenCalledOnce();
+    expect(click.mock.instances[0]).toHaveAttribute('download', 'plan.zip');
+    vi.runAllTimers();
+    expect(revoke).toHaveBeenCalledWith('blob:synthetic');
+  } finally {
+    if (originalCreate) Object.defineProperty(URL, 'createObjectURL', originalCreate);
+    else Reflect.deleteProperty(URL, 'createObjectURL');
+    if (originalRevoke) Object.defineProperty(URL, 'revokeObjectURL', originalRevoke);
+    else Reflect.deleteProperty(URL, 'revokeObjectURL');
+    vi.useRealTimers();
+  }
+});
+
+it('PK-08 downloads a valid ZIP for the frozen plan', async () => {
+  mock.frozen = true;
+  const save = vi.spyOn(downloads, 'download').mockImplementation(() => {});
+  show();
+  fireEvent.click(screen.getByRole('button', { name: 'Tải gói (.zip)' }));
+  await waitFor(() => expect(save).toHaveBeenCalledOnce(), { timeout: 5000 });
+  const [name, bytes, type] = save.mock.calls[0]!;
+  expect(name).toMatch(/\.zip$/);
+  expect(type).toBe('application/zip');
+  const result = await checkPackage(bytes);
+  expect(result.ok).toBe(true);
+  if (result.ok) expect(result.plan).toEqual(examplePlan());
+});
 
 function complete() {
   const d = emptyDraft();

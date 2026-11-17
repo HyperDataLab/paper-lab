@@ -87,7 +87,5 @@ gate lists what is missing.
 
 Open follow-ups:
 
-- Not all of Research Design's UI tests are ported yet: the remaining question tests (QH), and Gói kế hoạch's change-note,
-  conflict and ZIP-download tests (only PK-01, PK-02 and PK-08/RS are in).
 - Not run against the live bank API or a real model; ZIP download not tried in the browser.
 - "Gợi ý từ bảng so sánh" lives in Bảng so sánh only; the buttons RD had on Câu hỏi, Đo lường and Thiết kế are TODOs.
