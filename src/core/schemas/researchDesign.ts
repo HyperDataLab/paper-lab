@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TopicCheckSchema } from './topicCheck';
 import { draftSchema, emptyDraft } from '../researchDesign/draft/schema';
 import { planSchema } from '../researchDesign/plan/schema';
 import { factsDocSchema } from '../researchDesign/facts/factsDoc';
@@ -12,6 +13,7 @@ export const ResearchDesignSchema = z
     bankRelease: z.string().nullable(),
     facts: z.record(z.string(), factsDocSchema),
     frozenPlans: z.array(planSchema),
+    topicCheck: TopicCheckSchema.optional(),
     /** Frozen versions the lab's server has accepted for SRD, keyed by plan version. Absent in older records. */
     publishedPlans: z
       .record(z.string().regex(/^[1-9]\d*$/u), z.strictObject({ publishedAt: z.iso.datetime() }))

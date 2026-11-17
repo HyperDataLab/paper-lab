@@ -429,3 +429,7 @@ authors, venue, year and DOI. Parser counts belong in Minh bạch.
 - Put automatic checks in Issues as a filter with a secondary re-run action.
 - Keep run progress in the sticky centre tabs; the completion chip opens Issues and can be dismissed.
 - Show the whole-paper action as secondary with the number of remaining analyses, including the summary; hide it when none remain.
+
+## Topic and gap check
+
+Research Design starts with a researcher-owned topic, neighbouring papers, debate, convergence, optional or review-track PICO, plain summary and decision. The checklist presents thresholds as suggestions and lets the researcher copy the statement into a chosen question. Future tools supply leads; they do not decide the topic or gap.

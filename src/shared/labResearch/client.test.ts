@@ -1,0 +1,42 @@
+import { expect, it, vi } from 'vitest';
+import { createLabResearchClient } from './client';
+const client = (fetcher: typeof fetch, baseUrl = 'https://example.test', token: string | null = 'token') =>
+  createLabResearchClient({ baseUrl, getToken: async () => token, fetch: fetcher });
+it('sends a tool call and validates its envelope', async () => {
+  const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true, output: { count: 3 } })));
+  expect(await client(fetcher).callTool('test', { q: 'x' })).toEqual({ count: 3 });
+  expect(fetcher).toHaveBeenCalledWith(
+    'https://example.test/v1/tools/test',
+    expect.objectContaining({
+      method: 'POST',
+      body: '{"q":"x"}',
+      headers: expect.objectContaining({ Authorization: 'Bearer token' }),
+    }),
+  );
+});
+it('requires a token', async () => {
+  await expect(client(vi.fn(), undefined, null).callTool('x', {})).rejects.toMatchObject({
+    status: 401,
+    code: 'signed_out',
+  });
+});
+it('reports a network error', async () => {
+  await expect(client(vi.fn().mockRejectedValue(new Error())).callTool('x', {})).rejects.toMatchObject({
+    code: 'network',
+  });
+});
+it('reports rate limits and retry delay', async () => {
+  await expect(
+    client(
+      vi.fn().mockResolvedValue(new Response('{}', { status: 429, headers: { 'Retry-After': '30' } })),
+    ).callTool('x', {}),
+  ).rejects.toMatchObject({ code: 'rate_limited', retryAfter: 30 });
+});
+it('reports invalid input', async () => {
+  await expect(
+    client(vi.fn().mockResolvedValue(new Response('{}', { status: 400 }))).callTool('x', {}),
+  ).rejects.toMatchObject({ code: 'invalid_input' });
+});
+it('requires configuration', async () => {
+  await expect(client(vi.fn(), '').callTool('x', {})).rejects.toMatchObject({ code: 'not_configured' });
+});

@@ -2,6 +2,12 @@ import { lazy } from 'react';
 
 export const researchDesignSections = [
   {
+    id: 'topic',
+    label: 'Đề tài và khoảng trống',
+    description: 'Kiểm tra đề tài, bài gần nhất và khoảng trống trước khi đặt câu hỏi.',
+    component: lazy(() => import('./sections/TopicSection')),
+  },
+  {
     id: 'questions',
     label: 'Câu hỏi và giả thuyết',
     description: 'Xác định câu hỏi và giả thuyết nghiên cứu.',
