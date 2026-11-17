@@ -14,6 +14,7 @@ import { createPaperContextRepository } from './paperContext';
 import { createCalibrationLabelsRepository } from './calibrationLabels';
 import { createCorpusProfilesRepository } from './corpusProfiles';
 import { createCorpusTopicsRepository } from './corpusTopics';
+import { createCorpusKeywordsRepository } from './corpusKeywords';
 import { createCorporaRepository } from './corpora';
 import { createPaperReviewsRepository } from './paperReviews';
 import { createPaperProbesRepository } from './paperProbes';
@@ -89,6 +90,7 @@ export function createRepositories(
     corpora,
     corpusProfiles: createCorpusProfilesRepository(db),
     corpusTopics: createCorpusTopicsRepository(db),
+    corpusKeywords: createCorpusKeywordsRepository(db, library, now),
     pdfFiles,
     grobid: createGrobidRepository(db),
     calibrationLabels,

@@ -1,5 +1,6 @@
 import type { StoredCorpusProfile } from '@/core/schemas/corpusProfile';
 import type { CorpusTopics, TopicName } from '@/core/schemas/corpusTopics';
+import type { CorpusKeywords, DoiKeywords } from '@/core/schemas/corpusKeywords';
 import type { PdfFileRecord } from './pdfFiles';
 import type {
   ExtractionProject,
@@ -56,6 +57,8 @@ export class ParagraphDb extends Dexie {
   grobid!: Table<GrobidRecord, string>;
   researchDesigns!: Table<ResearchDesign, string>;
   researchDesignBanks!: Table<{ projectId: string; bank: BankDoc; bytes: number[] }, string>;
+  corpusKeywords!: Table<CorpusKeywords, string>;
+  doiKeywords!: Table<DoiKeywords, string>;
   constructor(name = 'paragraph-lab') {
     super(name);
     this.version(1).stores({
@@ -93,6 +96,7 @@ export class ParagraphDb extends Dexie {
       topicNames: '[snapshotId+topicId], snapshotId',
     });
     this.version(23).stores({ researchDesigns: 'projectId', researchDesignBanks: 'projectId' });
+    this.version(24).stores({ corpusKeywords: 'corpusId', doiKeywords: 'doi' });
   }
 }
 export function createDb(name?: string) {
