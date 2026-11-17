@@ -13,4 +13,6 @@ export interface ModuleDefinition {
   partOf?: string;
   /** Needs context from another screen, so opening it from search would show nothing useful. */
   hiddenFromSearch?: boolean;
+  /** Listed in the sidebar and search only when the lab server says the account is an admin (`useAdmin`). */
+  adminOnly?: boolean;
 }

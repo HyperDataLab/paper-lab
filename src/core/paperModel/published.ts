@@ -1,7 +1,11 @@
 import type { PaperModel } from '../schemas';
 
 export function publishedPaperId(model: PaperModel, localPaperId: string): string {
-  const sha = model.document.source.sha256;
+  return publishedIdFor(model.document.source.sha256, localPaperId);
+}
+
+/** The id a paper is published under: `sha256-<hex>` of its file, or its local id when it has no file hash. */
+export function publishedIdFor(sha: string | null | undefined, localPaperId: string): string {
   if (!sha) return localPaperId.toLowerCase();
   const match = /^(?:sha256:)?([0-9a-f]{64})$/u.exec(sha);
   if (!match) throw new Error('Invalid source SHA-256');

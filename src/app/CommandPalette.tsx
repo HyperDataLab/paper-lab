@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Search, X } from 'lucide-react';
+import { useAdmin } from '@/shared/auth/useAdmin';
 import { Button } from '@/shared/ui/Button';
 import { IconButton } from '@/shared/ui/IconButton';
 import { TextField } from '@/shared/ui/TextField';
@@ -40,9 +41,12 @@ export function CommandPalette() {
     if (open) input.current?.focus();
   }, [open]);
 
+  const { admin } = useAdmin();
   const items = modules.filter(
     (item) =>
-      !item.hiddenFromSearch && item.label.toLocaleLowerCase('vi').includes(query.toLocaleLowerCase('vi')),
+      !item.hiddenFromSearch &&
+      (admin || !item.adminOnly) &&
+      item.label.toLocaleLowerCase('vi').includes(query.toLocaleLowerCase('vi')),
   );
 
   function go(path: string) {
