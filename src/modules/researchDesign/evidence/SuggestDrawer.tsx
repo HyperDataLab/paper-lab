@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { addMetric } from '@/core/researchDesign/draft/measureOps';
 import { addHypothesis, addThreat, type DraftResult } from '@/core/researchDesign/draft/ops';
+import { addAnalysis } from '@/core/researchDesign/draft/planOps';
+import type { Target } from '@/core/researchDesign/suggest/suggest';
 import type { Draft } from '@/core/researchDesign/draft/schema';
 import type { ResearchDesign } from '@/core/schemas/researchDesign';
 import { Badge } from '@/shared/ui/Badge';
@@ -14,13 +16,14 @@ import type { Loaded } from './useEvidence';
 import type { FactsDoc } from '@/core/researchDesign/facts/factsDoc';
 import type { Paper } from '@/core/researchDesign/papers';
 import { useSaveOnceMore } from './useSaveOnceMore';
-import { useSuggestions, type Target } from './useSuggestions';
+import { useSuggestions } from './useSuggestions';
 import styles from './evidence.module.css';
 
 const TARGETS: { value: Target; label: string }[] = [
   { value: 'hypotheses', label: 'Giả thuyết' },
   { value: 'metrics', label: 'Metric' },
   { value: 'threats', label: 'Nguy cơ' },
+  { value: 'analyses', label: 'Phân tích' },
 ];
 const slug = (text: string) =>
   text
@@ -33,6 +36,18 @@ function addTo(target: Target, draft: Draft, text: string, question: string | nu
   if (target === 'hypotheses')
     return addHypothesis(draft, { statement: text, kind: 'exploratory', question, claim: null });
   if (target === 'threats') return addThreat(draft, { name: text, mitigation: '', bank: null });
+  if (target === 'analyses')
+    return addAnalysis(draft, {
+      hypothesis: null,
+      method: null,
+      variables: [],
+      conditions: [],
+      parameters: {},
+      assumptions: [text],
+      missingPolicy: 'listwise',
+      alpha: 0.05,
+      correction: 'none',
+    });
   return addMetric(draft, {
     name: text,
     key: slug(text),
@@ -53,14 +68,16 @@ export function SuggestDrawer({
   docs,
   close,
   openFacts,
+  scope,
 }: {
   state: Loaded;
   papers: Paper[];
   docs: Record<string, FactsDoc | undefined>;
   close: () => void;
   openFacts: () => void;
+  scope?: Target;
 }) {
-  const [target, setTarget] = useState<Target>('hypotheses');
+  const [target, setTarget] = useState<Target>(scope ?? 'hypotheses');
   const draft = state.design.draft;
   const result = useSuggestions({ projectId: state.project.id, target, papers, docs, draft });
   const save = useSaveOnceMore(state.save);
@@ -118,7 +135,7 @@ export function SuggestDrawer({
       <SegmentedControl
         label="Gợi ý cho"
         value={target}
-        options={TARGETS}
+        options={scope ? TARGETS.filter((entry) => entry.value === scope) : TARGETS}
         onChange={(value) => setTarget(value as Target)}
       />
       {result.factCount === 0 ? (
@@ -150,6 +167,11 @@ export function SuggestDrawer({
         return (
           <SheetSection key={id} title={<Badge tone="accent">Gợi ý của AI</Badge>}>
             <p>{item.text}</p>
+            {target === 'analyses' && (
+              <p className={styles.hint}>
+                Khi thêm, gợi ý được lưu ở giả định; hãy chọn phương pháp và kiểm tra các thiết lập phân tích.
+              </p>
+            )}
             <div className={styles.row}>
               {item.cites.map((cite) => (
                 <Chip key={cite} onClick={openFacts}>

@@ -3,12 +3,11 @@ import { z } from 'zod';
 import { PROMPT_VERSIONS } from '@/core/prompts';
 import type { FactsDoc } from '@/core/researchDesign/facts/factsDoc';
 import type { Paper } from '@/core/researchDesign/papers';
-import { buildSuggestionRequest, readSuggestions } from '@/core/researchDesign/suggest/suggest';
+import { buildSuggestionRequest, readSuggestions, type Target } from '@/core/researchDesign/suggest/suggest';
 import type { Draft } from '@/core/researchDesign/draft/schema';
 import { ConsentRequiredError, InvalidModelOutputError, describeLlmError } from '@/shared/llm';
 import { useLlm } from '@/shared/llm/LlmProvider';
 
-export type Target = 'hypotheses' | 'metrics' | 'threats';
 type State = 'idle' | 'sending' | 'done' | 'failed' | 'unreadable' | 'consent';
 const answerSchema = z.object({
   suggestions: z.array(z.object({ text: z.string(), cites: z.array(z.string()) })),

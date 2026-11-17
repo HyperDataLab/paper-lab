@@ -31,7 +31,7 @@ export const PROMPT_VERSIONS = {
   searchPlan: 'search-plan-1',
   screening: 'screening-1',
   synthesis: 'synthesis-3',
-  planSuggestion: 'plan-suggestion-1',
+  planSuggestion: 'plan-suggestion-2',
 } as const;
 export const CONNECTION_TEST_SYSTEM = 'You are a connection test. Return the requested JSON object.';
 export const CONNECTION_TEST_USER =

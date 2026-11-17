@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { emptyResearchDesign } from '@/core/schemas/researchDesign';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
@@ -9,6 +9,7 @@ import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { ResearchDesignProvider } from '../ResearchDesignProvider';
 import AnalysesSection from '../sections/AnalysesSection';
 import RunsSection from '../sections/RunsSection';
+vi.mock('../evidence/SectionSuggest', () => ({ SectionSuggest: () => null }));
 
 async function setup(section: 'analyses' | 'runs') {
   const repo = createRepositories(createDb(`sections-${crypto.randomUUID()}`));
