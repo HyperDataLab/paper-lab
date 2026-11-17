@@ -1,4 +1,5 @@
 import type { Deps } from './app';
+import { completeFactRequest, readFactRequest } from './factRequests';
 
 const PREFIX = 'paperlab/published/';
 const MODEL_PATH =
@@ -26,31 +27,37 @@ export async function handlePublished(deps: Deps, request: Request, email: strin
       limit: 100,
       include: ['customMetadata'],
     });
-    const items = page.objects
-      .filter((object) => object.key.endsWith('/model.json'))
-      .map((object) => {
-        const meta = object.customMetadata ?? {};
-        return {
-          paperId: object.key.slice(PREFIX.length, -'/model.json'.length),
-          title: meta.title,
-          doi: meta.doi || null,
-          sourceSha256: meta.sourceSha256 || null,
-          schemaVersion: meta.schemaVersion,
-          updatedAt: meta.updatedAt,
-          publishedBy: meta.publishedBy,
-          experimentFacts: meta.experimentFacts,
-        };
-      })
-      .filter((item) => {
-        const doi = url.searchParams.get('doi');
-        const sha = url.searchParams.get('sourceSha256');
-        const since = url.searchParams.get('updatedSince');
-        return (
-          (!doi || item.doi?.toLowerCase() === doi.toLowerCase()) &&
-          (!sha || item.sourceSha256 === sha) &&
-          (!since || (item.updatedAt ?? '') >= since)
-        );
-      });
+    const items = await Promise.all(
+      page.objects
+        .filter((object) => object.key.endsWith('/model.json'))
+        .map((object) => {
+          const meta = object.customMetadata ?? {};
+          return {
+            paperId: object.key.slice(PREFIX.length, -'/model.json'.length),
+            title: meta.title,
+            doi: meta.doi || null,
+            sourceSha256: meta.sourceSha256 || null,
+            schemaVersion: meta.schemaVersion,
+            updatedAt: meta.updatedAt,
+            publishedBy: meta.publishedBy,
+            experimentFacts: meta.experimentFacts,
+          };
+        })
+        .filter((item) => {
+          const doi = url.searchParams.get('doi');
+          const sha = url.searchParams.get('sourceSha256');
+          const since = url.searchParams.get('updatedSince');
+          return (
+            (!doi || item.doi?.toLowerCase() === doi.toLowerCase()) &&
+            (!sha || item.sourceSha256 === sha) &&
+            (!since || (item.updatedAt ?? '') >= since)
+          );
+        })
+        .map(async (item) => {
+          const request = await readFactRequest(deps, item.paperId);
+          return request ? { ...item, factsRequest: request.value.state } : item;
+        }),
+    );
     return json(200, { items, nextCursor: page.truncated ? (page.cursor ?? null) : null }, headers);
   }
   const match = MODEL_PATH.exec(url.pathname);
@@ -143,6 +150,7 @@ export async function handlePublished(deps: Deps, request: Request, email: strin
         customMetadata: { ...publishedModel?.customMetadata, experimentFacts: status },
       });
     }
+    await completeFactRequest(deps, id);
     return json(200, { paperId: id, etag, updatedAt, unchanged }, headers);
   }
   if (existing?.customMetadata?.contentEtag === etag)

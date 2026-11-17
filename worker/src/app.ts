@@ -2,6 +2,7 @@ import { NotAllowedError } from './auth';
 import { GrobidStartingError } from './grobid-error';
 import { handlePublished, publishedError } from './published';
 import { handlePlans } from './plans';
+import { handleFactRequests, isAdmin } from './factRequests';
 
 /** The part of an R2 bucket this worker uses, so the logic runs in tests without Cloudflare. */
 export interface Bucket {
@@ -26,6 +27,7 @@ export interface Deps {
   verifyToken: (token: string) => Promise<{ uid: string; email: string }>;
   bucket: Bucket;
   allowedOrigins: string[];
+  adminEmails?: string[];
   now: () => Date;
   grobid?: (pdf: ArrayBuffer) => Promise<Response>;
 }
@@ -93,6 +95,10 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
 
   if (isV1) {
     try {
+      if (path === '/v1/me' && request.method === 'GET')
+        return json(200, { email: caller.email, admin: isAdmin(deps, caller.email) }, headers);
+      if (path.startsWith('/v1/admin/') || path.endsWith('/experiment-facts/requests'))
+        return await handleFactRequests(deps, request, caller.email, headers);
       return path === '/v1/projects' || path.startsWith('/v1/projects/')
         ? await handlePlans(deps, request, caller.email, headers)
         : await handlePublished(deps, request, caller.email, headers);

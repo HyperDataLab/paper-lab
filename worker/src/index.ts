@@ -12,6 +12,7 @@ interface Env {
   ACCEPTED_PROJECT_IDS?: string;
   ALLOWED_DOMAIN: string;
   ALLOWED_ORIGINS: string;
+  ADMIN_EMAILS: string;
   GROBID: Parameters<typeof getContainer>[0];
 }
 
@@ -67,6 +68,7 @@ export default {
           ),
         bucket: env.BUCKET,
         allowedOrigins: env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim()),
+        adminEmails: (env.ADMIN_EMAILS ?? '').split(',').map((email) => email.trim().toLowerCase()),
         now: () => new Date(),
         grobid: (pdf) => processPdf(env.GROBID, pdf),
       },
