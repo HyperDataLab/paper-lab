@@ -43,6 +43,10 @@ import type { createPaperChecksRepository } from './paperChecks';
 import type { createCalibrationLabelsRepository } from './calibrationLabels';
 import { StoredCorpusProfileSchema } from '@/core/schemas/corpusProfile';
 import type { createCorporaRepository } from './corpora';
+import { ResearchDesignSchema } from '@/core/schemas/researchDesign';
+import { bankDocSchema } from '@/core/researchDesign/bank/snapshot';
+import { snapshotRelease } from '@/core/researchDesign/bank/release';
+import { toBankDoc } from '@/core/researchDesign/bank/readSnapshot';
 export function createTransferRepository(
   db: ParagraphDb,
   clock: () => Date,
@@ -110,6 +114,12 @@ export function createTransferRepository(
         (await db.extractionProjects.toArray()).map((value) => ExtractionProjectSchema.parse(value)),
         await corpora.list(),
         (await db.corpusProfiles.toArray()).map((row) => StoredCorpusProfileSchema.parse(row)),
+        (await db.researchDesigns.toArray()).map((row) => ResearchDesignSchema.parse(row)),
+        (await db.researchDesignBanks.toArray()).map((row) => ({
+          projectId: row.projectId,
+          bank: bankDocSchema.parse(row.bank),
+          bytes: row.bytes,
+        })),
       );
     },
     async previewImport(raw: unknown) {
@@ -144,6 +154,17 @@ export function createTransferRepository(
       );
     },
     async applyImport(plan: Extract<ImportPlan, { ok: true }>) {
+      for (const row of plan.researchDesignBanks) {
+        const bytes = new Uint8Array(row.bytes).buffer;
+        const data: unknown = JSON.parse(new TextDecoder().decode(bytes));
+        const result = await snapshotRelease(data, bytes);
+        if (
+          !result.ok ||
+          JSON.stringify(toBankDoc(result.file, result.release, row.bank.importedBy, row.bank.importedAt)) !==
+            JSON.stringify(row.bank)
+        )
+          throw new Error('Invalid research design bank snapshot');
+      }
       for (const revision of plan.revisionsToInsert)
         if ((await sourceHash(revision.revisedText)) !== revision.revisedHash)
           throw new Error('Revision hash mismatch');
@@ -191,6 +212,8 @@ export function createTransferRepository(
           db.stance,
           db.paperInsights,
           db.extractionProjects,
+          db.researchDesigns,
+          db.researchDesignBanks,
           db.corpora,
           db.corpusProfiles,
           db.reviewNgrams,
@@ -360,6 +383,21 @@ export function createTransferRepository(
             const existing = await db.extractionProjects.get(record.id);
             if (!existing || record.updatedAt > existing.updatedAt)
               await db.extractionProjects.put(ExtractionProjectSchema.parse(record));
+          }
+          for (const record of plan.researchDesigns) {
+            if (!(await db.extractionProjects.get(record.projectId))) continue;
+            const existing = await db.researchDesigns.get(record.projectId);
+            if (existing) continue;
+            const bank = plan.researchDesignBanks.find((row) => row.projectId === record.projectId);
+            if (record.bankRelease && (!bank || bank.bank.release !== record.bankRelease))
+              throw new Error('Missing research design bank');
+            await db.researchDesigns.add(ResearchDesignSchema.parse(record));
+            if (bank)
+              await db.researchDesignBanks.add({
+                projectId: record.projectId,
+                bank: bankDocSchema.parse(bank.bank),
+                bytes: bank.bytes,
+              });
           }
           for (const record of plan.corpora) {
             const existing = await db.corpora.get(record.id);

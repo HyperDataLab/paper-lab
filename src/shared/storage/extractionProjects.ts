@@ -44,7 +44,15 @@ export function createExtractionRepository(
       return value;
     },
     async remove(id: string) {
-      await db.extractionProjects.delete(id);
+      await db.transaction(
+        'rw',
+        [db.extractionProjects, db.researchDesigns, db.researchDesignBanks],
+        async () => {
+          await db.extractionProjects.delete(id);
+          await db.researchDesigns.delete(id);
+          await db.researchDesignBanks.delete(id);
+        },
+      );
     },
   };
 }

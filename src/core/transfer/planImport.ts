@@ -168,6 +168,8 @@ export function planImport(
     stance: parsed.data.stance.filter((record) => eligiblePapers.has(record.paperId)),
     paperInsights: parsed.data.paperInsights.filter((record) => eligiblePapers.has(record.paperId)),
     extractionProjects: parsed.data.extractionProjects,
+    researchDesigns: parsed.data.researchDesigns,
+    researchDesignBanks: parsed.data.researchDesignBanks,
     corpora: parsed.data.corpora,
     corpusProfiles: parsed.data.corpusProfiles,
     skipped,

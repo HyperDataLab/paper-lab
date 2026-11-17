@@ -89,7 +89,7 @@ export default function ProjectPage() {
       </section>
       {error && <p role="alert">Có lỗi xảy ra: {error}</p>}
       <DeepResearch project={project} onSave={save} />
-      {!project.paperId && <ResearchDesignArea />}
+      {!project.paperId && <ResearchDesignArea project={project} />}
     </div>
   );
 }

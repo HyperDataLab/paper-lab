@@ -21,7 +21,7 @@ const at = '2026-01-02T00:00:00Z';
 it('FR-303 validates a strict stored document and reason equivalence', () => {
   expect(factsDocSchema.safeParse(doc).success).toBe(true);
   expect(factsDocSchema.safeParse({ ...doc, extra: 1 }).success).toBe(false);
-  expect(factsDocSchema.safeParse({ ...doc, paperId: 'invalid' }).success).toBe(false);
+  expect(factsDocSchema.safeParse({ ...doc, paperId: '' }).success).toBe(false);
   for (const decision of [
     { decision: 'exclude', reason: ' ' },
     { decision: 'use', reason: 'why' },

@@ -26,7 +26,7 @@ const decisionSchema = z
 const factsSchema = z.custom<ExperimentFactsView>((value) => readExperimentFacts(value).ok);
 export const factsDocSchema = z.strictObject({
   schemaVersion: z.literal(1),
-  paperId: z.string().regex(/^p-[0-9a-f]{12}$/),
+  paperId: z.string().min(1),
   source: sourceSchema,
   facts: factsSchema,
   decisions: z.record(z.string(), decisionSchema),

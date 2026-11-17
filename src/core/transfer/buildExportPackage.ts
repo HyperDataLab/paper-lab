@@ -1,4 +1,6 @@
 import type { StoredCorpusProfile } from '../schemas/corpusProfile';
+import type { ResearchDesign } from '../schemas/researchDesign';
+import type { BankDoc } from '../researchDesign/bank/snapshot';
 import {
   ExportPackageSchema,
   type Analysis,
@@ -38,6 +40,8 @@ export function buildExportPackage(
   extractionProjects: ExtractionProject[] = [],
   corpora: Corpus[] = [],
   corpusProfiles: StoredCorpusProfile[] = [],
+  researchDesigns: ResearchDesign[] = [],
+  researchDesignBanks: { projectId: string; bank: BankDoc; bytes: number[] }[] = [],
 ) {
   return ExportPackageSchema.parse({
     format: 'paragraph-lab-export',
@@ -61,5 +65,7 @@ export function buildExportPackage(
     extractionProjects,
     corpora,
     corpusProfiles,
+    researchDesigns,
+    researchDesignBanks,
   });
 }
