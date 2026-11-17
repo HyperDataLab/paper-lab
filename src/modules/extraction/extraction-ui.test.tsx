@@ -9,6 +9,9 @@ import {
   cellsFromOutput,
   extractionSource,
   catalogField,
+  addFields,
+  customField,
+  FIELD_CATALOG,
   newProject,
   projectPaperFromPaper,
   reviewCell,
@@ -151,6 +154,19 @@ it('keeps the horizontal matrix for two papers', async () => {
   expect(screen.getByRole('columnheader', { name: 'Bài báo' })).toBeInTheDocument();
   expect(screen.getByRole('rowheader', { name: /Second paper/ })).toBeInTheDocument();
   expect(screen.queryByRole('table', { name: 'Trích xuất theo trường' })).not.toBeInTheDocument();
+});
+
+it('shows every field in a single-paper vertical view with more than 50 columns', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const repo = createRepositories(createDb(`extraction-long-${crypto.randomUUID()}`));
+  const base = newProject({ id: crypto.randomUUID(), title: 'Một bài', researchQuestion: '', now: at });
+  const custom = customField({ label: 'Own field', description: '', instruction: '', existing: [] });
+  const withFields = addFields(addFields(base, [custom]), FIELD_CATALOG, 51);
+  const saved = await repo.extraction.save({ ...withFields, papers: [projectPaperFromPaper(paper)] });
+  mountMatrix(repo, saved);
+  expect(
+    within(screen.getByRole('table', { name: 'Trích xuất theo trường' })).getAllByRole('row'),
+  ).toHaveLength(51);
 });
 
 it('creates a project, adds a template of columns and reviews a cell with its evidence', async () => {

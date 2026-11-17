@@ -395,7 +395,12 @@ export function ExtractionMatrix({
         />
       )}
       {panel === 'run' && (
-        <RunPanel project={runScope} onClose={() => setPanel(null)} onStart={(choice) => void run(choice)} />
+        <RunPanel
+          project={runScope}
+          singlePaper={single}
+          onClose={() => setPanel(null)}
+          onStart={(choice) => void run(choice)}
+        />
       )}
       {opened && openedField && openedPaper && (
         <CellDrawer

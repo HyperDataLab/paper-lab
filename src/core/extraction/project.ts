@@ -115,7 +115,11 @@ export function removePaper(project: ExtractionProject, key: string): Extraction
   };
 }
 
-export function addFields(project: ExtractionProject, fields: FieldDefinition[]): ExtractionProject {
+export function addFields(
+  project: ExtractionProject,
+  fields: FieldDefinition[],
+  limit = MAX_COLUMNS,
+): ExtractionProject {
   const fresh = fields.filter(
     (field, index) =>
       !project.fields.some((existing) => existing.key === field.key) &&
@@ -126,7 +130,7 @@ export function addFields(project: ExtractionProject, fields: FieldDefinition[])
     fields: [
       ...project.fields,
       ...fresh
-        .slice(0, Math.max(0, MAX_COLUMNS - project.fields.length))
+        .slice(0, Math.max(0, limit - project.fields.length))
         .map((field) => ({ ...field, hidden: false })),
     ],
   };

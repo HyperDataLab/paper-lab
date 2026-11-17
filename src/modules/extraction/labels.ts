@@ -31,6 +31,9 @@ export const MODES: Record<ExtractionMode, { label: string; help: string }> = {
   },
 };
 
+export const fullExtractHelp = (count: number) =>
+  `Trích tất cả ${count} trường trong danh mục cho bài này (kể cả cột chưa có trong bảng). Tốn nhiều lượt gọi hơn.`;
+
 export const FLAGS: Record<string, string> = {
   UNSUPPORTED: 'Không có trích dẫn tìm thấy trong bài',
   EVIDENCE_NOT_FOUND: 'Có trích dẫn mô hình đưa ra không tìm thấy trong bài',
