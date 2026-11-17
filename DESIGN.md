@@ -4,6 +4,8 @@ The paper's **Trích xuất** space (right of Writing style) opens the extractio
 
 A single-paper extraction presents fields as rows, with the column menu beside each name and the full value alongside it; on narrow screens the value sits below the name. Status filters select field rows. Matrices with multiple papers retain the horizontal comparison layout.
 
+The single-paper run drawer offers Full Extract: all catalog fields are selected by group, with optional High Quality verification. Starting adds missing catalog columns after existing columns, including when custom columns bring the total above the normal add-column limit. Project runs retain the Deep Research option.
+
 The Contribution graph view groups verified triples by NCG information unit. Expand a triple to read its sentence and open its location; the analysis action shows its estimated AI calls and the ZIP export includes an out-of-domain note when applicable.
 
 UI and interaction rules for PaperLab. Implements PRD §6 (Highlight and annotation UX) and §9 (Accessibility).

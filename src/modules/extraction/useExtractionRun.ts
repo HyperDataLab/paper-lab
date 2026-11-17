@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { addFields, FIELD_CATALOG } from '@/core/extraction';
 import type { ExtractionProject, Paper } from '@/core/schemas';
 import { describeLlmError } from '@/shared/llm/describeError';
 import { useLlm } from '@/shared/llm/LlmProvider';
@@ -26,7 +27,14 @@ export function useExtractionRun(
     setError('');
     try {
       if (!(await llm.ensureConsent('paper')) || abort.signal.aborted) return;
-      const done = await llmExtraction(llm.client, project, papers, {
+      const prepared = choice.fullExtract
+        ? addFields(
+            project,
+            FIELD_CATALOG.filter((field) => choice.fieldKeys.includes(field.key)),
+            project.fields.length + FIELD_CATALOG.length,
+          )
+        : project;
+      const done = await llmExtraction(llm.client, prepared, papers, {
         ...choice,
         config: llm.config,
         signal: abort.signal,
