@@ -39,6 +39,24 @@ otherwise. Republishing a changed model preserves the old facts and their status
 the older model via `modelEtag`. `GET /v1/papers/:paperId/experiment-facts` returns the stored JSON and
 quoted ETag; `If-None-Match` returns 304 for unchanged content.
 
+## Experiment fact requests
+
+`GET /v1/me` returns the authenticated email and `admin` boolean. Admins are configured in the
+comma-separated `ADMIN_EMAILS` Worker variable; every admin route enforces this role. All examples below
+are invented. After publishing the synthetic model above, a lab account can POST
+`{"note":"Please measure the synthetic experiment"}` to
+`/v1/papers/00000000-0000-4000-8000-000000000001/experiment-facts/requests`. It receives 202 with
+`requestId` and `state`. A requested or approved request is returned unchanged on a repeated POST;
+declined or done requests can be replaced. A missing paper returns 404, and published facts return 409.
+Notes are optional and limited to 1000 characters. GET the same path for the request and its ETag;
+`If-None-Match` supports 304. The paper list adds `factsRequest` when a request exists.
+
+Admins can GET `/v1/admin/fact-requests?state=requested` (optional state and cursor) for paginated
+requests with paper title and DOI. POST `{"decision":"approve","note":"Please proceed"}` or
+`{"decision":"decline"}` to `/v1/admin/fact-requests/00000000-0000-4000-8000-000000000001/decision`.
+Only requested entries can be decided. Publishing facts changes requested or approved entries to done;
+approval does not start any measurement automatically.
+
 ## Frozen experiment plans
 
 All signed-in lab accounts may read and publish any project; PaperLab projects have no member list.
