@@ -3,7 +3,7 @@ import { buildPaperModel } from '../paperModel/buildPaperModel';
 import { examplePaper, exampleInsights, examplePaperModel, exampleStance } from '../paperModel/contract';
 import { defaultRhetoricSections } from '../rhetoric';
 import { defaultStanceSections } from '../stance';
-import { BOILERPLATE_HEADING, bodyBlocks, measurePaper, measurePaperDetail } from './measure';
+import { BOILERPLATE_HEADING, bodyBlocks, measurePaper, measurePaperDetail, otherShare } from './measure';
 import { FEATURE_REGISTRY, registryDigest } from './registry';
 
 describe('C5a registry and paper measurement', () => {
@@ -91,5 +91,32 @@ describe('C5a registry and paper measurement', () => {
     expect(values['rhetoric.limitation']).toBe(0);
     expect(labels['rhetoric.occupy']).toEqual({ total: 1, machine: 0 });
     expect(labels['stance.boosters']).toEqual({ total: 1, machine: 1 });
+  });
+  it('P1 reports the OTHER share of body words and sections', () => {
+    const model = examplePaperModel();
+    expect(otherShare(model).words).toBe(0);
+    model.document.sections.push({
+      id: 'odd',
+      parentId: null,
+      title: 'Odd notes',
+      level: 1,
+      role: 'other',
+      page: null,
+    });
+    model.document.blocks.push({
+      id: 'odd1',
+      sectionId: 'odd',
+      kind: 'body',
+      page: null,
+      text: 'Synthetic words in an unrecognised section.',
+      textHash: 'x',
+    });
+    const share = otherShare(model);
+    expect(share.words).toBeGreaterThan(0);
+    expect(share.words).toBe(measurePaper(model)['section.OTHER.word_share']);
+    const bodySections = new Set(bodyBlocks(model).map((block) => block.sectionId));
+    expect(share.sections).toBe(1 / bodySections.size);
+    model.document.blocks = [];
+    expect(otherShare(model)).toEqual({ words: null, sections: null });
   });
 });
