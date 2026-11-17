@@ -8,6 +8,7 @@ import { useLlm } from '@/shared/llm/LlmProvider';
 import { llmContribution } from '@/shared/llm/llmContribution';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
+import { ContributionViews } from './ContributionViews';
 
 export function PaperContribution({
   paper,
@@ -26,7 +27,6 @@ export function PaperContribution({
   }, [paper.id, repo]);
   const run = record?.contributionRuns.at(-1);
   const model = buildPaperModel({ paper, metadata: null, insights: record, now: new Date() });
-  const phrase = new Map(model.knowledge.phrases.map((item) => [item.id, item.text]));
   async function start() {
     setError('');
     setRunning(true);
@@ -74,40 +74,7 @@ export function PaperContribution({
           Đã bỏ {run.droppedPhrases} cụm từ và {run.droppedTriples} bộ ba không kiểm chứng được.
         </p>
       )}
-      {[...new Set(model.knowledge.triples.map((item) => item.unit))].map((unit) => (
-        <section key={unit}>
-          <h3>{unit}</h3>
-          {model.knowledge.triples
-            .filter((item) => item.unit === unit)
-            .map((item, index) => {
-              const sentence = model.sentences.find((s) => s.key === item.key);
-              return (
-                <details key={`${item.key}-${index}`}>
-                  <summary>
-                    {phrase.get(item.subject)} → {phrase.get(item.predicate)} → {phrase.get(item.object)}
-                  </summary>
-                  {sentence && (
-                    <>
-                      <p>{sentence.text}</p>
-                      <Button
-                        size="sm"
-                        onClick={() =>
-                          onLocation({
-                            paragraphId: sentence.paragraphId,
-                            start: sentence.start,
-                            end: sentence.end,
-                          })
-                        }
-                      >
-                        {sentence.page ? `Tr. ${sentence.page}` : 'Đoạn gốc'}
-                      </Button>
-                    </>
-                  )}
-                </details>
-              );
-            })}
-        </section>
-      ))}
+      <ContributionViews model={model} onLocation={onLocation} />
     </section>
   );
 }
