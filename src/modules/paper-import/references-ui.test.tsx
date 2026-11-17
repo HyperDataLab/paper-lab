@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { Paper } from '@/core/schemas';
 import { createDb } from '@/shared/storage/db';
@@ -32,6 +32,36 @@ const paper: Paper = {
 
 beforeEach(() => {
   vi.stubGlobal('crypto', webcrypto);
+});
+
+it('RA-13 retraction check retains a saved reference audit', async () => {
+  const repo = createRepositories(createDb(`refs-${crypto.randomUUID()}`));
+  const audit = { schemaVersion: 1 as const, auditedAt: at, items: [], reviewed: ['hash'] };
+  await repo.paperContext.save({
+    schemaVersion: 1,
+    paperId: paper.id,
+    checkedAt: at,
+    paperDoi: null,
+    checked: 0,
+    found: 0,
+    retracted: [],
+    retractionChecked: false,
+    metadata: null,
+    referenceAudit: audit,
+  });
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(JSON.stringify({ results: [] }), { status: 200 })),
+  );
+  render(
+    <StorageProvider repositories={repo}>
+      <PaperReferences paper={paper} onLocation={() => {}} />
+    </StorageProvider>,
+  );
+  fireEvent.click(await screen.findByRole('button', { name: 'Kiểm tra rút bài' }));
+  await waitFor(async () => expect((await repo.paperContext.get(paper.id))?.retractionChecked).toBe(true));
+  expect((await repo.paperContext.get(paper.id))?.referenceAudit).toEqual(audit);
+  vi.unstubAllGlobals();
 });
 
 it('the reference list shows every entry on its own line, and each opens its place', async () => {

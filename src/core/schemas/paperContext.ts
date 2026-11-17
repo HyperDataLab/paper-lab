@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ReferenceAuditSchema } from '../referenceAudit/schema';
 
 export const RetractedWorkSchema = z.object({
   doi: z.string(),
@@ -39,6 +40,7 @@ export const PaperContextRecordSchema = z.object({
   /** False when only the metadata has been looked up. */
   retractionChecked: z.boolean().default(true),
   metadata: PaperMetadataSchema.nullable().default(null),
+  referenceAudit: ReferenceAuditSchema.optional(),
 });
 export type RetractedWork = z.infer<typeof RetractedWorkSchema>;
 export type PaperContextRecord = z.infer<typeof PaperContextRecordSchema>;

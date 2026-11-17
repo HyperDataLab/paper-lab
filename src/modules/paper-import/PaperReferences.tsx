@@ -18,6 +18,7 @@ import { Card } from '@/shared/ui/Card';
 import { FindingCard } from '@/shared/ui/FindingCard';
 import { useGrobidState } from './grobidContext';
 import { PlaceText } from './PlaceText';
+import { ReferenceAudit } from './ReferenceAudit';
 import styles from './page.module.css';
 
 export function PaperReferences({
@@ -51,8 +52,10 @@ export function PaperReferences({
     try {
       // The email is for Unpaywall only, so this client is created without it.
       const statuses = await createScholarClient({}).workStatuses(dois);
+      const current = await repo.paperContext.get(paper.id);
       setRecord(
         await repo.paperContext.save({
+          ...current,
           schemaVersion: 1,
           paperId: paper.id,
           checkedAt: new Date().toISOString(),
@@ -61,7 +64,7 @@ export function PaperReferences({
           found: statuses.length,
           retracted: retractedWorks(statuses, paperDoi(paper)),
           retractionChecked: true,
-          metadata: record?.metadata ?? null,
+          metadata: current?.metadata ?? null,
         }),
       );
     } catch {
@@ -120,6 +123,7 @@ export function PaperReferences({
             ))}
           </ol>
         )}
+        <ReferenceAudit paperId={paper.id} references={items} record={record} onSave={setRecord} />
         {stats.buckets.length > 0 && (
           <table className={styles.table}>
             <thead>
