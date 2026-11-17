@@ -10,7 +10,7 @@ import urllib.parse
 import urllib.request
 from collections import Counter, defaultdict
 
-from helpers import abstract_of
+from helpers import abstract_of, subfield_id
 
 USER_AGENT = "paperlab-corpus-topics"
 
@@ -108,7 +108,9 @@ def fetch_texts(members, progress, fetch=urllib.request.urlopen, sleep=time.slee
                     if usable(abstract):
                         member["abstract"], member["abstract_source"] = abstract, "openalex"
                     member["title"] = member.get("title") or work.get("title") or ""
-                    member["oa_subfield"] = ((work.get("primary_topic") or {}).get("subfield") or {}).get("display_name")
+                    subfield = (work.get("primary_topic") or {}).get("subfield") or {}
+                    member["oa_subfield"] = subfield.get("display_name")
+                    member["oa_subfield_id"] = subfield_id(subfield)
         except Exception as error:
             print(f"OpenAlex batch failed: {error}", flush=True)
         done += len(chunk)

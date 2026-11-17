@@ -1,6 +1,20 @@
 from math import isclose
 
-from helpers import abstract_of, map_members, percentile, stability, topic_fit
+from helpers import abstract_of, map_members, percentile, stability, subfield_id, top_subfields, topic_fit
+
+
+def test_subfield_id_strips_the_openalex_prefix():
+    assert subfield_id({"id": "https://openalex.org/subfields/1702"}) == "subfields/1702"
+    assert subfield_id({"id": "https://openalex.org/fields/17"}) is None
+    assert subfield_id({}) is None
+    assert subfield_id(None) is None
+
+
+def test_top_subfields_counts_by_name_and_adds_known_ids():
+    members = [{"oa_subfield": "AI", "oa_subfield_id": "subfields/1702"}, {"oa_subfield": "AI"},
+               {"oa_subfield": "Old"}, {"oa_subfield": None}]
+    assert top_subfields(members) == [{"name": "AI", "id": "subfields/1702", "count": 2},
+                                      {"name": "Old", "count": 1}]
 
 
 def test_abstract_reconstruction():

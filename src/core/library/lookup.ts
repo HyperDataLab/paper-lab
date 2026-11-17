@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { LibraryItem, OaSource, Taxonomy } from '../schemas/library';
 
 const named = z.object({ display_name: z.string().nullish() }).nullish();
+const level = z.object({ id: z.string().nullish(), display_name: z.string().nullish() }).nullish();
 const location = z.object({
   landing_page_url: z.string().nullish(),
   pdf_url: z.string().nullish(),
@@ -24,9 +25,9 @@ const OpenAlexSchema = z.object({
     .object({
       display_name: z.string().nullish(),
       score: z.number().nullish(),
-      subfield: named,
-      field: named,
-      domain: named,
+      subfield: level,
+      field: level,
+      domain: level,
     })
     .nullish(),
 });
@@ -110,6 +111,12 @@ export function arxivIdFrom(urls: (string | null | undefined)[], doi: string | n
   return null;
 }
 
+/** `https://openalex.org/subfields/1702` → `subfields/1702` (the key shared with the Writing Bank); null otherwise. */
+export function openAlexLevelId(id: string | null | undefined, kind: 'domains' | 'fields' | 'subfields') {
+  const short = (id ?? '').trim().replace(/^https?:\/\/openalex\.org\//iu, '');
+  return new RegExp(`^${kind}/\\d+$`, 'u').test(short) ? short : null;
+}
+
 export function mapOpenAlex(raw: unknown): OpenAlexLookup {
   const work = OpenAlexSchema.parse(raw);
   const locations = [work.best_oa_location, ...(work.locations ?? [])].flatMap((item) => item ?? []);
@@ -121,6 +128,9 @@ export function mapOpenAlex(raw: unknown): OpenAlexLookup {
         subfield: topic.subfield?.display_name ?? null,
         topic: topic.display_name ?? null,
         score: topic.score ?? null,
+        domainId: openAlexLevelId(topic.domain?.id, 'domains'),
+        fieldId: openAlexLevelId(topic.field?.id, 'fields'),
+        subfieldId: openAlexLevelId(topic.subfield?.id, 'subfields'),
       }
     : null;
   return {
