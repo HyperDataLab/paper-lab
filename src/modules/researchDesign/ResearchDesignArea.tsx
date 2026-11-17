@@ -6,6 +6,7 @@ import { Tabs } from '@/shared/ui/Tabs';
 import { researchDesignSections } from './sections';
 import type { ExtractionProject } from '@/core/schemas';
 import { ResearchDesignProvider } from './ResearchDesignProvider';
+import { SectionBody } from './SectionBody';
 
 export function ResearchDesignArea({ project }: { project: ExtractionProject }) {
   const [params, setParams] = useSearchParams();
@@ -42,7 +43,7 @@ export function ResearchDesignArea({ project }: { project: ExtractionProject }) 
         >
           <p>{selected.description}</p>
           <Suspense fallback={<Loading label="Đang tải mục…" />}>
-            <Section />
+            <SectionBody section={Section} />
           </Suspense>
         </div>
       </section>

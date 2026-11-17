@@ -12,6 +12,7 @@ import {
   type DraftResult,
 } from '@/core/researchDesign/draft/ops';
 import type { Draft, DraftQuestion, DraftHypothesis } from '@/core/researchDesign/draft/schema';
+import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Dialog } from '@/shared/ui/Dialog';
@@ -35,20 +36,21 @@ export default function QuestionsSection() {
   if (state.error) return <Empty title="Không tải được câu hỏi và giả thuyết." />;
   const { draft } = state.design;
   const change = async (fn: (draft: Draft) => DraftResult) => {
-    const result = fn(draft);
-    if (!result.ok) {
-      toast('Không thể lưu thay đổi. Vui lòng kiểm tra nội dung và liên kết.');
-      return false;
-    }
     try {
-      await state.save((record) => {
+      await state.update((record) => {
         const next = fn(record.draft);
         if (!next.ok) throw new Error(next.error);
         return { ...record, draft: next.doc };
       });
       return true;
-    } catch {
-      toast('Không lưu được thay đổi. Vui lòng tải lại và thử lại.');
+    } catch (error) {
+      if (error instanceof ResearchDesignConflictError) {
+        // Two saves in a row lost to another writer: show the stored record before the person tries again.
+        void state.reload().catch(() => undefined);
+        toast(
+          'Dữ liệu vừa thay đổi ở nơi khác nên chưa lưu được. Đã cập nhật bản mới nhất, vui lòng thử lại.',
+        );
+      } else toast('Không thể lưu thay đổi. Vui lòng kiểm tra nội dung và liên kết.');
       return false;
     }
   };

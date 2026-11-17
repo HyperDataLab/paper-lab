@@ -10,7 +10,13 @@ import { Dialog, DialogActions } from '@/shared/ui/Dialog';
 import { Empty } from '@/shared/ui/StateNote';
 import { useToast } from '@/shared/ui/toastContext';
 import { BANK_API_URL, createBankClient } from './bankApi';
-import { bankFailure, useBankImport, type BankFailure, type BankResult } from './useBankImport';
+import {
+  bankFailure,
+  useBankImport,
+  type BankFailure,
+  type BankResult,
+  type ImportBank,
+} from './useBankImport';
 import styles from './BankPanel.module.css';
 
 const reasons: Record<Exclude<BankFailure, 'cancelled'>, string> = {
@@ -29,10 +35,18 @@ const reasons: Record<Exclude<BankFailure, 'cancelled'>, string> = {
 
 const day = (iso: string) => new Date(iso).toLocaleDateString('vi-VN');
 
-export function BankPanel({ projectId, initial }: { projectId: string; initial: BankDoc | null }) {
+export function BankPanel({
+  projectId,
+  bank,
+  importBank,
+}: {
+  projectId: string;
+  bank: BankDoc | null;
+  importBank: ImportBank;
+}) {
   const { getIdToken } = useAuth();
   const toast = useToast();
-  const { bank, importFile, fetchLatest } = useBankImport(projectId, initial);
+  const { importFile, fetchLatest } = useBankImport(projectId, bank, importBank);
   const client = useMemo(
     () => createBankClient({ baseUrl: BANK_API_URL, getToken: getIdToken }),
     [getIdToken],

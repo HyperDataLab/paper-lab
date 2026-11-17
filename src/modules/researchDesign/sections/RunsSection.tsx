@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { checkPlan } from '@/core/researchDesign/draft/checkPlan';
 import { gridCells, setRunMatrix } from '@/core/researchDesign/draft/planOps';
 import { runCount, type DraftRunMatrix } from '@/core/researchDesign/draft/schema';
+import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
 import { Badge } from '@/shared/ui/Badge';
 import { Card } from '@/shared/ui/Card';
 import { useResearchDesign } from '../ResearchDesignProvider';
@@ -21,7 +22,7 @@ export default function RunsSection() {
   const flags = checkPlan(draft).filter((f) => f.subject === 'runMatrix' || f.rule === 'AN-05');
   const save = async (value: DraftRunMatrix) => {
     try {
-      await state.save((record) => {
+      await state.update((record) => {
         const result = setRunMatrix(record.draft, value);
         if (!result.ok) throw new Error(result.error);
         return { ...record, draft: result.doc };
@@ -29,8 +30,11 @@ export default function RunsSection() {
       setFormVersion((v) => v + 1);
       setMessage('Đã lưu lưới chạy.');
       return true;
-    } catch {
-      setMessage('Lưới chạy đã thay đổi và không thể lưu. Vui lòng kiểm tra lại.');
+    } catch (failure) {
+      if (failure instanceof ResearchDesignConflictError) {
+        void state.reload().catch(() => undefined);
+        setMessage('Dữ liệu vừa thay đổi ở nơi khác nên chưa lưu được lưới chạy. Vui lòng thử lại.');
+      } else setMessage('Lưới chạy không hợp lệ với bản nháp hiện tại. Vui lòng kiểm tra lại.');
       return false;
     }
   };

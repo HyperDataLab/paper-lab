@@ -3,6 +3,7 @@ import { checkPlan } from '@/core/researchDesign/draft/checkPlan';
 import { addAnalysis, editAnalysis, removeAnalysis } from '@/core/researchDesign/draft/planOps';
 import type { Draft, DraftAnalysis } from '@/core/researchDesign/draft/schema';
 import type { DraftResult } from '@/core/researchDesign/draft/ops';
+import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
@@ -29,15 +30,20 @@ export default function AnalysesSection() {
   const flags = checkPlan(draft);
   const change = async (op: (d: Draft) => DraftResult) => {
     try {
-      await state.save((record) => {
+      await state.update((record) => {
         const result = op(record.draft);
         if (!result.ok) throw new Error(result.error);
         return { ...record, draft: result.doc };
       });
       setError('');
       return true;
-    } catch {
-      setError('Không thể lưu thay đổi. Dữ liệu có thể đã thay đổi.');
+    } catch (failure) {
+      if (failure instanceof ResearchDesignConflictError) {
+        void state.reload().catch(() => undefined);
+        setError(
+          'Dữ liệu vừa thay đổi ở nơi khác nên chưa lưu được. Đã cập nhật bản mới nhất, vui lòng thử lại.',
+        );
+      } else setError('Không thể lưu thay đổi. Vui lòng kiểm tra nội dung và liên kết.');
       return false;
     }
   };
