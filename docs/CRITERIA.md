@@ -150,3 +150,10 @@ variation on five papers), data precision 7.9 %. The types returned for these co
 methodological (39 of 88), descriptive (18) and comparative (16), then generalisation (7), theoretical (4), novelty
 (2), mechanistic and recommendation (1 each). There is no gold standard for types, so these counts describe the
 output and do not measure it.
+
+Prompt `argument-4` (P7) adds an evidence level E0–E5 and a short basis to each argument. The scale follows Writing
+Bank evidence-levels: E0 none, E1 illustrative, E2 systematic but uncontrolled, E3 controlled comparison with
+uncertainty, E4 factor isolated, E5 replicated, synthesised or proven. The definitions live in one constant,
+`src/core/argument/evidenceLevels.ts`. The model judges the level from the passages it is shown in that part of the
+paper, not from outside knowledge, and returns null when it cannot tell. Like the type, the level is a machine label
+and is not yet calibrated. `evidenceLevelDistribution` gives the shares over main claims for the journal profile.

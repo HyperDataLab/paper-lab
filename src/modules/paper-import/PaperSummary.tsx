@@ -2,6 +2,7 @@ import { PAPER_LABELS } from './labels';
 import { useId, useState, type ReactNode } from 'react';
 import type { ClaimType } from '@/core/argument/claimTypes';
 import { ClaimTypeBadge, ClaimTypeFilter } from './ClaimTypes';
+import { EvidenceLevelBadge } from './EvidenceLevel';
 import type { FindingLocation } from '@/core/paperFindings';
 import { summarizePaper, type SummaryQuote } from '@/core/paperSummary';
 import type { Paper, PaperInsightsRecord, SnapshotField } from '@/core/schemas';
@@ -160,6 +161,7 @@ export function PaperSummary({
                       <li key={item.id}>
                         <p className={styles.claim}>
                           <strong>“{item.claim.excerpt}”</strong> <ClaimTypeBadge type={item.claimType} />{' '}
+                          <EvidenceLevelBadge level={item.evidenceLevel} basis={item.evidenceBasis} />{' '}
                           {place(item.claim)}
                         </p>
                         <dl className={styles.support}>

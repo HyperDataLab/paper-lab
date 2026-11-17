@@ -58,6 +58,8 @@ const fake = (error?: Error) =>
             backing: [],
             qualifier: null,
             rebuttals: [],
+            evidenceLevel: 'E1',
+            evidenceBasis: 'Một ví dụ minh họa.',
           },
         ],
       }),
@@ -68,9 +70,10 @@ const fake = (error?: Error) =>
 it('CT builds a run carrying the verified claim type', async () => {
   const { run, incomplete } = await llmArgument({ completeJson: fake() }, paper, options());
   expect(incomplete).toBe(false);
-  expect(run).toMatchObject({ model: 'real', promptVersion: 'argument-3', callsUsed: 1 });
+  expect(run).toMatchObject({ model: 'real', promptVersion: 'argument-4', callsUsed: 1 });
   expect(run.arguments[0]?.claim.excerpt).toBe('The claim holds');
   expect(run.arguments[0]?.claimType).toBe('causal');
+  expect(run.arguments[0]).toMatchObject({ evidenceLevel: 'E1', evidenceBasis: 'Một ví dụ minh họa.' });
 });
 it('D4 reports a failed part and refuses an empty selection', async () => {
   const failed = await llmArgument({ completeJson: fake(new Error('bad')) }, paper, options());

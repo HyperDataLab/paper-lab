@@ -10,6 +10,13 @@ import type {
 import { planStance, type StanceChunk } from '../stance';
 import { insightStates } from '../rhetoric';
 
+export {
+  EVIDENCE_LEVELS,
+  EVIDENCE_LEVEL_INFO,
+  evidenceLevelDistribution,
+  type EvidenceLevel,
+} from './evidenceLevels';
+
 const CHUNK_CHARS = 14000;
 export const planArguments = (paper: Paper, sectionIds: string[]) =>
   planStance(paper, sectionIds, CHUNK_CHARS);
@@ -69,6 +76,8 @@ export function verifyArguments(output: ArgumentOutput, chunk: StanceChunk) {
       backing: list(raw.backing),
       qualifier: one(raw.qualifier),
       rebuttals: list(raw.rebuttals),
+      evidenceLevel: raw.evidenceLevel,
+      evidenceBasis: raw.evidenceLevel ? raw.evidenceBasis : null,
     });
   }
   return { items, discarded };
