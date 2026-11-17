@@ -39,6 +39,29 @@ otherwise. Republishing a changed model preserves the old facts and their status
 the older model via `modelEtag`. `GET /v1/papers/:paperId/experiment-facts` returns the stored JSON and
 quoted ETag; `If-None-Match` returns 304 for unchanged content.
 
+## Frozen experiment plans
+
+All signed-in lab accounts may read and publish any project; PaperLab projects have no member list.
+These routes use the same Firebase token verification and `ACCEPTED_PROJECT_IDS` as the paper routes.
+Project IDs are lowercase UUIDs, and versions are positive integers. The plan's `title` supplies the
+project title. Plan JSON is limited to 5 MiB; its schema and freeze gate are checked before publication.
+Validation failures return `422 plan_invalid` with `issues`. A version is immutable: an identical body
+returns 200 with `unchanged: true`, and a different body returns 409.
+
+- `PUT /v1/projects/00000000-0000-4000-8000-000000000001/plans/1` publishes the complete invented
+  plan in `schemas/experiment-plan-v1.example.json`; success returns 201 with `projectId`, `version`, and `etag`.
+- `GET /v1/projects?cursor=example-cursor` returns `{ items, nextCursor }`; omit the cursor for the first
+  page. Each item includes `projectId`, `title`, `updatedAt`, `publishedBy`, and `latestVersion`.
+- `GET /v1/projects/00000000-0000-4000-8000-000000000001/plans` returns `versions` in ascending order,
+  each with `version`, `frozenAt`, `frozenBy`, and `etag`.
+- `GET /v1/projects/00000000-0000-4000-8000-000000000001/plans/1` returns the original JSON and quoted
+  ETag; send it in `If-None-Match` to receive 304.
+- `GET /v1/projects/00000000-0000-4000-8000-000000000001/plans/1/package` returns a ZIP containing
+  `manifest.json`, `plan.json`, and `plan.md`, with the same ETag and files as PaperLab's download.
+
+Missing projects and versions return 404. Pagination follows the paper list: an R2 page is selected before
+filtering for project records, so a page may be empty even when `nextCursor` is present.
+
 ## GROBID full text
 
 `POST /grobid/fulltext` accepts a PDF (up to 25 MiB); `POST /grobid/fulltext/<sha256>` reads an

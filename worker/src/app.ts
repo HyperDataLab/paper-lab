@@ -1,6 +1,7 @@
 import { NotAllowedError } from './auth';
 import { GrobidStartingError } from './grobid-error';
 import { handlePublished, publishedError } from './published';
+import { handlePlans } from './plans';
 
 /** The part of an R2 bucket this worker uses, so the logic runs in tests without Cloudflare. */
 export interface Bucket {
@@ -92,7 +93,9 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
 
   if (isV1) {
     try {
-      return await handlePublished(deps, request, caller.email, headers);
+      return path === '/v1/projects' || path.startsWith('/v1/projects/')
+        ? await handlePlans(deps, request, caller.email, headers)
+        : await handlePublished(deps, request, caller.email, headers);
     } catch {
       return publishedError(500, 'internal', 'An internal error occurred.', headers);
     }
