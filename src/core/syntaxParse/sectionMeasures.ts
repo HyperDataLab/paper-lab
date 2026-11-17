@@ -8,7 +8,9 @@ export type SharedTense = (typeof SHARED_TENSES)[number];
 
 /**
  * Feature ids reserved for the corpus-profile registry (slice P2 wires them in; this slice does not touch the
- * registry). Values come from `sectionSyntaxFeatures`.
+ * registry). Values come from `sectionSyntaxFeatures`. This module imports `corpusProfile/registry`, so the registry
+ * must not import this constant (load-time cycle): build the same ids there from `SIGNATURE_SECTIONS`, and have
+ * `measure.ts` call `sectionSyntaxFeatures`. The test checks that the two lists agree once P2 lands.
  */
 export const SECTION_SYNTAX_FEATURE_IDS = SIGNATURE_SECTIONS.flatMap((section) => [
   `section.${section}.passive`,

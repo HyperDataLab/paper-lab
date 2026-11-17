@@ -99,12 +99,14 @@ describe('P6 spaCy parse → SentenceSyntax', () => {
 });
 
 describe('P6 per-section passive share and tense split', () => {
-  it('reserves feature ids that the registry does not use yet', () => {
+  it('reserves feature ids; once the registry has any of them, it has exactly these', () => {
     expect(SECTION_SYNTAX_FEATURE_IDS).toHaveLength(SIGNATURE_SECTIONS.length * 4);
     expect(SECTION_SYNTAX_FEATURE_IDS).toContain('section.METHODS.passive');
     expect(SECTION_SYNTAX_FEATURE_IDS).toContain('section.RESULTS.tense.past');
-    const registered = new Set(FEATURE_REGISTRY.features.map((feature) => feature.id));
-    expect(SECTION_SYNTAX_FEATURE_IDS.some((id) => registered.has(id))).toBe(false);
+    const registered = FEATURE_REGISTRY.features
+      .map((feature) => feature.id)
+      .filter((id) => /^section\.[A-Z_]+\.(passive|tense\.[a-z]+)$/u.test(id));
+    if (registered.length) expect(registered.sort()).toEqual([...SECTION_SYNTAX_FEATURE_IDS].sort());
   });
 
   it('computes shares over parsed body sentences, leaving out verbless and modal ones', () => {

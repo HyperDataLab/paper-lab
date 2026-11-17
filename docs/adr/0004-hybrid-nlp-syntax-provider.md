@@ -35,7 +35,8 @@ The owner chose a real parser for passive voice and tense. The service runs as a
 - The model is `en_core_web_sm` 3.8.0 on spaCy 3.8.7. It is installed when the image is built and never downloaded
   at runtime.
 - `src/shared/nlp`: `createSpacySyntaxProvider` (this interface, `reproducible: true`), with the client reading its
-  URL from `VITE_NLP_URL`. If that is unset there is no provider, and callers keep the LLM provider or skip.
+  URL from `VITE_NLP_URL`. If that is unset there is no provider, and callers keep the LLM provider or skip. No
+  screen uses it yet.
 - `src/core/syntaxParse`: re-alignment to S2 tokens, and `measureSectionSyntax`, which gives the passive share and
   past/present/future split per signature section.
 

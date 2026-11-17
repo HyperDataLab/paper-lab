@@ -11,7 +11,8 @@ by updating that branch explicitly.
 The same Worker front, behind the same Firebase sign-in (`@hyperdatalab.org`, `ALLOWED_ORIGINS` CORS), forwards
 `POST /nlp/parse` to a second container, `NlpContainer`, built from `nlp/Dockerfile`. That image holds only spaCy
 3.8.7 and the pinned `en_core_web_sm` 3.8.0 wheel, both installed at build time with nothing downloaded at runtime.
-It does not include torch or BERTopic, so it stays small, starts in seconds, and never wakes the topics container.
+It has no torch or BERTopic, so it should be much smaller and faster to start than the topics image (not measured
+yet), and a parse never wakes the topics container.
 
 Request (at most 200 sentences and 100 KB; the Worker checks both before it wakes the container):
 
@@ -82,6 +83,8 @@ Tests:
    `FIREBASE_PROJECT_ID`, `ALLOWED_DOMAIN` and `ALLOWED_ORIGINS` vars.
 2. Check the route: an unsigned `POST https://paperlab-topics-worker.hyperdatalab.workers.dev/nlp/parse` should
    answer 401. The workflow's health step prints this.
-3. To turn it on in the app, set `VITE_NLP_URL=https://paperlab-topics-worker.hyperdatalab.workers.dev` for the
-   build, for example in `.env.production.local` or the hosting build environment, then deploy Hosting. While it is
-   unset, the app has no spaCy provider.
+3. Once a screen uses it (P6 only adds the provider and the measures; nothing in the UI calls
+   `spacySyntaxProviderFromEnv` / `nlpClientFromEnv` yet), set
+   `VITE_NLP_URL=https://paperlab-topics-worker.hyperdatalab.workers.dev` for the build, for example in
+   `.env.production.local` or the hosting build environment, then deploy Hosting. While it is unset, the app has no
+   spaCy provider.
