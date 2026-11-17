@@ -68,3 +68,23 @@ export function createLabResearchClient(options: {
     },
   };
 }
+
+export function labResearchErrorMessage(error: unknown): string {
+  if (!(error instanceof LabResearchError)) return 'Không thể chạy công cụ nghiên cứu.';
+  switch (error.code) {
+    case 'not_configured':
+      return 'Máy chủ nghiên cứu của lab chưa được cấu hình.';
+    case 'signed_out':
+      return 'Đăng nhập tài khoản lab để chạy công cụ.';
+    case 'network':
+      return 'Không thể kết nối máy chủ nghiên cứu.';
+    case 'rate_limited':
+      return `Quá nhiều yêu cầu. Thử lại sau ${error.retryAfter ?? 0} giây.`;
+    case 'invalid_input':
+      return 'Dữ liệu gửi tới công cụ không hợp lệ.';
+    case 'upstream':
+      return 'Dịch vụ nghiên cứu đang gặp sự cố.';
+    case 'failed':
+      return 'Không thể chạy công cụ nghiên cứu.';
+  }
+}

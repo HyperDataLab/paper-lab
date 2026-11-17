@@ -9,30 +9,11 @@ import {
 } from '@/core/topicCheck/evidence';
 import type { TopicCheck } from '@/core/schemas/topicCheck';
 import { useAuth } from '@/shared/auth/authContext';
-import { createLabResearchClient, LAB_RESEARCH_URL, LabResearchError } from '@/shared/labResearch';
+import { createLabResearchClient, LAB_RESEARCH_URL } from '@/shared/labResearch';
 import type { Props } from './types';
 
 type Kind = TopicCheck['evidence'][number]['kind'];
 const metadata = z.object({ query_used: z.string().optional(), broadened_from: z.string().optional() });
-export function topicErrorMessage(error: unknown): string {
-  if (!(error instanceof LabResearchError)) return 'Không thể chạy công cụ nghiên cứu.';
-  switch (error.code) {
-    case 'not_configured':
-      return 'Máy chủ nghiên cứu của lab chưa được cấu hình.';
-    case 'signed_out':
-      return 'Đăng nhập tài khoản lab để chạy công cụ.';
-    case 'network':
-      return 'Không thể kết nối máy chủ nghiên cứu.';
-    case 'rate_limited':
-      return `Quá nhiều yêu cầu. Thử lại sau ${error.retryAfter ?? 0} giây.`;
-    case 'invalid_input':
-      return 'Dữ liệu gửi tới công cụ không hợp lệ.';
-    case 'upstream':
-      return 'Dịch vụ nghiên cứu đang gặp sự cố.';
-    case 'failed':
-      return 'Không thể chạy công cụ nghiên cứu.';
-  }
-}
 /** The text the literature tools search with: the English keywords when given, else the statement. */
 export function topicSearchText(check: TopicCheck): string {
   return check.searchQuery?.trim() || check.statement.trim();

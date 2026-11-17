@@ -1,10 +1,11 @@
+import { labResearchErrorMessage } from '@/shared/labResearch';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { DebateList } from './DebateList';
 import { PaperRow } from './PaperRow';
 import { YearBars } from './YearBars';
 import { BlurField } from './BlurField';
-import { topicErrorMessage, topicSearchText, useTopicTools } from './useTopicTools';
+import { topicSearchText, useTopicTools } from './useTopicTools';
 import type { Props } from './types';
 
 export function EvidencePanel(props: Props) {
@@ -51,7 +52,7 @@ export function EvidencePanel(props: Props) {
       </Button>
       {error != null && (
         <div role="alert">
-          <p>{topicErrorMessage(error)}</p>
+          <p>{labResearchErrorMessage(error)}</p>
           <details>
             <summary>Chi tiết kỹ thuật</summary>
             {error instanceof Error ? error.message : String(error)}

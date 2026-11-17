@@ -98,16 +98,18 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
   async function save(next: Metadata, checkedDoi: string | null = next.doi) {
     // Same record the DOI lookup writes; a paper with no lookup yet gets a fresh one.
     const at = next.fetchedAt;
+    const current = await repo.paperContext.get(paper.id);
     setRecord(
       await repo.paperContext.save({
+        ...current,
         schemaVersion: 1,
         paperId: paper.id,
-        checkedAt: record?.checkedAt ?? at,
-        paperDoi: checkedDoi ?? record?.paperDoi ?? null,
-        checked: record?.checked ?? 0,
-        found: record?.found ?? 0,
-        retracted: record?.retracted ?? [],
-        retractionChecked: record?.retractionChecked ?? false,
+        checkedAt: current?.checkedAt ?? at,
+        paperDoi: checkedDoi ?? current?.paperDoi ?? null,
+        checked: current?.checked ?? 0,
+        found: current?.found ?? 0,
+        retracted: current?.retracted ?? [],
+        retractionChecked: current?.retractionChecked ?? false,
         metadata: next,
       }),
     );
