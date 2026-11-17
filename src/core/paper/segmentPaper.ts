@@ -1,8 +1,9 @@
 import type { PaperParagraph, PaperTable, Section } from '../schemas/paper';
 import { sourceHash } from '../text/hash';
+import { combinedRoles, headingCue, headingRole } from './sectionRoles';
 
-/** Recorded on papers imported with table and equation blocks. */
-export const PAPER_PARSER_VERSION = 'paper-parser-2';
+/** Recorded on papers imported with table and equation blocks; 3 adds the broader section-role headings. */
+export const PAPER_PARSER_VERSION = 'paper-parser-3';
 
 export interface PaperLine {
   text: string;
@@ -19,18 +20,6 @@ export interface PaperLine {
   boxed?: boolean;
   source?: 'pdf';
 }
-const roles: [RegExp, Section['role']][] = [
-  [/^abstract\b/i, 'abstract'],
-  [/^introduction\b/i, 'introduction'],
-  [/^(materials? and methods?|methods?|methodology|experimental (setup|design))\b/i, 'methods'],
-  [/^(results?|findings)\b/i, 'results'],
-  [/^discussion\b/i, 'discussion'],
-  [/^(conclusions?|concluding remarks)\b/i, 'conclusion'],
-  [/^(related work|background|literature review|prior work)\b/i, 'related_work'],
-  [/^(references|bibliography|works cited)\b/i, 'references'],
-  [/^appendix\b/i, 'appendix'],
-  [/^acknowledg(?:e)?ments?\b/i, 'other'],
-];
 function isFootnote(kind: PaperParagraph['kind']) {
   return kind === 'footnote';
 }
@@ -44,8 +33,9 @@ function heading(
   const latex = /^\\(section|subsection|subsubsection|paragraph)\*?\{([^}]*)\}/.exec(trimmed);
   const numbered = /^(\d+(?:\.\d+)*\.?|[IVX]+\.)\s+(.+)$/.exec(trimmed);
   const name = markdown?.[2] ?? latex?.[2] ?? numbered?.[2] ?? trimmed;
-  const role = roles.find(([pattern]) => pattern.test(name))?.[1] ?? 'other';
-  const known = roles.some(([pattern]) => pattern.test(name));
+  const role = headingRole(name) ?? 'other';
+  // Wording alone accepts a line as a heading only by the narrower cue, so wrapped body lines stay body text.
+  const known = headingCue(name);
   const caps = /[A-Z]/.test(name) && name === name.toUpperCase() && /^[A-Z\d\s&-]+$/.test(name);
   const explicit = Boolean(markdown || latex);
   if (!latex && /[{}]/.test(trimmed)) return null;
@@ -238,7 +228,7 @@ export async function segmentPaper(input: string | PaperLine[]) {
     if (
       line.source === 'pdf' &&
       (/^#/.test(text) ||
-        (!roles.some(([pattern]) => pattern.test(headingName)) &&
+        (!headingRole(headingName) &&
           /^[A-Z\d\s&:.,!?'-]+$/.test(headingName) &&
           headingName.trim().split(/\s+/).length >= 2))
     )
@@ -303,13 +293,17 @@ export async function segmentPaper(input: string | PaperLine[]) {
         found.heading += ` ${nextText}`;
         index++;
       }
+      // A subsection whose own heading names no role takes its parent's; a known `other` (e.g. funding) stays.
       const parent = [...sections].reverse().find((section) => section.level < found.level);
+      const inherit = found.role === 'other' && parent && !headingRole(found.heading);
+      const combined = combinedRoles(found.heading);
       current = {
         id: `sec${sections.length + 1}`,
         heading: found.heading,
         level: found.level,
-        role: found.role === 'other' && parent ? parent.role : found.role,
+        role: inherit ? parent.role : found.role,
         pageStart: line.pageStart ?? null,
+        ...(combined ? { combined } : {}),
       };
       sections.push(current);
       if (current.role === 'references') afterReferences = true;

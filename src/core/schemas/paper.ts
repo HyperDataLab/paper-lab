@@ -1,23 +1,26 @@
 import { z } from 'zod';
 
+const SectionRoleSchema = z.enum([
+  'title',
+  'abstract',
+  'introduction',
+  'methods',
+  'results',
+  'discussion',
+  'conclusion',
+  'related_work',
+  'references',
+  'appendix',
+  'other',
+]);
 export const SectionSchema = z.object({
   id: z.string(),
   heading: z.string(),
-  role: z.enum([
-    'title',
-    'abstract',
-    'introduction',
-    'methods',
-    'results',
-    'discussion',
-    'conclusion',
-    'related_work',
-    'references',
-    'appendix',
-    'other',
-  ]),
+  role: SectionRoleSchema,
   level: z.number().int().positive(),
   pageStart: z.number().int().positive().nullable(),
+  /** Set when one heading covers several roles ("Results and discussion"); `role` is the first of them. */
+  combined: z.array(SectionRoleSchema).optional(),
 });
 export const PaperTableSchema = z.object({
   /** Paragraph id of the adjacent `Table N` caption, when one exists. */

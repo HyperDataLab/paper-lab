@@ -28,6 +28,29 @@ export function bodyBlocks(model: PaperModel) {
   return model.document.blocks.filter((block) => block.kind === 'body' && !excluded.has(block.sectionId));
 }
 
+/**
+ * How much of the paper's body has no recognised section role (signature section OTHER): the share of body words
+ * (same as the `section.OTHER.word_share` feature) and the share of body sections that hold body text.
+ * Null when the paper has no body words or sections. A high value means the heading table missed this paper's
+ * structure, so its section features say little.
+ */
+export function otherShare(model: PaperModel): { words: number | null; sections: number | null } {
+  const blocks = bodyBlocks(model);
+  const roles = new Map(model.document.sections.map((section) => [section.id, SECTION_MAP[section.role]]));
+  const words = (text: string) => tokenize(text).filter((token) => token.kind === 'word').length;
+  const total = blocks.reduce((sum, block) => sum + words(block.text), 0);
+  const other = blocks
+    .filter((block) => roles.get(block.sectionId) === 'OTHER')
+    .reduce((sum, block) => sum + words(block.text), 0);
+  const sectionIds = [...new Set(blocks.map((block) => block.sectionId))];
+  return {
+    words: total ? other / total : null,
+    sections: sectionIds.length
+      ? sectionIds.filter((id) => roles.get(id) === 'OTHER').length / sectionIds.length
+      : null,
+  };
+}
+
 /** Body sentences, in document order. */
 export function bodySentences(model: PaperModel) {
   const ids = new Set(bodyBlocks(model).map((block) => block.id));
