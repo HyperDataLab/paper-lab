@@ -277,7 +277,7 @@ it('DS-05 re-pins a metric pinned to an older snapshot and flags a missing one',
     name: 'Invented gone',
     bank: { id: 'met.gone', release: '2030.01.1' },
   });
-  const { stored, release } = await setup({ draft, tab: 'metrics' });
+  const { stored, release, toast } = await setup({ draft, tab: 'metrics' });
   expect(
     await screen.findByText(
       'm-2 «Invented gone»: mục met.gone không còn trong bản chụp hiện tại.',
@@ -289,6 +289,8 @@ it('DS-05 re-pins a metric pinned to an older snapshot and flags a missing one',
   await waitFor(async () => expect((await stored()).metrics[0]?.bank?.release).toBe(release), {
     timeout: 5000,
   });
+  // A refused write (the save path not yet armed) shows a toast instead of saving.
+  expect(toast).not.toHaveBeenCalled();
   expect((await stored()).metrics[1]?.bank).toEqual({ id: 'met.gone', release: '2030.01.1' });
   await waitFor(() =>
     expect(screen.queryByRole('button', { name: 'Ghim lại theo bản chụp hiện tại' })).not.toBeInTheDocument(),

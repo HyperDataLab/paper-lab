@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 import type { DraftError, DraftResult } from '@/core/researchDesign/draft/ops';
 import type { Draft } from '@/core/researchDesign/draft/schema';
 import type { ResearchDesign } from '@/core/schemas/researchDesign';
@@ -24,7 +24,8 @@ export function useDraftChange(): Change {
   const state = useResearchDesign();
   const toast = useToast();
   const save = useRef<Save | null>(null);
-  useEffect(() => {
+  // A layout effect arms the write path during commit, before any button rendered from this state can be clicked.
+  useLayoutEffect(() => {
     save.current = state.loading || state.error ? null : state.save;
   });
   return useCallback(
