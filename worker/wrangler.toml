@@ -4,6 +4,10 @@ compatibility_date = "2026-10-01"
 # HyperDataLab's Cloudflare account (phuong@hyperdatalab.org). Never deploy lab workers to another account.
 account_id = "124949a79dc6c5894bc492942593cb51"
 
+# The shared plan schema is outside worker/; resolve its Zod import to this package.
+[alias]
+zod = "./node_modules/zod/index.js"
+
 [vars]
 FIREBASE_PROJECT_ID = "hyperdatalab-paragraph-lab"
 ALLOWED_DOMAIN = "hyperdatalab.org"
