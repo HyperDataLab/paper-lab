@@ -72,8 +72,11 @@ export function createCorpusKeywordsRepository(
           (doi ? byDoi.get(doi) : undefined);
         const keywords = item?.keywords ?? (doi ? fetched.get(doi) : undefined);
         const year = member.stratum.year ?? item?.year ?? null;
+        // A member linked to a library record may lack a DOI of its own; the record's DOI still finds it.
+        const lookupDoi = doi ?? item?.doi;
         if (keywords) result.papers.push({ memberId: member.memberId, year, keywords });
-        else if (doi) result.missing.push({ memberId: member.memberId, doi, libraryId: item?.id ?? null });
+        else if (lookupDoi)
+          result.missing.push({ memberId: member.memberId, doi: lookupDoi, libraryId: item?.id ?? null });
         else result.withoutDoi++;
       }
       return result;

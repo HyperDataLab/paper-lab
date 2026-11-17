@@ -46,6 +46,8 @@ it('renders the cloud and table from a stored collection and lists a keyword’s
       <CorpusKeywords corpus={corpus} makeClient={() => ({ workKeywords: vi.fn() })} />
     </StorageProvider>,
   );
+  expect(screen.getByText('Đang tải…')).toBeInTheDocument();
+  expect(screen.queryByText('Chưa tính bộ keyword cho corpus này.')).not.toBeInTheDocument();
   const cloud = await screen.findByRole('group', { name: /Đám mây 2 keyword/ });
   expect(within(cloud).getByRole('button', { name: 'alpha: 2 bài, điểm TB 0.70' })).toBeInTheDocument();
   const table = screen.getByRole('table', { name: 'Keyword của corpus' });
@@ -61,6 +63,13 @@ it('renders the cloud and table from a stored collection and lists a keyword’s
   fireEvent.click(screen.getByRole('combobox', { name: 'Năm' }));
   fireEvent.click(await screen.findByRole('option', { name: '2021' }));
   expect(await screen.findByRole('group', { name: /Đám mây 1 keyword/ })).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('radio', { name: 'Đồ thị đồng xuất hiện' }));
+  const graph = screen.getByRole('group', { name: /Đồ thị đồng xuất hiện của 1 keyword và 0 cạnh/ });
+  fireEvent.click(within(graph).getByRole('button', { name: 'alpha: 1 bài' }));
+  expect(screen.getByRole('list', { name: 'Các bài có keyword alpha' })).toHaveTextContent(
+    'Synthetic two (2021)',
+  );
 });
 
 it('fetches missing keywords by DOI, then rebuilds the collection', async () => {

@@ -97,6 +97,7 @@ it('keeps the graph to the top keywords and strong edges', () => {
   const graph = keywordGraph(aggregate, { top: 2 });
   expect(graph.nodes.map((node) => node.id)).toEqual(['keywords/alpha', 'keywords/beta']);
   expect(graph.nodes[0]?.r).toBeGreaterThan(graph.nodes[1]?.r ?? 0);
+  expect(graph.nodes.map((node) => node.angle)).toEqual([-90, 90]);
   expect(graph.edges).toEqual([{ a: 'keywords/alpha', b: 'keywords/beta', count: 2, strength: 2 / 3 }]);
   expect(keywordGraph(aggregate, { minStrength: 0.9 }).edges).toEqual([]);
   expect(keywordGraph(aggregate, { minCount: 1 }).edges).toHaveLength(3);

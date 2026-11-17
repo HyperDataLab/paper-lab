@@ -149,6 +149,8 @@ export interface GraphNode {
   x: number;
   y: number;
   r: number;
+  /** Direction from the centre in degrees (−90 is straight up), so labels can point outwards without overlapping. */
+  angle: number;
 }
 export interface GraphEdge {
   a: string;
@@ -183,6 +185,7 @@ export function keywordGraph(
       x: Math.round((centre + ring * Math.cos(angle)) * 10) / 10,
       y: Math.round((centre + ring * Math.sin(angle)) * 10) / 10,
       r: Math.round((4 + 14 * Math.sqrt(keyword.paperCount / max)) * 10) / 10,
+      angle: Math.round((angle * 180) / Math.PI),
     };
   });
   const ids = new Set(nodes.map((node) => node.id));

@@ -15,7 +15,6 @@ export function KeywordGraph({
 }) {
   const { nodes, edges } = keywordGraph(aggregate, { top: TOP, minStrength: MIN_STRENGTH });
   const at = new Map(nodes.map((node) => [node.id, node]));
-  const centre = GRAPH_SIZE / 2;
   return (
     <>
       <p className={styles.muted}>
@@ -49,7 +48,7 @@ export function KeywordGraph({
           );
         })}
         {nodes.map((node) => {
-          const right = node.x >= centre;
+          const right = node.angle < 90;
           return (
             <g
               key={node.id}
@@ -66,11 +65,13 @@ export function KeywordGraph({
               }}
             >
               <circle cx={node.x} cy={node.y} r={node.r} />
+              {/* Labels point away from the centre, so neighbours on the ring do not print over each other. */}
               <text
                 className={styles.label}
                 x={node.x + (right ? node.r + 4 : -node.r - 4)}
                 y={node.y + 4}
                 textAnchor={right ? 'start' : 'end'}
+                transform={`rotate(${right ? node.angle : node.angle + 180} ${node.x} ${node.y})`}
               >
                 {node.name}
               </text>

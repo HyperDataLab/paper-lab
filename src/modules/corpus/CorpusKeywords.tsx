@@ -156,9 +156,11 @@ export function CorpusKeywords({
                 Lấy keywords cho {missing} bài còn thiếu
               </Button>
             )}
-            <Button variant="primary" size="sm" disabled={busy} onClick={() => void run(compute)}>
-              {collection ? 'Tính lại' : 'Tính bộ keyword'}
-            </Button>
+            {members && (
+              <Button size="sm" disabled={busy} onClick={() => void run(compute)}>
+                {collection ? 'Tính lại' : 'Tính bộ keyword'}
+              </Button>
+            )}
           </div>
         </div>
         <p className={styles.muted}>
@@ -173,7 +175,9 @@ export function CorpusKeywords({
             Thành viên hoặc keyword của corpus đã đổi từ lần tính trước; bấm “Tính lại” để cập nhật.
           </p>
         )}
-        {!collection || !shown ? (
+        {!members && !error ? (
+          <p className={styles.muted}>Đang tải…</p>
+        ) : !collection || !shown ? (
           <p className={styles.muted}>Chưa tính bộ keyword cho corpus này.</p>
         ) : (
           <>
