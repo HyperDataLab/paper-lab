@@ -1,5 +1,6 @@
 import { BookOpenText, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useState } from 'react';
+import { useAdmin } from '@/shared/auth/useAdmin';
 import { IconButton } from '@/shared/ui/IconButton';
 import { SidebarGroup } from './SidebarGroup';
 import styles from './shell.module.css';
@@ -22,6 +23,7 @@ function initialCollapsed() {
 
 export function Sidebar({ onNavigate, mobile = false }: { onNavigate?: () => void; mobile?: boolean }) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
+  const { admin } = useAdmin();
   const rail = collapsed && !mobile;
   function toggle() {
     const next = !collapsed;
@@ -50,7 +52,7 @@ export function Sidebar({ onNavigate, mobile = false }: { onNavigate?: () => voi
       </div>
       <nav aria-label="Điều hướng chính" className={styles.navigation}>
         {groups.map((group) => (
-          <SidebarGroup key={group.id} group={group} rail={rail} onNavigate={onNavigate} />
+          <SidebarGroup key={group.id} group={group} rail={rail} admin={admin} onNavigate={onNavigate} />
         ))}
       </nav>
     </aside>

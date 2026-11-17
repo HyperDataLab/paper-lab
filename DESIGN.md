@@ -347,6 +347,15 @@ These are checked on each screen, by looking at it, before a change is accepted.
 - **Never promise a control the screen does not have.** Empty states name an action only where that action exists.
 - **Provenance is not page content.** Minh bạch opens from the header in a drawer, grouped by run.
 
+**Admin screens.** A module with `adminOnly` shows in the sidebar and the command palette only when the lab server's
+`/v1/me` says the signed-in account is an admin (`useAdmin`); the app never decides this itself. Its route stays
+registered: anyone else who opens it reads "Chỉ quản trị viên PaperLab mới xem được trang này". **Duyệt yêu cầu**
+(`/admin/requests`) lists experiment-fact requests from other systems as one `Card` each: title, DOI, who asked and
+when, their note, and a state `Badge`. State `Chip`s filter (Đang chờ first). A waiting request offers Duyệt and a ghost
+Từ chối, which asks for a reason before sending. An approved request says what comes next: open the paper's Đo lường,
+then "Công bố lên máy chủ lab" in Publication info, or that the paper is not in this browser's library. Declined and
+done requests are read-only. The server id sits in folded technical detail.
+
 ## 13. Paper page is organised by question
 
 The profile has five dimensions (Khoa học, Lập luận, Diễn ngôn, Viết học thuật, Bối cảnh), each stating its question, coverage and indicators. Indicators are computed in `core/paperProfile`. Each dimension leads the place that is about it: A and B the Arguments space, C and D the Writing style space, E the Citations tab. A card's button opens the analysis behind it ("Mở để phân tích" or "Xem chi tiết"); it never starts a run.

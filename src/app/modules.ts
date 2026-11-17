@@ -5,6 +5,7 @@ import generate from '@/modules/generate';
 import history from '@/modules/history';
 import transfer from '@/modules/transfer';
 import calibration from '@/modules/calibration';
+import adminRequests from '@/modules/admin';
 import settings from '@/modules/settings';
 import paperImport from '@/modules/paper-import';
 import extraction from '@/modules/extraction';
@@ -21,5 +22,6 @@ export const modules = [
   history,
   transfer,
   calibration,
+  adminRequests,
   settings,
 ];
