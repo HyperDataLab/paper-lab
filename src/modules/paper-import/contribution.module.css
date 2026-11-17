@@ -1,0 +1,95 @@
+.views {
+  margin-top: var(--space-4);
+}
+.flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.stage {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-top: 4px solid;
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  background: var(--surface);
+}
+.stage h3 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-md);
+}
+.stage h3 span,
+.stage p {
+  color: var(--text-muted);
+}
+.stage h4 {
+  overflow-wrap: anywhere;
+  margin: var(--space-3) 0 var(--space-2);
+}
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-2);
+  margin: var(--space-2) 0;
+  overflow-wrap: anywhere;
+}
+.card summary {
+  cursor: pointer;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  list-style: none;
+  padding: 0;
+}
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.legend span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.graph {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.edgeLabel {
+  fill: var(--text);
+  font-size: 12px;
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+.node {
+  cursor: pointer;
+  fill: var(--text);
+  font-size: 12px;
+}
+.node circle {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 3px;
+}
+.node[aria-pressed='true'] circle {
+  fill: var(--accent);
+}
+.node:focus {
+  outline: none;
+}
+.node:focus-visible circle {
+  stroke: var(--text);
+  stroke-width: 5px;
+}
+@media (max-width: 900px) {
+  .flow {
+    grid-template-columns: 1fr;
+  }
+}

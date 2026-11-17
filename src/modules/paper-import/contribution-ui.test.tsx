@@ -67,4 +67,10 @@ it('R17e shows a contribution unit and a verified triple', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Phân tích đóng góp' }));
   expect(await screen.findByRole('heading', { name: 'Model' })).toBeInTheDocument();
   expect(screen.getByText('We → propose → a model')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('radio', { name: 'Đồ thị tri thức' }));
+  fireEvent.click(screen.getByRole('button', { name: 'We' }));
+  expect(screen.getByText('We propose a model.')).toBeVisible();
+  expect(screen.getByText('We → propose → a model')).toBeVisible();
+  fireEvent.click(screen.getByRole('radio', { name: 'Dòng đóng góp' }));
+  expect(screen.getByRole('heading', { name: 'Model' })).toBeInTheDocument();
 });

@@ -6,7 +6,7 @@ A single-paper extraction presents fields as rows, with the column menu beside e
 
 The single-paper run drawer offers Full Extract: all catalog fields are selected by group, with optional High Quality verification. Starting adds missing catalog columns after existing columns, including when custom columns bring the total above the normal add-column limit. Project runs retain the Deep Research option.
 
-The Contribution graph view groups verified triples by NCG information unit. Expand a triple to read its sentence and open its location; the analysis action shows its estimated AI calls and the ZIP export includes an out-of-domain note when applicable.
+The Contribution graph offers a four-stage contribution flow and a node-link knowledge graph of verified triples. The flow groups triples by NCG information unit; selecting a graph node lists its triples. Expand a triple to read its sentence and open its location; the analysis action shows its estimated AI calls and the ZIP export includes an out-of-domain note when applicable. Large graphs show the most connected nodes and link back to the full flow.
 
 UI and interaction rules for PaperLab. Implements PRD §6 (Highlight and annotation UX) and §9 (Accessibility).
 
