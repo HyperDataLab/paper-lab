@@ -159,4 +159,16 @@ it('M2 freezes once, rejects edits to frozen plans, and requires a changed draft
   const second = await repo.researchDesigns.freeze(id, changed.version, 2, 'local', 'New title', papers, '1');
   expect(second.frozenPlans).toHaveLength(2);
   expect(second.frozenPlans[0]).toEqual(frozen.frozenPlans[0]);
+
+  // SRD-PUB-07: which versions the lab's server holds is kept beside the frozen plans and survives later saves.
+  expect(second.publishedPlans).toBeUndefined();
+  const marked = await repo.researchDesigns.save(
+    { ...second, publishedPlans: { '1': { publishedAt: at } } },
+    second.version,
+  );
+  expect((await repo.researchDesigns.get(id))?.publishedPlans).toEqual({ '1': { publishedAt: at } });
+  expect(marked.frozenPlans).toEqual(second.frozenPlans);
+  await expect(
+    repo.researchDesigns.save({ ...marked, publishedPlans: { '3': { publishedAt: at } } }, marked.version),
+  ).rejects.toThrow();
 });

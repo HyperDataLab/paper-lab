@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { version as appVersion } from '../../../../package.json';
 import { freezeGate, nextVersion } from '@/core/researchDesign/draft/freezeGate';
@@ -6,7 +6,6 @@ import { setPlanTitle } from '@/core/researchDesign/draft/ops';
 import { checkDesign } from '@/core/researchDesign/draft/checkDesign';
 import { checkChain } from '@/core/researchDesign/draft/checkChain';
 import { checkPlan } from '@/core/researchDesign/draft/checkPlan';
-import { exportPackage } from '@/core/researchDesign/plan/exportPackage';
 import { planMarkdown } from '@/core/researchDesign/plan/planMarkdown';
 import { runnerStubs } from '@/core/researchDesign/plan/runnerStubs';
 import type { ExperimentPlan } from '@/core/researchDesign/plan/schema';
@@ -22,78 +21,21 @@ import { useToast } from '@/shared/ui/toastContext';
 import { useResearchDesign } from '../ResearchDesignProvider';
 import { issueText, missingLink, missingText, ruleText } from '../package/gateText';
 import { Markdown } from '../package/Markdown';
-
-function download(name: string, bytes: Uint8Array, type: string) {
-  const url = URL.createObjectURL(new Blob([new Uint8Array(bytes).buffer], { type }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
-function FrozenVersion({
-  plan,
-  open,
-}: {
-  plan: ExperimentPlan;
-  open: (kind: 'plan' | 'runner', plan: ExperimentPlan) => void;
-}) {
-  const toast = useToast();
-  const [manifest, setManifest] = useState<Awaited<ReturnType<typeof exportPackage>>['manifest'] | null>(
-    null,
-  );
-  useEffect(() => {
-    let active = true;
-    void exportPackage(plan)
-      .then((file) => {
-        if (active) setManifest(file.manifest);
-      })
-      .catch(() => {
-        if (active) setManifest(null);
-      });
-    return () => {
-      active = false;
-    };
-  }, [plan]);
-  return (
-    <section>
-      <p>
-        Phiên bản {plan.planVersion} · {plan.frozenBy} · {new Date(plan.frozenAt).toLocaleString('vi-VN')}
-      </p>
-      {plan.deviation && <p>{plan.deviation}</p>}
-      {manifest ? (
-        manifest.files.map((file) => (
-          <p key={file.path}>
-            {file.path} · SHA-256: <code>{file.sha256}</code>
-          </p>
-        ))
-      ) : (
-        <p>Không tải được mã băm.</p>
-      )}
-      <Button variant="ghost" onClick={() => open('plan', plan)}>
-        Xem
-      </Button>
-      <Button
-        variant="ghost"
-        onClick={() =>
-          void exportPackage(plan)
-            .then((file) => download(file.fileName, file.bytes, 'application/zip'))
-            .catch(() => toast('Không tải được gói.'))
-        }
-      >
-        Tải gói (.zip)
-      </Button>
-      <Button variant="ghost" onClick={() => open('runner', plan)}>
-        Mã mẫu cho runner
-      </Button>
-    </section>
-  );
-}
+import { download } from '../package/download';
+import { FrozenVersion } from '../package/FrozenVersion';
+import { PublishNote } from '../package/PublishNote';
+import { NOT_SIGNED_IN, usePlanPublisher, type PublishOutcome } from '../package/usePlanPublisher';
 
 export default function PackageSection() {
   const state = useResearchDesign();
   const toast = useToast();
+  const ready = !state.loading && !state.error;
+  const { signedIn, publish } = usePlanPublisher(
+    ready ? state.project.id : '',
+    ready ? state.update : async () => Promise.reject(new Error('Research design is not loaded')),
+  );
+  const [note, setNote] = useState<PublishOutcome | null>(null);
+  const [sending, setSending] = useState<number | null>(null);
   const [title, setTitle] = useState<string | null>(null);
   const [dialog, setDialog] = useState(false);
   const [deviation, setDeviation] = useState('');
@@ -155,8 +97,16 @@ export default function PackageSection() {
     }
     setBusy(true);
     setError('');
+    let frozen: ExperimentPlan | undefined;
     try {
-      await freeze(version, 'local', version === 1 ? null : deviation.trim(), papers, appVersion);
+      const design = await freeze(
+        version,
+        'local',
+        version === 1 ? null : deviation.trim(),
+        papers,
+        appVersion,
+      );
+      frozen = design.frozenPlans.at(-1);
       setDialog(false);
       setDeviation('');
       toast(`Đã đóng băng phiên bản ${version}.`);
@@ -170,7 +120,15 @@ export default function PackageSection() {
     } finally {
       setBusy(false);
     }
+    // Publishing is separate from freezing: the version stays frozen whatever the server answers.
+    if (frozen) await send(frozen);
   }
+  async function send(plan: ExperimentPlan) {
+    setSending(plan.planVersion);
+    setNote(await publish(plan));
+    setSending(null);
+  }
+  const publishedPlans = state.design.publishedPlans ?? {};
   return (
     <>
       <h3>Gói kế hoạch</h3>
@@ -246,6 +204,8 @@ export default function PackageSection() {
       </Card>
       <Card>
         <h3>Các phiên bản đã đóng băng</h3>
+        {note && <PublishNote note={note} />}
+        {!signedIn && frozenPlans.length > 0 && !note && <p>{NOT_SIGNED_IN}</p>}
         {frozenPlans.length ? (
           [...frozenPlans]
             .sort((a, b) => b.planVersion - a.planVersion)
@@ -254,6 +214,10 @@ export default function PackageSection() {
                 key={plan.planVersion}
                 plan={plan}
                 open={(kind, selected) => setDrawer({ kind, plan: selected })}
+                published={Boolean(publishedPlans[String(plan.planVersion)])}
+                signedIn={signedIn}
+                sending={sending === plan.planVersion}
+                send={(selected) => void send(selected)}
               />
             ))
         ) : (

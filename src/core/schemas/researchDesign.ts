@@ -12,6 +12,10 @@ export const ResearchDesignSchema = z
     bankRelease: z.string().nullable(),
     facts: z.record(z.string(), factsDocSchema),
     frozenPlans: z.array(planSchema),
+    /** Frozen versions the lab's server has accepted for SRD, keyed by plan version. Absent in older records. */
+    publishedPlans: z
+      .record(z.string().regex(/^[1-9]\d*$/u), z.strictObject({ publishedAt: z.iso.datetime() }))
+      .optional(),
   })
   .refine(
     (record) =>
@@ -19,6 +23,13 @@ export const ResearchDesignSchema = z
         (plan, index) => plan.planId === record.projectId && plan.planVersion === index + 1,
       ),
     'Invalid frozen plan versions',
+  )
+  .refine(
+    (record) =>
+      Object.keys(record.publishedPlans ?? {}).every(
+        (version) => Number(version) <= record.frozenPlans.length,
+      ),
+    'Published plan versions must be frozen',
   );
 export type ResearchDesign = z.infer<typeof ResearchDesignSchema>;
 export function emptyResearchDesign(projectId: string): ResearchDesign {

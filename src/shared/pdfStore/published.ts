@@ -40,6 +40,60 @@ export async function publishPaperModel(model: PaperModel, localPaperId: string,
   return PublishResultSchema.parse(await response.json());
 }
 
+export class PublishPlanError extends Error {
+  constructor(
+    public status: number,
+    version: number,
+  ) {
+    super(
+      status === 401
+        ? 'Phiên đăng nhập đã hết hạn.'
+        : status === 403
+          ? 'Tài khoản này không được gửi kế hoạch lên máy chủ lab.'
+          : status === 409
+            ? `Máy chủ lab đã có phiên bản ${version} với nội dung khác; phiên bản đã đóng băng không thay đổi được.`
+            : status === 422
+              ? 'Máy chủ lab thấy kế hoạch chưa hợp lệ.'
+              : status < 500
+                ? `Máy chủ lab không nhận kế hoạch (lỗi ${status}).`
+                : `Máy chủ lab gặp lỗi ${status}. Vui lòng thử lại.`,
+    );
+  }
+}
+
+// The worker answers 201 { projectId, version, etag } for a new version and 200 { unchanged: true } for a resend.
+const PlanPublishResultSchema = z.looseObject({
+  unchanged: z.boolean().optional(),
+  etag: z.string().optional(),
+});
+
+/**
+ * Sends one frozen plan exactly as stored, so SRD can read it. The title goes in `?title=` because the body must
+ * stay the frozen plan: the server compares its hash to decide write-once.
+ */
+export async function publishFrozenPlan(
+  projectId: string,
+  title: string,
+  plan: { planVersion: number },
+  token: string,
+) {
+  const version = plan.planVersion;
+  const response = await fetch(
+    `${PDF_WORKER_URL}/v1/projects/${encodeURIComponent(projectId)}/plans/${version}?title=${encodeURIComponent(title)}`,
+    {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(plan),
+    },
+  );
+  if (!response.ok) throw new PublishPlanError(response.status, version);
+  const body = PlanPublishResultSchema.safeParse(await response.json().catch(() => ({})));
+  return {
+    unchanged: body.success && body.data.unchanged === true,
+    etag: (body.success && body.data.etag) || null,
+  };
+}
+
 export async function publishExperimentFacts(facts: ExperimentFacts, token: string) {
   const response = await fetch(
     `${PDF_WORKER_URL}/v1/papers/${encodeURIComponent(facts.paperId)}/experiment-facts`,
