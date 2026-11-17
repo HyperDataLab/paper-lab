@@ -81,6 +81,74 @@ function side(
 const finiteOrNull = (value: number | null | undefined) =>
   value === null || value === undefined || !Number.isFinite(value) ? null : value;
 
+type MeasuredRow = { measurement: PaperMeasurement };
+
+/** Finite values of one feature over the measured papers. */
+export const valuesOf = (rows: readonly MeasuredRow[], id: string) =>
+  rows.flatMap((row) => {
+    const value = row.measurement.values[id];
+    return value === null || value === undefined || !Number.isFinite(value) ? [] : [value];
+  });
+
+/** Share of counted labels no person has confirmed; null with no labels. */
+export function machineShareOf(rows: readonly MeasuredRow[], id: string) {
+  let total = 0,
+    machine = 0;
+  for (const row of rows) {
+    const count = row.measurement.labels[id];
+    total += count?.total ?? 0;
+    machine += count?.machine ?? 0;
+  }
+  return total ? machine / total : null;
+}
+
+/**
+ * Effect, bootstrap CI and Mann–Whitney p of one feature: difference in proportions for prevalence features,
+ * Cohen's d otherwise. `index` is the feature's position in its registry; it seeds the bootstrap.
+ */
+export function compareValues(
+  metricType: CorpusProfileFeature['metricType'],
+  a: number[],
+  b: number[],
+  seed: number,
+  index: number,
+) {
+  const binary = metricType === 'prevalence';
+  const statistic = binary ? proportionDifference : cohensD;
+  const effect = finiteOrNull(statistic(a, b));
+  const ci =
+    effect === null ? null : bootstrapCi(a, b, (seed + Math.imul(index + 1, 0x9e3779b1)) >>> 0, statistic);
+  const pValue = effect === null ? null : mannWhitney(a, b);
+  return { effect, metric: binary ? ('proportion_difference' as const) : ('cohens_d' as const), ci, pValue };
+}
+
+export function comparisonOf(
+  draft: ReturnType<typeof compareValues>,
+  qValue: number | null,
+): CorpusProfileFeature['comparison'] {
+  return draft.effect === null || draft.pValue === null || qValue === null
+    ? null
+    : {
+        effectSize: draft.effect,
+        effectMetric: draft.metric,
+        ci95Low: draft.ci?.[0] ?? null,
+        ci95High: draft.ci?.[1] ?? null,
+        pValue: draft.pValue,
+        qValue,
+        bootstrapUnit: 'paper',
+      };
+}
+
+/** q below alpha and |effect| at least the minimum for its metric. */
+export function isDistinctive(comparison: CorpusProfileFeature['comparison']) {
+  if (!comparison || comparison.qValue >= PROFILE_THRESHOLDS.alpha) return false;
+  const min =
+    comparison.effectMetric === 'cohens_d'
+      ? PROFILE_THRESHOLDS.minCohensD
+      : PROFILE_THRESHOLDS.minProportionDifference;
+  return Math.abs(comparison.effectSize) >= min;
+}
+
 /**
  * The corpus profile of a journal against its control: per-paper feature values, summary statistics,
  * paper-level comparisons with FDR control, and phrase keyness. Pure computation over the given papers.
@@ -141,39 +209,10 @@ export async function buildCorpusProfile({
   const targetSide = side(target, t.members, bucketStart, bucketEnd);
   const controlSide = side(control, c.members, bucketStart, bucketEnd);
 
-  const valuesOf = (rows: { measurement: PaperMeasurement }[], id: string) =>
-    rows.flatMap((row) => {
-      const value = row.measurement.values[id];
-      return value === null || value === undefined || !Number.isFinite(value) ? [] : [value];
-    });
-  const machineShare = (rows: { measurement: PaperMeasurement }[], id: string) => {
-    let total = 0,
-      machine = 0;
-    for (const row of rows) {
-      const count = row.measurement.labels[id];
-      total += count?.total ?? 0;
-      machine += count?.machine ?? 0;
-    }
-    return total ? machine / total : null;
-  };
   const drafts = registry.features.map((feature, index) => {
     const a = valuesOf(t.measured, feature.id),
       b = valuesOf(c.measured, feature.id);
-    const binary = feature.metricType === 'prevalence';
-    const statistic = binary ? proportionDifference : cohensD;
-    const effect = finiteOrNull(statistic(a, b));
-    const ci =
-      effect === null ? null : bootstrapCi(a, b, (seed + Math.imul(index + 1, 0x9e3779b1)) >>> 0, statistic);
-    const pValue = effect === null ? null : mannWhitney(a, b);
-    return {
-      feature,
-      a,
-      b,
-      effect,
-      metric: binary ? ('proportion_difference' as const) : ('cohens_d' as const),
-      ci,
-      pValue,
-    };
+    return { feature, a, b, ...compareValues(feature.metricType, a, b, seed, index) };
   });
   const q = benjaminiHochberg(drafts.map((draft) => draft.pValue));
   const features: CorpusProfileFeature[] = drafts.map((draft, index) => {
@@ -189,20 +228,9 @@ export async function buildCorpusProfile({
       extractor: machine ? 'llm' : 'deterministic',
       target: summarize(draft.a),
       control: summarize(draft.b),
-      comparison:
-        draft.effect === null || draft.pValue === null || qValue === null
-          ? null
-          : {
-              effectSize: draft.effect,
-              effectMetric: draft.metric,
-              ci95Low: draft.ci?.[0] ?? null,
-              ci95High: draft.ci?.[1] ?? null,
-              pValue: draft.pValue,
-              qValue,
-              bootstrapUnit: 'paper',
-            },
+      comparison: comparisonOf(draft, qValue),
       machineShare: machine
-        ? { target: machineShare(t.measured, feature.id), control: machineShare(c.measured, feature.id) }
+        ? { target: machineShareOf(t.measured, feature.id), control: machineShareOf(c.measured, feature.id) }
         : null,
       coverage: {
         target: { measured: draft.a.length, papers: t.measured.length },
@@ -210,17 +238,7 @@ export async function buildCorpusProfile({
       },
     };
   });
-  const distinctiveFeatureIds = features
-    .filter((f) => {
-      const cmp = f.comparison;
-      if (!cmp || cmp.qValue >= PROFILE_THRESHOLDS.alpha) return false;
-      const min =
-        cmp.effectMetric === 'cohens_d'
-          ? PROFILE_THRESHOLDS.minCohensD
-          : PROFILE_THRESHOLDS.minProportionDifference;
-      return Math.abs(cmp.effectSize) >= min;
-    })
-    .map((f) => f.featureId);
+  const distinctiveFeatureIds = features.filter((f) => isDistinctive(f.comparison)).map((f) => f.featureId);
 
   const phrasePapers = (rows: typeof t.measured) =>
     rows.map(({ member, paper }) => ({
