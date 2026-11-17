@@ -20,6 +20,7 @@ import { CorpusBuild } from './CorpusBuild';
 import { CorpusLabels } from './CorpusLabels';
 import { CorpusProfileCard } from './CorpusProfileCard';
 import { CorpusTopics } from './CorpusTopics';
+import { CorpusKeywords } from './CorpusKeywords';
 import { JournalHarvest } from './JournalHarvest';
 import { kinds, memberRoleLabel, versionLabel } from './labels';
 import { downloadManifest } from './manifest';
@@ -248,6 +249,7 @@ export default function DetailPage() {
       <CorpusLabels corpus={corpus} save={save} />
       {corpus.kind === 'journal' && <CorpusProfileCard corpus={corpus} />}
       <CorpusTopics corpus={corpus} onData={receiveTopics} />
+      <CorpusKeywords corpus={corpus} />
 
       <Card>
         <section aria-labelledby="corpus-members" className={styles.members}>
