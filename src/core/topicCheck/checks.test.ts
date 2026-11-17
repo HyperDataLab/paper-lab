@@ -2,13 +2,24 @@ import { expect, it } from 'vitest';
 import { emptyTopicCheck, type TopicCheck } from '../schemas/topicCheck';
 import { evaluateTopicCheck } from './checks';
 const status = (c: TopicCheck, id: string) => evaluateTopicCheck(c).find((x) => x.id === id)?.status;
-const run = (kind: TopicCheck['evidence'][number]['kind'], result: Record<string, unknown>) => ({
-  id: kind,
-  kind,
-  ranAt: '2026-01-01T00:00:00.000Z',
-  input: {},
-  queryUsed: '',
-  result,
+const run = <K extends TopicCheck['evidence'][number]['kind']>(
+  kind: K,
+  result: Extract<TopicCheck['evidence'][number], { kind: K }>['result'],
+): Extract<TopicCheck['evidence'][number], { kind: K }> =>
+  ({
+    id: kind,
+    kind,
+    ranAt: '2026-01-01T00:00:00.000Z',
+    input: {},
+    queryUsed: '',
+    result,
+  }) as Extract<TopicCheck['evidence'][number], { kind: K }>;
+const paper = { id: 'p', cited_by_count: 0, counts_by_year: {}, url: 'https://example.test' };
+const saturation = (total_estimate: number) => ({
+  window: '2020-2026',
+  counts_by_year: {},
+  total_estimate,
+  closest_recent: [],
 });
 it('TC-01 statement missing, lengthy and ready', () => {
   const c = emptyTopicCheck();
@@ -45,7 +56,7 @@ it('TC-04 convergence fields and concerns', () => {
 it('TC-05 duplication reviews on review track', () => {
   const c = emptyTopicCheck();
   expect(status(c, 'duplication')).toBe('missing');
-  c.evidence = [run('duplication', { reviews: [{ read: false }] })];
+  c.evidence = [run('duplication', { mode: 'sr', neighbours: [], existing_reviews: [paper] })];
   expect(status(c, 'duplication')).toBe('needs_work');
   c.track = 'study';
   expect(status(c, 'duplication')).toBe('ready');
@@ -53,20 +64,22 @@ it('TC-05 duplication reviews on review track', () => {
 it('TC-06 review feasibility thresholds', () => {
   const c = emptyTopicCheck();
   expect(status(c, 'feasibility')).toBe('missing');
-  c.evidence = [run('saturation', { total: 4 })];
+  c.evidence = [run('saturation', saturation(4))];
   expect(status(c, 'feasibility')).toBe('needs_work');
-  c.evidence = [run('saturation', { total: 5 })];
+  c.evidence = [run('saturation', saturation(5))];
   expect(status(c, 'feasibility')).toBe('ready');
-  c.evidence = [run('saturation', { total: 501 })];
+  c.evidence = [run('saturation', saturation(501))];
   expect(status(c, 'feasibility')).toBe('needs_work');
 });
 it('TC-07 study impact', () => {
   const c = emptyTopicCheck();
   c.track = 'study';
   expect(status(c, 'impact')).toBe('missing');
-  c.evidence = [run('impact', { neighbours: [{ citationsPerYear: 0 }] })];
+  c.evidence = [run('impact', { papers: [{ ref: 'p', ok: true, paper }] })];
   expect(status(c, 'impact')).toBe('needs_work');
-  c.evidence = [run('impact', { neighbours: [{ citationsPerYear: 1 }] })];
+  c.evidence = [
+    run('impact', { papers: [{ ref: 'p', ok: true, paper: { ...paper, counts_by_year: { '2026': 2 } } }] }),
+  ];
   expect(status(c, 'impact')).toBe('ready');
 });
 it('TC-08 PICO applies to reviews', () => {
@@ -94,13 +107,61 @@ it('TC-10 track applicability', () => {
 it('TC-11 newest evidence wins', () => {
   const c = emptyTopicCheck();
   c.evidence = [
-    run('saturation', { total: 4 }),
-    { ...run('saturation', { total: 10 }), ranAt: '2026-02-01T00:00:00.000Z' },
+    run('saturation', saturation(4)),
+    { ...run('saturation', saturation(10)), ranAt: '2026-02-01T00:00:00.000Z' },
   ];
   expect(status(c, 'feasibility')).toBe('ready');
 });
 it('TC-12 unknown evidence is not treated as ready', () => {
   const c = emptyTopicCheck();
-  c.evidence = [run('saturation', {})];
-  expect(status(c, 'feasibility')).toBe('needs_work');
+  c.track = 'study';
+  c.evidence = [run('impact', { papers: [{ ref: 'p', ok: false, error: 'failed' }] })];
+  expect(status(c, 'impact')).toBe('needs_work');
+});
+it('TC-13 reviewed existing reviews make duplication ready', () => {
+  const c = emptyTopicCheck();
+  c.evidence = [run('duplication', { mode: 'sr', neighbours: [], existing_reviews: [paper] })];
+  c.reviewedIds = ['p'];
+  expect(status(c, 'duplication')).toBe('ready');
+});
+it('TC-14 no existing reviews makes duplication ready', () => {
+  const c = emptyTopicCheck();
+  c.evidence = [run('duplication', { mode: 'sr', neighbours: [] })];
+  expect(status(c, 'duplication')).toBe('ready');
+});
+it('TC-15 upper feasibility boundary is included', () => {
+  const c = emptyTopicCheck();
+  c.evidence = [run('saturation', saturation(500))];
+  expect(status(c, 'feasibility')).toBe('ready');
+});
+it('TC-16 impact checks each of the last three years', () => {
+  const c = emptyTopicCheck();
+  c.track = 'study';
+  c.evidence = [
+    run('impact', { papers: [{ ref: 'p', ok: true, paper: { ...paper, counts_by_year: { '2024': 2 } } }] }),
+  ];
+  expect(status(c, 'impact')).toBe('ready');
+});
+it('TC-17 older citations do not affect impact', () => {
+  const c = emptyTopicCheck();
+  c.track = 'study';
+  c.evidence = [
+    run('impact', {
+      papers: [{ ref: 'p', ok: true, paper: { ...paper, counts_by_year: { '2023': 20, '2025': 1 } } }],
+    }),
+  ];
+  expect(status(c, 'impact')).toBe('needs_work');
+});
+it('TC-18 failed impact lookup remains uncertain', () => {
+  const c = emptyTopicCheck();
+  c.track = 'study';
+  c.evidence = [
+    run('impact', {
+      papers: [
+        { ref: 'p', ok: true, paper },
+        { ref: 'q', ok: false },
+      ],
+    }),
+  ];
+  expect(evaluateTopicCheck(c).find((x) => x.id === 'impact')?.reasonCode).toBe('unknown_impact');
 });

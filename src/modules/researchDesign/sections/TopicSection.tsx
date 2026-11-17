@@ -15,6 +15,7 @@ import { PicoCard } from '../topic/PicoCard';
 import { PlainSummaryCard } from '../topic/PlainSummaryCard';
 import { ChecklistCard } from '../topic/ChecklistCard';
 import { DecisionCard } from '../topic/DecisionCard';
+import { EvidencePanel } from '../topic/EvidencePanel';
 
 export default function TopicSection() {
   const state = useResearchDesign();
@@ -42,6 +43,7 @@ export default function TopicSection() {
       <StatementCard {...props} />
       <NeighboursEditor {...props} />
       <DebateCard {...props} />
+      <EvidencePanel {...props} />
       <ConvergenceCard {...props} />
       {check.track === 'study' && (
         <Button variant="ghost" onClick={() => setShowPico(!showPico)}>
