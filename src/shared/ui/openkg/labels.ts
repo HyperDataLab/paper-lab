@@ -15,6 +15,7 @@ export const PREDICATE_LABELS: Record<KgPredicate, string> = {
   contributes: 'đóng góp',
   buildsOn: 'dựa trên',
   relatedKeyword: 'liên quan đến từ khóa',
+  coAuthor: 'đồng tác giả với',
   inTopic: 'thuộc',
   broader: 'thuộc nhóm rộng hơn',
   authoredBy: 'có tác giả',
@@ -23,6 +24,25 @@ export const PREDICATE_LABELS: Record<KgPredicate, string> = {
   supportedBy: 'được củng cố bởi',
   evidenceLevel: 'có mức bằng chứng',
 };
+
+export const NODE_LABELS = {
+  Paper: 'Bài báo',
+  Work: 'Tài liệu được dẫn',
+  Source: 'Nơi xuất bản',
+  Keyword: 'Từ khóa',
+  Contribution: 'Đóng góp',
+  Prerequisite: 'Nền tảng',
+  Tool: 'Công cụ',
+  Domain: 'Lĩnh vực',
+  Field: 'Ngành',
+  Subfield: 'Phân ngành',
+  Topic: 'Chủ đề',
+  Author: 'Tác giả',
+  Institution: 'Cơ quan',
+  Claim: 'Luận điểm',
+  Evidence: 'Bằng chứng',
+  EvidenceLevel: 'Mức bằng chứng',
+} as const;
 
 export const PROVENANCE_LABELS: Record<KgProvenance, string> = {
   openalex: 'OpenAlex',

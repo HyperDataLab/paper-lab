@@ -15,6 +15,7 @@ import { createCalibrationLabelsRepository } from './calibrationLabels';
 import { createCorpusProfilesRepository } from './corpusProfiles';
 import { createCorpusTopicsRepository } from './corpusTopics';
 import { createCorpusKeywordsRepository } from './corpusKeywords';
+import { createCorpusOpenKgRepository } from './corpusOpenKg';
 import { createCorporaRepository } from './corpora';
 import { createPaperReviewsRepository } from './paperReviews';
 import { createPaperProbesRepository } from './paperProbes';
@@ -53,6 +54,8 @@ export function createRepositories(
   const paperInsights = createPaperInsightsRepository(db, now, makeAudit);
   const extraction = createExtractionRepository(db, now, makeAudit);
   const library = createLibraryRepository(db, now, ids);
+  const corpusKeywords = createCorpusKeywordsRepository(db, library, now);
+  const scg = createScgRepository(db, clock);
   const pdfFiles = createPdfFilesRepository(db, now);
   const transfer = createTransferRepository(db, clock, deps, {
     analyses,
@@ -72,7 +75,7 @@ export function createRepositories(
   });
   return {
     analyses,
-    scg: createScgRepository(db, clock),
+    scg,
     audit,
     revisions,
     generations,
@@ -92,7 +95,8 @@ export function createRepositories(
     corpora,
     corpusProfiles: createCorpusProfilesRepository(db),
     corpusTopics: createCorpusTopicsRepository(db),
-    corpusKeywords: createCorpusKeywordsRepository(db, library, now),
+    corpusKeywords,
+    corpusOpenKg: createCorpusOpenKgRepository(db, corpusKeywords, scg),
     pdfFiles,
     grobid: createGrobidRepository(db),
     calibrationLabels,

@@ -1,24 +1,36 @@
 import { KG_LAYERS, type KgEdge, type KgNode, type PaperKg } from '@/core/openkg';
-import { edgeKey } from './openkgLabels';
+import { edgeKey } from './labels';
 import styles from './openkg.module.css';
 
 const SIZE = 640;
 const CENTRE = SIZE / 2;
+const CORPUS_RINGS = [
+  { layer: 'disciplinary', radius: 56 },
+  { layer: 'normative', radius: 103 },
+  { layer: 'conceptual', radius: 153 },
+  { layer: 'evidential', radius: 215 },
+  { layer: 'expertise', radius: 278 },
+] as const;
 
 export function OpenKgGraph({
   graph,
   selected,
   onSelect,
+  layout = 'paper',
 }: {
   graph: PaperKg;
   selected?: string;
   onSelect: (id: string) => void;
+  layout?: 'paper' | 'corpus';
 }) {
-  const article = graph.nodes.find((node) => node.type === 'Paper');
-  const rings = KG_LAYERS.map((layer, index) => ({
-    layer,
-    radius: 270 - index * 48,
-    nodes: graph.nodes.filter((node) => node.layer === layer && node.type !== 'Paper'),
+  const article = layout === 'paper' ? graph.nodes.find((node) => node.type === 'Paper') : undefined;
+  const rings = (
+    layout === 'corpus'
+      ? CORPUS_RINGS
+      : KG_LAYERS.map((layer, index) => ({ layer, radius: 270 - index * 48 }))
+  ).map((ring) => ({
+    ...ring,
+    nodes: graph.nodes.filter((node) => node.layer === ring.layer && node.id !== article?.id),
   }));
   const points = new Map<string, { node: KgNode; x: number; y: number; r: number }>();
   if (article) points.set(article.id, { node: article, x: CENTRE, y: CENTRE, r: 34 });
@@ -56,7 +68,7 @@ export function OpenKgGraph({
       className={styles.graph}
       viewBox={`0 0 ${SIZE} ${SIZE}`}
       role="group"
-      aria-label="Đồ thị tri thức của bài báo"
+      aria-label={layout === 'paper' ? 'Đồ thị tri thức của bài báo' : 'Đồ thị tri thức của corpus'}
     >
       <g aria-hidden="true">
         {rings.map(
@@ -86,7 +98,7 @@ export function OpenKgGraph({
         >
           <title>{node.label}</title>
           <circle cx={x} cy={y} r={r} />
-          {node.type === 'Paper' && (
+          {node.id === article?.id && (
             <text x={x} y={y} textAnchor="middle" dominantBaseline="central">
               Bài báo
             </text>
