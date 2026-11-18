@@ -33,6 +33,7 @@ export const PROMPT_VERSIONS = {
   extractionVerify: 'extraction-verify-1',
   searchPlan: 'search-plan-1',
   screening: 'screening-1',
+  screeningTriage: 'screening-triage-1',
   synthesis: 'synthesis-3',
   planSuggestion: 'plan-suggestion-2',
 } as const;

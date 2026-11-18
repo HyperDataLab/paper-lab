@@ -2,6 +2,9 @@ import type { CellStatus, ExtractionMode, SourceAccess } from '@/core/schemas';
 
 type Tone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger';
 
+/** The screening triage buckets, named as the Sàng lọc step names the decisions. */
+export const BUCKET_LABEL = { included: 'Chọn', excluded: 'Loại', uncertain: 'Chưa chắc' } as const;
+
 export const STATUS: Record<CellStatus, { label: string; tone: Tone }> = {
   EXTRACTED: { label: 'Đã trích', tone: 'accent' },
   NEEDS_REVIEW: { label: 'Cần duyệt', tone: 'warning' },

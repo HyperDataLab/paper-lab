@@ -1,17 +1,27 @@
 import { Sparkles } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+  acceptTriage,
   addPapers,
+  borderlineSample,
+  bucketOf,
   candidateFromWork,
+  criteriaOf,
   decideCandidate,
+  DEFAULT_THRESHOLDS,
   emptyDeep,
+  estimateTriage,
   isGrounded,
   mergeCandidates,
   paperEvidence,
   papersFromCandidates,
-  SCREENING_BATCH,
+  sortByScore,
   synthesisInput,
   synthesisMarkdown,
+  triageBuckets,
+  type Thresholds,
+  type TriageBucket,
+  type TriageSort,
 } from '@/core/extraction';
 import type {
   Candidate,
@@ -24,7 +34,7 @@ import type {
 import { downloadText } from '@/shared/calibration/download';
 import { describeLlmError } from '@/shared/llm/describeError';
 import { useLlm } from '@/shared/llm/LlmProvider';
-import { llmScreening, llmSearchPlan, llmSynthesis } from '@/shared/llm/llmDeepResearch';
+import { llmSearchPlan, llmSynthesis, llmTriage } from '@/shared/llm/llmDeepResearch';
 import { createScholarClient } from '@/shared/scholar/client';
 import { ActionBar } from '@/shared/ui/ActionBar';
 import { Badge } from '@/shared/ui/Badge';
@@ -33,6 +43,8 @@ import { Card } from '@/shared/ui/Card';
 import { Chip } from '@/shared/ui/Chip';
 import { TextField } from '@/shared/ui/TextField';
 import { GroundingDrawer, type GroundingTarget } from './GroundingDrawer';
+import { BUCKET_LABEL } from './labels';
+import { TriageDetails, TriagePanel, type TriageFilter } from './ScreeningTriage';
 import styles from './extraction.module.css';
 import { Empty } from '@/shared/ui/StateNote';
 
@@ -98,7 +110,15 @@ export function DeepResearch({
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<ScreeningStatus | 'all'>('all');
   const [grounding, setGrounding] = useState<GroundingTarget | null>(null);
+  const [thresholds, setThresholds] = useState<Thresholds>(DEFAULT_THRESHOLDS);
+  const [aiFilter, setAiFilter] = useState<TriageFilter>('all');
+  const [sort, setSort] = useState<TriageSort>('default');
   const controller = useRef<AbortController | null>(null);
+  /** The latest project, so a checkpoint saved mid-run merges onto decisions made meanwhile. */
+  const current = useRef(project);
+  useEffect(() => {
+    current.current = project;
+  }, [project]);
   const plan = deep.plan;
   const planFromDraft = (): SearchPlan => ({
     concepts: plan?.concepts ?? [],
@@ -223,15 +243,32 @@ export function DeepResearch({
       }
       await onSave(withDeep({ candidates, rounds: [...deep.rounds, ...rounds] }));
     });
-  const pending = deep.candidates.filter((item) => item.status === 'candidate' && !item.suggestion);
+  const estimate = estimateTriage(deep.candidates);
+  const criteria = criteriaOf(plan ?? { inclusion: [], exclusion: [] });
   const screen = () =>
-    task('Đang gợi ý sàng lọc…', async (signal) => {
-      if (!plan || !(await ai(signal))) return;
-      const candidates = await llmScreening(llm.client, question.trim(), plan, deep.candidates, {
-        config: llm.config,
-        signal,
-      });
-      await onSave(withDeep({ candidates }), { action: 'run_extraction', after: { step: 'screening' } });
+    task('Đang chấm điểm sàng lọc…', async (signal) => {
+      if (!(plan || question.trim()) || !(await ai(signal))) return;
+      await llmTriage(
+        llm.client,
+        question.trim(),
+        plan ?? { inclusion: [], exclusion: [] },
+        deep.candidates,
+        {
+          config: llm.config,
+          signal,
+          // A checkpoint per batch: a stop or a failure keeps every batch already graded.
+          onBatch: async ({ apply, index, total }) => {
+            const base = current.current;
+            const next = withDeep({ candidates: apply(base.deep?.candidates ?? []) }, base);
+            current.current = next;
+            setBusy(`Đang chấm điểm sàng lọc… lô ${index + 1}/${total}`);
+            await onSave(next, {
+              action: 'run_extraction',
+              after: { step: 'screening_triage', batch: index + 1, of: total },
+            });
+          },
+        },
+      );
     });
   const decide = (candidate: Candidate, status: ScreeningStatus) =>
     void onSave(
@@ -240,6 +277,23 @@ export function DeepResearch({
       }),
       { action: 'review_extraction', after: { step: 'screen', key: candidate.key, status } },
     );
+  /** Applies the AI bucket as the person's decision; only after a click, and for many papers after a confirm. */
+  const accept = (bucket: TriageBucket, keys: string[]) => {
+    const { candidates, applied } = acceptTriage(
+      deep.candidates,
+      keys,
+      bucket,
+      thresholds,
+      new Date().toISOString(),
+    );
+    if (!applied) return;
+    void onSave(withDeep({ candidates }), {
+      action: 'review_extraction',
+      after: { step: 'screen_triage_accept', bucket, applied, thresholds, source: 'ai_accepted' },
+    });
+  };
+  const buckets = triageBuckets(deep.candidates, thresholds);
+  const borderline = borderlineSample(deep.candidates, thresholds);
   const existing = new Set(project.papers.map((paper) => paper.key));
   const incoming = papersFromCandidates(deep.candidates).filter((paper) => !existing.has(paper.key));
   const bring = async () => {
@@ -260,7 +314,17 @@ export function DeepResearch({
   const numberOf = (key: string) => (latest?.paperKeys.indexOf(key) ?? -1) + 1;
   const hasGrounding = Boolean(latest?.claims.some((claim) => claim.citations.length > 0));
   const titleOf = (key: string) => project.papers.find((paper) => paper.key === key)?.title ?? key;
-  const shown = deep.candidates.filter((item) => filter === 'all' || item.status === filter);
+  const shown = sortByScore(
+    deep.candidates.filter(
+      (item) =>
+        (filter === 'all' || item.status === filter) &&
+        (aiFilter === 'all' ||
+          (aiFilter === 'check'
+            ? borderline.includes(item.key)
+            : item.status === 'candidate' && bucketOf(item, thresholds) === aiFilter)),
+    ),
+    sort,
+  );
   const count = (status: ScreeningStatus) => deep.candidates.filter((item) => item.status === status).length;
 
   return (
@@ -400,13 +464,37 @@ export function DeepResearch({
           ))}
         </div>
         <div className={styles.actions}>
-          <Button disabled={!pending.length || !plan || Boolean(busy)} onClick={() => void screen()}>
-            Gợi ý sàng lọc (AI) · {Math.ceil(pending.length / SCREENING_BATCH)} lượt gọi
+          <Button
+            disabled={!estimate.papers || !(plan || question.trim()) || Boolean(busy)}
+            onClick={() => void screen()}
+          >
+            Gợi ý sàng lọc (AI) · {estimate.calls} lượt gọi
           </Button>
           <Button variant="primary" disabled={!incoming.length || Boolean(busy)} onClick={() => void bring()}>
             Đưa {incoming.length} bài đã chọn vào ma trận
           </Button>
         </div>
+        {estimate.papers > 0 && (
+          <p className={styles.note}>
+            {estimate.papers} bài chưa được chấm điểm · khoảng {estimate.tokens.toLocaleString('vi-VN')} token
+            {criteria.length
+              ? ` · chấm theo ${criteria.length} tiêu chí`
+              : ' · chưa có tiêu chí, chấm theo research question'}
+            . Dừng giữa chừng vẫn giữ các lô đã chấm; chạy lại sẽ tiếp tục từ bài chưa chấm.
+          </p>
+        )}
+        <TriagePanel
+          buckets={buckets}
+          borderline={borderline}
+          thresholds={thresholds}
+          onThresholds={setThresholds}
+          filter={aiFilter}
+          onFilter={setAiFilter}
+          sort={sort}
+          onSort={setSort}
+          disabled={Boolean(busy)}
+          onApply={accept}
+        />
         {!deep.candidates.length ? (
           <Empty title="Chưa có bài ứng viên." hint="Duyệt kế hoạch ở bước 1 rồi bấm Tìm theo kế hoạch." />
         ) : (
@@ -416,7 +504,12 @@ export function DeepResearch({
                 <div className={styles.badges}>
                   <Badge tone={SCREEN[item.status].tone}>{SCREEN[item.status].label}</Badge>
                   {item.suggestion && item.status === 'candidate' && (
-                    <Badge tone="accent">AI gợi ý: {SCREEN[item.suggestion.decision].label}</Badge>
+                    <Badge tone="accent">
+                      AI gợi ý: {BUCKET_LABEL[bucketOf(item, thresholds) ?? item.suggestion.decision]}
+                    </Badge>
+                  )}
+                  {item.decidedBy === 'ai_accepted' && item.status !== 'candidate' && (
+                    <Badge>Theo đề xuất AI</Badge>
                   )}
                   {existing.has(`search:${item.key}`) && <Badge>Trong ma trận</Badge>}
                 </div>
@@ -436,6 +529,14 @@ export function DeepResearch({
                     {item.reason ? 'Lý do' : 'Lý do AI gợi ý'}: {item.reason ?? item.suggestion?.reason}
                   </span>
                 )}
+                <TriageDetails
+                  candidate={item}
+                  thresholds={thresholds}
+                  criteria={criteria}
+                  flagged={borderline.includes(item.key)}
+                  disabled={Boolean(busy)}
+                  onAccept={(bucket) => accept(bucket, [item.key])}
+                />
                 {item.abstract ? (
                   <details>
                     <summary>Abstract</summary>
