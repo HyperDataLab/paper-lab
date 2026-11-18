@@ -5,6 +5,7 @@ import { handlePlans } from './plans';
 import { handleMeasure, MEASURE_PATH } from './measure';
 import { handleFactRequests, isAdmin } from './factRequests';
 import { handleScg, SCG_LIST_PATH, SCG_PATH } from './scg';
+import { handleSciAtlas, SCIATLAS_PATH } from './sciatlas';
 
 /** The part of an R2 bucket this worker uses, so the logic runs in tests without Cloudflare. */
 export interface Bucket {
@@ -34,6 +35,11 @@ export interface Deps {
   grobid?: (pdf: ArrayBuffer) => Promise<Response>;
   /** POST /nlp/parse on the topics worker with the caller's token; absent when `NLP_URL` is unset. */
   nlpParse?: (sentences: { key: string; text: string }[], token: string) => Promise<Response>;
+  /** The `SCIATLAS_API_KEY` secret; absent → POST /v1/sciatlas/search answers 503. Never logged or returned. */
+  sciatlasKey?: string;
+  /** Outbound fetch for SciAtlas; tests replace it. */
+  fetch?: typeof fetch;
+  sciatlasTimeoutMs?: number;
 }
 
 export const MAX_BYTES = 25 * 1024 * 1024;
@@ -102,6 +108,7 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
       if (path === '/v1/me' && request.method === 'GET')
         return json(200, { email: caller.email, admin: isAdmin(deps, caller.email) }, headers);
       if (path === MEASURE_PATH) return await handleMeasure(deps, request, token, headers);
+      if (path === SCIATLAS_PATH) return await handleSciAtlas(deps, request, headers);
       if (path === SCG_LIST_PATH || SCG_PATH.test(path))
         return await handleScg(deps, request, caller.email, headers);
       if (path.startsWith('/v1/admin/') || path.endsWith('/experiment-facts/requests'))
