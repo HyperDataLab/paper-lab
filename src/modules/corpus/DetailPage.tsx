@@ -135,11 +135,13 @@ export default function DetailPage() {
       };
       const digest = await canonicalDigest(JSON.parse(JSON.stringify(contents)) as unknown);
       const at = new Date().toISOString();
+      // Read the stored corpus: a second click can land before React re-renders with the first release.
+      const stored = (await repo.corpora.get(corpus.id)) ?? corpus;
       await save({
         ...corpus,
         updatedAt: at,
         releases: [
-          ...corpus.releases,
+          ...stored.releases,
           {
             id: crypto.randomUUID(),
             createdAt: at,
