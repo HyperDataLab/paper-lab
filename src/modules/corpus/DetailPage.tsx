@@ -255,7 +255,7 @@ export default function DetailPage() {
       <CorpusTopics corpus={corpus} onData={receiveTopics} />
       <CorpusKeywords corpus={corpus} />
       <CorpusScgRoadmap corpus={corpus} />
-      <CorpusOpenKg key={corpus.id} corpus={corpus} />
+      <CorpusOpenKg key={corpus.id} corpus={corpus} save={save} />
 
       <Card>
         <section aria-labelledby="corpus-members" className={styles.members}>

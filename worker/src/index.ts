@@ -16,6 +16,8 @@ interface Env {
   GROBID: Parameters<typeof getContainer>[0];
   /** Base URL of the topics worker that serves POST /nlp/parse; unset → POST /v1/measure skips passive and tense. */
   NLP_URL?: string;
+  /** Secret (`wrangler secret put SCIATLAS_API_KEY`), never a [vars] entry; unset → SciAtlas search answers 503. */
+  SCIATLAS_API_KEY?: string;
 }
 
 function nlpParse(env: Env) {
@@ -85,6 +87,7 @@ export default {
         now: () => new Date(),
         grobid: (pdf) => processPdf(env.GROBID, pdf),
         nlpParse: nlpParse(env),
+        sciatlasKey: env.SCIATLAS_API_KEY,
       },
       request,
     );

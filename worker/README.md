@@ -8,7 +8,8 @@ Keeps PaperLab's original PDFs in the lab's R2 bucket (`paper-fetch`, under `pap
 - `PUT` accepts only `application/pdf`, at most 25 MiB, a body starting with `%PDF-` and whose SHA-256
   equals the path. A file already stored returns 200; a new one 201.
 - CORS answers only the origins in `ALLOWED_ORIGINS` (`wrangler.toml`).
-- The bucket is reached through the R2 binding, so the Worker holds no keys or secrets.
+- The bucket is reached through the R2 binding. The only secret is the optional `SCIATLAS_API_KEY`
+  (see "SciAtlas related papers").
 
 ## Published paper models
 
@@ -92,6 +93,27 @@ Passive voice and tense need the spaCy parse. Set the optional `NLP_URL` variabl
 the topics worker's base URL and the route sends the draft's body sentences to its `POST /nlp/parse` with
 the caller's token; without it, or when that call fails, those features are `unavailable`. The contract,
 with an example, is `docs/contracts/draft-measure.md`.
+
+## SciAtlas related papers
+
+`POST /v1/sciatlas/search` asks SciAtlas (OpenKG, `http://sciatlas.openkg.cn/v1/search`) for papers related
+to a set of anchors: keywords and titles with a high/middle/low level, reference titles, an optional date
+range, `topK` (at most 20) and a ranking profile. SciAtlas is plain HTTP, so the browser cannot call it from
+the https app; the Worker calls it with the lab's token and returns `{ papers, requestId?, elapsedMs }`,
+always with `Cache-Control: no-store`. Results are never stored in R2 and the query is never logged, because
+the SciAtlas data licence is not stated. The contract is `docs/contracts/sciatlas-proxy.md`.
+
+The token is the Worker secret `SCIATLAS_API_KEY`. It is never a `[vars]` entry, never committed and never
+returned in a response. The owner sets it once (it asks for the value; paste the SciAtlas token there):
+
+```bash
+cd worker
+npx wrangler secret put SCIATLAS_API_KEY
+```
+
+Without it the route answers `503 sciatlas_not_configured`. SciAtlas 401/403 (a bad or disabled token) become
+`502 sciatlas_auth`, 429 (the daily quota is used up) stays `429 sciatlas_quota`, no answer within 60 seconds
+is `504 sciatlas_timeout`, and any other failure is `502 sciatlas_error`.
 
 ## GROBID full text
 

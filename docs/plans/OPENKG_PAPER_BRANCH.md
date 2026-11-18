@@ -2,7 +2,7 @@
 
 Owner, 2026-11-18: in paper analysis, split off a branch that extracts contributions and presents them in the style of OpenKG SciAtlas (sciatlas.openkg.cn). The owner handed over the brainstorm, the build and the hand-off.
 
-Status: K1–K3 built. K4 waits on the owner.
+Status: K1–K4 built. K4 works once the owner sets the `SCIATLAS_API_KEY` worker secret and deploys the worker.
 
 ## What SciAtlas is (what we mirror)
 
@@ -65,6 +65,7 @@ This branch puts them into one SciAtlas-shaped graph per paper and per corpus. I
   - A worker proxy `POST /v1/sciatlas/search` that calls SciAtlas with the lab's token, stored as a worker secret. The proxy is needed because the browser cannot call plain `http://` from https.
   - A "Bài liên quan theo SciAtlas" panel on the paper and corpus graphs, using the paper's high-salience keywords and title as anchors.
   - Needs: the owner registers a SciAtlas token (email verification) and sets `SCIATLAS_API_KEY` as a worker secret. The data licence is not stated, so show results without storing them.
+  - Built: the route (`worker/src/sciatlas.ts`, contract `docs/contracts/sciatlas-proxy.md`), anchors and the response normaliser (`src/core/openkg/sciatlas*.ts`), and the panel (`src/shared/openkg/SciAtlasPanel.tsx`) on the paper OpenKG tab and the corpus OpenKG card. The corpus panel adds a result to the corpus by DOI; the paper panel only marks results already in the Library. Still needs the secret and a worker deploy; the normaliser has not been checked against a live SciAtlas answer.
 
 ## Not chosen
 
