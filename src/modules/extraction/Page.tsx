@@ -116,7 +116,7 @@ export default function Page() {
         <Dialog
           kind="form"
           title="Tạo project"
-          description="Đặt tên project. Câu hỏi nghiên cứu giúp chọn cột và bài, có thể thêm sau."
+          description="Đặt tên project. research question giúp chọn cột và bài, có thể thêm sau."
           onClose={() => setCreating(false)}
         >
           <form
@@ -134,7 +134,7 @@ export default function Page() {
               onChange={(event) => setTitle(event.target.value)}
             />
             <TextField
-              label="Câu hỏi nghiên cứu (không bắt buộc)"
+              label="Research question (không bắt buộc)"
               placeholder="Bạn muốn tìm hiểu điều gì qua các bài báo?"
               multiline
               rows={3}

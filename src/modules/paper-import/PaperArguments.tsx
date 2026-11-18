@@ -156,7 +156,7 @@ export function PaperArguments({
         : null,
     stop: () => controller.current?.abort(),
   });
-  if (loading) return <Loading label="Đang tải lập luận…" />;
+  if (loading) return <Loading label="Đang tải argument…" />;
   const open = (span: Span) =>
     onLocation({ paragraphId: span.paragraphId, start: span.start, end: span.end });
   const decide = (id: string, decision: 'confirm' | 'dismiss' | 'reopen') => {
@@ -218,11 +218,11 @@ export function PaperArguments({
   return (
     <div className={styles.panel}>
       <Card padding="md">
-        {!run && <h2>Phân tích lập luận</h2>}
+        {!run && <h2>Phân tích argument</h2>}
         {!run && (
           <p>
-            Tìm các luận điểm của tác giả và cấu trúc của chúng theo Toulmin. AI đề xuất, code kiểm tra từng
-            trích dẫn, bạn xác nhận. Đây là mô tả cấu trúc, không kết luận lập luận đúng hay sai.
+            Tìm các claims của tác giả và cấu trúc của chúng theo Toulmin. AI đề xuất, code kiểm tra từng
+            trích dẫn, bạn xác nhận. Đây là mô tả cấu trúc, không kết luận argument đúng hay sai.
           </p>
         )}
         <ActionBar
@@ -232,7 +232,7 @@ export function PaperArguments({
                 Đang phân tích… {used}/{cap || budget} lượt
               </span>
             ) : run ? (
-              `Phân tích lúc ${new Date(run.createdAt).toLocaleString('vi-VN')} · ${run.sectionIds.length} mục · ${run.callsUsed} lượt gọi`
+              `Phân tích lúc ${new Date(run.createdAt).toLocaleString('vi-VN')} · ${run.sectionIds.length} section · ${run.callsUsed} lượt gọi`
             ) : (
               'Chưa phân tích bài này.'
             )
@@ -277,11 +277,11 @@ export function PaperArguments({
           <div className={styles.layoutHead}>
             <h2>
               {view === 'toulmin'
-                ? 'Từng luận điểm và các thành phần của nó'
+                ? 'Từng claim và các thành phần của nó'
                 : 'Tiền đề dẫn tới kết luận thế nào'}
             </h2>
             <SegmentedControl
-              label="Cách xem lập luận"
+              label="Cách xem argument"
               value={layout}
               options={[
                 { value: 'diagram', label: 'Lược đồ' },
@@ -315,16 +315,16 @@ export function PaperArguments({
       {run && metrics && view === 'toulmin' && (
         <>
           <Card>
-            <h2>Luận điểm chính: {metrics.main.length}</h2>
+            <h2>Claim chính: {metrics.main.length}</h2>
             <StatGrid>
-              <Stat value={percent(metrics.withData)} label="Có dữ liệu" />
+              <Stat value={percent(metrics.withData)} label="Có grounds" />
               <Stat value={percent(metrics.statedWarrant)} label="Warrant do tác giả nêu" />
               <Stat value={percent(metrics.inferredWarrant)} label="Warrant do AI suy ra" />
               <Stat value={percent(metrics.withBacking)} label="Có backing" />
-              <Stat value={percent(metrics.withQualifier)} label="Có giới hạn (qualifier)" />
-              <Stat value={percent(metrics.withRebuttal)} label="Có xử lý phản biện" />
-              <Stat value={metrics.unsupported.length} label="Luận điểm chưa thấy tiền đề" />
-              <Stat value={metrics.dangling.length} label="Luận điểm phụ chưa nối vào đâu" />
+              <Stat value={percent(metrics.withQualifier)} label="Có qualifier" />
+              <Stat value={percent(metrics.withRebuttal)} label="Có rebuttal" />
+              <Stat value={metrics.unsupported.length} label="Claim chưa thấy tiền đề" />
+              <Stat value={metrics.dangling.length} label="Claim phụ chưa nối vào đâu" />
             </StatGrid>
           </Card>
           {layout === 'list' &&
@@ -337,7 +337,7 @@ export function PaperArguments({
                   labels={
                     <>
                       <Badge tone={item.importance === 'main' ? 'accent' : 'neutral'}>
-                        {item.importance === 'main' ? 'Luận điểm chính' : 'Luận điểm phụ'}
+                        {item.importance === 'main' ? 'Claim chính' : 'Claim phụ'}
                       </Badge>
                       <ClaimTypeBadge type={item.claimType} />
                       <EvidenceLevelBadge level={item.evidenceLevel} basis={item.evidenceBasis} />
@@ -390,14 +390,14 @@ export function PaperArguments({
               );
             })}
           <p className={styles.note}>
-            Đã bỏ {run.discarded.claim_not_found} luận điểm và {run.discarded.element_not_found} thành phần
-            không tìm thấy trong bài, {run.discarded.duplicate} luận điểm trùng. Chưa qua hiệu chuẩn.
+            Đã bỏ {run.discarded.claim_not_found} claim và {run.discarded.element_not_found} thành phần không
+            tìm thấy trong bài, {run.discarded.duplicate} claim trùng. Chưa qua hiệu chuẩn.
           </p>
         </>
       )}
       {run && metrics && view === 'aif' && layout === 'list' && (
         <Card>
-          <h2>Sơ đồ lập luận</h2>
+          <h2>Sơ đồ argument</h2>
           <p className={styles.note}>
             Nút I là nội dung trong bài. RA là bước suy luận nối tiền đề với kết luận. CA là bước phản bác.
           </p>

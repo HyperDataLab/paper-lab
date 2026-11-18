@@ -63,7 +63,7 @@ export function PaperContribution({
     <section aria-label="Contribution graph">
       <h2>Contribution graph</h2>
       <Button disabled={running || !model.sentences.length} onClick={() => void start()}>
-        {running ? 'Đang phân tích…' : 'Phân tích đóng góp'}
+        {running ? 'Đang phân tích…' : 'Phân tích contribution'}
       </Button>{' '}
       <span>Ước tính {contributionChunks(model.sentences).length} lượt gọi AI.</span>{' '}
       {run && <Button onClick={download}>Tải ncg.zip</Button>}

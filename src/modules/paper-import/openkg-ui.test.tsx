@@ -154,7 +154,7 @@ it('opens the graph tab, shows five layer counts and lets a reader inspect, filt
   expect(panel.getByRole('heading', { name: 'Synthetic contribution' })).toBeInTheDocument();
   expect(panel.getByText('Đã chấp nhận')).toBeInTheDocument();
   fireEvent.click(panel.getByRole('button', { name: 'Xem trong bài' }));
-  const drawer = screen.getByRole('dialog', { name: 'Bằng chứng trong bài' });
+  const drawer = screen.getByRole('dialog', { name: 'Evidence trong bài' });
   expect(drawer.querySelector('mark')).toHaveTextContent(DEFINITION);
   fireEvent.keyDown(drawer, { key: 'Escape' });
 
@@ -162,7 +162,7 @@ it('opens the graph tab, shows five layer counts and lets a reader inspect, filt
   expect(within(graph).queryByRole('button', { name: 'Synthetic contribution' })).not.toBeInTheDocument();
   expect(within(graph).getByRole('button', { name: 'Synthetic paper' })).toBeInTheDocument();
   fireEvent.click(screen.getByText('Danh sách bộ ba (5)'));
-  expect(await screen.findByText('có mức bằng chứng')).toBeVisible();
+  expect(await screen.findByText('có mức evidence')).toBeVisible();
   expect(screen.queryByText('có từ khóa')).not.toBeInTheDocument();
   for (const name of ['Turtle (.ttl)', 'JSON-LD (.jsonld)', 'Báo cáo (.md)']) {
     fireEvent.click(screen.getByRole('button', { name }));
@@ -191,7 +191,7 @@ it('opens from the shared view address and explains missing sources', async () =
   expect(await openPaper(false)).toHaveAttribute('aria-selected', 'true');
   const notices = within(await screen.findByRole('list', { name: 'Dữ liệu còn thiếu' }));
   expect(notices.getAllByText('Chưa có dữ liệu OpenAlex trong Thư viện DOI.')).toHaveLength(2);
-  expect(notices.getByText('Chưa chạy SCG để lấy đóng góp và nền tảng.')).toBeInTheDocument();
-  expect(notices.getByText('Chưa chạy phân tích lập luận.')).toBeInTheDocument();
+  expect(notices.getByText('Chưa chạy SCG để lấy contribution và nền tảng.')).toBeInTheDocument();
+  expect(notices.getByText('Chưa chạy phân tích argument.')).toBeInTheDocument();
   expect(screen.getByRole('checkbox', { name: 'Khái niệm (0)' })).toBeChecked();
 });

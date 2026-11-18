@@ -20,9 +20,9 @@ export const PREDICATE_LABELS: Record<KgPredicate, string> = {
   broader: 'thuộc nhóm rộng hơn',
   authoredBy: 'có tác giả',
   affiliatedWith: 'có cơ quan công tác',
-  hasClaim: 'nêu luận điểm',
+  hasClaim: 'nêu claim',
   supportedBy: 'được củng cố bởi',
-  evidenceLevel: 'có mức bằng chứng',
+  evidenceLevel: 'có mức evidence',
 };
 
 export const NODE_LABELS = {

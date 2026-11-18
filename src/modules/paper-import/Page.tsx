@@ -161,7 +161,7 @@ export default function Page() {
                   hideLabel
                   size="sm"
                   type="search"
-                  placeholder="Tên bài, tác giả, tên tệp"
+                  placeholder="Tìm theo title, tác giả, tên tệp"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                 />
@@ -173,7 +173,7 @@ export default function Page() {
                   onChange={(event) => setSort(event.target.value as Sort)}
                 >
                   <option value="recent">Mới nhập trước</option>
-                  <option value="title">Tên bài A–Z</option>
+                  <option value="title">Title A–Z</option>
                   <option value="year">Năm mới nhất</option>
                 </Select>
               </div>
@@ -223,7 +223,7 @@ export default function Page() {
                       <td>{identity.venue ?? '—'}</td>
                       <td>
                         {paper.source.pageCount ? `${paper.source.pageCount} trang · ` : ''}
-                        {paper.sections.length} mục · {paper.paragraphs.length} đoạn
+                        {paper.sections.length} section · {paper.paragraphs.length} paragraph
                       </td>
                       <td>{new Date(paper.createdAt).toLocaleDateString('vi')}</td>
                       <td>

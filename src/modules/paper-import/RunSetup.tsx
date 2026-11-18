@@ -19,7 +19,7 @@ export function ScopeWarning({
   if (!main.some((id) => !sections.includes(id))) return null;
   return (
     <p>
-      Phạm vi đang là {sections.length}/{paper.sections.length} mục —{' '}
+      Phạm vi đang là {sections.length}/{paper.sections.length} section —{' '}
       <Button size="sm" variant="ghost" onClick={() => onSections(main)}>
         Đặt lại Phần chính
       </Button>
@@ -36,7 +36,7 @@ export function RunSetup({
   sections,
   onSections,
   count,
-  unit = 'đoạn',
+  unit = 'paragraph',
   estimate,
   budget,
   onBudget,
@@ -73,7 +73,7 @@ export function RunSetup({
   return (
     <div className={styles.runSetup}>
       <p className={styles.runSummary}>
-        Phạm vi: <strong>{chosen.length} mục</strong>
+        Phạm vi: <strong>{chosen.length} section</strong>
         {summary}
       </p>
       <div className={styles.runActions}>
@@ -99,7 +99,7 @@ export function RunSetup({
             value={sections}
             onChange={onSections}
             disabled={running}
-            legend="Mục được gửi cho AI"
+            legend="Section được gửi cho AI"
             count={count}
             unit={unit}
           />
@@ -115,8 +115,8 @@ export function RunSetup({
               onChange={(event) => onBudget(event.target.value)}
             />
             <p className={styles.muted}>
-              Các mục đã chọn được nhớ cho bài này và dùng chung cho mọi phân tích. Trần mặc định đặt trong
-              Cài đặt, mục Giới hạn chạy.
+              Các section đã chọn được nhớ cho bài này và dùng chung cho mọi phân tích. Trần mặc định đặt
+              trong Cài đặt, mục Giới hạn chạy.
             </p>
           </div>
         </div>

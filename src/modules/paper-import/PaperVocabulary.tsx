@@ -69,7 +69,7 @@ export function PaperVocabulary({
         <table className={styles.table}>
           <thead>
             <tr>
-              <th scope="col">Chỉ số</th>
+              <th scope="col">Metric</th>
               <th scope="col">Bài này</th>
               <th scope="col">{baseline ? `Trung vị ${baseline.papers} bài khác` : 'Mốc so sánh'}</th>
             </tr>
@@ -92,11 +92,11 @@ export function PaperVocabulary({
         )}
       </Card>
       <Card>
-        <h2>So sánh giữa các mục</h2>
+        <h2>So sánh giữa các section</h2>
         <table className={styles.table}>
           <thead>
             <tr>
-              <th scope="col">Mục</th>
+              <th scope="col">Section</th>
               <th scope="col">Số từ</th>
               {SECTION_ROWS.map((row) => (
                 <th scope="col" key={row.key}>

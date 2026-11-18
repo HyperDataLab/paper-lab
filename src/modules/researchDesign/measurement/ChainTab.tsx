@@ -31,12 +31,12 @@ export function ChainTab({ draft, change }: { draft: Draft; change: Change }) {
   return (
     <>
       {!draft.hypotheses.length && (
-        <Empty title="Chưa có giả thuyết nào.">
-          <Link to={questionsHref}>Câu hỏi và giả thuyết</Link>
+        <Empty title="Chưa có hypothesis nào.">
+          <Link to={questionsHref}>Research questions và hypotheses</Link>
         </Empty>
       )}
       {!!draft.hypotheses.length && !draft.variables.length && (
-        <p className={styles.quiet}>Chưa có biến nào. Thêm biến ở tab Biến.</p>
+        <p className={styles.quiet}>Chưa có variable nào. Thêm variable ở tab Variable.</p>
       )}
       <div className={styles.list}>
         {draft.hypotheses.map((h) => (
@@ -64,7 +64,7 @@ export function ChainTab({ draft, change }: { draft: Draft; change: Change }) {
                     setSelected({ independent: h.independent, dependent: h.dependent });
                   }}
                 >
-                  Gắn biến
+                  Gắn variable
                 </Button>
               </div>
             </div>
@@ -74,12 +74,15 @@ export function ChainTab({ draft, change }: { draft: Draft; change: Change }) {
       {editing && (
         <Dialog
           kind="form"
-          title="Gắn biến"
-          description="Chọn các biến của giả thuyết."
+          title="Gắn variable"
+          description="Chọn các variables của hypothesis."
           onClose={() => setEditing(null)}
         >
           {(['independent', 'dependent'] as const).map((role) => (
-            <SheetSection key={role} title={role === 'independent' ? 'Biến độc lập' : 'Biến phụ thuộc'}>
+            <SheetSection
+              key={role}
+              title={role === 'independent' ? 'Independent variable' : 'Dependent variable'}
+            >
               {draft.variables
                 .filter((v) => v.role === role)
                 .map((v) => (

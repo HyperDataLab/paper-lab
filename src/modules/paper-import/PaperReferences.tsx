@@ -80,7 +80,7 @@ export function PaperReferences({
       <Card>
         <h2>Danh sách tài liệu</h2>
         <StatGrid>
-          <Stat value={stats.total} label="Tài liệu tham khảo" />
+          <Stat value={stats.total} label="References" />
           <Stat
             value={stats.withYear ? `${Math.round((stats.recent / stats.withYear) * 100)} %` : '—'}
             label={`Trong ${RECENT_YEARS} năm tính đến năm mới nhất được trích`}
@@ -96,7 +96,7 @@ export function PaperReferences({
         </p>
         {items.length > 0 && (
           // Every reference on its own line; the whole entry shows on hover.
-          <ol className={styles.refList} aria-label="Tài liệu tham khảo">
+          <ol className={styles.refList} aria-label="References">
             {items.map((item, index) => (
               <li key={index} className={styles.refRow}>
                 <span className={styles.refNumber}>{index + 1}</span>

@@ -181,14 +181,16 @@ it('P3 shows distributions, recurring filters, transition review and stale notic
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Phân tích câu' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Đánh giá ngữ cảnh' }));
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc đoạn' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc paragraph' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chấm điểm' }));
   expect(screen.getByText('Chuyển đoạn: ~1 lượt gọi AI')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('tab', { name: /^Writing style/ }));
   const openCoherence1 = screen.queryByRole('button', { name: 'Mở Coherence & sentences' });
   if (openCoherence1) fireEvent.click(openCoherence1);
   fireEvent.click(screen.getByRole('radio', { name: 'Paragraph structure & flow' }));
-  expect(await screen.findByText('Đã phân tích 3/4 đoạn trong phạm vi (4 đoạn cả bài)')).toBeInTheDocument();
+  expect(
+    await screen.findByText('Đã phân tích 3/4 paragraph trong phạm vi (4 paragraph cả bài)'),
+  ).toBeInTheDocument();
   expect(screen.getByText(/Kết quả chuyển đoạn đã cũ/)).toBeInTheDocument();
   expect(screen.getAllByText('Chưa đủ dữ liệu').length).toBeGreaterThan(0);
   expect(screen.getByText(/Tổng quan chỉ thống kê kết quả/)).toBeInTheDocument();

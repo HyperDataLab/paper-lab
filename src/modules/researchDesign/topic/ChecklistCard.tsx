@@ -6,7 +6,7 @@ const labels: Record<string, string> = {
   neighbours: 'Bài gần nhất',
   debate: 'Tranh luận (gợi ý)',
   convergence: 'Điểm hội tụ (gợi ý)',
-  duplication: 'Bằng chứng trùng lặp',
+  duplication: 'Evidence trùng lặp',
   feasibility: 'Tính khả thi (gợi ý)',
   impact: 'Tác động (gợi ý)',
   pico: 'PICO',

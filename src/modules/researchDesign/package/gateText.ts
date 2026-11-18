@@ -22,8 +22,8 @@ const rules: Record<string, string> = {
   'PP-02': 'Mọi liên kết phải trỏ tới đối tượng trong kế hoạch.',
   'PP-03': 'Lưới chạy phải liệt kê mỗi giá trị một lần và có số lần chạy đúng.',
   'PP-04': 'Mỗi metric phải dùng key MLflow riêng và không trùng tag của kế hoạch.',
-  'PP-05': 'Mỗi giả thuyết xác nhận phải có phân tích định trước.',
-  'PP-06': 'Mỗi biến phụ thuộc phải có metric.',
+  'PP-05': 'Mỗi hypothesis xác nhận phải có phân tích định trước.',
+  'PP-06': 'Mỗi dependent variable phải có metric.',
   'PP-07': 'Phép so sánh nên có baseline.',
   'PP-08': 'Phương pháp phân tích nên được SRD hỗ trợ.',
   'PP-09': 'Phiên bản sau phải ghi thay đổi so với phiên bản trước.',
@@ -35,8 +35,8 @@ export function issueText(issue: PlanIssue, plan: ExperimentPlan): string {
   if (issue.rule === 'PP-02') {
     const reference = /refers to the missing (\w+) ([^.]+)\./.exec(issue.message);
     const kinds: Record<string, string> = {
-      hypothesis: 'giả thuyết',
-      variable: 'biến',
+      hypothesis: 'hypothesis',
+      variable: 'variable',
       metric: 'metric',
       dataset: 'dataset',
       condition: 'điều kiện',
@@ -78,18 +78,18 @@ export function issueText(issue: PlanIssue, plan: ExperimentPlan): string {
   return `${subject}: ${ruleText(issue.rule)}`;
 }
 const names: Record<Missing['code'], string> = {
-  no_hypotheses: 'Chưa có giả thuyết nào',
-  no_variables: 'Chưa có biến nào',
+  no_hypotheses: 'Chưa có hypothesis nào',
+  no_variables: 'Chưa có variable nào',
   no_metrics: 'Chưa có metric nào',
   no_datasets: 'Chưa có dataset nào',
   no_conditions: 'Chưa có điều kiện nào',
-  hypothesis_without_dependent: 'chưa có biến phụ thuộc',
+  hypothesis_without_dependent: 'chưa có dependent variable',
   metric_incomplete: 'còn thiếu',
   dataset_without_source: 'chưa ghi nguồn',
   analysis_without_method: 'chưa chọn phương pháp',
-  analysis_without_variables: 'chưa chọn biến',
+  analysis_without_variables: 'chưa chọn variable',
   grid_incomplete: 'Lưới chạy còn thiếu',
-  design_without_assignment: 'Thiết kế chưa có cách phân nhóm',
+  design_without_assignment: 'research design chưa có cách phân nhóm',
   threat_without_mitigation: 'chưa ghi cách giảm',
   other: 'Kế hoạch chưa hợp lệ',
 };

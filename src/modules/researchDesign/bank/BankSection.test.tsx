@@ -215,9 +215,9 @@ it('D51 imports a verified bank release and displays its date and draft warning'
     aliases: { 'rd.alpha': 'rd.beta' },
   });
   const counts = [
-    ['2', 'thiết kế'],
-    ['1', 'mối đe doạ'],
-    ['3', 'loại nhận định'],
+    ['2', 'Research design'],
+    ['1', 'Threats to validity'],
+    ['3', 'loại claim'],
     ['2', 'metric'],
     ['1', 'protocol'],
     ['1', 'benchmark'],

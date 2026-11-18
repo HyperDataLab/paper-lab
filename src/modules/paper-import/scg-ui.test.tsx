@@ -88,7 +88,7 @@ it('SCG lists a run with prerequisites and quotes, and saves accept and reject',
       </LlmProvider>
     </StorageProvider>,
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Trích đóng góp (SCG)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Trích contribution (SCG)' }));
   // Stage 1 is shown while the pass goes on, without review controls the next checkpoint would overwrite.
   expect(await screen.findByText('Foo encoder')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Dừng' })).toBeInTheDocument();

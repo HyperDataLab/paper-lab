@@ -41,7 +41,7 @@ it('home starts a project from a research question and lists recent work', async
 
   const start = screen.getByRole('button', { name: /Bắt đầu project/ });
   expect(start).toBeDisabled();
-  fireEvent.change(screen.getByLabelText('Câu hỏi nghiên cứu'), { target: { value: '  Độ trễ edge?  ' } });
+  fireEvent.change(screen.getByLabelText('Research question'), { target: { value: '  Độ trễ edge?  ' } });
   fireEvent.click(start);
   expect(await screen.findByText(/^project /)).toBeInTheDocument();
   const created = (await repo.extraction.list()).find((item) => item.title === 'Độ trễ edge?');

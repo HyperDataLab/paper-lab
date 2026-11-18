@@ -149,7 +149,7 @@ export function ScoresView({
                           ? 'Bổ sung ngữ cảnh và chấm lại'
                           : dimension.id === 'sentence_structure'
                             ? 'Chạy Phân tích câu'
-                            : 'Chạy Phân tích cấu trúc đoạn'}
+                            : 'Chạy Phân tích cấu trúc paragraph'}
                       </span>
                     )}
                   </span>

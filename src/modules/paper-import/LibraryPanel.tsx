@@ -199,7 +199,7 @@ export function LibraryPanel() {
               <TextField
                 label="Tìm theo tên, tác giả, DOI"
                 size="sm"
-                placeholder="Tên bài, tác giả hoặc DOI"
+                placeholder="Tìm theo title, tác giả hoặc DOI"
                 value={filter.query}
                 onChange={(event) => update({ query: event.target.value })}
               />

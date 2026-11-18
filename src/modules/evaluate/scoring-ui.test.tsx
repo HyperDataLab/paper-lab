@@ -45,7 +45,7 @@ it('EV-09 AC-10 gates scoring, shows evidence and stale scores, and reopens with
     );
   const view = mount('/evaluate');
   expect(screen.queryByRole('button', { name: 'Chấm điểm (AI)' })).not.toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), {
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), {
     target: { value: 'This is very important. Results followed in order to grow.' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
@@ -126,7 +126,9 @@ it('EV-09 cancelling scoring shows no error or scores', async () => {
       </StorageProvider>
     </MemoryRouter>,
   );
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), { target: { value: 'Cells grow.' } });
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), {
+    target: { value: 'Cells grow.' },
+  });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Chấm điểm (AI)' }));
   fireEvent.click(screen.getByRole('button', { name: 'Đồng ý và tiếp tục' }));

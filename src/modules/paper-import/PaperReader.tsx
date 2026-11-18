@@ -22,7 +22,7 @@ const KIND_LABELS: Record<PaperParagraph['kind'], string | null> = {
   caption: 'Chú thích hình/bảng',
   equation: 'Công thức',
   list: 'Danh sách',
-  reference: 'Tài liệu tham khảo',
+  reference: 'References',
   heading_like: 'Tiêu đề',
   footnote: 'Chú thích chân trang',
   table: 'Bảng',
@@ -179,7 +179,7 @@ export function PaperReader({
       <div className={styles.readerNav} hidden={!showOutline}>
         <Card padding="md">
           <TextField
-            label="Tìm mục"
+            label="Tìm section"
             size="sm"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -187,7 +187,7 @@ export function PaperReader({
           {nodes.length ? (
             <Tree label="Mục lục bài báo" nodes={nodes} selectedId={selected} onSelect={onSelect} />
           ) : (
-            <p>Không có mục nào khớp.</p>
+            <p>Không có section nào khớp.</p>
           )}
         </Card>
       </div>
@@ -230,7 +230,7 @@ export function PaperReader({
             <div className={styles.sectionHead}>
               <h2>{section.heading}</h2>
               <Select
-                label="Vai trò của mục"
+                label="Vai trò của section"
                 size="sm"
                 value={section.role}
                 onChange={(event) => onEditRole(event.target.value as Section['role'])}
@@ -245,8 +245,8 @@ export function PaperReader({
             {paragraphs.length === 0 && (
               <p className={styles.muted}>
                 {paper.sections[index + 1] && paper.sections[index + 1]!.level > section.level
-                  ? 'Mục này không có đoạn riêng; nội dung nằm trong các mục con ở mục lục.'
-                  : 'Không có đoạn nào trong mục này.'}
+                  ? 'Section này không có paragraph riêng; nội dung nằm trong các section con ở mục lục.'
+                  : 'Không có paragraph nào trong section này.'}
               </p>
             )}
             {toBlocks(paragraphs).map((block) =>
@@ -272,15 +272,15 @@ export function PaperReader({
                 disabled={!previous}
                 onClick={() => previous && onSelect(previous.id)}
               >
-                ← Mục trước
+                ← Section trước
               </Button>
               <Button size="sm" variant="ghost" disabled={!next} onClick={() => next && onSelect(next.id)}>
-                Mục sau →
+                Section sau →
               </Button>
             </div>
           </>
         ) : (
-          <p>Không có mục nào.</p>
+          <p>Không có section nào.</p>
         )}
       </Card>
     </div>

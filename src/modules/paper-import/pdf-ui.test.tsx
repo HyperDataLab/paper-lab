@@ -390,7 +390,7 @@ it('R14 the PDF toolbar finds a phrase in the paper and jumps to a section', asy
   expect(screen.getByTestId('pdf-viewer')).toHaveTextContent('page 1, passage [sharing]');
   fireEvent.click(within(toolbar).getByRole('button', { name: 'Kết quả sau' }));
   expect(screen.getByTestId('pdf-viewer')).toHaveTextContent('page 3, passage [Sharing]');
-  chooseSelectOption('Mục', 'Introduction');
+  chooseSelectOption('Section', 'Introduction');
   expect(screen.getByTestId('pdf-viewer')).toHaveTextContent('page 1');
 });
 

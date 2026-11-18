@@ -232,7 +232,7 @@ export function CorpusProfileCard({ corpus }: { corpus: Corpus }) {
         <p className={styles.muted}>
           So sánh từng bài của tạp chí với corpus đối chứng: chỉ đọc bài đã dựng model, không gọi AI. Bài giữ
           lại cho kiểm định (held-out) không được tính. Profile v2 (nháp) thêm đặc trưng theo từng phần, tiêu
-          đề, chuỗi phần, từ khoá, subfield, bị động, thì và mức bằng chứng; được tính lại mỗi lần tải và
+          đề, chuỗi section, keywords, subfield, bị động, thì và mức evidence; được tính lại mỗi lần tải và
           không lưu.
         </p>
         {!NLP_URL && (

@@ -174,7 +174,7 @@ it('S3 shows coverage, the most built-upon list, a chain with evidence links, fi
   );
 
   expect(
-    await screen.findByText(/2\/3 bài có kết quả trích đóng góp · 2 đóng góp · 1 liên kết/u),
+    await screen.findByText(/2\/3 bài có kết quả trích contribution · 2 contribution · 1 liên kết/u),
   ).toBeInTheDocument();
   const top = screen.getByRole('list', { name: 'Được xây dựa trên nhiều nhất' });
   expect(within(top).getAllByRole('listitem')).toHaveLength(1);
@@ -200,24 +200,24 @@ it('S3 shows coverage, the most built-upon list, a chain with evidence links, fi
 
   // Only accepted items: the candidate link and Beta drop out, so the selection clears.
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chỉ mục đã chấp nhận' }));
-  expect(screen.getByText(/1 đóng góp · 0 liên kết/u)).toBeInTheDocument();
+  expect(screen.getByText(/1 contribution · 0 liên kết/u)).toBeInTheDocument();
   expect(screen.queryByRole('list', { name: 'Beta parser dựa trên' })).toBeNull();
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chỉ mục đã chấp nhận' }));
 
   // The type filter narrows the list to datasets, then to nothing for models.
-  chooseSelectOption('Loại đóng góp', 'resource_dataset (1)');
+  chooseSelectOption('Loại contribution', 'resource_dataset (1)');
   expect(screen.getByRole('list', { name: 'Được xây dựa trên nhiều nhất' })).toHaveTextContent(
     'Alpha corpus',
   );
-  chooseSelectOption('Loại đóng góp', 'models_or_architectures (1)');
-  expect(screen.getByText('Chưa có đóng góp nào được đóng góp khác dựa vào.')).toBeInTheDocument();
-  chooseSelectOption('Loại đóng góp', 'Mọi loại');
+  chooseSelectOption('Loại contribution', 'models_or_architectures (1)');
+  expect(screen.getByText('Chưa có contribution nào được contribution khác dựa vào.')).toBeInTheDocument();
+  chooseSelectOption('Loại contribution', 'Mọi loại');
 
   // Backfill runs the pass for the one member with a model and no run.
-  fireEvent.click(screen.getByRole('button', { name: 'Trích đóng góp cho 1 bài còn thiếu' }));
-  expect(await screen.findByText('Đã trích đóng góp cho 1/1 bài.')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Trích contribution cho 1 bài còn thiếu' }));
+  expect(await screen.findByText('Đã trích contribution cho 1/1 bài.')).toBeInTheDocument();
   await waitFor(() =>
-    expect(screen.getByText(/3\/3 bài có kết quả trích đóng góp · 3 đóng góp/u)).toBeInTheDocument(),
+    expect(screen.getByText(/3\/3 bài có kết quả trích contribution · 3 contribution/u)).toBeInTheDocument(),
   );
   expect(screen.queryByRole('button', { name: /bài còn thiếu/u })).toBeNull();
   expect((await repo.scg.get(c))?.contributions[0]?.name).toBe('Gamma tagger');

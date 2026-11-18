@@ -89,7 +89,7 @@ function showWholePaper() {
       onDecide={vi.fn()}
     />,
   );
-  chooseSelectOption('Lập luận', 'Toàn bài');
+  chooseSelectOption('Argument', 'Toàn bài');
 }
 
 it('R5 whole-paper RA labels count the incoming premises for each argument', () => {
@@ -100,14 +100,14 @@ it('R5 whole-paper RA labels count the incoming premises for each argument', () 
 
 it('R5 names the whole-paper AIF diagram for assistive technology', () => {
   showWholePaper();
-  expect(screen.getByRole('group', { name: 'Lược đồ AIF của toàn bài (2 lập luận)' })).toBeInTheDocument();
-  expect(screen.queryByRole('group', { name: 'Lược đồ AIF của lập luận 1' })).not.toBeInTheDocument();
+  expect(screen.getByRole('group', { name: 'Lược đồ AIF của toàn bài (2 arguments)' })).toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: 'Lược đồ AIF của argument 1' })).not.toBeInTheDocument();
 });
 
 it('R4 Toulmin is drawn as a diagram: empty slots say so, and an inferred warrant is marked as not the author words', () => {
   const onLocation = vi.fn();
   show('toulmin', onLocation);
-  const diagram = screen.getByRole('group', { name: 'Lược đồ Toulmin của lập luận 1' });
+  const diagram = screen.getByRole('group', { name: 'Lược đồ Toulmin của argument 1' });
   expect(within(screen.getByTestId('node-claim')).getByText('X improves Y.')).toBeInTheDocument();
   expect(within(screen.getByTestId('node-warrant')).getByText('AI suy ra')).toBeInTheDocument();
   expect(within(screen.getByTestId('node-warrant')).getByText('Không phải lời tác giả')).toBeInTheDocument();
@@ -125,7 +125,7 @@ it('R4 Toulmin is drawn as a diagram: empty slots say so, and an inferred warran
 it('R4 AIF is drawn with RA and CA nodes between statements, and the reader steps through arguments', () => {
   const onDecide = vi.fn();
   show('aif', vi.fn(), onDecide);
-  expect(screen.getByRole('group', { name: 'Lược đồ AIF của lập luận 1' })).toBeInTheDocument();
+  expect(screen.getByRole('group', { name: 'Lược đồ AIF của argument 1' })).toBeInTheDocument();
   expect(within(screen.getByTestId('node-ra')).getByText('RA')).toBeInTheDocument();
   expect(within(screen.getByTestId('node-ra')).getByText('1 tiền đề → 1 kết luận')).toBeInTheDocument();
   expect(within(screen.getByTestId('node-ca-0')).getByText('CA')).toBeInTheDocument();
@@ -136,11 +136,11 @@ it('R4 AIF is drawn with RA and CA nodes between statements, and the reader step
   expect(screen.queryByRole('button', { name: 'Xác nhận' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Bác bỏ' }));
   expect(onDecide).toHaveBeenCalledWith('a1', 'dismiss');
-  fireEvent.click(screen.getByRole('button', { name: 'Lập luận sau' }));
-  expect(screen.getByRole('group', { name: 'Lược đồ AIF của lập luận 2' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Argument sau' }));
+  expect(screen.getByRole('group', { name: 'Lược đồ AIF của argument 2' })).toBeInTheDocument();
   // A claim with no premise has no inference node to draw.
   expect(screen.queryByTestId('node-ra')).toBeNull();
-  expect(screen.getByRole('button', { name: 'Lập luận sau' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Argument sau' })).toBeDisabled();
 });
 
 it('R5 moves a card with arrow keys and restores its layout', () => {

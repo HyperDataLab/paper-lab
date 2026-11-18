@@ -244,7 +244,7 @@ const KIND_TITLES = {
   theme: 'Chủ đề chung',
   agreement: 'Điểm thống nhất',
   disagreement: 'Điểm khác biệt',
-  gap: 'Khoảng trống ứng viên',
+  gap: 'Research gap cần xác minh',
 } as const;
 
 export function synthesisMarkdown(project: ExtractionProject, synthesis: Synthesis) {
@@ -253,9 +253,9 @@ export function synthesisMarkdown(project: ExtractionProject, synthesis: Synthes
   const cite = (keys: string[]) => keys.map((key) => `[${numbers.get(key) ?? '?'}]`).join('');
   const lines = [
     `# ${project.title}`,
-    project.researchQuestion ? `Câu hỏi nghiên cứu: ${project.researchQuestion}` : '',
+    project.researchQuestion ? `Research question: ${project.researchQuestion}` : '',
     `Tổng hợp lúc ${synthesis.createdAt} · ${synthesis.model} · ${synthesis.promptVersion}`,
-    'Tổng hợp chỉ dựa trên giá trị trong ma trận. Khoảng trống là giả thuyết, không phải kết luận rằng chưa có nghiên cứu nào.',
+    'Tổng hợp chỉ dựa trên giá trị trong ma trận. Research gap là hypothesis, không phải kết luận rằng chưa có nghiên cứu nào.',
   ];
   for (const kind of Object.keys(KIND_TITLES) as (keyof typeof KIND_TITLES)[]) {
     const claims = synthesis.claims.filter((claim) => claim.kind === kind);
@@ -276,7 +276,7 @@ export function synthesisMarkdown(project: ExtractionProject, synthesis: Synthes
     for (const { citation } of paperEvidence(synthesis, key))
       for (const quote of citation.quotes)
         lines.push(
-          `   - ${citation.fieldLabel}: “${quote.quote}”${quote.page ? ` (tr. ${quote.page})` : ''}${citation.fullText ? '' : ' (tóm tắt)'}`,
+          `   - ${citation.fieldLabel}: “${quote.quote}”${quote.page ? ` (tr. ${quote.page})` : ''}${citation.fullText ? '' : ' (abstract)'}`,
         );
   }
   return lines.filter((line, index) => line !== '' || index > 0).join('\n');

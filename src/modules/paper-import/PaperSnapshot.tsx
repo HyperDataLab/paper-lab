@@ -168,7 +168,7 @@ export function PaperSnapshot({
           ) : run ? (
             `Tạo lúc ${new Date(run.createdAt).toLocaleString('vi-VN')} · ${run.callsUsed} lượt gọi`
           ) : (
-            'Ước tính 1 lượt gọi AI. AI đọc Tóm tắt, Phương pháp và Kết quả.'
+            'Ước tính 1 lượt gọi AI. AI đọc abstract, methods và results.'
           )
         }
       >

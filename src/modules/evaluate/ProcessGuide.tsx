@@ -3,7 +3,7 @@ import styles from './page.module.css';
 const STEPS = [
   { title: 'Tách câu', text: 'Chia đoạn thành câu và token, ngay trên máy này.', ai: false },
   { title: 'Ngữ pháp từng câu', text: 'Chủ ngữ, động từ chính, Topic, Action và Stress.', ai: true },
-  { title: 'Cấu trúc đoạn', text: 'Kiểu đoạn, ý chính, vai trò từng câu và mạch nối.', ai: true },
+  { title: 'Cấu trúc paragraph', text: 'Kiểu paragraph, ý chính, vai trò từng câu và mạch nối.', ai: true },
   { title: 'Đánh giá theo ngữ cảnh', text: 'AI xét lại từng gợi ý; bạn giữ hoặc bỏ.', ai: true },
   { title: 'Chấm điểm', text: 'Năm tiêu chí theo rubric thử nghiệm, thang 0–100.', ai: true },
 ];

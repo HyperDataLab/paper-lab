@@ -44,19 +44,19 @@ async function mountProject(paperId: string | null, search = '') {
 
 it('shows the ordered sections on a multi-paper project and changes the linked section', async () => {
   await mountProject(null, '?other=kept');
-  const tablist = screen.getByRole('tablist', { name: 'Thiết kế nghiên cứu' });
+  const tablist = screen.getByRole('tablist', { name: 'Research design' });
   const deepResearchHeading = screen.getByRole('heading', { name: 'Kế hoạch tìm kiếm' });
   expect(
     tablist.compareDocumentPosition(deepResearchHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
   const tabs = within(tablist).getAllByRole('tab');
   expect(tabs.map((tab) => tab.textContent)).toEqual([
-    'Đề tài và khoảng trống',
-    'Câu hỏi và giả thuyết',
-    'Thiết kế nghiên cứu',
-    'Đo lường',
+    'Topic và research gaps',
+    'Research questions và hypotheses',
+    'Research design',
+    'Measurement',
     'Writing Bank',
-    'Phân tích thống kê',
+    'Statistical analysis',
     'Ma trận chạy',
     'Bảng so sánh',
     'Gói kế hoạch',
@@ -87,5 +87,5 @@ it('opens a section from a deep link', async () => {
 
 it('does not show the area on a paper-owned project', async () => {
   await mountProject('00000000-0000-4000-8000-000000000001');
-  expect(screen.queryByRole('tablist', { name: 'Thiết kế nghiên cứu' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('tablist', { name: 'Research design' })).not.toBeInTheDocument();
 });

@@ -3,7 +3,7 @@ import { PenLine } from 'lucide-react';
 import type { ModuleDefinition } from '@/app/moduleTypes';
 const module: ModuleDefinition = {
   id: 'generate',
-  label: 'Soạn đoạn',
+  label: 'Soạn paragraph',
   icon: PenLine,
   path: '/generate',
   group: 'analysis',

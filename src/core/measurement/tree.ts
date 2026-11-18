@@ -59,10 +59,10 @@ const resultLabel = (result: ReportedResult) =>
   `${result.system_or_baseline}: ${result.value}${result.uncertainty ? ` ± ${result.uncertainty}` : ''}${result.unit ? ` ${result.unit}` : ''}`;
 
 export const ATOMIC_ROLE_LABELS: Record<AtomicRole, string> = {
-  background: 'Bối cảnh',
-  method: 'Phương pháp',
-  finding: 'Kết quả',
-  limitation: 'Hạn chế',
+  background: 'Background',
+  method: 'Methods',
+  finding: 'Results',
+  limitation: 'Limitations',
 };
 
 function atomicRoot(profile: MeasurementProfile): MeasurementNode {

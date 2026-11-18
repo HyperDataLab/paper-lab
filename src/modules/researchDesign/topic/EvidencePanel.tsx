@@ -24,7 +24,7 @@ export function EvidencePanel(props: Props) {
   );
   return (
     <Card>
-      <h3>Bằng chứng từ công cụ</h3>
+      <h3>Evidence từ công cụ</h3>
       <BlurField
         label="Từ khoá tìm kiếm (tiếng Anh)"
         placeholder="Ví dụ: large language models title abstract screening systematic reviews"

@@ -60,13 +60,11 @@ export function OpenKgView({
   const salience = SALIENCE_LABELS.get(String(current?.attrs.salience));
   const lookupMissing = 'Chưa có dữ liệu OpenAlex trong Thư viện DOI.';
   const notices: Partial<Record<KgLayer, string>> = {
-    evidential: !counts.get('evidential')
-      ? 'Chưa có tài liệu tham khảo hoặc thông tin nơi xuất bản.'
-      : undefined,
+    evidential: !counts.get('evidential') ? 'Chưa có references hoặc thông tin nơi xuất bản.' : undefined,
     conceptual: !hasScg
-      ? 'Chưa chạy SCG để lấy đóng góp và nền tảng.'
+      ? 'Chưa chạy SCG để lấy contribution và nền tảng.'
       : !counts.get('conceptual')
-        ? 'Chưa có từ khóa hoặc đóng góp đã trích.'
+        ? 'Chưa có từ khóa hoặc contribution đã trích.'
         : undefined,
     disciplinary: !counts.get('disciplinary')
       ? hasLookup
@@ -80,8 +78,8 @@ export function OpenKgView({
       : undefined,
     normative: !counts.get('normative')
       ? hasArguments
-        ? 'Chưa có luận điểm gắn với văn bản hiện tại.'
-        : 'Chưa chạy phân tích lập luận.'
+        ? 'Chưa có claim gắn với văn bản hiện tại.'
+        : 'Chưa chạy phân tích argument.'
       : undefined,
   };
   return (

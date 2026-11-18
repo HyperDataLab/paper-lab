@@ -208,7 +208,10 @@ it('PK-01 shows missing items as links and blocks freezing', () => {
       </ToastProvider>
     </MemoryRouter>,
   );
-  expect(screen.getByRole('link', { name: /gi.*thuy/ })).toHaveAttribute('href', '/?design=questions');
+  expect(screen.getByRole('link', { name: 'Chưa có hypothesis nào.' })).toHaveAttribute(
+    'href',
+    '/?design=questions',
+  );
   expect(screen.getByRole('button', { name: /phi.n b.n 1/ })).toBeDisabled();
 });
 

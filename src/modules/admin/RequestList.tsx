@@ -19,7 +19,7 @@ import { STATE_LABELS } from './stateLabels';
 import styles from './admin.module.css';
 
 const LEAD =
-  'Hệ thống khác xin dữ kiện thí nghiệm của bài đã công bố. Duyệt hoặc từ chối; sau khi duyệt, chạy Đo lường và công bố. Không có gì tự chạy.';
+  'Hệ thống khác xin dữ kiện thí nghiệm của bài đã công bố. Duyệt hoặc từ chối; sau khi duyệt, chạy measurement và công bố. Không có gì tự chạy.';
 
 type Listing =
   | { status: 'loading' }

@@ -26,7 +26,7 @@ export default function AnalysesSection() {
   const [deleting, setDeleting] = useState<DraftAnalysis | null>(null);
   const [error, setError] = useState('');
   if (state.loading) return <p>Đang tải…</p>;
-  if (state.error) return <p>Không tải được phân tích thống kê.</p>;
+  if (state.error) return <p>Không tải được statistical analysis.</p>;
   const { draft } = state.design;
   const flags = checkPlan(draft);
   const change = async (op: (d: Draft) => DraftResult) => {
@@ -58,7 +58,7 @@ export default function AnalysesSection() {
           )}
         </p>
         <p>
-          Biến:{' '}
+          Variable:{' '}
           {a.variables
             .map((id) => `${id} ${draft.variables.find((v) => v.id === id)?.name ?? ''}`.trim())
             .join(', ') || 'chưa chọn'}
@@ -99,12 +99,12 @@ export default function AnalysesSection() {
   }
   return (
     <>
-      <h2>Phân tích thống kê</h2>
-      <p>Khai báo trước phép kiểm định cho từng giả thuyết.</p>
+      <h2>Statistical analysis</h2>
+      <p>Khai báo trước phép kiểm định cho từng hypothesis.</p>
       <SectionSuggest state={state} target="analyses" />
       {error && <p role="alert">{error}</p>}
       {!draft.hypotheses.length && (
-        <p>Chưa có giả thuyết nào. Thêm giả thuyết ở màn Câu hỏi và giả thuyết.</p>
+        <p>Chưa có hypothesis nào. Thêm hypothesis ở tab Research questions và hypotheses.</p>
       )}
       {[...draft.hypotheses]
         .sort((a, b) => a.id.localeCompare(b.id, 'en', { numeric: true }))
@@ -119,7 +119,7 @@ export default function AnalysesSection() {
           </Card>
         ))}
       <Card>
-        <h3>Không gắn giả thuyết</h3>
+        <h3>Không gắn hypothesis</h3>
         {draft.analyses
           .filter((a) => !draft.hypotheses.some((h) => h.id === a.hypothesis))
           .map(renderAnalysis)}

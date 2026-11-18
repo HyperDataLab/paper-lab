@@ -70,7 +70,7 @@ function renderEvaluate(repo: Repositories, client: LlmClient, entry = '/evaluat
 }
 
 async function splitAndAnalyze() {
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), { target: { value: TEXT } });
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), { target: { value: TEXT } });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Phân tích câu (AI)' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
@@ -80,7 +80,7 @@ it('EV-02 EV-03 asks consent, then shows markers, T/A/S and the review label for
   const repo = createRepositories(createDb(`syntax-${crypto.randomUUID()}`));
   const { client, completeJson } = fakeClient();
   renderEvaluate(repo, client);
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), { target: { value: TEXT } });
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), { target: { value: TEXT } });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Phân tích câu (AI)' }));
   expect(await screen.findByRole('alertdialog')).toHaveTextContent('Thông báo quyền riêng tư');
@@ -151,7 +151,7 @@ it('AC-03 EV-11 judges local candidates with consent and reopens saved decisions
   });
   const client = { completeJson } as unknown as LlmClient;
   const view = renderEvaluate(repo, client);
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), {
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), {
     target: { value: 'Very clear results.' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
@@ -196,7 +196,7 @@ it('EV-11 AC-05 AC-06 AC-12 audits unsaved and later saved decisions and restore
   const spy = vi.spyOn(repo.analyses, 'reviewIssue');
   const { client } = fakeClient();
   const view = renderEvaluate(repo, client);
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), {
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), {
     target: { value: 'Very clear results.' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
@@ -285,7 +285,9 @@ it('shows the missing API key message and a Settings link', async () => {
     completeJson: vi.fn().mockRejectedValue(new LlmConfigError('API key is required')),
   } as unknown as LlmClient;
   renderEvaluate(repo, client);
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), { target: { value: 'A sentence.' } });
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), {
+    target: { value: 'A sentence.' },
+  });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Phân tích câu (AI)' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));

@@ -163,7 +163,7 @@ it('RD-PROV-05 shows Thử lại on a load error and loads again', async () => {
       </ResearchDesignProvider>
     </StorageProvider>,
   );
-  expect(await screen.findByText('Không tải được thiết kế nghiên cứu.')).toBeInTheDocument();
+  expect(await screen.findByText('Không tải được research design.')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
   await waitFor(() => expect(screen.getByText(/^Synthetic project: 0/)).toBeInTheDocument());
 });

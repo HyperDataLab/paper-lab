@@ -28,7 +28,7 @@ function Quotes({ citation, paper }: { citation: GroundedCitation; paper: Projec
             <blockquote>{quote.quote}</blockquote>
             <span className={styles.where}>
               {[quote.page ? `Tr. ${quote.page}` : null, quote.section].filter(Boolean).join(' · ') ||
-                'Tóm tắt'}
+                'Abstract'}
               {link && (
                 <>
                   {' · '}
@@ -47,7 +47,7 @@ function Signals({ citation }: { citation: GroundedCitation }) {
   return (
     <div className={styles.badges}>
       <Badge tone={citation.fullText ? 'success' : 'neutral'}>
-        {citation.fullText ? 'Đã dùng toàn văn' : 'Chỉ dùng tóm tắt'}
+        {citation.fullText ? 'Đã dùng toàn văn' : 'Chỉ dùng abstract'}
       </Badge>
       {citation.humanVerified && <Badge tone="accent">Người đã xác nhận giá trị</Badge>}
     </div>
@@ -67,7 +67,7 @@ export function GroundingDrawer({
 }) {
   const paperKey = target.kind === 'citation' ? target.citation.paperKey : target.paperKey;
   const paper = project.papers.find((item) => item.key === paperKey);
-  const label = target.kind === 'citation' ? 'Trích dẫn nguồn' : 'Bằng chứng từ bài này';
+  const label = target.kind === 'citation' ? 'Trích dẫn nguồn' : 'Evidence từ bài này';
   const evidence = target.kind === 'paper' ? paperEvidence(synthesis, paperKey) : [];
   return (
     <Drawer

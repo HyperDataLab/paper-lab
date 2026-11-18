@@ -15,11 +15,11 @@ export function chainFlagText(flag: ChainFlag, draft: Draft): string {
     `${flag.subject} «${items.find((item) => item.id === flag.subject)?.name ?? ''}»`;
   switch (flag.rule) {
     case 'CH-01':
-      return `${flag.subject} chưa gắn biến phụ thuộc.`;
+      return `${flag.subject} chưa gắn dependent variable.`;
     case 'CH-02':
-      return `${named(draft.variables)} là biến phụ thuộc của ${flag.hypothesis} nhưng chưa có metric.`;
+      return `${named(draft.variables)} là dependent variable của ${flag.hypothesis} nhưng chưa có metric.`;
     case 'CH-03':
-      return `${flag.subject} tham chiếu biến ${flag.variable} ${flag.which === 'missing' ? 'không tồn tại' : 'không đúng vai trò'}.`;
+      return `${flag.subject} tham chiếu variable ${flag.variable} ${flag.which === 'missing' ? 'không tồn tại' : 'không đúng vai trò'}.`;
     case 'CH-04':
       return `${named(draft.metrics)} còn thiếu: ${flag.missing.map((field) => metricFieldWords[field] ?? field).join(', ')}.`;
     case 'CH-05':

@@ -36,7 +36,7 @@ export default function QuestionsSection() {
   const [editor, setEditor] = useState<Editor | null>(null);
   const [deletion, setDeletion] = useState<Deletion | null>(null);
   if (state.loading) return <Loading />;
-  if (state.error) return <Empty title="Không tải được câu hỏi và giả thuyết." />;
+  if (state.error) return <Empty title="Không tải được research questions và hypotheses." />;
   const { draft } = state.design;
   const change = async (fn: (draft: Draft) => DraftResult) => {
     try {
@@ -92,14 +92,17 @@ export default function QuestionsSection() {
     deletion?.type === 'question' ? draft.hypotheses.filter((h) => h.question === deletion.id).length : 0;
   return (
     <>
-      <h3>Câu hỏi và giả thuyết</h3>
-      <p>Câu hỏi nghiên cứu và giả thuyết có mã ổn định, nối với khoảng trống tìm được.</p>
+      <h3>Research questions và hypotheses</h3>
+      <p>Mỗi research question và hypothesis có mã ổn định, nối với research gap tìm được.</p>
       <SectionSuggest state={state} target="hypotheses" />
       <Button variant="primary" onClick={() => setEditor({ type: 'question' })}>
-        Thêm câu hỏi
+        Thêm research question
       </Button>
       {draft.questions.length === 0 && (
-        <Empty title="Chưa có câu hỏi nào." hint="Bắt đầu bằng câu hỏi mà nghiên cứu này trả lời." />
+        <Empty
+          title="Chưa có research question nào."
+          hint="Bắt đầu bằng research question mà nghiên cứu này trả lời."
+        />
       )}
       {[...draft.questions]
         .sort((a, b) => Number(a.id.slice(2)) - Number(b.id.slice(2)))
@@ -108,7 +111,7 @@ export default function QuestionsSection() {
             <p>
               {q.id} · {q.text}
             </p>
-            <p>Khoảng trống: {q.gap || 'Chưa ghi khoảng trống'}</p>
+            <p>Research gap: {q.gap || 'Chưa ghi research gap'}</p>
             {q.papers.map((id) => (
               <p key={id}>
                 {(() => {
@@ -130,14 +133,14 @@ export default function QuestionsSection() {
               Xoá
             </Button>
             <Button variant="ghost" onClick={() => setEditor({ type: 'hypothesis', question: q.id })}>
-              Thêm giả thuyết
+              Thêm hypothesis
             </Button>
             {rows(draft.hypotheses.filter((h) => h.question === q.id))}
           </Card>
         ))}
       {unattached.length > 0 && (
         <Card>
-          <h3>Chưa gắn câu hỏi</h3>
+          <h3>Chưa gắn research question</h3>
           {rows(unattached)}
         </Card>
       )}
@@ -163,12 +166,12 @@ export default function QuestionsSection() {
       )}
       {deletion && (
         <Dialog
-          title={deletion.type === 'question' ? 'Xoá câu hỏi' : 'Xoá giả thuyết'}
+          title={deletion.type === 'question' ? 'Xoá research question' : 'Xoá hypothesis'}
           description={
             references.length
               ? `${deletion.id} đang được dùng bởi ${references.join(', ')}. Gỡ liên kết trước khi xoá.`
               : count
-                ? `Câu hỏi này còn ${count} giả thuyết. Chuyển hoặc xoá các giả thuyết trước.`
+                ? `research question này còn ${count} ${count === 1 ? 'hypothesis' : 'hypotheses'}. Chuyển hoặc xoá các hypotheses trước.`
                 : `Xoá ${deletion.id}?`
           }
           onClose={() => setDeletion(null)}

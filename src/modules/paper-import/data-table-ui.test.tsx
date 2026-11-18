@@ -38,6 +38,6 @@ it('R17b the Trích xuất tab opens on this paper with template columns and off
   expect(within(table).getByText('Experimental Protocol')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Xuất' }));
   expect(screen.queryByRole('button', { name: 'Thêm bài' })).toBeNull();
-  for (const name of ['CSV', 'JSON kèm bằng chứng', 'RIS của bài này', 'BibTeX của bài này'])
+  for (const name of ['CSV', 'JSON kèm evidence', 'RIS của bài này', 'BibTeX của bài này'])
     expect(screen.getByRole('menuitem', { name })).toBeInTheDocument();
 });

@@ -33,7 +33,7 @@ describe('R17a Publication info: metadata form and paper model', () => {
     const { db, paper } = await setup();
     await db.paperInsights.put(exampleInsights(paper));
     await db.stance.put(exampleStance(paper));
-    expect(await screen.findByText(/4 câu · 1 tài liệu tham khảo/)).toBeInTheDocument();
+    expect(await screen.findByText(/4 câu · 1 reference/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Tải paper-model.json' }));
     await waitFor(() => expect(downloadJson).toHaveBeenCalledTimes(1));
     const [name, value] = vi.mocked(downloadJson).mock.calls[0]!;
@@ -49,9 +49,9 @@ describe('R17a Publication info: metadata form and paper model', () => {
   it('edits metadata by hand for a paper with no DOI and no record', async () => {
     const { repo, paper } = await setup();
     fireEvent.click(await screen.findByRole('button', { name: 'Sửa thông tin' }));
-    fireEvent.change(screen.getByLabelText('Tên'), { target: { value: 'Edited synthetic title' } });
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Edited synthetic title' } });
     fireEvent.change(screen.getByLabelText('Tác giả'), { target: { value: 'Ann Lee\n\n Bo Wu \n' } });
-    fireEvent.change(screen.getByLabelText('Từ khoá'), { target: { value: 'keys, models ,' } });
+    fireEvent.change(screen.getByLabelText('Keywords'), { target: { value: 'keys, models ,' } });
     fireEvent.change(screen.getByLabelText('Năm'), { target: { value: '20.5' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Năm phải là số nguyên');
@@ -82,9 +82,9 @@ describe('R17a Publication info: metadata form and paper model', () => {
   it('Huỷ leaves the record untouched', async () => {
     const { repo, paper } = await setup();
     fireEvent.click(await screen.findByRole('button', { name: 'Sửa thông tin' }));
-    fireEvent.change(screen.getByLabelText('Tên'), { target: { value: 'Not saved' } });
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Not saved' } });
     fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
-    expect(screen.queryByLabelText('Tên')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Title')).not.toBeInTheDocument();
     expect(await repo.paperContext.get(paper.id)).toBeUndefined();
   });
 });

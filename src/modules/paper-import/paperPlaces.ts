@@ -253,38 +253,38 @@ export const VIEW_HELP: Record<ViewId, string> = {
   extraction: 'Trích xuất',
   issues: 'Mọi phát hiện về bài ở một chỗ.',
   'arguments-issues':
-    'Phát hiện về luận điểm và bằng chứng của bài. Được chấp nhận mặc định; bác bỏ những gì không đúng.',
+    'Phát hiện về claim và evidence của bài. Được chấp nhận mặc định; bác bỏ những gì không đúng.',
   'writing-issues': 'Phát hiện về cách viết của bài. Được chấp nhận mặc định; bác bỏ những gì không đúng.',
   'citation-issues':
     'Phát hiện về nguồn và trích dẫn của bài. Được chấp nhận mặc định; bác bỏ những gì không đúng.',
-  gap: 'Tác giả nói lĩnh vực còn thiếu gì và bài này đóng góp gì, bằng chính câu trong bài.',
+  gap: 'Tác giả nói lĩnh vực còn thiếu gì và contribution của bài này là gì, bằng chính câu trong bài.',
   'main-claims':
-    'Các luận điểm chính, căn cứ (Grounds) và giới hạn tác giả tự nêu. Bản đầy đủ theo Toulmin ở Claims & reasoning.',
+    'Các claim chính, grounds và qualifiers do tác giả nêu. Bản đầy đủ theo Toulmin ở Claims & reasoning.',
   atomics:
     'Bài được tách thành các câu nguyên tử: mỗi câu một ý kiểm được, có vai trò và câu gốc. Tách khi chạy Evidence & measurement.',
   snapshot: 'Bảy thông tin cốt lõi của nghiên cứu, mỗi giá trị kèm câu trích trong bài.',
   metadata: 'Thông tin xuất bản của bài từ OpenAlex hoặc Thư viện DOI.',
   toulmin:
-    'Luận điểm của tác giả và các thành phần theo mô hình Toulmin. Mô tả cấu trúc, không kết luận đúng hay sai.',
+    'Claim của tác giả và các thành phần theo mô hình Toulmin. Mô tả cấu trúc, không kết luận đúng hay sai.',
   aif: 'Tiền đề dẫn tới kết luận qua bước suy luận nào, và bị phản bác ở đâu.',
   profile:
     'Mỗi chiều trả lời một câu hỏi riêng nên không có điểm tổng. Số có ghi “AI” là ứng viên từ mô hình, bạn có thể bác bỏ khi xem chi tiết.',
   map: 'Đọc bài theo mục lục, xem bảng và đoạn gốc.',
   measure:
     'Bài báo đo gì, bằng metric nào, dưới protocol nào, kết quả ra sao, và các câu nguyên tử làm căn cứ.',
-  'science-checks': 'Đối chiếu tự động số liệu và khẳng định trong bài. Không dùng AI.',
+  'science-checks': 'Đối chiếu tự động số liệu và claims trong bài. Không dùng AI.',
   reporting:
-    'Tác giả nêu giới hạn validity nào và có công bố dữ liệu, code không. Mô tả việc báo cáo, không kết luận bài đúng hay sai.',
-  moves: 'Bài dẫn dắt người đọc thế nào (CARS, các bước ở phần Bàn luận) và Tóm tắt có khớp nội dung không.',
-  organization: 'Cách đoạn văn được tổ chức và nối với nhau. Không phải điểm của bài báo.',
+    'Tác giả nêu threats to validity nào và có công bố dữ liệu, code không. Mô tả việc báo cáo, không kết luận bài đúng hay sai.',
+  moves: 'Bài dẫn dắt người đọc thế nào (CARS, các moves ở discussion) và abstract có khớp nội dung không.',
+  organization: 'Cách paragraph được tổ chức và nối với nhau. Không phải điểm của bài báo.',
   'discourse-checks': 'Hình và bảng có được nhắc đến và đánh số đúng không. Không dùng AI.',
-  language: 'Cấu trúc câu và lựa chọn từ theo từng mục. Không phải điểm của bài báo.',
+  language: 'Cấu trúc câu và lựa chọn từ theo từng section. Không phải điểm của bài báo.',
   stance:
     'Cách tác giả thể hiện lập trường và tương tác với người đọc. Đây là số liệu mô tả, không phải điểm.',
   vocabulary: 'Từ vựng, cụm từ lặp lại và so sánh với các bài khác. Không dùng AI.',
   'writing-checks': 'Kiểm tra tự động chữ viết tắt và mức độ khẳng định. Không dùng AI.',
   probe: 'Đo xem điểm của AI có đổi khi chỉ đổi văn phong hay không.',
-  'context-checks': 'Trích dẫn trong bài có tài liệu tham khảo tương ứng không. Không dùng AI.',
+  'context-checks': 'Trích dẫn trong bài có references tương ứng không. Không dùng AI.',
   'context-references': 'Độ mới của danh sách tài liệu và tình trạng rút bài. Không dùng AI.',
   review: 'Các góc nhìn phản biện của AI, kèm câu trích trong bài. Xuyên suốt các chiều.',
 };

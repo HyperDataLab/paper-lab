@@ -336,7 +336,7 @@ export function CorpusTopics({
                   <th>Yếu</th>
                   <th>Theo corpus</th>
                   <th>Tỷ lệ đích − đối chứng</th>
-                  <th>Từ khóa</th>
+                  <th>Keywords</th>
                   <th>OpenAlex</th>
                 </tr>
               </thead>

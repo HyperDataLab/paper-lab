@@ -69,7 +69,7 @@ export function GridForm({
           )
         ) : (
           <p>
-            Chưa có điều kiện nào. <Link to={`${target}`}>Thêm ở màn Đo lường.</Link>
+            Chưa có điều kiện nào. <Link to={`${target}`}>Thêm ở tab Measurement.</Link>
           </p>
         )}
       </div>
@@ -95,7 +95,7 @@ export function GridForm({
           )
         ) : (
           <p>
-            Chưa có dataset nào. <Link to={`${target}`}>Thêm ở màn Đo lường.</Link>
+            Chưa có dataset nào. <Link to={`${target}`}>Thêm ở tab Measurement.</Link>
           </p>
         )}
       </div>

@@ -84,7 +84,7 @@ it('the library lists papers by title, authors and year, and can be searched and
   expect(screen.getByText('scan-01.pdf · Tên dò từ trang đầu')).toBeInTheDocument();
   expect(screen.getByText('Tên tệp · chưa có metadata')).toBeInTheDocument();
 
-  chooseSelectOption('Sắp xếp', 'Tên bài A–Z');
+  chooseSelectOption('Sắp xếp', 'Title A–Z');
   expect(titles()[0]).toBe('Edge Offloading at Scale');
   chooseSelectOption('Sắp xếp', 'Năm mới nhất');
   expect(titles()[0]).toBe('Stop Automating Peer Review Without Rigorous Evaluation');

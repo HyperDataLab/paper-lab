@@ -22,8 +22,8 @@ export function DesignDrawer({
   const [name, setName] = useState('');
   const [assignment, setAssignment] = useState<DraftDesign['assignment']>(null);
   return (
-    <Drawer open onClose={onClose} side="right" label="Chọn thiết kế">
-      <h2>Chọn thiết kế</h2>
+    <Drawer open onClose={onClose} side="right" label="Chọn research design">
+      <h2>Chọn research design</h2>
       {!bank && (
         <p>
           Chưa có bản chụp. <Link to={'?design=bank'}>Writing Bank</Link>
@@ -41,8 +41,8 @@ export function DesignDrawer({
         </div>
       ))}
       <div>
-        <h3>Tự mô tả thiết kế</h3>
-        <TextField label="Tên thiết kế" value={name} onChange={(e) => setName(e.target.value)} />
+        <h3>Tự mô tả research design</h3>
+        <TextField label="Tên research design" value={name} onChange={(e) => setName(e.target.value)} />
         <p>Cách phân nhóm</p>
         <SegmentedControl
           label="Cách phân nhóm"
@@ -51,7 +51,7 @@ export function DesignDrawer({
           onChange={(v) => setAssignment(v as DraftDesign['assignment'])}
         />
         <Button disabled={!name.trim()} onClick={() => choose({ name, assignment, bank: null })}>
-          Chọn thiết kế tự mô tả
+          Chọn research design tự mô tả
         </Button>
       </div>
     </Drawer>

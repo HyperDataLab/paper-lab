@@ -62,7 +62,7 @@ afterEach(() => vi.unstubAllGlobals());
 it('offers to reset a narrow shared scope', () => {
   const reset = vi.fn();
   render(<ScopeWarning paper={paper} sections={['a']} onSections={reset} />);
-  expect(screen.getByText(/Phạm vi đang là 1\/2 mục/)).toBeInTheDocument();
+  expect(screen.getByText(/Phạm vi đang là 1\/2 section/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Đặt lại Phần chính' }));
   expect(reset).toHaveBeenCalledWith(['a', 'b']);
 });

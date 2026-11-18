@@ -81,7 +81,7 @@ it('EV-11 saves an evaluation and deletes it from history', async () => {
       </StorageProvider>
     </MemoryRouter>,
   );
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), {
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), {
     target: { value: 'A scientific sentence.' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));

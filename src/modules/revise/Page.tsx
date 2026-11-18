@@ -340,7 +340,7 @@ export default function Page() {
                   </details>
                 )}
               </div>
-              <h3>Cần bằng chứng từ bạn</h3>
+              <h3>Cần evidence từ bạn</h3>
               {revision.needsEvidence.length ? (
                 <ul>
                   {revision.needsEvidence.map((item, index) => (

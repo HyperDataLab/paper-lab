@@ -3,7 +3,7 @@ export type ListTab = Exclude<Tab, 'chain'>;
 
 export const tabLabels: Record<Tab, string> = {
   chain: 'Chuỗi',
-  variables: 'Biến',
+  variables: 'Variable',
   metrics: 'Metric',
   datasets: 'Dataset',
   conditions: 'Điều kiện',

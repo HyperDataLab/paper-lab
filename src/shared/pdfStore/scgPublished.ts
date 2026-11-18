@@ -20,11 +20,11 @@ export class PublishScgError extends Error {
           : status === 404
             ? 'Paper model của bài chưa được công bố. Hãy công bố paper model trước.'
             : status === 409
-              ? 'Đồ thị dẫn tới câu không có trong paper model đã công bố. Hãy công bố lại paper model, hoặc chạy lại trích đóng góp.'
+              ? 'Đồ thị dẫn tới câu không có trong paper model đã công bố. Hãy công bố lại paper model, hoặc chạy lại trích contribution.'
               : status === 413
-                ? 'Đồ thị đóng góp vượt quá 2 MiB.'
+                ? 'Đồ thị contribution vượt quá 2 MiB.'
                 : status < 500
-                  ? `Máy chủ lab không chấp nhận đồ thị đóng góp (lỗi ${status}).`
+                  ? `Máy chủ lab không chấp nhận đồ thị contribution (lỗi ${status}).`
                   : `Máy chủ lab gặp lỗi ${status}. Vui lòng thử lại.`,
     );
   }

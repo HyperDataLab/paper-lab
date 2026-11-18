@@ -11,7 +11,7 @@ export const CONTRIBUTION_STAGES: { label: string; units: Unit[]; color: string 
     units: ['Dataset', 'ExperimentalSetup', 'Hyperparameters', 'Baselines', 'Experiments'],
     color: 'var(--sec-related)',
   },
-  { label: 'Kết quả', units: ['Results', 'AblationAnalysis'], color: 'var(--sec-results)' },
+  { label: 'Results', units: ['Results', 'AblationAnalysis'], color: 'var(--sec-results)' },
 ];
 
 export function groupContributionStages(triples: Triple[]) {

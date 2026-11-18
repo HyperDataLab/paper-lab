@@ -115,7 +115,7 @@ it('R6 a section run from the section menu of a block reads only that section an
     </MemoryRouter>,
   );
   const block = await screen.findByRole('region', { name: 'Stance & engagement' });
-  fireEvent.click(await within(block).findByRole('button', { name: 'Chạy cho một mục' }));
+  fireEvent.click(await within(block).findByRole('button', { name: 'Chạy cho một section' }));
   fireEvent.click(await screen.findByRole('menuitem', { name: /^Results/ }));
 
   await waitFor(async () => expect((await repo.stance.get(paper.id))?.runs).toHaveLength(2));

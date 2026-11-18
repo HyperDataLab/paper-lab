@@ -161,6 +161,14 @@ Two of these hues match `--hl-word` and `--hl-flow` above. The two sets never sh
 ## 5. Copy and states
 
 - Vietnamese UI copy, sentence case, short verbs ("Phân tích", "Xác nhận", "Bỏ qua", "Áp dụng bản sửa").
+- **Academic terms stay in English.** Keep sentences, buttons, hints and states in Vietnamese,
+  with academic terms in English within them. Use the glossary capitalisation in labels and headings,
+  and lowercase in sentences. Examples: "Thêm hypothesis", "Chưa có research question nào."
+  - Paper structure: Abstract, Introduction, Related work, Background, Methods / Methodology, Results,
+    Discussion, Conclusion, Limitations, References, Appendix, Acknowledgements, Keywords, Title.
+  - Research design: Research question, Hypothesis, Research gap, Contribution, Claim, Argument, Evidence,
+    Warrant, Qualifier, Rebuttal (Toulmin), Threats to validity, Variable, Metric, Dataset, Baseline, Ablation,
+    Research design (the design type), Measurement, Statistical analysis, Paragraph, Section, Move, Step.
 - Scores always carry their context: never a bare number without coverage / confidence / rubric version.
 - Findings wording follows the PRD distinction: "Ứng viên cần xem lại" (review candidate), "Gợi ý văn phong"
   (stylistic suggestion), "Vi phạm đã xác nhận" (confirmed). Default to the weakest label when unsure.

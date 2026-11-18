@@ -37,7 +37,7 @@ export const CLAIM_TYPE_INFO: Record<ClaimType, { label: string; vi: string; nee
   mechanistic: {
     label: 'Mechanistic',
     vi: 'Cơ chế',
-    needs: 'Cần bằng chứng về con đường tác động, như thí nghiệm loại bỏ thành phần.',
+    needs: 'Cần evidence về con đường tác động, như thí nghiệm ablation.',
   },
   predictive: {
     label: 'Predictive',
@@ -64,6 +64,6 @@ export const CLAIM_TYPE_INFO: Record<ClaimType, { label: string; vi: string; nee
   recommendation: {
     label: 'Recommendation',
     vi: 'Khuyến nghị',
-    needs: 'Cần một claim thực nghiệm và lập luận về hệ quả.',
+    needs: 'Cần một claim thực nghiệm và argument về hệ quả.',
   },
 };

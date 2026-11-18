@@ -33,7 +33,7 @@ const WORKFLOWS = [
   {
     to: '/evaluate',
     icon: PenLine,
-    title: 'Kiểm tra đoạn văn của bạn',
+    title: 'Kiểm tra paragraph của bạn',
     text: 'Đánh giá, sửa hoặc tạo đoạn học thuật.',
   },
 ];
@@ -116,7 +116,7 @@ export default function Page() {
             {firstName ? `, ${firstName}` : ''}
           </h1>
           <p className={styles.muted}>
-            Đọc bài, trích xuất dữ liệu và kiểm tra đoạn văn. Mọi thứ lưu trên máy này.
+            Đọc bài, trích xuất dữ liệu và kiểm tra paragraph. Mọi thứ lưu trên máy này.
           </p>
         </div>
         <div className={styles.heroActions}>
@@ -235,7 +235,7 @@ export default function Page() {
               }}
             >
               <TextField
-                label="Câu hỏi nghiên cứu"
+                label="Research question"
                 hideLabel
                 placeholder="Ví dụ: Phản biện bằng AI có kém đa dạng hơn phản biện của người không?"
                 multiline

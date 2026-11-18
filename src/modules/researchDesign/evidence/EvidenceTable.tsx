@@ -9,7 +9,7 @@ import { DataTable } from '@/shared/ui/DataTable';
 import type { Selection } from './factsDocs';
 import styles from './evidence.module.css';
 
-const COLUMNS = ['Task', 'Dataset', 'Baseline', 'Phương pháp', 'Metric', 'Thiết kế', 'Mẫu', 'Kết quả'];
+const COLUMNS = ['Task', 'Dataset', 'Baseline', 'Methods', 'Metric', 'Research design', 'Mẫu', 'Results'];
 /** Kinds PaperLab's measurement does not produce yet (task, design, sample). */
 const NOT_SUPPLIED = new Set([0, 5, 6]);
 const same = (a: Selection, b: Selection) => a.paperId === b.paperId && a.factId === b.factId;
@@ -61,7 +61,7 @@ export function EvidenceTable({
                     <>
                       {' · '}
                       <Link to={`/papers/${encodeURIComponent(paperId)}?view=measure`}>
-                        Chạy Đo lường cho bài này
+                        Chạy measurement cho bài này
                       </Link>
                     </>
                   ) : (
