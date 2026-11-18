@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { bodySentences } from '../corpusProfile/measure';
-import { FEATURE_REGISTRY, SECTION_MAP, SIGNATURE_SECTIONS } from '../corpusProfile/registry';
+import { SECTION_MAP, SIGNATURE_SECTIONS } from '../corpusProfile/registry';
+import { FEATURE_REGISTRY_V2 } from '../corpusProfile/registryV2';
 import { examplePaperModel } from '../paperModel/contract';
 import { analyzeText } from '../text';
 import { sentenceSyntaxFromParse } from './align';
@@ -99,14 +100,19 @@ describe('P6 spaCy parse → SentenceSyntax', () => {
 });
 
 describe('P6 per-section passive share and tense split', () => {
-  it('reserves feature ids; once the registry has any of them, it has exactly these', () => {
+  it('registry v2 has exactly these feature ids, as tool features in the style family', () => {
     expect(SECTION_SYNTAX_FEATURE_IDS).toHaveLength(SIGNATURE_SECTIONS.length * 4);
     expect(SECTION_SYNTAX_FEATURE_IDS).toContain('section.METHODS.passive');
     expect(SECTION_SYNTAX_FEATURE_IDS).toContain('section.RESULTS.tense.past');
-    const registered = FEATURE_REGISTRY.features
-      .map((feature) => feature.id)
-      .filter((id) => /^section\.[A-Z_]+\.(passive|tense\.[a-z]+)$/u.test(id));
-    if (registered.length) expect(registered.sort()).toEqual([...SECTION_SYNTAX_FEATURE_IDS].sort());
+    const registered = FEATURE_REGISTRY_V2.features.filter((feature) =>
+      /^section\.[A-Z_]+\.(passive|tense\.[a-z]+)$/u.test(feature.id),
+    );
+    expect(registered.map((feature) => feature.id).sort()).toEqual([...SECTION_SYNTAX_FEATURE_IDS].sort());
+    expect(
+      registered.every(
+        (f) => f.extractor === 'tool' && f.fdrFamily === 'style' && f.granularity === 'section',
+      ),
+    ).toBe(true);
   });
 
   it('computes shares over parsed body sentences, leaving out verbless and modal ones', () => {

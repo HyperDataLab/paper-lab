@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://hyperdatalab-paragraph-lab.web.app/schemas/corpus-profile-v2.draft.schema.json",
   "title": "PaperLab corpus profile v2 DRAFT",
-  "description": "DRAFT contract for Writing Bank mapping; the shape may change until it leaves draft. Built by PaperLab from feature registry v2 (deterministic P2 features; P6 passive/tense and P7 evidence level not measured yet).",
+  "description": "DRAFT contract for Writing Bank mapping; the shape may change until it leaves draft. Built by PaperLab from feature registry v2 (deterministic P2 features, P6 passive voice and tense from the spaCy service, P7 main-claim evidence levels).",
   "$comment": "DRAFT: the example is built by PaperLab code from synthetic papers.",
   "type": "object",
   "properties": {
@@ -165,7 +165,7 @@
           },
           "metricType": { "type": "string", "enum": ["share", "mean", "rate", "prevalence"] },
           "unit": { "type": "string" },
-          "extractor": { "type": "string", "enum": ["deterministic", "llm"] },
+          "extractor": { "type": "string", "enum": ["deterministic", "llm", "tool"] },
           "target": {
             "type": "object",
             "properties": {
@@ -564,7 +564,7 @@
       },
       "required": ["target", "control"],
       "additionalProperties": false,
-      "description": "P7 (owner approved 2026-11-18, not built yet): distribution of main-claim evidence levels."
+      "description": "P7: shares of evidence levels E0–E5 over the main claims of profiled papers (machine labels, live arguments of the latest argument run). Omitted when either side has no graded main claim."
     }
   },
   "required": [

@@ -3,7 +3,7 @@ import { buildPaperModel } from '../paperModel/buildPaperModel';
 import { examplePaper, exampleInsights } from '../paperModel/contract';
 import type { Argument, PaperInsightsRecord } from '../schemas/paperInsights';
 import type { Paper } from '../schemas/paper';
-import { measurePaperDetail } from './measure';
+import { bodySentences, measurePaperDetail } from './measure';
 import { measurePaperV2Detail, sectionSequence, topSections } from './measureV2';
 import { FEATURE_REGISTRY } from './registry';
 import { FEATURE_REGISTRY_V2, registryV2Digest } from './registryV2';
@@ -122,7 +122,7 @@ describe('P2 registry v2', () => {
       core: 48,
       structure: 12,
       paragraphs: 18,
-      style: 27,
+      style: 63,
       reasoning: 102,
     });
     expect(FEATURE_REGISTRY_V2.features.find((f) => f.id === 'section.METHODS.hedges')).toMatchObject({
@@ -134,11 +134,15 @@ describe('P2 registry v2', () => {
       extractor: 'llm',
       metricType: 'prevalence',
     });
-    // P6 and P7 ids are reserved, never measured.
-    const reserved = FEATURE_REGISTRY_V2.reserved.map((r) => r.id);
-    expect(reserved).toContain('section.RESULTS.passive');
-    expect(reserved).toContain('section.METHODS.tense.past');
-    expect(reserved.some((id) => ids.includes(id))).toBe(false);
+    // P6 passive and tense are measured now (extractor tool); nothing is reserved.
+    expect(FEATURE_REGISTRY_V2.features.find((f) => f.id === 'section.RESULTS.passive')).toMatchObject({
+      granularity: 'section',
+      extractor: 'tool',
+      fdrFamily: 'style',
+      metricType: 'share',
+    });
+    expect(ids).toContain('section.METHODS.tense.past');
+    expect(FEATURE_REGISTRY_V2.reserved).toEqual([]);
   });
   it('P2 style word lists count hedges, boosters and first person, not "US" or "I"', () => {
     expect(styleCounts('We may clearly see that I and the US data suggest our view.')).toEqual({
@@ -205,6 +209,30 @@ describe('P2 paper measurement v2', () => {
     expect(values['argument.with_rebuttal']).toBe(0);
     expect(values['argument.unsupported']).toBe(1);
     expect(labels['argument.unsupported']).toEqual({ total: 1, machine: 0 });
+  });
+  it('P6 measures passive voice and tense per section from a parse, and leaves them null without one', () => {
+    const m = model(paper());
+    const roles = new Map(m.document.sections.map((s) => [s.id, s.role]));
+    const intro = bodySentences(m).filter((s) => roles.get(s.sectionId) === 'introduction');
+    expect(intro.length).toBeGreaterThanOrEqual(2);
+    const syntax = new Map(
+      intro.map((s, i) => [
+        s.key,
+        i === 0
+          ? { voice: 'passive' as const, tense: 'past' as const }
+          : { voice: 'active' as const, tense: 'present' as const },
+      ]),
+    );
+    const { values } = measurePaperV2Detail(m, null, null, syntax);
+    expect(values['section.INTRODUCTION.passive']).toBeCloseTo(1 / intro.length);
+    expect(values['section.INTRODUCTION.tense.past']).toBeCloseTo(1 / intro.length);
+    expect(values['section.INTRODUCTION.tense.future']).toBe(0);
+    // A role without parsed sentences stays null.
+    expect(values['section.METHODS.passive']).toBeNull();
+    expect(Object.keys(values)).toEqual(FEATURE_REGISTRY_V2.features.map((f) => f.id));
+    const without = measurePaperV2Detail(m).values;
+    expect(without['section.INTRODUCTION.passive']).toBeNull();
+    expect(without['section.INTRODUCTION.tense.past']).toBeNull();
   });
   it('P2 leaves reasoning null when the argument run missed a body section', () => {
     const source = paper();

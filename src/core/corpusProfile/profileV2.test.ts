@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { CorpusProfileV2Schema } from '../schemas/corpusProfileV2';
+import { evidenceLevelDistribution, type EvidenceLevel } from '../argument/evidenceLevels';
 import { exampleProfileInputs } from './contract';
 import { exampleCorpusProfileV2 } from './contractV2';
+import { bodySentences } from './measure';
+import type { PaperSyntax } from './measureV2';
 import { buildCorpusProfile } from './profile';
 import { buildCorpusProfileV2 } from './profileV2';
 import { FEATURE_REGISTRY_V2 } from './registryV2';
@@ -55,6 +58,87 @@ describe('P2 corpus profile v2', () => {
     expect(v2.features.every((f) => f.status === 'exploratory')).toBe(true);
     expect(v2.evidenceLevel).toBeUndefined();
     expect(v2.warnings.join(' ')).toMatch(/keywords block is empty/);
+    // No parser: passive and tense have no values, and the profile says so with the count.
+    expect(v2.features.find((f) => f.featureId === 'section.INTRODUCTION.passive')).toMatchObject({
+      extractor: 'tool',
+      fdrFamily: 'style',
+      comparison: null,
+      machineShare: null,
+      target: { n: 0 },
+    });
+    expect(v2.warnings).toContain(
+      'syntax_unavailable: 12 of 12 profiled papers have no grammar parse, so their passive voice and tense values are null (no parser configured).',
+    );
+    expect(v2.warnings.join(' ')).toMatch(/evidence_level_unavailable: no evidence levels were given/);
+  });
+  it('P6 passive and tense from a parse map; unparsed papers are counted, never filled', async () => {
+    const inputs = exampleProfileInputs();
+    const syntax = new Map<string, PaperSyntax>();
+    const members = [...inputs.target.members, ...inputs.control.members];
+    for (const [i, member] of members.entries()) {
+      const paper = inputs.papers.get(member.memberId);
+      if (!paper || i === 0) continue;
+      const journal = i < inputs.target.members.length;
+      syntax.set(
+        member.memberId,
+        new Map(
+          bodySentences(paper.model).map((s) => [
+            s.key,
+            { voice: journal ? 'passive' : 'active', tense: journal ? 'past' : 'present' },
+          ]),
+        ),
+      );
+    }
+    const v2 = await buildCorpusProfileV2({
+      ...inputs,
+      syntax: { papers: syntax, parser: 'fake-1' },
+      seed: 42,
+      now,
+    });
+    const passive = v2.features.find((f) => f.featureId === 'section.INTRODUCTION.passive');
+    // Member 0 (a profiled target paper) has no parse, so 5 target values.
+    expect(passive?.target).toMatchObject({ n: 5, mean: 1 });
+    expect(passive?.control).toMatchObject({ n: 6, mean: 0 });
+    expect(v2.features.find((f) => f.featureId === 'section.INTRODUCTION.tense.present')?.control.mean).toBe(
+      1,
+    );
+    expect(v2.warnings.join(' ')).toMatch(/syntax_unavailable: 1 of 12 profiled papers/);
+    expect(v2.methodNotes.join(' ')).toMatch(/Parser: fake-1; 11 of 12 profiled papers parsed/);
+  });
+  it('P7 passes evidence-level shares through, and omits the block when one side has no graded claim', async () => {
+    const graded = (...levels: EvidenceLevel[]) =>
+      evidenceLevelDistribution([
+        {
+          arguments: [
+            ...levels.map((evidenceLevel) => ({ importance: 'main' as const, evidenceLevel })),
+            { importance: 'main' as const, evidenceLevel: null },
+          ],
+        },
+      ]);
+    const v2 = await buildCorpusProfileV2({
+      ...exampleProfileInputs(),
+      evidenceLevel: { target: graded('E3', 'E3', 'E4', 'E1'), control: graded('E2', 'E1') },
+      seed: 42,
+      now,
+    });
+    expect(v2.evidenceLevel).toEqual({
+      target: { E0: 0, E1: 0.25, E2: 0, E3: 0.5, E4: 0.25, E5: 0 },
+      control: { E0: 0, E1: 0.5, E2: 0.5, E3: 0, E4: 0, E5: 0 },
+    });
+    expect(v2.warnings.join(' ')).not.toMatch(/evidence_level_unavailable/);
+    expect(v2.methodNotes.join(' ')).toMatch(
+      /Graded main claims 4 target \/ 2 control; without a level 1 \/ 1/,
+    );
+    const oneSided = await buildCorpusProfileV2({
+      ...exampleProfileInputs(),
+      evidenceLevel: { target: graded('E3'), control: graded() },
+      seed: 42,
+      now,
+    });
+    expect(oneSided.evidenceLevel).toBeUndefined();
+    expect(oneSided.warnings.join(' ')).toMatch(
+      /evidence_level_unavailable: no graded main claim in the control papers/,
+    );
   });
   it('P2 reports headings and section sequences with document share', async () => {
     const inputs = exampleProfileInputs();

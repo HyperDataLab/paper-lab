@@ -5,6 +5,8 @@ import { isRhetoricSection } from '../rhetoric';
 import type { PaperInsightsRecord } from '../schemas/paperInsights';
 import type { PaperModel } from '../schemas/paperModel';
 import type { StanceRecord } from '../schemas/stance';
+import type { ParsedSentence } from '../syntaxParse/schema';
+import { measureSectionSyntax, sectionSyntaxFeatures } from '../syntaxParse/sectionMeasures';
 import { bodyBlocks, measurePaperDetail, otherShare, type PaperMeasurement } from './measure';
 import { SECTION_MAP, SIGNATURE_SECTIONS, type SignatureSection } from './registry';
 import { ARGUMENT_ELEMENTS, CLAIM_SECTIONS, FEATURE_REGISTRY_V2, type ArgumentElement } from './registryV2';
@@ -72,14 +74,18 @@ function completeArgumentRun(model: PaperModel, insights: PaperInsightsRecord | 
   return complete ? run : null;
 }
 
+/** Voice and tense per body sentence, keyed by the paper model's sentence key (the spaCy parse, P6). */
+export type PaperSyntax = ReadonlyMap<string, Pick<ParsedSentence, 'voice' | 'tense'>>;
+
 /**
  * Every registry v2 feature for one paper: the v1 values unchanged, then the P2 features. Values the paper cannot
- * give (a role it lacks, an incomplete or missing argument run) are null, never 0.
+ * give (a role it lacks, an incomplete or missing argument run, no syntax parse) are null, never 0.
  */
 export function measurePaperV2Detail(
   model: PaperModel,
   insights?: PaperInsightsRecord | null,
   stance?: StanceRecord | null,
+  syntax?: PaperSyntax | null,
 ): PaperMeasurement {
   const v1 = measurePaperDetail(model, insights, stance);
   const values: Record<string, number | null> = Object.fromEntries(
@@ -120,6 +126,7 @@ export function measurePaperV2Detail(
     );
   }
   values['structure.other_share'] = otherShare(model).words;
+  if (syntax) Object.assign(values, sectionSyntaxFeatures(measureSectionSyntax(model, syntax)));
 
   const run = completeArgumentRun(model, insights);
   if (run && insights) {
