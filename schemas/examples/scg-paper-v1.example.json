@@ -1,0 +1,63 @@
+{
+  "format": "paperlab-scg-paper",
+  "schemaVersion": 1,
+  "paperId": "sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "doi": "10.5555/example.0",
+  "s2CorpusId": null,
+  "idBase": "00000000-0000-4000-8000-000000000001",
+  "promptVersion": "scg-c1+scg-p1+scg-a1",
+  "promptVersions": { "contributions": "scg-c1", "prerequisites": "scg-p1", "alignment": "scg-a1" },
+  "requestedModel": "example-model",
+  "model": "example-model",
+  "createdAt": "2026-11-11T00:00:00.000Z",
+  "contributions": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001.c0",
+      "name": "Synthetic method",
+      "description": "A toy method evaluated on a toy task.",
+      "types": [{ "type": "techniques_algorithms", "explanation": "It is a new method." }],
+      "sections": ["Abstract"],
+      "prerequisites": [
+        {
+          "id": "00000000-0000-4000-8000-000000000001.c0.p0",
+          "name": "Toy reference method",
+          "description": "A method from an earlier synthetic paper.",
+          "explanation": "The synthetic method extends it.",
+          "coreOrPeripheral": "core",
+          "references": [
+            {
+              "kind": "paper",
+              "refId": "ref1",
+              "title": "A toy reference",
+              "year": 2020,
+              "doi": "10.5555/example.1",
+              "s2CorpusId": null
+            }
+          ],
+          "matches": [
+            {
+              "contributionId": "00000000-0000-4000-8000-000000000002.c0",
+              "explanation": "The same toy method.",
+              "matchType": "strong",
+              "review": "candidate"
+            }
+          ],
+          "sourceSentenceKeys": ["27e266468cdc695c#1"],
+          "review": "candidate"
+        }
+      ],
+      "sourceSentenceKeys": ["311317b5002baaa3#1"],
+      "review": "accepted"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000001.c1",
+      "name": "Toy task evaluation",
+      "description": "Results of the method on the toy task.",
+      "types": [{ "type": "empirical_evaluation", "explanation": "New experimental results." }],
+      "sections": ["Abstract"],
+      "prerequisites": [],
+      "sourceSentenceKeys": ["27e266468cdc695c#1"],
+      "review": "candidate"
+    }
+  ]
+}

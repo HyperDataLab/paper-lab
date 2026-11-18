@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyperdatalab-paragraph-lab.web.app/schemas/scg-paper-v1.schema.json",
+  "title": "PaperLab SCG paper, version 1",
+  "description": "One paper’s Scientific Contribution Graph as PaperLab publishes it: contributions, their prerequisites and matches to other lab papers, without rejected items. Evidence is sentence keys of the published paper model. Generated from PaperLab code; consumers must reject any other schemaVersion.",
+  "type": "object",
+  "properties": {
+    "format": { "type": "string", "const": "paperlab-scg-paper" },
+    "schemaVersion": { "type": "number", "const": 1 },
+    "paperId": {
+      "type": "string",
+      "pattern": "^(sha256-[0-9a-f]{64}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$"
+    },
+    "doi": { "type": ["string", "null"] },
+    "s2CorpusId": { "type": ["string", "null"] },
+    "idBase": { "type": "string", "minLength": 1 },
+    "promptVersion": { "type": "string" },
+    "promptVersions": {
+      "type": "object",
+      "properties": {
+        "contributions": { "type": "string" },
+        "prerequisites": { "type": "string" },
+        "alignment": { "type": "string" }
+      },
+      "required": ["contributions", "prerequisites", "alignment"],
+      "additionalProperties": false
+    },
+    "requestedModel": { "type": "string" },
+    "model": { "type": "string" },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+    },
+    "contributions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "pattern": "^.+\\.c\\d+$" },
+          "name": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" },
+          "types": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "problem_formulation",
+                    "theoretical_insight",
+                    "conceptual_framework",
+                    "resource_benchmark",
+                    "resource_dataset",
+                    "tool_system_software",
+                    "empirical_evaluation",
+                    "analysis",
+                    "models_or_architectures",
+                    "techniques_algorithms",
+                    "representational",
+                    "research_methods_procedures",
+                    "metrics_instruments",
+                    "position_statement",
+                    "real_world_application",
+                    "society_ethics_policy",
+                    "other"
+                  ]
+                },
+                "explanation": { "type": "string" }
+              },
+              "required": ["type", "explanation"],
+              "additionalProperties": false
+            }
+          },
+          "sections": { "type": "array", "items": { "type": "string" } },
+          "prerequisites": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string", "pattern": "^.+\\.c\\d+\\.p\\d+$" },
+                "name": { "type": "string", "minLength": 1 },
+                "description": { "type": "string" },
+                "explanation": { "type": "string" },
+                "coreOrPeripheral": { "type": "string", "enum": ["core", "peripheral"] },
+                "references": {
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": { "type": "string", "const": "paper" },
+                          "refId": { "type": ["string", "null"] },
+                          "title": { "type": "string", "minLength": 1 },
+                          "year": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              { "type": "null" }
+                            ]
+                          },
+                          "doi": { "type": ["string", "null"] },
+                          "s2CorpusId": { "type": ["string", "null"] }
+                        },
+                        "required": ["kind", "refId", "title", "year", "doi", "s2CorpusId"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": { "type": "string", "const": "contribution" },
+                          "contributionId": { "type": "string", "pattern": "^.+\\.c\\d+$" }
+                        },
+                        "required": ["kind", "contributionId"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": { "type": "string", "const": "tool" },
+                          "url": { "type": "string", "format": "uri" }
+                        },
+                        "required": ["kind", "url"],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "matches": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "contributionId": { "type": "string", "pattern": "^.+\\.c\\d+$" },
+                      "explanation": { "type": "string" },
+                      "matchType": { "type": "string", "enum": ["strong", "weak"] },
+                      "review": { "type": "string", "enum": ["candidate", "accepted"] }
+                    },
+                    "required": ["contributionId", "explanation", "matchType", "review"],
+                    "additionalProperties": false
+                  }
+                },
+                "sourceSentenceKeys": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": { "type": "string", "pattern": "^[0-9a-f]{16}#\\d+$" }
+                },
+                "review": { "type": "string", "enum": ["candidate", "accepted"] }
+              },
+              "required": [
+                "id",
+                "name",
+                "description",
+                "explanation",
+                "coreOrPeripheral",
+                "references",
+                "matches",
+                "sourceSentenceKeys",
+                "review"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "sourceSentenceKeys": {
+            "minItems": 1,
+            "type": "array",
+            "items": { "type": "string", "pattern": "^[0-9a-f]{16}#\\d+$" }
+          },
+          "review": { "type": "string", "enum": ["candidate", "accepted"] }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "types",
+          "sections",
+          "prerequisites",
+          "sourceSentenceKeys",
+          "review"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "format",
+    "schemaVersion",
+    "paperId",
+    "doi",
+    "s2CorpusId",
+    "idBase",
+    "promptVersion",
+    "promptVersions",
+    "requestedModel",
+    "model",
+    "createdAt",
+    "contributions"
+  ],
+  "additionalProperties": false
+}

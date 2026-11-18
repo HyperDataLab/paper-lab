@@ -19,6 +19,7 @@ import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { FindingCard, ReviewActions } from '@/shared/ui/FindingCard';
+import { PublishScg } from './PublishScg';
 import styles from './scg.module.css';
 
 const STAGES: Record<ScgStage, string> = {
@@ -137,6 +138,7 @@ export function PaperScg({
         </p>
       )}
       {error && <p role="alert">{error}</p>}
+      {run && <PublishScg paper={paper} run={run} busy={running} />}
       {run && run.dropped.quotes + run.dropped.contributions + run.dropped.prerequisites > 0 && (
         <p className={styles.muted}>
           Đã bỏ {run.dropped.quotes} trích dẫn không có trong bài, {run.dropped.contributions} đóng góp và{' '}

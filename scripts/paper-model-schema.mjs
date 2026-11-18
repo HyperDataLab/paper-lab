@@ -28,6 +28,7 @@ try {
   const facts = await server.ssrLoadModule('/src/core/experimentFacts/contract.ts');
   const plan = await server.ssrLoadModule('/src/core/researchDesign/plan/contract.ts');
   const draft = await server.ssrLoadModule('/src/core/draftMeasure/contract.ts');
+  const scg = await server.ssrLoadModule('/src/core/scg/contract.ts');
   const files = [
     [contract.PAPER_MODEL_SCHEMA_FILE, contract.paperModelJsonSchema()],
     [contract.PAPER_MODEL_SCHEMA_PUBLIC_FILE, contract.paperModelJsonSchema()],
@@ -52,6 +53,9 @@ try {
     [draft.DRAFT_MEASURE_SCHEMA_FILE, draft.draftMeasureJsonSchema()],
     [draft.DRAFT_MEASURE_PUBLIC_FILE, draft.draftMeasureJsonSchema()],
     [draft.DRAFT_MEASURE_EXAMPLE_FILE, await draft.exampleDraftMeasure()],
+    [scg.SCG_PAPER_SCHEMA_FILE, scg.scgPaperJsonSchema()],
+    [scg.SCG_PAPER_SCHEMA_PUBLIC_FILE, scg.scgPaperJsonSchema()],
+    [scg.SCG_PAPER_EXAMPLE_FILE, scg.exampleScgPaper()],
   ];
   for (const [file, value] of files) {
     const path = resolve(root, file);
