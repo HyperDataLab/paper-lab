@@ -12,7 +12,10 @@ zod = "./node_modules/zod/index.js"
 FIREBASE_PROJECT_ID = "hyperdatalab-paragraph-lab"
 ALLOWED_DOMAIN = "hyperdatalab.org"
 ADMIN_EMAILS = "phuong@hyperdatalab.org"
-ALLOWED_ORIGINS = "https://hyperdatalab-paragraph-lab.web.app,https://hyperdatalab-paragraph-lab.firebaseapp.com,http://localhost:5174"
+# Owner, 2026-11-18: the Writing Bank site (its own Firebase project) may call this worker, e.g. POST /v1/measure.
+# Lab sign-in (ALLOWED_DOMAIN) still applies to tokens from both projects.
+ACCEPTED_PROJECT_IDS = "hyperdatalab-paragraph-lab,hyperdatalab-writing-bank"
+ALLOWED_ORIGINS = "https://hyperdatalab-paragraph-lab.web.app,https://hyperdatalab-paragraph-lab.firebaseapp.com,https://hyperdatalab-writing-bank.web.app,https://hyperdatalab-writing-bank.firebaseapp.com,http://localhost:5174"
 
 # The lab's shared bucket; PaperLab writes under paperlab/.
 [[r2_buckets]]
