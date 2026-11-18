@@ -28,4 +28,38 @@ describe('C1a corpus contract', () => {
   it('C1a rejects a protocol body for another kind', () => {
     expect(CorpusSchema.safeParse({ ...exampleCorpus(), kind: 'journal' }).success).toBe(false);
   });
+  it('parses older journal protocols and round-trips optional Writing Bank references', () => {
+    const example = exampleCorpus();
+    const body = {
+      venues: [{ name: 'Synthetic Journal', issn: ['1234-5679'], openalexSourceId: 'S12345' }],
+      years: [2026],
+      articleTypes: ['Synthetic article'],
+      versionOfRecordOnly: true,
+      samplingRule: '',
+      seed: '',
+      strata: [],
+      capPerIssue: null,
+      exclusions: [],
+    };
+    const protocol = { version: 1, createdAt: example.createdAt, body };
+    const older = { ...example, kind: 'journal', protocol: [protocol] };
+    expect(CorpusSchema.parse(older)).toEqual(older);
+    const legacyBank = { release: '2031.02.1', journalId: 'jr.synthetic', articleTypeIds: ['art.synthetic'] };
+    const bank = { journalId: 'jrn.synthetic', journalProfile: 'jr.synthetic', journalEdited: true };
+    const linked = {
+      ...older,
+      protocol: [
+        protocol,
+        { ...protocol, version: 2, body: { ...body, bank: legacyBank } },
+        { ...protocol, version: 3, body: { ...body, bank } },
+      ],
+    };
+    expect(CorpusSchema.parse(JSON.parse(JSON.stringify(CorpusSchema.parse(linked))))).toEqual(linked);
+    expect(
+      CorpusSchema.safeParse({
+        ...older,
+        protocol: [{ ...protocol, body: { ...body, bank: { ...bank, journalId: 'art.synthetic' } } }],
+      }).success,
+    ).toBe(false);
+  });
 });

@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { newCorpus } from '@/core/corpus';
 import type { Corpus } from '@/core/schemas/corpus';
 import { useAuth } from '@/shared/auth/authContext';
+import { searchBankJournals } from '@/shared/bank/journals';
 import { CorpusConflict, pullCorpus, pullCorpora, pushCorpus } from '@/shared/corpusSync';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
@@ -16,7 +17,7 @@ import { Select } from '@/shared/ui/Select';
 import { TextField } from '@/shared/ui/TextField';
 import { ProtocolForm } from './ProtocolForm';
 import { kinds } from './labels';
-import { createEswaPair, ESWA_SEED } from './journalSampling';
+import { createEswaPair, ESWA_JOURNAL_NAME, ESWA_SEED } from './journalSampling';
 import { downloadManifest } from './manifest';
 import styles from './corpus.module.css';
 
@@ -27,6 +28,7 @@ export default function Page() {
   const navigate = useNavigate();
   const [items, setItems] = useState<Corpus[]>([]);
   const [creating, setCreating] = useState(false);
+  const [creatingEswa, setCreatingEswa] = useState(false);
   const [title, setTitle] = useState('');
   const [kind, setKind] = useState<Corpus['kind']>('topic');
   const [error, setError] = useState('');
@@ -124,6 +126,29 @@ export default function Page() {
       setError(String(e));
     }
   }
+  async function createEswa() {
+    setCreatingEswa(true);
+    try {
+      const result = await searchBankJournals(getIdToken, ESWA_JOURNAL_NAME);
+      const journal =
+        result.status === 'ok'
+          ? result.items.find((item) => item.kind === 'journal' && item.profile === 'jr.eswa')
+          : undefined;
+      const pair = createEswaPair(
+        crypto.randomUUID(),
+        crypto.randomUUID(),
+        new Date().toISOString(),
+        undefined,
+        journal,
+      );
+      for (const item of pair) await repo.corpora.save(item);
+      setItems(await repo.corpora.list());
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setCreatingEswa(false);
+    }
+  }
   return (
     <div className={styles.page}>
       <PageHeader
@@ -142,24 +167,8 @@ export default function Page() {
         >
           Corpus mới
         </Button>
-        <Button
-          onClick={() =>
-            void (async () => {
-              try {
-                const pair = createEswaPair(
-                  crypto.randomUUID(),
-                  crypto.randomUUID(),
-                  new Date().toISOString(),
-                );
-                for (const item of pair) await repo.corpora.save(item);
-                setItems(await repo.corpora.list());
-              } catch (e) {
-                setError(String(e));
-              }
-            })()
-          }
-        >
-          Tạo cặp ESWA
+        <Button disabled={creatingEswa} onClick={() => void createEswa()}>
+          {creatingEswa ? 'Đang tạo cặp ESWA…' : 'Tạo cặp ESWA'}
         </Button>
       </PageHeader>
       <p>Seed cho cặp ESWA: {ESWA_SEED}</p>

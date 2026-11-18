@@ -769,6 +769,25 @@
                     "items": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 }
                   },
                   "articleTypes": { "type": "array", "items": { "type": "string" } },
+                  "bank": {
+                    "type": "object",
+                    "properties": {
+                      "release": { "type": "string", "minLength": 1 },
+                      "journalId": {
+                        "anyOf": [
+                          { "type": "string", "pattern": "^jrn\\.\\S+$" },
+                          { "type": "string", "pattern": "^jr\\.\\S+$" }
+                        ]
+                      },
+                      "journalProfile": { "type": "string", "pattern": "^jr\\.\\S+$" },
+                      "journalEdited": { "type": "boolean", "const": true },
+                      "articleTypeIds": {
+                        "type": "array",
+                        "items": { "type": "string", "pattern": "^art\\.\\S+$" }
+                      }
+                    },
+                    "additionalProperties": false
+                  },
                   "versionOfRecordOnly": { "type": "boolean" },
                   "samplingRule": { "type": "string" },
                   "seed": { "type": "string" },
@@ -1607,6 +1626,25 @@
                     "items": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 }
                   },
                   "articleTypes": { "type": "array", "items": { "type": "string" } },
+                  "bank": {
+                    "type": "object",
+                    "properties": {
+                      "release": { "type": "string", "minLength": 1 },
+                      "journalId": {
+                        "anyOf": [
+                          { "type": "string", "pattern": "^jrn\\.\\S+$" },
+                          { "type": "string", "pattern": "^jr\\.\\S+$" }
+                        ]
+                      },
+                      "journalProfile": { "type": "string", "pattern": "^jr\\.\\S+$" },
+                      "journalEdited": { "type": "boolean", "const": true },
+                      "articleTypeIds": {
+                        "type": "array",
+                        "items": { "type": "string", "pattern": "^art\\.\\S+$" }
+                      }
+                    },
+                    "additionalProperties": false
+                  },
                   "versionOfRecordOnly": { "type": "boolean" },
                   "samplingRule": { "type": "string" },
                   "seed": { "type": "string" },
