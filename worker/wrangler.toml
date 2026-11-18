@@ -16,6 +16,8 @@ ADMIN_EMAILS = "phuong@hyperdatalab.org"
 # Lab sign-in (ALLOWED_DOMAIN) still applies to tokens from both projects.
 ACCEPTED_PROJECT_IDS = "hyperdatalab-paragraph-lab,hyperdatalab-writing-bank"
 ALLOWED_ORIGINS = "https://hyperdatalab-paragraph-lab.web.app,https://hyperdatalab-paragraph-lab.firebaseapp.com,https://hyperdatalab-writing-bank.web.app,https://hyperdatalab-writing-bank.firebaseapp.com,http://localhost:5174"
+# Grammar parser (P6) for POST /v1/measure: the topics worker's /nlp/parse, called with the caller's token.
+NLP_URL = "https://paperlab-topics-worker.hyperdatalab.workers.dev"
 
 # The lab's shared bucket; PaperLab writes under paperlab/.
 [[r2_buckets]]
