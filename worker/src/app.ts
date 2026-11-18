@@ -2,6 +2,7 @@ import { NotAllowedError } from './auth';
 import { GrobidStartingError } from './grobid-error';
 import { handlePublished, publishedError } from './published';
 import { handlePlans } from './plans';
+import { handleMeasure, MEASURE_PATH } from './measure';
 import { handleFactRequests, isAdmin } from './factRequests';
 
 /** The part of an R2 bucket this worker uses, so the logic runs in tests without Cloudflare. */
@@ -30,6 +31,8 @@ export interface Deps {
   adminEmails?: string[];
   now: () => Date;
   grobid?: (pdf: ArrayBuffer) => Promise<Response>;
+  /** POST /nlp/parse on the topics worker with the caller's token; absent when `NLP_URL` is unset. */
+  nlpParse?: (sentences: { key: string; text: string }[], token: string) => Promise<Response>;
 }
 
 export const MAX_BYTES = 25 * 1024 * 1024;
@@ -97,6 +100,7 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
     try {
       if (path === '/v1/me' && request.method === 'GET')
         return json(200, { email: caller.email, admin: isAdmin(deps, caller.email) }, headers);
+      if (path === MEASURE_PATH) return await handleMeasure(deps, request, token, headers);
       if (path.startsWith('/v1/admin/') || path.endsWith('/experiment-facts/requests'))
         return await handleFactRequests(deps, request, caller.email, headers);
       return path === '/v1/projects' || path.startsWith('/v1/projects/')

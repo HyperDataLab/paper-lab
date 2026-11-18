@@ -14,6 +14,19 @@ interface Env {
   ALLOWED_ORIGINS: string;
   ADMIN_EMAILS: string;
   GROBID: Parameters<typeof getContainer>[0];
+  /** Base URL of the topics worker that serves POST /nlp/parse; unset → POST /v1/measure skips passive and tense. */
+  NLP_URL?: string;
+}
+
+function nlpParse(env: Env) {
+  const base = (env.NLP_URL ?? '').trim().replace(/\/+$/u, '');
+  if (!base) return undefined;
+  return (sentences: { key: string; text: string }[], token: string) =>
+    fetch(`${base}/nlp/parse`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sentences }),
+    });
 }
 
 const jwks = createRemoteJWKSet(new URL(SECURETOKEN_JWKS));
@@ -71,6 +84,7 @@ export default {
         adminEmails: (env.ADMIN_EMAILS ?? '').split(',').map((email) => email.trim().toLowerCase()),
         now: () => new Date(),
         grobid: (pdf) => processPdf(env.GROBID, pdf),
+        nlpParse: nlpParse(env),
       },
       request,
     );

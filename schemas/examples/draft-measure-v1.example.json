@@ -1,0 +1,1037 @@
+{
+  "format": "paperlab-draft-measure",
+  "version": 1,
+  "registryId": "paperlab-feature-registry",
+  "registryVersion": 2,
+  "registryDigest": "sha256:9e003ce6fc67ed2576cdbde97718030889158294041f2fc617ca30bd192dd0da",
+  "title": "A toy study of synthetic widgets",
+  "features": [
+    { "id": "section.ABSTRACT.word_share", "value": 0, "status": "measured" },
+    { "id": "section.ABSTRACT.sentence_length", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "section.INTRODUCTION.word_share", "value": 0.4444444444444444, "status": "measured" },
+    { "id": "section.INTRODUCTION.sentence_length", "value": 5.333333333333333, "status": "measured" },
+    { "id": "section.RELATED_WORK.word_share", "value": 0, "status": "measured" },
+    {
+      "id": "section.RELATED_WORK.sentence_length",
+      "value": null,
+      "status": "unavailable",
+      "reason": "no_data"
+    },
+    { "id": "section.METHODS.word_share", "value": 0.25, "status": "measured" },
+    { "id": "section.METHODS.sentence_length", "value": 4.5, "status": "measured" },
+    { "id": "section.RESULTS.word_share", "value": 0.3055555555555556, "status": "measured" },
+    { "id": "section.RESULTS.sentence_length", "value": 5.5, "status": "measured" },
+    { "id": "section.DISCUSSION.word_share", "value": 0, "status": "measured" },
+    {
+      "id": "section.DISCUSSION.sentence_length",
+      "value": null,
+      "status": "unavailable",
+      "reason": "no_data"
+    },
+    { "id": "section.CONCLUSION.word_share", "value": 0, "status": "measured" },
+    {
+      "id": "section.CONCLUSION.sentence_length",
+      "value": null,
+      "status": "unavailable",
+      "reason": "no_data"
+    },
+    { "id": "section.OTHER.word_share", "value": 0, "status": "measured" },
+    { "id": "section.OTHER.sentence_length", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "section.APPENDIX.word_share", "value": 0, "status": "measured" },
+    { "id": "section.APPENDIX.sentence_length", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "paragraph.length", "value": 9, "status": "measured" },
+    { "id": "citation.rate", "value": 2.7777777777777777, "status": "measured" },
+    { "id": "stance.hedges", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "stance.boosters", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "rhetoric.territory", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "rhetoric.niche", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "rhetoric.occupy", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "rhetoric.result_statement", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "rhetoric.comparison", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "rhetoric.explanation", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "rhetoric.limitation", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "rhetoric.implication", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "rhetoric.threat_internal", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "rhetoric.threat_external", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "rhetoric.threat_construct", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    {
+      "id": "rhetoric.threat_conclusion",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "rhetoric.data_availability",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "rhetoric.code_availability",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    { "id": "claim.descriptive", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "claim.comparative", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "claim.correlational", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "claim.causal", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "claim.mechanistic", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "claim.predictive", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "claim.methodological", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "claim.generalisation", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "claim.novelty", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "claim.null", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "claim.theoretical", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "claim.recommendation", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "structure.section_count", "value": 3, "status": "measured" },
+    { "id": "structure.results_discussion_combined", "value": 1, "status": "measured" },
+    { "id": "structure.other_share", "value": 0, "status": "measured" },
+    { "id": "section.ABSTRACT.presence", "value": 0, "status": "measured" },
+    { "id": "section.ABSTRACT.paragraph_count", "value": null, "status": "unavailable", "reason": "no_data" },
+    {
+      "id": "section.ABSTRACT.paragraph_length",
+      "value": null,
+      "status": "unavailable",
+      "reason": "no_data"
+    },
+    { "id": "section.ABSTRACT.hedges", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "section.ABSTRACT.boosters", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "section.ABSTRACT.first_person", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "section.INTRODUCTION.presence", "value": 1, "status": "measured" },
+    { "id": "section.INTRODUCTION.paragraph_count", "value": 2, "status": "measured" },
+    { "id": "section.INTRODUCTION.paragraph_length", "value": 8, "status": "measured" },
+    { "id": "section.INTRODUCTION.hedges", "value": 62.5, "status": "measured" },
+    { "id": "section.INTRODUCTION.boosters", "value": 62.5, "status": "measured" },
+    { "id": "section.INTRODUCTION.first_person", "value": 62.5, "status": "measured" },
+    { "id": "section.RELATED_WORK.presence", "value": 0, "status": "measured" },
+    {
+      "id": "section.RELATED_WORK.paragraph_count",
+      "value": null,
+      "status": "unavailable",
+      "reason": "no_data"
+    },
+    {
+      "id": "section.RELATED_WORK.paragraph_length",
+      "value": null,
+      "status": "unavailable",
+      "reason": "no_data"
+    },
+    { "id": "section.RELATED_WORK.hedges", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "section.RELATED_WORK.boosters", "value": null, "status": "unavailable", "reason": "no_data" },
+    {
+      "id": "section.RELATED_WORK.first_person",
+      "value": null,
+      "status": "unavailable",
+      "reason": "no_data"
+    },
+    { "id": "section.METHODS.presence", "value": 1, "status": "measured" },
+    { "id": "section.METHODS.paragraph_count", "value": 1, "status": "measured" },
+    { "id": "section.METHODS.paragraph_length", "value": 9, "status": "measured" },
+    { "id": "section.METHODS.hedges", "value": 0, "status": "measured" },
+    { "id": "section.METHODS.boosters", "value": 0, "status": "measured" },
+    { "id": "section.METHODS.first_person", "value": 111.11111111111111, "status": "measured" },
+    { "id": "section.RESULTS.presence", "value": 1, "status": "measured" },
+    { "id": "section.RESULTS.paragraph_count", "value": 1, "status": "measured" },
+    { "id": "section.RESULTS.paragraph_length", "value": 11, "status": "measured" },
+    { "id": "section.RESULTS.hedges", "value": 90.9090909090909, "status": "measured" },
+    { "id": "section.RESULTS.boosters", "value": 0, "status": "measured" },
+    { "id": "section.RESULTS.first_person", "value": 0, "status": "measured" },
+    { "id": "section.DISCUSSION.presence", "value": 0, "status": "measured" },
+    {
+      "id": "section.DISCUSSION.paragraph_count",
+      "value": null,
+      "status": "unavailable",
+      "reason": "no_data"
+    },
+    {
+      "id": "section.DISCUSSION.paragraph_length",
+      "value": null,
+      "status": "unavailable",
+      "reason": "no_data"
+    },
+    { "id": "section.DISCUSSION.hedges", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "section.DISCUSSION.boosters", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "section.DISCUSSION.first_person", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "section.CONCLUSION.presence", "value": 0, "status": "measured" },
+    {
+      "id": "section.CONCLUSION.paragraph_count",
+      "value": null,
+      "status": "unavailable",
+      "reason": "no_data"
+    },
+    {
+      "id": "section.CONCLUSION.paragraph_length",
+      "value": null,
+      "status": "unavailable",
+      "reason": "no_data"
+    },
+    { "id": "section.CONCLUSION.hedges", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "section.CONCLUSION.boosters", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "section.CONCLUSION.first_person", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "section.OTHER.presence", "value": 0, "status": "measured" },
+    { "id": "section.OTHER.paragraph_count", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "section.OTHER.paragraph_length", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "section.OTHER.hedges", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "section.OTHER.boosters", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "section.OTHER.first_person", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "section.APPENDIX.presence", "value": 0, "status": "measured" },
+    { "id": "section.APPENDIX.paragraph_count", "value": null, "status": "unavailable", "reason": "no_data" },
+    {
+      "id": "section.APPENDIX.paragraph_length",
+      "value": null,
+      "status": "unavailable",
+      "reason": "no_data"
+    },
+    { "id": "section.APPENDIX.hedges", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "section.APPENDIX.boosters", "value": null, "status": "unavailable", "reason": "no_data" },
+    { "id": "section.APPENDIX.first_person", "value": null, "status": "unavailable", "reason": "no_data" },
+    {
+      "id": "section.ABSTRACT.claim.descriptive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.ABSTRACT.claim.comparative",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.ABSTRACT.claim.correlational",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.ABSTRACT.claim.causal",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.ABSTRACT.claim.mechanistic",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.ABSTRACT.claim.predictive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.ABSTRACT.claim.methodological",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.ABSTRACT.claim.generalisation",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.ABSTRACT.claim.novelty",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.ABSTRACT.claim.null",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.ABSTRACT.claim.theoretical",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.ABSTRACT.claim.recommendation",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.INTRODUCTION.claim.descriptive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.INTRODUCTION.claim.comparative",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.INTRODUCTION.claim.correlational",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.INTRODUCTION.claim.causal",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.INTRODUCTION.claim.mechanistic",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.INTRODUCTION.claim.predictive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.INTRODUCTION.claim.methodological",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.INTRODUCTION.claim.generalisation",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.INTRODUCTION.claim.novelty",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.INTRODUCTION.claim.null",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.INTRODUCTION.claim.theoretical",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.INTRODUCTION.claim.recommendation",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RELATED_WORK.claim.descriptive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RELATED_WORK.claim.comparative",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RELATED_WORK.claim.correlational",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RELATED_WORK.claim.causal",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RELATED_WORK.claim.mechanistic",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RELATED_WORK.claim.predictive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RELATED_WORK.claim.methodological",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RELATED_WORK.claim.generalisation",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RELATED_WORK.claim.novelty",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RELATED_WORK.claim.null",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RELATED_WORK.claim.theoretical",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RELATED_WORK.claim.recommendation",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.METHODS.claim.descriptive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.METHODS.claim.comparative",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.METHODS.claim.correlational",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.METHODS.claim.causal",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.METHODS.claim.mechanistic",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.METHODS.claim.predictive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.METHODS.claim.methodological",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.METHODS.claim.generalisation",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.METHODS.claim.novelty",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.METHODS.claim.null",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.METHODS.claim.theoretical",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.METHODS.claim.recommendation",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RESULTS.claim.descriptive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RESULTS.claim.comparative",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RESULTS.claim.correlational",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RESULTS.claim.causal",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RESULTS.claim.mechanistic",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RESULTS.claim.predictive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RESULTS.claim.methodological",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RESULTS.claim.generalisation",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RESULTS.claim.novelty",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RESULTS.claim.null",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RESULTS.claim.theoretical",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.RESULTS.claim.recommendation",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.DISCUSSION.claim.descriptive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.DISCUSSION.claim.comparative",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.DISCUSSION.claim.correlational",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.DISCUSSION.claim.causal",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.DISCUSSION.claim.mechanistic",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.DISCUSSION.claim.predictive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.DISCUSSION.claim.methodological",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.DISCUSSION.claim.generalisation",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.DISCUSSION.claim.novelty",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.DISCUSSION.claim.null",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.DISCUSSION.claim.theoretical",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.DISCUSSION.claim.recommendation",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.CONCLUSION.claim.descriptive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.CONCLUSION.claim.comparative",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.CONCLUSION.claim.correlational",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.CONCLUSION.claim.causal",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.CONCLUSION.claim.mechanistic",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.CONCLUSION.claim.predictive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.CONCLUSION.claim.methodological",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.CONCLUSION.claim.generalisation",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.CONCLUSION.claim.novelty",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.CONCLUSION.claim.null",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.CONCLUSION.claim.theoretical",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.CONCLUSION.claim.recommendation",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.OTHER.claim.descriptive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.OTHER.claim.comparative",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.OTHER.claim.correlational",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.OTHER.claim.causal",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.OTHER.claim.mechanistic",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.OTHER.claim.predictive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.OTHER.claim.methodological",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.OTHER.claim.generalisation",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.OTHER.claim.novelty",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    { "id": "section.OTHER.claim.null", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    {
+      "id": "section.OTHER.claim.theoretical",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    {
+      "id": "section.OTHER.claim.recommendation",
+      "value": null,
+      "status": "unavailable",
+      "reason": "needs_llm_pass"
+    },
+    { "id": "argument.with_data", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "argument.stated_warrant", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "argument.inferred_warrant", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "argument.with_qualifier", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "argument.with_rebuttal", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    { "id": "argument.unsupported", "value": null, "status": "unavailable", "reason": "needs_llm_pass" },
+    {
+      "id": "section.ABSTRACT.passive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.ABSTRACT.tense.past",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.ABSTRACT.tense.present",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.ABSTRACT.tense.future",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.INTRODUCTION.passive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.INTRODUCTION.tense.past",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.INTRODUCTION.tense.present",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.INTRODUCTION.tense.future",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.RELATED_WORK.passive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.RELATED_WORK.tense.past",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.RELATED_WORK.tense.present",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.RELATED_WORK.tense.future",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.METHODS.passive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.METHODS.tense.past",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.METHODS.tense.present",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.METHODS.tense.future",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.RESULTS.passive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.RESULTS.tense.past",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.RESULTS.tense.present",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.RESULTS.tense.future",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.DISCUSSION.passive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.DISCUSSION.tense.past",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.DISCUSSION.tense.present",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.DISCUSSION.tense.future",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.CONCLUSION.passive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.CONCLUSION.tense.past",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.CONCLUSION.tense.present",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.CONCLUSION.tense.future",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.OTHER.passive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.OTHER.tense.past",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.OTHER.tense.present",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.OTHER.tense.future",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.APPENDIX.passive",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.APPENDIX.tense.past",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.APPENDIX.tense.present",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    },
+    {
+      "id": "section.APPENDIX.tense.future",
+      "value": null,
+      "status": "unavailable",
+      "reason": "grammar_service_unavailable"
+    }
+  ],
+  "sections": [
+    {
+      "index": 0,
+      "line": 1,
+      "heading": "## 1. Introduction",
+      "title": "1. Introduction",
+      "level": 2,
+      "role": "INTRODUCTION",
+      "counted": true,
+      "paragraphs": 2,
+      "words": 16
+    },
+    {
+      "index": 1,
+      "line": 7,
+      "heading": "## 2. Methods",
+      "title": "2. Methods",
+      "level": 2,
+      "role": "METHODS",
+      "counted": true,
+      "paragraphs": 1,
+      "words": 9
+    },
+    {
+      "index": 2,
+      "line": 11,
+      "heading": "## 3. Results and discussion",
+      "title": "3. Results and discussion",
+      "level": 2,
+      "role": "RESULTS",
+      "counted": true,
+      "paragraphs": 1,
+      "words": 11
+    },
+    {
+      "index": 3,
+      "line": 15,
+      "heading": "## Acknowledgements",
+      "title": "Acknowledgements",
+      "level": 2,
+      "role": "OTHER",
+      "counted": false,
+      "paragraphs": 1,
+      "words": 5
+    }
+  ],
+  "grammar": { "status": "not_configured", "parser": null, "sentences": 7, "parsed": 0 },
+  "warnings": [
+    {
+      "code": "excluded_sections",
+      "message": "Not measured (references, title or boilerplate such as acknowledgements): \"Acknowledgements\".",
+      "sections": [3]
+    }
+  ]
+}

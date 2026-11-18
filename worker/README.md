@@ -80,6 +80,19 @@ returns 200 with `unchanged: true`, and a different body returns 409.
 Missing projects and versions return 404. Pagination follows the paper list: an R2 page is selected before
 filtering for project records, so a page may be empty even when `nextCursor` is present.
 
+## Draft measures
+
+`POST /v1/measure` measures a writer's draft against feature registry v2 for Writing Bank (slice B4). The
+body is `{ "format": "markdown" | "text", "text": "...", "title"?: "..." }`, at most 200 KB; it returns 200
+with a `paperlab-draft-measure` v1 document (`schemas/draft-measure-v1.schema.json`). Bad JSON or shape,
+or a method other than POST, returns 400; a body over 200 KB returns 413. Nothing is stored: the draft is
+never written to R2 and never logged, and the response is `Cache-Control: no-store`.
+
+Passive voice and tense need the spaCy parse. Set the optional `NLP_URL` variable (unset by default) to
+the topics worker's base URL and the route sends the draft's body sentences to its `POST /nlp/parse` with
+the caller's token; without it, or when that call fails, those features are `unavailable`. The contract,
+with an example, is `docs/contracts/draft-measure.md`.
+
 ## GROBID full text
 
 `POST /grobid/fulltext` accepts a PDF (up to 25 MiB); `POST /grobid/fulltext/<sha256>` reads an
