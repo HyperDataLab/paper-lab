@@ -3,10 +3,12 @@ import { getContainer } from '@cloudflare/containers';
 import { handle, type Bucket } from './app';
 import { SECURETOKEN_JWKS, verifyFirebaseToken } from './auth';
 import { GrobidStartingError } from './grobid-error';
+import { configuredKg, type KgBindings } from './kg/bindings';
+import { drainKgQueue } from './kg/ingest';
 
 export { GrobidContainer } from './grobid';
 
-interface Env {
+interface Env extends KgBindings {
   BUCKET: Bucket;
   FIREBASE_PROJECT_ID: string;
   ACCEPTED_PROJECT_IDS?: string;
@@ -88,8 +90,13 @@ export default {
         grobid: (pdf) => processPdf(env.GROBID, pdf),
         nlpParse: nlpParse(env),
         sciatlasKey: env.SCIATLAS_API_KEY,
+        kg: env,
       },
       request,
     );
+  },
+  async scheduled(_event: unknown, env: Env): Promise<void> {
+    const kg = configuredKg(env);
+    if (kg) await drainKgQueue(kg, { now: () => new Date() });
   },
 };

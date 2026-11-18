@@ -8,8 +8,8 @@ Keeps PaperLab's original PDFs in the lab's R2 bucket (`paper-fetch`, under `pap
 - `PUT` accepts only `application/pdf`, at most 25 MiB, a body starting with `%PDF-` and whose SHA-256
   equals the path. A file already stored returns 200; a new one 201.
 - CORS answers only the origins in `ALLOWED_ORIGINS` (`wrangler.toml`).
-- The bucket is reached through the R2 binding. The only secret is the optional `SCIATLAS_API_KEY`
-  (see "SciAtlas related papers").
+- The bucket is reached through the R2 binding. Worker secrets can include `SCIATLAS_API_KEY` and
+  `OPENALEX_API_KEY`.
 
 ## Published paper models
 
@@ -124,6 +124,25 @@ idle may take 30–60 seconds to start; after 120 seconds it returns 503 with a 
 The container is billed while running, including idle time, and stops after 10 minutes of inactivity;
 R2 and Worker usage have their own charges. The CRF image is pulled from a registry without Docker.
 `npx wrangler deploy` requires the Workers Paid plan for Containers.
+
+## Lab knowledge graph
+
+Signed-in lab accounts can `POST /v1/kg/ingest` with up to 50 OpenAlex work IDs or DOIs and can read queue
+counts and recent attempts from `GET /v1/kg/ingest/status`. Both routes return `503 kg_not_configured` when
+any KG binding is missing. The five-minute cron drains the queue. Publishing an SCG also projects its
+contributions and enqueues its DOI when D1 is bound. See the [Lab KG contract](../docs/contracts/lab-kg.md).
+
+For first-time provisioning, run these steps on the HyperDataLab account from `worker/`.
+
+1. Run `wrangler d1 create paperlab-kg`.
+2. Put the returned ID in `wrangler.toml` in place of `TO_BE_CREATED_ON_DEPLOY`.
+3. Run `wrangler d1 migrations apply paperlab-kg --remote`.
+4. Run `wrangler vectorize create paperlab-kg-papers --dimensions=768 --metric=cosine`.
+
+Wrangler 4.161.0 accepts the placeholder during config parsing. For a deployment without the KG resources,
+comment out the `[[d1_databases]]`, `[[vectorize]]` and `[ai]` blocks. The cron can stay enabled. The worker
+uses the existing `OPENALEX_API_KEY` secret if set. `OPENALEX_MAILTO` is unset by default and can be set to a
+lab contact for OpenAlex.
 
 ## Deploy
 

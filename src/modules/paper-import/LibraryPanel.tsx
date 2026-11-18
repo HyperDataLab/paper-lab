@@ -13,6 +13,9 @@ import {
   type LibraryStatus,
 } from '@/core/library';
 import type { LibraryItem } from '@/core/schemas';
+import { useAuth } from '@/shared/auth/authContext';
+import { labKgIds } from '@/shared/labKg/client';
+import { LabKgActions } from '@/shared/labKg/LabKgActions';
 import { downloadText } from '@/shared/calibration/download';
 import { getScholarEmail } from '@/shared/scholar/settings';
 import { Badge } from '@/shared/ui/Badge';
@@ -53,6 +56,7 @@ const FILTERS: (LibraryStatus | 'all')[] = [
 
 export function LibraryPanel() {
   const library = useLibrary();
+  const { user } = useAuth();
   const { items, running, done } = library;
   const [text, setText] = useState('');
   const [report, setReport] = useState('');
@@ -176,6 +180,10 @@ export function LibraryPanel() {
       )}
       {problem && <div role="alert">{problem}</div>}
       {library.error && <div role="alert">Không thể tải thư viện: {library.error}</div>}
+      <LabKgActions
+        key={user?.uid}
+        ids={labKgIds(targets.map(({ doi, openalex_id }) => ({ doi, openalexId: openalex_id })))}
+      />
       {items.length > 0 && (
         <section className={styles.resultsPanel} aria-label="Danh sách thư viện bài báo">
           <div className={styles.statusFilters}>

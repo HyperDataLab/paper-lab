@@ -1,5 +1,7 @@
 import { scgBodyEtag, ScgPaperPublishSchema } from '../../src/core/scg/publish';
+import { normalizeDoi } from '../../src/core/library/doi';
 import type { Deps } from './app';
+import { kgRepo } from './kg/repo';
 import { publishedError } from './published';
 
 /**
@@ -122,26 +124,28 @@ export async function handleScg(deps: Deps, request: Request, email: string, hea
 
   const etag = await scgBodyEtag(body);
   const existing = await deps.bucket.head(key);
-  if (existing?.customMetadata?.contentEtag === etag)
-    return json(
-      200,
-      { paperId: id, etag, updatedAt: existing.customMetadata.updatedAt, unchanged: true },
-      headers,
-    );
-  const updatedAt = deps.now().toISOString();
-  await deps.bucket.put(key, body, {
-    httpMetadata: { contentType: 'application/json' },
-    customMetadata: {
-      doi: graph.doi ?? '',
-      s2CorpusId: graph.s2CorpusId ?? '',
-      idBase: graph.idBase,
-      contributions: String(graph.contributions.length),
-      schemaVersion: 'scg-paper-v1',
-      updatedAt,
-      publishedBy: email,
-      contentEtag: etag,
-      modelEtag: modelHead.customMetadata?.contentEtag ?? '',
-    },
-  });
-  return json(200, { paperId: id, etag, updatedAt, unchanged: false }, headers);
+  const unchanged = existing?.customMetadata?.contentEtag === etag;
+  const now = deps.now().toISOString();
+  const updatedAt = unchanged ? (existing.customMetadata?.updatedAt ?? now) : now;
+  if (!unchanged)
+    await deps.bucket.put(key, body, {
+      httpMetadata: { contentType: 'application/json' },
+      customMetadata: {
+        doi: graph.doi ?? '',
+        s2CorpusId: graph.s2CorpusId ?? '',
+        idBase: graph.idBase,
+        contributions: String(graph.contributions.length),
+        schemaVersion: 'scg-paper-v1',
+        updatedAt,
+        publishedBy: email,
+        contentEtag: etag,
+        modelEtag: modelHead.customMetadata?.contentEtag ?? '',
+      },
+    });
+  // Even an identical PUT can be a retry after publication reached R2 but the KG write failed.
+  if (deps.kg?.KG) {
+    const doi = normalizeDoi(graph.doi ?? '') ?? normalizeDoi(modelHead.customMetadata?.doi ?? '');
+    await kgRepo(deps.kg.KG).upsertScg(graph, doi, now);
+  }
+  return json(200, { paperId: id, etag, updatedAt, unchanged }, headers);
 }
