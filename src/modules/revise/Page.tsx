@@ -271,7 +271,7 @@ export default function Page() {
           </ul>
           <h3>Ràng buộc</h3>
           <Checkbox checked disabled>
-            Giữ nguyên các khẳng định
+            Giữ nguyên các claims
           </Checkbox>
           <Checkbox checked disabled>
             Giữ mức độ dè dặt

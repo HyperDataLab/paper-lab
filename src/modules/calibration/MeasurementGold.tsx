@@ -111,7 +111,7 @@ export function MeasurementGoldCard() {
         <table>
           <thead>
             <tr>
-              <th>Chỉ số</th>
+              <th>Metric</th>
               <th className={styles.num}>Kết quả</th>
               <th className={styles.num}>n</th>
               <th className={styles.num}>Mục tiêu</th>

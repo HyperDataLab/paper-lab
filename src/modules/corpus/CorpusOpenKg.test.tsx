@@ -63,7 +63,8 @@ it('K3 renders the local corpus graph, supports layer filters and updates after 
     expect(within(region).getByText('Bài có mô hình').parentElement).toHaveTextContent('1/2');
     expect(within(region).getByText('Bài có tra cứu OpenAlex').parentElement).toHaveTextContent('1/2');
     expect(within(region).getByText('Bài có kết quả SCG').parentElement).toHaveTextContent('0/2');
-    const table = within(region).getByRole('table', { name: 'Số bài theo từ khóa và năm xuất bản' });
+    const table = within(region).getByRole('table', { name: 'Số bài theo keyword và năm xuất bản' });
+    expect(within(table).getByRole('columnheader', { name: 'Keywords' })).toBeInTheDocument();
     expect(within(table).getByRole('columnheader', { name: '2025' })).toBeInTheDocument();
     expect(
       within(table)
@@ -74,6 +75,8 @@ it('K3 renders the local corpus graph, supports layer filters and updates after 
     fireEvent.keyDown(within(graph).getByRole('button', { name: 'Synthetic keyword' }), { key: 'Enter' });
     const inspector = within(region).getByRole('complementary', { name: 'Chi tiết nút' });
     expect(within(inspector).getByRole('heading', { name: 'Synthetic keyword' })).toBeInTheDocument();
+    expect(within(inspector).getByText('Keyword')).toBeInTheDocument();
+    expect(within(inspector).getByText('có keyword')).toBeInTheDocument();
     expect(within(inspector).getByRole('list', { name: 'Bài báo làm căn cứ' })).toHaveTextContent(
       'Synthetic Alpha · OpenAlex',
     );

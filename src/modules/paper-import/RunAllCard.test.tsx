@@ -7,7 +7,7 @@ import { RunAllCard } from './RunAllCard';
 const labels = {
   digest: 'Summary',
   snapshot: 'Snapshot',
-  measure: 'Đo lường',
+  measure: 'Evidence & measurement',
   rhetoric: 'Validity và Moves',
   arguments: 'Argument',
   batch: 'Chất lượng viết',

@@ -2,7 +2,7 @@ import type { Lens } from '@/core/prompts';
 import type { PaperReviewRun } from '@/core/schemas';
 
 export const LENS_DESCRIPTIONS: Record<Lens, string> = {
-  methods_skeptic: 'Xem phương pháp và evidence có hỗ trợ các khẳng định hay không.',
+  methods_skeptic: 'Xem phương pháp và evidence có hỗ trợ các claims hay không.',
   clarity_editor: 'Xem độ rõ ràng và mạch ý theo nguyên tắc Writing Science.',
   reproducibility_auditor: 'Xem mô tả quy trình và vật liệu có đủ để tái lập hay không.',
   newcomer_reader: 'Đọc như người ngoài chuyên ngành, tìm chỗ cần thêm ngữ cảnh.',

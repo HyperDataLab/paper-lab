@@ -559,7 +559,7 @@ export function DeepResearch({
                 {!hasGrounding && (
                   <p className={styles.note}>
                     Bản tổng hợp này tạo trước khi có đối chiếu trích dẫn. Chạy lại tổng hợp để xem đoạn trích
-                    đứng sau từng nhận định.
+                    đứng sau từng claim.
                   </p>
                 )}
                 <ol className={styles.references}>

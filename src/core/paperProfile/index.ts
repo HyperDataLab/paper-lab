@@ -137,7 +137,7 @@ function science({ measurement, checks, insights }: ProfileInput): ProfileDimens
       },
       {
         id: 'validity_threats',
-        label: 'Loại đe doạ validity tác giả nêu',
+        label: 'Threats to validity do tác giả nêu',
         value: rhetoric ? `${rhetoric.metrics.threats.length}/${VALIDITY_THREATS.length}` : null,
         source: 'ai',
       },

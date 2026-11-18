@@ -88,7 +88,7 @@ export function buildCorpusKg({ papers, members, memberMetadata }: CorpusKgInput
       id: paper,
       type: 'Paper',
       layer: 'evidential',
-      label: first?.paper.title || member.title || library?.title || identifiers.doi || 'Bài chưa có tiêu đề',
+      label: first?.paper.title || member.title || library?.title || identifiers.doi || 'Bài chưa có title',
       attrs: {},
     };
 

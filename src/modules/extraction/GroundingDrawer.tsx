@@ -88,7 +88,7 @@ export function GroundingDrawer({
       {target.kind === 'citation' ? (
         <>
           <Signals citation={target.citation} />
-          <SheetSection title="Nhận định">
+          <SheetSection title="Claim">
             <p className={styles.value}>{target.claim}</p>
           </SheetSection>
           <SheetSection title={`Dựa trên giá trị · ${target.citation.fieldLabel}`}>
@@ -106,7 +106,7 @@ export function GroundingDrawer({
             <Signals citation={citation} />
             <p className={styles.value}>{citation.value}</p>
             <Quotes citation={citation} paper={paper} />
-            <span className={styles.hint}>Dùng cho {claims.length} nhận định:</span>
+            <span className={styles.hint}>Dùng cho {claims.length} claim:</span>
             <ul className={styles.flags}>
               {claims.map((claim) => (
                 <li key={claim}>{claim}</li>
@@ -117,7 +117,7 @@ export function GroundingDrawer({
       )}
       <p className={styles.hint}>
         Đoạn trích là nguyên văn mà chương trình tìm thấy trong bài cho giá trị này, lưu lại lúc tổng hợp. Hãy
-        đọc đoạn trích để tự xét nhận định có đúng với bài hay không.
+        đọc đoạn trích để tự xét claim có đúng với bài hay không.
       </p>
     </Drawer>
   );

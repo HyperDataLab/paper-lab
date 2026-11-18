@@ -139,7 +139,7 @@ export function HypothesisEditor({
           ))}
         </Select>
         {bank ? (
-          <Select label="Loại nhận định" value={claim} onChange={(e) => setClaim(e.target.value)}>
+          <Select label="Loại claim" value={claim} onChange={(e) => setClaim(e.target.value)}>
             <option value="">Chưa phân loại</option>
             {claim && !bank.collections['claim-types'].some((c) => c.id === claim) && (
               <option value={claim}>{claim}</option>
@@ -153,7 +153,7 @@ export function HypothesisEditor({
           </Select>
         ) : (
           <p>
-            Cần bản chụp Writing Bank để phân loại nhận định. <Link to={`?design=bank`}>Writing Bank</Link>
+            Cần bản chụp Writing Bank để phân loại claim. <Link to={`?design=bank`}>Writing Bank</Link>
           </p>
         )}
         <div>

@@ -33,7 +33,7 @@ import { Loading } from '@/shared/ui/StateNote';
 
 const LABELS: Record<StanceCategory, { name: string; help: string }> = {
   hedges: { name: 'Rào đón (Hedges)', help: 'Giữ khoảng cách, chưa khẳng định hoàn toàn.' },
-  boosters: { name: 'Nhấn mạnh (Boosters)', help: 'Tăng mức chắc chắn của khẳng định.' },
+  boosters: { name: 'Nhấn mạnh (Boosters)', help: 'Tăng mức chắc chắn của claim.' },
   attitude_markers: { name: 'Thái độ (Attitude markers)', help: 'Đánh giá hoặc cảm nhận của tác giả.' },
   self_mention: { name: 'Tự nhắc (Self-mention)', help: 'Tác giả xuất hiện trực tiếp trong bài.' },
   reader_pronouns: { name: 'Đại từ người đọc', help: 'Gọi hoặc kéo người đọc vào argument.' },

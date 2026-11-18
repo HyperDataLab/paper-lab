@@ -237,7 +237,7 @@ it('ME-14 describes the strongest supported claim', async () => {
   await setup();
   fireEvent.click(await screen.findByRole('tab', { name: /Metric/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Thêm metric' }));
-  expect(screen.getAllByText(/Nhận định mạnh nhất mà metric tự nó hỗ trợ:/).length).toBeGreaterThan(0);
+  expect(screen.getAllByText(/Claim mạnh nhất mà metric tự nó hỗ trợ:/).length).toBeGreaterThan(0);
   expect(['descriptive', 'comparative', 'inferential', 'invented'].map(claimWord)).toEqual([
     'mô tả',
     'so sánh',

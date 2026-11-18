@@ -64,7 +64,7 @@ export function OpenKgView({
     conceptual: !hasScg
       ? 'Chưa chạy SCG để lấy contribution và nền tảng.'
       : !counts.get('conceptual')
-        ? 'Chưa có từ khóa hoặc contribution đã trích.'
+        ? 'Chưa có keyword hoặc contribution đã trích.'
         : undefined,
     disciplinary: !counts.get('disciplinary')
       ? hasLookup
@@ -143,7 +143,7 @@ export function OpenKgView({
               <OpenKgTriples edges={selectedEdges} nodes={nodes} sentences={byKey} onLocation={onLocation} />
             </>
           ) : (
-            <p className={styles.muted}>Chọn một nút để xem các bộ ba và câu dẫn chứng.</p>
+            <p className={styles.muted}>Chọn một nút để xem các bộ ba và câu dùng làm evidence.</p>
           )}
         </aside>
       </div>

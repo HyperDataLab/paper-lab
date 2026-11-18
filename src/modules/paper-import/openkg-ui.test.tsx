@@ -140,7 +140,7 @@ it('opens the graph tab, shows five layer counts and lets a reader inspect, filt
   const layers = within(screen.getByRole('group', { name: 'Số bộ ba theo lớp' }));
   expect(layers.getAllByRole('checkbox')).toHaveLength(5);
   for (const name of [
-    'Dẫn chứng (1)',
+    'Evidence (1)',
     'Khái niệm (2)',
     'Chuyên ngành (1)',
     'Chuyên môn (1)',
@@ -152,6 +152,7 @@ it('opens the graph tab, shows five layer counts and lets a reader inspect, filt
   fireEvent.keyDown(contribution, { key: 'Enter' });
   const panel = within(screen.getByRole('complementary', { name: 'Chi tiết nút' }));
   expect(panel.getByRole('heading', { name: 'Synthetic contribution' })).toBeInTheDocument();
+  expect(panel.getByText('có contribution')).toBeInTheDocument();
   expect(panel.getByText('Đã chấp nhận')).toBeInTheDocument();
   fireEvent.click(panel.getByRole('button', { name: 'Xem trong bài' }));
   const drawer = screen.getByRole('dialog', { name: 'Evidence trong bài' });
@@ -163,7 +164,7 @@ it('opens the graph tab, shows five layer counts and lets a reader inspect, filt
   expect(within(graph).getByRole('button', { name: 'Synthetic paper' })).toBeInTheDocument();
   fireEvent.click(screen.getByText('Danh sách bộ ba (5)'));
   expect(await screen.findByText('có mức evidence')).toBeVisible();
-  expect(screen.queryByText('có từ khóa')).not.toBeInTheDocument();
+  expect(screen.queryByText('có keyword')).not.toBeInTheDocument();
   for (const name of ['Turtle (.ttl)', 'JSON-LD (.jsonld)', 'Báo cáo (.md)']) {
     fireEvent.click(screen.getByRole('button', { name }));
   }

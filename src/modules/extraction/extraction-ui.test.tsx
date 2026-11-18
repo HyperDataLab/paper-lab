@@ -370,5 +370,5 @@ it('citation grounding shows the passage behind a claim and links to it in the p
   expect(
     within(evidence).getByText('Không có đoạn trích tìm thấy trong bài cho giá trị này.'),
   ).toBeInTheDocument();
-  expect(within(evidence).getAllByText(/Dùng cho 1 nhận định/)).toHaveLength(2);
+  expect(within(evidence).getAllByText(/Dùng cho 1 claim/)).toHaveLength(2);
 });
