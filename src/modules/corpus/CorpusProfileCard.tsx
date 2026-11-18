@@ -1,9 +1,11 @@
 import { Download } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { canonicalDigest } from '@/core/corpus';
 import type { Corpus } from '@/core/schemas/corpus';
 import type { CorpusProfile } from '@/core/schemas/corpusProfile';
 import type { StoredCorpusProfile } from '@/core/schemas/corpusProfile';
+import { useAuth } from '@/shared/auth/authContext';
+import { NLP_URL, nlpClientFromEnv } from '@/shared/nlp';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
@@ -17,6 +19,7 @@ import {
   downloadProfile,
   downloadProfileV2,
   featureLabel,
+  type SyntaxProgress,
 } from './profileRun';
 import styles from './corpus.module.css';
 
@@ -43,6 +46,10 @@ export function CorpusProfileCard({ corpus }: { corpus: Corpus }) {
   const [stale, setStale] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [syntaxProgress, setSyntaxProgress] = useState<SyntaxProgress>();
+  const { getIdToken } = useAuth();
+  const exportAbort = useRef<AbortController | null>(null);
+  useEffect(() => () => exportAbort.current?.abort(), []);
   useEffect(() => {
     let active = true;
     void Promise.all([repo.corpora.list(), repo.corpusProfiles.get(corpus.id)])
@@ -107,16 +114,33 @@ export function CorpusProfileCard({ corpus }: { corpus: Corpus }) {
   async function exportV2() {
     const control = controls?.find((c) => c.id === controlId);
     if (!control) return;
+    exportAbort.current?.abort();
+    const controller = new AbortController();
+    exportAbort.current = controller;
     setBusy(true);
     setError('');
     try {
       const latest = (await repo.corpora.get(control.id)) ?? control;
       const target = (await repo.corpora.get(corpus.id)) ?? corpus;
-      downloadProfileV2(await computeProfileV2(target, latest, repo), corpus.title);
+      const nlp = nlpClientFromEnv(async () => {
+        const token = await getIdToken();
+        if (!token) throw new Error('Cần đăng nhập để phân tích ngữ pháp');
+        return token;
+      });
+      const result = await computeProfileV2(target, latest, repo, {
+        nlp,
+        signal: controller.signal,
+        onSyntaxProgress: setSyntaxProgress,
+      });
+      if (!controller.signal.aborted) downloadProfileV2(result, corpus.title);
     } catch (e) {
-      setError(String(e));
+      if (!controller.signal.aborted) setError(String(e));
     } finally {
-      setBusy(false);
+      if (exportAbort.current === controller) {
+        exportAbort.current = null;
+        setBusy(false);
+        setSyntaxProgress(undefined);
+      }
     }
   }
   async function runHoldout() {
@@ -208,8 +232,17 @@ export function CorpusProfileCard({ corpus }: { corpus: Corpus }) {
         <p className={styles.muted}>
           So sánh từng bài của tạp chí với corpus đối chứng: chỉ đọc bài đã dựng model, không gọi AI. Bài giữ
           lại cho kiểm định (held-out) không được tính. Profile v2 (nháp) thêm đặc trưng theo từng phần, tiêu
-          đề, chuỗi phần, từ khoá và subfield; được tính lại mỗi lần tải và không lưu.
+          đề, chuỗi phần, từ khoá, subfield, bị động, thì và mức bằng chứng; được tính lại mỗi lần tải và
+          không lưu.
         </p>
+        {!NLP_URL && (
+          <p className={styles.muted}>Chưa cấu hình dịch vụ phân tích ngữ pháp; bị động và thì để trống.</p>
+        )}
+        {syntaxProgress && (
+          <p role="status">
+            Đang phân tích ngữ pháp: {syntaxProgress.done}/{syntaxProgress.total} bài
+          </p>
+        )}
         {error && <p role="alert">Có lỗi xảy ra. {error}</p>}
         {profile && status && (
           <>

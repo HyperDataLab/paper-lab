@@ -7,10 +7,9 @@ const SHARED_TENSES = ['past', 'present', 'future'] as const;
 export type SharedTense = (typeof SHARED_TENSES)[number];
 
 /**
- * Feature ids reserved for the corpus-profile registry (slice P2 wires them in; this slice does not touch the
- * registry). Values come from `sectionSyntaxFeatures`. This module imports `corpusProfile/registry`, so the registry
- * must not import this constant (load-time cycle): build the same ids there from `SIGNATURE_SECTIONS`, and have
- * `measure.ts` call `sectionSyntaxFeatures`. The test checks that the two lists agree once P2 lands.
+ * Passive and tense feature ids of corpus-profile registry v2. Values come from `sectionSyntaxFeatures`, which
+ * `measurePaperV2Detail` calls. This module imports `corpusProfile/registry`, so the registry does not import this
+ * constant: `registryV2` builds the same ids from `SIGNATURE_SECTIONS`, and a test checks that the lists agree.
  */
 export const SECTION_SYNTAX_FEATURE_IDS = SIGNATURE_SECTIONS.flatMap((section) => [
   `section.${section}.passive`,
@@ -73,7 +72,7 @@ export function measureSectionSyntax(
   ) as Record<SignatureSection, SectionSyntaxMeasure>;
 }
 
-/** The measures as reserved feature values (`SECTION_SYNTAX_FEATURE_IDS`); null where a share is undefined. */
+/** The measures as feature values (`SECTION_SYNTAX_FEATURE_IDS`); null where a share is undefined. */
 export function sectionSyntaxFeatures(
   measures: Record<SignatureSection, SectionSyntaxMeasure>,
 ): Record<string, number | null> {

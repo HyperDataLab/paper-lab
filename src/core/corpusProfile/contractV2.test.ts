@@ -27,6 +27,12 @@ describe('draft corpus profile v2 contract', () => {
     expect(profile.features.every((feature) => feature.status === 'exploratory')).toBe(true);
     expect(CorpusProfileSchema.safeParse(read(CORPUS_PROFILE_EXAMPLE_FILE)).success).toBe(true);
     expect(CorpusProfileV2Schema.safeParse({ ...profile, draft: false }).success).toBe(false);
+    // P6/P7 are populated from synthetic inputs; one profiled control paper is left unparsed on purpose.
+    expect(profile.evidenceLevel?.target.E3).toBe(0.5);
+    expect(profile.warnings.join(' ')).toMatch(/syntax_unavailable: 1 of 12 profiled papers/);
+    expect(
+      profile.features.find((f) => f.featureId === 'section.INTRODUCTION.passive')?.target.n,
+    ).toBeGreaterThan(0);
   });
 
   it('publishes both generated draft schema copies', () => {

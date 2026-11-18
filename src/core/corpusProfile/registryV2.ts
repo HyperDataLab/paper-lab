@@ -15,9 +15,14 @@ export type FdrFamily = (typeof FDR_FAMILIES)[number];
 export type FeatureV2 = Omit<Feature, 'granularity'> & {
   granularity: 'paper' | 'section';
   fdrFamily: FdrFamily;
-  /** `llm` features count machine labels (claim types, Toulmin elements); the profile reports their machine share. */
-  extractor: 'deterministic' | 'llm';
+  /**
+   * `llm` features count machine labels (claim types, Toulmin elements); the profile reports their machine share.
+   * `tool` features come from an external parser (spaCy, P6); null when the paper was not parsed.
+   */
+  extractor: 'deterministic' | 'llm' | 'tool';
 };
+
+export const SYNTAX_TENSES = ['past', 'present', 'future'] as const;
 
 /** Roles an argument run reads: every body role except appendices (`isRhetoricSection`). */
 export const CLAIM_SECTIONS = SIGNATURE_SECTIONS.filter((section) => section !== 'APPENDIX');
@@ -125,6 +130,39 @@ const claimFeatures = (section: SignatureSection): FeatureV2[] =>
     ),
   );
 
+const SYNTAX_GATE =
+  'Main clause of each body sentence of this role as parsed by the spaCy service (P6); null when the paper was not parsed or the share has no denominator.';
+
+/** Same ids as `SECTION_SYNTAX_FEATURE_IDS` (syntaxParse imports the registry, so they are rebuilt here). */
+const syntaxFeatures = (section: SignatureSection): FeatureV2[] => [
+  v2(
+    {
+      id: `section.${section}.passive`,
+      family: 'linguistic',
+      section,
+      metricType: 'share',
+      unit: 'proportion',
+      operationalDefinition: `Share of passive main clauses among parsed sentences with a main verb. ${SYNTAX_GATE}`,
+    },
+    'style',
+    'tool',
+  ),
+  ...SYNTAX_TENSES.map((tense) =>
+    v2(
+      {
+        id: `section.${section}.tense.${tense}`,
+        family: 'linguistic',
+        section,
+        metricType: 'share',
+        unit: 'proportion',
+        operationalDefinition: `Share of ${tense}-tense main verbs among parsed sentences whose main verb is past, present or future (will/shall → future; other modals and verbless sentences left out). ${SYNTAX_GATE}`,
+      },
+      'style',
+      'tool',
+    ),
+  ),
+];
+
 export const FEATURE_REGISTRY_V2 = {
   id: 'paperlab-feature-registry',
   version: 2,
@@ -195,18 +233,10 @@ export const FEATURE_REGISTRY_V2 = {
         'llm',
       ),
     ),
+    ...SIGNATURE_SECTIONS.flatMap(syntaxFeatures),
   ],
   /** Ids held for later slices: listed so consumers can map them, never measured by this registry version. */
-  reserved: [
-    ...SIGNATURE_SECTIONS.flatMap((section) => [
-      { id: `section.${section}.passive`, slice: 'P6' },
-      ...(['past', 'present', 'future'] as const).map((tense) => ({
-        id: `section.${section}.tense.${tense}`,
-        slice: 'P6',
-      })),
-    ]),
-    { id: 'evidenceLevel', slice: 'P7' },
-  ],
+  reserved: [] as { id: string; slice: string }[],
 } as const;
 
 export function registryV2Digest(registry: typeof FEATURE_REGISTRY_V2 = FEATURE_REGISTRY_V2) {

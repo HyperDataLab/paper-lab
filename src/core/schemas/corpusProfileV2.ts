@@ -10,6 +10,8 @@ const status = z.enum(['exploratory', 'supported', 'inconclusive']);
 export const CorpusProfileV2FeatureSchema = CorpusProfileFeatureSchema.extend({
   granularity: z.enum(['paper', 'section']),
   section: z.union([role, z.literal('ARTICLE')]),
+  /** `tool`: measured by an external parser (spaCy passive voice and tense, P6). */
+  extractor: z.enum(['deterministic', 'llm', 'tool']),
   fdrFamily: z.string().min(1).describe('Predeclared FDR testing family, including any core family.'),
   status,
 });
@@ -57,7 +59,9 @@ export const CorpusProfileV2Schema = CorpusProfileSchema.extend({
       target: z.record(z.enum(['E0', 'E1', 'E2', 'E3', 'E4', 'E5']), share),
       control: z.record(z.enum(['E0', 'E1', 'E2', 'E3', 'E4', 'E5']), share),
     })
-    .describe('P7 (owner approved 2026-11-18, not built yet): distribution of main-claim evidence levels.')
+    .describe(
+      'P7: shares of evidence levels E0–E5 over the main claims of profiled papers (machine labels, live arguments of the latest argument run). Omitted when either side has no graded main claim.',
+    )
     .optional(),
 });
 

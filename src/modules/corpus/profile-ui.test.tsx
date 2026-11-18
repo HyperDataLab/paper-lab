@@ -109,6 +109,13 @@ it('P2 exports the draft profile v2 next to v1 without storing it', async () => 
   await vi.waitFor(() => expect(click).toHaveBeenCalled(), { timeout: 10_000 });
   const exported = JSON.parse(await (blobs[0] as Blob).text()) as Record<string, unknown>;
   expect(exported).toMatchObject({ schemaVersion: 2, draft: true, scope: 'signature' });
+  // No VITE_NLP_URL in tests: the card says so; no paper has evidence levels, so the block is omitted.
+  expect(
+    screen.getByText('Chưa cấu hình dịch vụ phân tích ngữ pháp; bị động và thì để trống.'),
+  ).toBeInTheDocument();
+  const warnings = (exported.warnings as string[]).join(' ');
+  expect(warnings).toMatch(/evidence_level_unavailable: no graded main claim in the target and control/);
+  expect(exported.evidenceLevel).toBeUndefined();
   expect(await repo.corpusProfiles.get(journal.id)).toBeUndefined();
   click.mockRestore();
 }, 20_000);

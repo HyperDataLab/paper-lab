@@ -1,13 +1,17 @@
 import { sectionRoleLabel } from './labels';
 import { testHoldout } from '@/core/corpusProfile/holdout';
 import { confoundChecks } from '@/core/corpusProfile/confounds';
-import { measurePaperDetail } from '@/core/corpusProfile/measure';
+import { argumentMetrics } from '@/core/argument';
+import { evidenceLevelDistribution } from '@/core/argument/evidenceLevels';
+import { bodySentences, measurePaperDetail } from '@/core/corpusProfile/measure';
+import type { PaperSyntax } from '@/core/corpusProfile/measureV2';
 import { buildCorpusProfile, profileEligible, type ProfilePaper } from '@/core/corpusProfile/profile';
-import { buildCorpusProfileV2 } from '@/core/corpusProfile/profileV2';
+import { buildCorpusProfileV2, type ProfileSyntax } from '@/core/corpusProfile/profileV2';
 import { buildPaperModel } from '@/core/paperModel';
 import type { Corpus } from '@/core/schemas/corpus';
 import { CorpusProfileSchema, type CorpusProfile } from '@/core/schemas/corpusProfile';
 import { CorpusProfileV2Schema, type CorpusProfileV2 } from '@/core/schemas/corpusProfileV2';
+import type { NlpClient } from '@/shared/nlp';
 import type { Repositories } from '@/shared/storage/repositories';
 import { labelMembers, loadLabelPaper } from './labelRun';
 
@@ -54,14 +58,98 @@ export async function computeProfile(target: Corpus, control: Corpus, repo: Repo
   return buildCorpusProfile({ target, control, papers, seed: profileSeed(target), now: new Date() });
 }
 
+/** The profiled members of a corpus that have a loaded paper, as `buildCorpusProfileV2` measures them. */
+const profiledPapers = (corpus: Corpus, papers: ReadonlyMap<string, ProfilePaper>) =>
+  corpus.members.filter(profileEligible).flatMap((member) => {
+    const paper = papers.get(member.memberId);
+    return paper ? [{ memberId: member.memberId, paper }] : [];
+  });
+
+/** Main-claim evidence levels of one side: live (not dismissed) arguments of each paper's latest run (P7). */
+export function corpusEvidenceLevels(corpus: Corpus, papers: ReadonlyMap<string, ProfilePaper>) {
+  return evidenceLevelDistribution(
+    profiledPapers(corpus, papers).map(({ paper }) => {
+      const run = paper.insights?.argumentRuns.at(-1);
+      return {
+        arguments: run && paper.insights ? argumentMetrics(run, paper.insights.decisions).live : [],
+      };
+    }),
+  );
+}
+
+export type SyntaxProgress = { done: number; total: number };
+
 /**
- * Draft profile v2 (P2), built on demand for export and never stored: the v1 profile plus the P2 features, with
- * the members' OpenAlex keywords and the subfield names the library knows.
+ * Parses the body sentences of every profiled paper with the spaCy service, one paper per request batch. Stops at
+ * the first failure other than an abort and leaves the remaining papers unparsed; an abort is rethrown.
  */
-export async function computeProfileV2(target: Corpus, control: Corpus, repo: Repositories) {
+export async function parseProfileSyntax(
+  corpora: readonly Corpus[],
+  papers: ReadonlyMap<string, ProfilePaper>,
+  client: NlpClient,
+  signal?: AbortSignal,
+  onProgress?: (progress: SyntaxProgress) => void,
+): Promise<ProfileSyntax> {
+  const rows = corpora.flatMap((corpus) => profiledPapers(corpus, papers));
+  const parsed = new Map<string, PaperSyntax>();
+  let parser: string | null = null;
+  onProgress?.({ done: 0, total: rows.length });
+  for (const [index, { memberId, paper }] of rows.entries()) {
+    signal?.throwIfAborted();
+    const items = new Map<string, string>();
+    for (const sentence of bodySentences(paper.model))
+      if (sentence.text.trim() && !items.has(sentence.key)) items.set(sentence.key, sentence.text);
+    try {
+      if (items.size) {
+        const result = await client.parse(
+          [...items].map(([key, text]) => ({ key, text })),
+          signal,
+        );
+        const version = `${result.version}+spacy-${result.spacyVersion} ${result.model}-${result.modelVersion ?? 'unknown'}`;
+        if (parser && parser !== version) throw new Error('Dịch vụ phân tích đổi phiên bản giữa chừng');
+        parser = version;
+        parsed.set(
+          memberId,
+          new Map(result.sentences.map((s) => [s.key, { voice: s.voice, tense: s.tense }])),
+        );
+      } else parsed.set(memberId, new Map());
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      return { papers: parsed, parser, error: error instanceof Error ? error.message : String(error) };
+    }
+    onProgress?.({ done: index + 1, total: rows.length });
+  }
+  return { papers: parsed, parser };
+}
+
+/**
+ * Draft profile v2, built on demand for export and never stored: the v1 profile plus the P2 features, with
+ * the members' OpenAlex keywords and the subfield names the library knows, passive voice and tense when a grammar
+ * service is given (P6), and the main-claim evidence levels (P7).
+ */
+export async function computeProfileV2(
+  target: Corpus,
+  control: Corpus,
+  repo: Repositories,
+  options: {
+    nlp?: NlpClient | null;
+    signal?: AbortSignal;
+    onSyntaxProgress?: (progress: SyntaxProgress) => void;
+  } = {},
+) {
   const papers = new Map<string, ProfilePaper>();
   await loadProfilePapers(target, repo, papers);
   await loadProfilePapers(control, repo, papers);
+  const syntax = options.nlp
+    ? await parseProfileSyntax(
+        [target, control],
+        papers,
+        options.nlp,
+        options.signal,
+        options.onSyntaxProgress,
+      )
+    : undefined;
+  options.signal?.throwIfAborted();
   const [targetKeywords, controlKeywords, library] = await Promise.all([
     repo.corpusKeywords.memberKeywords(target),
     repo.corpusKeywords.memberKeywords(control),
@@ -78,6 +166,11 @@ export async function computeProfileV2(target: Corpus, control: Corpus, repo: Re
     papers,
     keywords: { target: targetKeywords.papers, control: controlKeywords.papers },
     subfieldNames,
+    syntax,
+    evidenceLevel: {
+      target: corpusEvidenceLevels(target, papers),
+      control: corpusEvidenceLevels(control, papers),
+    },
     seed: profileSeed(target),
     now: new Date(),
   });

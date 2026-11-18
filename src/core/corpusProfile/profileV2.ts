@@ -1,3 +1,4 @@
+import type { evidenceLevelDistribution } from '../argument/evidenceLevels';
 import { samplingOf, samplingRuleText } from '../corpus/admired';
 import type { Corpus, CorpusMember } from '../schemas/corpus';
 import type { CorpusProfileFeature } from '../schemas/corpusProfile';
@@ -5,7 +6,13 @@ import type { KeywordPaper } from '../schemas/corpusKeywords';
 import { CorpusProfileV2Schema, type CorpusProfileV2 } from '../schemas/corpusProfileV2';
 import type { ConfoundCheck } from './confounds';
 import type { HoldoutResult } from './holdout';
-import { headingKey, measurePaperV2Detail, sectionSequence, topSections } from './measureV2';
+import {
+  headingKey,
+  measurePaperV2Detail,
+  sectionSequence,
+  topSections,
+  type PaperSyntax,
+} from './measureV2';
 import { PHRASE_RULES } from './phrases';
 import {
   buildCorpusProfile,
@@ -18,7 +25,7 @@ import {
   type ProfilePaper,
 } from './profile';
 import { FEATURE_REGISTRY, SIGNATURE_SECTIONS } from './registry';
-import { FDR_FAMILIES, FEATURE_REGISTRY_V2, registryV2Digest } from './registryV2';
+import { FDR_FAMILIES, FEATURE_REGISTRY_V2, registryV2Digest, type FeatureV2 } from './registryV2';
 import { benjaminiHochberg, keyness, summarize } from './stats';
 
 /** Cut-offs of the v2 list blocks. Keywords reuse the phrase minimums (decision 5). */
@@ -31,6 +38,17 @@ export const PROFILE_V2_LISTS = {
 } as const;
 
 type Status = CorpusProfileV2['features'][number]['status'];
+type Row = Omit<CorpusProfileFeature, 'extractor'> & { extractor: FeatureV2['extractor'] };
+type EvidenceDistribution = ReturnType<typeof evidenceLevelDistribution>;
+
+/** spaCy parses of the profiled papers (P6). Members without an entry were not parsed. */
+export type ProfileSyntax = {
+  papers: ReadonlyMap<string, PaperSyntax>;
+  /** Service and model version of the parses, null when none was made. */
+  parser: string | null;
+  /** Why parsing stopped early, when it did. */
+  error?: string;
+};
 type Measured = {
   member: CorpusMember;
   paper: ProfilePaper;
@@ -199,8 +217,13 @@ export async function buildCorpusProfileV2(input: {
   keywords?: { target: readonly KeywordPaper[]; control: readonly KeywordPaper[] };
   /** Subfield display names by id, from library records; ids without one get a null name. */
   subfieldNames?: ReadonlyMap<string, string>;
-  /** P7 fills this; not computed here. */
-  evidenceLevel?: CorpusProfileV2['evidenceLevel'];
+  /** Passive voice and tense input (P6); absent → those features are null and a warning says so. */
+  syntax?: ProfileSyntax;
+  /**
+   * Evidence-level distributions of the profiled target and control papers (`evidenceLevelDistribution`, P7).
+   * The block is written only when both sides have a graded main claim.
+   */
+  evidenceLevel?: { target: EvidenceDistribution; control: EvidenceDistribution };
   seed: number;
   now: Date;
   holdout?: HoldoutResult;
@@ -211,9 +234,15 @@ export async function buildCorpusProfileV2(input: {
   const measure = (corpus: Corpus): Measured[] =>
     corpus.members.filter(profileEligible).flatMap((member) => {
       const paper = papers.get(member.memberId);
-      return paper
-        ? [{ member, paper, measurement: measurePaperV2Detail(paper.model, paper.insights, paper.stance) }]
-        : [];
+      if (!paper) return [];
+      const syntax = input.syntax?.papers.get(member.memberId) ?? null;
+      return [
+        {
+          member,
+          paper,
+          measurement: measurePaperV2Detail(paper.model, paper.insights, paper.stance, syntax),
+        },
+      ];
     });
   const t = measure(target),
     c = measure(control);
@@ -223,6 +252,24 @@ export async function buildCorpusProfileV2(input: {
   const controlBody = protocolBody(control);
   if (controlBody && 'sampling' in controlBody && samplingOf(controlBody).scope !== sampling.scope)
     warnings.push(`${control.title}: control was not drawn with the target's scope (${sampling.scope}).`);
+  const profiled = [...t, ...c];
+  const unparsed = profiled.filter(({ member }) => !input.syntax?.papers.has(member.memberId)).length;
+  if (unparsed)
+    warnings.push(
+      `syntax_unavailable: ${unparsed} of ${profiled.length} profiled papers have no grammar parse, so their passive voice and tense values are null${input.syntax?.error ? ` (${input.syntax.error})` : input.syntax ? '' : ' (no parser configured)'}.`,
+    );
+  const evidence = input.evidenceLevel;
+  const evidenceSides = evidence
+    ? (['target', 'control'] as const).filter((side) => !evidence[side].counted)
+    : [];
+  const evidenceLevel =
+    evidence && !evidenceSides.length
+      ? { target: evidence.target.shares, control: evidence.control.shares }
+      : undefined;
+  if (!evidenceLevel)
+    warnings.push(
+      `evidence_level_unavailable: ${evidence ? `no graded main claim in the ${evidenceSides.join(' and ')} papers` : 'no evidence levels were given'}, so the evidenceLevel block is omitted.`,
+    );
 
   const v1Ids = new Set(FEATURE_REGISTRY.features.map((feature) => feature.id));
   const v1Features = new Map(v1.features.map((feature) => [feature.featureId, feature]));
@@ -239,7 +286,7 @@ export async function buildCorpusProfileV2(input: {
     const qs = benjaminiHochberg(members.map((d) => d.draft?.pValue ?? null));
     members.forEach((d, i) => q.set(d.feature.id, qs[i] ?? null));
   }
-  const rows: CorpusProfileFeature[] = drafts.map(({ feature, row, draft }) => {
+  const rows: Row[] = drafts.map(({ feature, row, draft }) => {
     if (row) return row;
     if (!draft) throw new Error(`v1 profile has no row for ${feature.id}`);
     const machine = feature.extractor === 'llm';
@@ -310,7 +357,7 @@ export async function buildCorpusProfileV2(input: {
     sectionSequences: sequencesOf(t),
     keywords: keywordsOf(keywordRows(t, input.keywords?.target), keywordRows(c, input.keywords?.control)),
     classification: { subfields: subfieldsOf(t, c, input.subfieldNames ?? new Map()) },
-    ...(input.evidenceLevel ? { evidenceLevel: input.evidenceLevel } : {}),
+    ...(evidenceLevel ? { evidenceLevel } : {}),
     interpretationStatus,
     interpretationReason: admired
       ? `Admired scope (top ${sample.n} by citations within publication year, no hold-out) is always exploratory (writing-bank doc 39 §2). ${v1.interpretationReason}`
@@ -324,7 +371,10 @@ export async function buildCorpusProfileV2(input: {
       'Style rates (hedges, boosters, first person) are word-list counts per 1000 body words of the role, not machine labels. Claim types per section and Toulmin elements are machine labels from the latest complete argument run, reported as prevalence.',
       `Headings: top-level body section headings (numbering removed), document share among profiled target papers, top ${PROFILE_V2_LISTS.headingsPerRole} per role. Section sequences: top-level body section roles in order, abstract/other/appendix left out, repeats collapsed; top ${PROFILE_V2_LISTS.sectionSequences}.`,
       `Keywords: OpenAlex keywords of profiled papers; shares are over papers with any keyword; G² and Log Ratio as for phrases; listed when used by at least ${PROFILE_V2_LISTS.keywordMinTargetPrevalence * 100}% and ${PROFILE_V2_LISTS.keywordMinTargetPapers} target papers, top ${PROFILE_V2_LISTS.keywords} by target share. Subfields: primary-topic subfield share among profiled members that carry one.`,
-      'Not yet in v2: passive voice and tense (P6), evidence level E0–E5 (P7).',
+      `Passive voice and tense (P6, extractor tool): main clause of each body sentence as parsed by the spaCy service, shares per section role, tested in the style family; null for papers without a parse. Parser: ${input.syntax?.parser ?? 'none'}; ${profiled.length - unparsed} of ${profiled.length} profiled papers parsed.`,
+      evidence
+        ? `Evidence level (P7): shares of E0–E5 over main claims among live (not dismissed) arguments of each profiled paper's latest argument run; machine labels, pooled per side. Graded main claims ${evidence.target.counted} target / ${evidence.control.counted} control; without a level ${evidence.target.missing} / ${evidence.control.missing}; papers with a level ${evidence.target.papersWithLevel} of ${evidence.target.papers} / ${evidence.control.papersWithLevel} of ${evidence.control.papers}.`
+        : 'Evidence level (P7): not given.',
     ],
   });
 }
