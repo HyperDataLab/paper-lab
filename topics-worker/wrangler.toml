@@ -28,3 +28,19 @@ class_name = "TopicsContainer"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["TopicsContainer"]
+
+# spaCy parse service for POST /nlp/parse (P6). Its own small image: spaCy + en_core_web_sm, no torch.
+[[containers]]
+class_name = "NlpContainer"
+image = "./nlp/Dockerfile"
+image_build_context = "."
+instance_type = "basic"
+max_instances = 1
+
+[[durable_objects.bindings]]
+name = "NLP"
+class_name = "NlpContainer"
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["NlpContainer"]

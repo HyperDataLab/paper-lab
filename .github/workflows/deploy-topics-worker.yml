@@ -1,4 +1,5 @@
-# Builds the BERTopic + KeyBERT container and deploys paperlab-topics-worker to the HyperDataLab Cloudflare account.
+# Builds the BERTopic + KeyBERT container and the spaCy parse container (topics-worker/nlp/Dockerfile) and deploys
+# paperlab-topics-worker to the HyperDataLab Cloudflare account.
 # GitHub runners have Docker, so `wrangler deploy` builds topics-worker/topics/Dockerfile and pushes it to Cloudflare's
 # registry. Runs only when main is pushed to deploy/topics-worker (done on the owner's "Deploy now") or by hand.
 name: Deploy topics worker
@@ -37,9 +38,18 @@ jobs:
       - name: Python helper tests (no model, no torch)
         working-directory: topics-worker/topics
         run: pip install -q pytest==8.4.2 && python -m pytest -q test_helpers.py test_job_helpers.py test_abstracts.py
+      - name: spaCy voice/tense tests (rules, then the pinned en_core_web_sm model)
+        working-directory: topics-worker/nlp
+        # Load the model first, so a broken install fails here instead of skipping test_syntax_model.py.
+        run: |
+          pip install -q -r requirements.txt
+          python -c "import spacy; spacy.load('en_core_web_sm', exclude=['ner'])"
+          python -m pytest -q test_syntax.py test_syntax_model.py
       - name: Build the image and deploy the worker
         run: npx wrangler@4.161.0 deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Health
-        run: curl -sS -o /dev/null -w "worker HTTP %{http_code}\n" https://paperlab-topics-worker.hyperdatalab.workers.dev/corpora/00000000-0000-4000-8000-000000000000/topics
+        run: |
+          curl -sS -o /dev/null -w "worker HTTP %{http_code}\n" https://paperlab-topics-worker.hyperdatalab.workers.dev/corpora/00000000-0000-4000-8000-000000000000/topics
+          curl -sS -o /dev/null -w "nlp route HTTP %{http_code} (401 = routed, sign-in required)\n" -X POST https://paperlab-topics-worker.hyperdatalab.workers.dev/nlp/parse

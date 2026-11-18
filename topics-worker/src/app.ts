@@ -1,4 +1,5 @@
 import { NotAllowedError } from './auth';
+import { NLP_PATH, parseNlp } from './nlp';
 
 export interface Bucket {
   get(key: string): Promise<{ body: ReadableStream } | null>;
@@ -11,6 +12,8 @@ export interface Deps {
   container(path: string, init?: RequestInit): Promise<Response>;
   schedule(jobId: string): Promise<void>;
   refresh?(jobId: string): Promise<void>;
+  /** The spaCy parse container (POST /nlp/parse); absent → that path answers 404. */
+  nlp?(path: string, init?: RequestInit): Promise<Response>;
   /** Test seam for the wait between attempts to reach a starting container. */
   sleep?(ms: number): Promise<void>;
 }
@@ -39,13 +42,17 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
     const path = new URL(request.url).pathname;
     const match = route.exec(path);
-    if (!match) return json(400, { error: 'invalid path' });
+    if (!match && path !== NLP_PATH) return json(400, { error: 'invalid path' });
     const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
     if (!token) return json(401, { error: 'sign-in required' });
     try {
       await deps.verify(token);
     } catch (error) {
       return json(error instanceof NotAllowedError ? 403 : 401, { error: 'invalid token' });
+    }
+    if (!match) {
+      if (!deps.nlp) return json(404, { error: 'nlp not configured' });
+      return await parseNlp(request, deps.nlp, json, deps.sleep ?? defaultSleep);
     }
     const corpusId = match[1] as string;
     const jobId = match[2];

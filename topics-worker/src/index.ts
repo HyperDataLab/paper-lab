@@ -54,9 +54,16 @@ export class TopicsContainer extends Container<Env> {
     }
   }
 }
+/** spaCy parse service (topics-worker/nlp): a small image of its own, so a parse never wakes the torch container. */
+export class NlpContainer extends Container<Env> {
+  defaultPort = 8080;
+  sleepAfter = '10m';
+  enableInternet = false;
+}
 interface Env {
   BUCKET: Bucket;
   TOPICS: Parameters<typeof getContainer>[0];
+  NLP: Parameters<typeof getContainer>[0];
   FIREBASE_PROJECT_ID: string;
   ALLOWED_DOMAIN: string;
   ALLOWED_ORIGINS: string;
@@ -69,6 +76,7 @@ export default {
       origins: env.ALLOWED_ORIGINS.split(',').map((s) => s.trim()),
       verify: (token) => verifyFirebaseToken(token, jwks, env.FIREBASE_PROJECT_ID, env.ALLOWED_DOMAIN),
       container: (path, init) => getContainer(env.TOPICS).fetch(`http://container${path}`, init),
+      nlp: (path, init) => getContainer(env.NLP).fetch(`http://container${path}`, init),
       refresh: async (jobId) => {
         await getContainer(env.TOPICS).fetch('http://container/_refresh', {
           method: 'POST',

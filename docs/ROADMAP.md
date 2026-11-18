@@ -98,4 +98,6 @@ AI topic names are candidates until accepted, individually or in bulk.
 
 - Hosting: Firebase Hosting (ADR-0001) or an Oracle Cloud Always Free VM (ADR-0005, proposed). Keep the app
   host-agnostic: relative `/llm` and `/api/nlp` URLs, no Firebase SDK.
-- spaCy service: optional `SyntaxProvider` (ADR-0004), built once the Oracle VM exists.
+- spaCy service: optional `SyntaxProvider` (ADR-0004). Built in P6 (2026-11-18) as a container of the topics worker
+  (`POST /nlp/parse`), not on the Oracle VM; not deployed yet. The browser uses it only when `VITE_NLP_URL` is set.
+  It feeds passive voice and tense per section (`section.<ROLE>.passive`, `section.<ROLE>.tense.*`, wired by P2).
