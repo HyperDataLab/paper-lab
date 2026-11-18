@@ -4,7 +4,9 @@ import { bodySentences } from '@/core/corpusProfile/measure';
 import { profileEligible } from '@/core/corpusProfile/profile';
 import type { ParseResult } from '@/core/syntaxParse';
 import type { NlpClient } from '@/shared/nlp';
-import { parseProfileSyntax } from './profileRun';
+import { examplePaper, exampleInsights } from '@/core/paperModel/contract';
+import type { Argument, PaperInsightsRecord } from '@/core/schemas/paperInsights';
+import { corpusEvidenceLevels, parseProfileSyntax } from './profileRun';
 
 const result = (items: { key: string }[]): ParseResult => ({
   model: 'fake_model',
@@ -19,6 +21,56 @@ const result = (items: { key: string }[]): ParseResult => ({
     tense: 'past',
     modal: null,
   })),
+});
+
+describe('P7 corpus evidence levels', () => {
+  it('P7 counts graded main claims of live arguments only', () => {
+    const { target, papers } = exampleProfileInputs();
+    const member = target.members.find(profileEligible);
+    const paper = member && papers.get(member.memberId);
+    if (!member || !paper) throw new Error('missing paper');
+    const base = exampleInsights(examplePaper());
+    const run = '00000000-0000-4000-8000-0000000000e1';
+    const span = { paragraphId: 'p1', sectionId: 's1', page: 1, start: 0, end: 3, excerpt: 'Toy' };
+    const argument = (id: string, extra: Partial<Argument>): Argument => ({
+      id,
+      importance: 'main',
+      claim: span,
+      claimType: 'comparative',
+      data: [],
+      statedWarrant: null,
+      inferredWarrant: null,
+      backing: [],
+      qualifier: null,
+      rebuttals: [],
+      ...extra,
+    });
+    const insights: PaperInsightsRecord = {
+      ...base,
+      argumentRuns: [
+        {
+          id: run,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          model: 'example-model',
+          promptVersion: 'example-arguments-1',
+          callsUsed: 1,
+          sectionIds: ['s1'],
+          failedSectionIds: [],
+          discarded: { claim_not_found: 0, element_not_found: 0, duplicate: 0 },
+          arguments: [
+            argument('live', { importance: 'main', evidenceLevel: 'E3' }),
+            argument('dismissed', { importance: 'main', evidenceLevel: 'E1' }),
+            argument('supporting', { importance: 'supporting', evidenceLevel: 'E2' }),
+          ],
+        },
+      ],
+      decisions: [{ run_id: run, item_id: 'dismissed', decision: 'dismiss', at: '2026-01-01T00:00:00.000Z' }],
+    };
+    const only = new Map([[member.memberId, { ...paper, insights }]]);
+    const result = corpusEvidenceLevels(target, only);
+    expect(result).toMatchObject({ counted: 1, missing: 0, papers: 1, papersWithLevel: 1 });
+    expect(result.shares.E3).toBe(1);
+  });
 });
 
 describe('P6 profile syntax parsing', () => {
