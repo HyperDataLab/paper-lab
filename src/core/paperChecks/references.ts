@@ -165,10 +165,7 @@ function tableLine(location: Located) {
 }
 export const paperReferenceParagraphs = (paper: Paper) =>
   paper.paragraphs.filter((p) => p.kind === 'reference' || role(paper, p) === 'references');
-export function citationsReferences(paper: Paper) {
-  const id = 'citations_references';
-  const refs = paperReferenceParagraphs(paper);
-  const body = paper.paragraphs.filter((p) => !refs.includes(p) && p.kind === 'body');
+export function citationMentions(body: PaperParagraph[]) {
   const unchecked: { text: string; loc: Located }[] = [];
   const cited = body.flatMap((p) => [
     ...matches(p, /\[\s*\d+(?:\s*[,;–—-]\s*\d+)*\s*\]/gu).flatMap((m) => {
@@ -180,6 +177,13 @@ export function citationsReferences(paper: Paper) {
       .filter((m) => !tableLine(m))
       .map((m) => ({ key: key(m.text), loc: m })),
   ]);
+  return { cited, unchecked };
+}
+export function citationsReferences(paper: Paper) {
+  const id = 'citations_references';
+  const refs = paperReferenceParagraphs(paper);
+  const body = paper.paragraphs.filter((p) => !refs.includes(p) && p.kind === 'body');
+  const { cited, unchecked } = citationMentions(body);
   const entries = referenceEntries(refs);
   const referenceParagraphs = refs.filter((p) => p.kind === 'reference');
   const referenceText = normalize(

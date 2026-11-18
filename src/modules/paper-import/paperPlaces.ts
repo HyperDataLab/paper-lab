@@ -4,6 +4,7 @@ import type { JobId } from './paperJobs';
 
 export type ViewId =
   | 'data-table'
+  | 'openkg'
   | 'extraction'
   | 'profile'
   | 'snapshot'
@@ -25,7 +26,7 @@ export type Pane = 'fulltext' | 'summary';
  * Citations and Paper info. Arguments and Writing style are spaces behind the paper: each opens full width.
  */
 export type Mode = 'issues' | 'citations' | 'info' | Space;
-export type Space = 'arguments' | 'writing' | 'extract' | 'data';
+export type Space = 'arguments' | 'writing' | 'extract' | 'data' | 'openkg';
 export type Place = 'summary' | Mode;
 export type BlockId =
   | 'argIssues'
@@ -210,6 +211,7 @@ export const blockOf = (view: ViewId) =>
 /** Where a view opens: the centre column (full text or summary) or a tab of the right column. */
 export const placeOf = (view: ViewId): Pane | Mode => {
   if (view === 'data-table') return 'data';
+  if (view === 'openkg') return 'openkg';
   if (view === 'extraction') return 'extract';
   if (view === 'issues') return 'issues';
   if (view === 'map') return 'fulltext';
@@ -232,11 +234,12 @@ export const SPACES: { id: Space; label: string }[] = [
   { id: 'writing', label: 'Writing style' },
   { id: 'extract', label: 'Trích xuất' },
   { id: 'data', label: 'Contribution graph' },
+  { id: 'openkg', label: 'Đồ thị tri thức (OpenKG)' },
 ];
-export const isSpace = (mode: Mode): mode is Space =>
-  mode === 'arguments' || mode === 'writing' || mode === 'extract' || mode === 'data';
+export const isSpace = (mode: Mode): mode is Space => SPACES.some((item) => item.id === mode);
 export const DEFAULT_VIEW: Record<Mode, ViewId> = {
   data: 'data-table',
+  openkg: 'openkg',
   extract: 'extraction',
   arguments: 'gap',
   writing: 'organization',
@@ -246,6 +249,7 @@ export const DEFAULT_VIEW: Record<Mode, ViewId> = {
 };
 export const VIEW_HELP: Record<ViewId, string> = {
   'data-table': 'Data table',
+  openkg: 'Các lớp tri thức và nguồn của từng mối liên hệ trong bài.',
   extraction: 'Trích xuất',
   issues: 'Mọi phát hiện về bài ở một chỗ.',
   'arguments-issues':

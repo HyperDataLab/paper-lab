@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import type { LibraryItem, OaSource, PaperKeyword, Taxonomy } from '../schemas/library';
+import {
+  mapOpenAlexGraphMetadata,
+  OpenAlexAuthorshipsSchema,
+  OpenAlexSourceSchema,
+  openAlexShortId,
+} from './openAlexGraphMetadata';
 
-const named = z.object({ display_name: z.string().nullish() }).nullish();
 const level = z.object({ id: z.string().nullish(), display_name: z.string().nullish() }).nullish();
 const location = z.object({
   landing_page_url: z.string().nullish(),
@@ -9,20 +14,22 @@ const location = z.object({
   license: z.string().nullish(),
   version: z.string().nullish(),
   is_oa: z.boolean().nullish(),
-  source: named,
+  source: OpenAlexSourceSchema,
 });
 const OpenAlexSchema = z.object({
   id: z.string().nullish(),
   doi: z.string().nullish(),
   title: z.string().nullish(),
   publication_year: z.number().int().nullish(),
-  authorships: z.array(z.object({ author: named })).nullish(),
+  authorships: OpenAlexAuthorshipsSchema,
+  referenced_works: z.array(z.string().nullable()).nullish(),
   primary_location: location.nullish(),
   best_oa_location: location.nullish(),
   locations: z.array(location).nullish(),
   open_access: z.object({ is_oa: z.boolean().nullish(), oa_url: z.string().nullish() }).nullish(),
   primary_topic: z
     .object({
+      id: z.string().nullish(),
       display_name: z.string().nullish(),
       score: z.number().nullish(),
       subfield: level,
@@ -89,14 +96,16 @@ export type LookupPatch = Pick<
   | 'taxonomy'
   | 'openalex_id'
   | 'keywords'
+  | 'authorships'
+  | 'referenced_works'
+  | 'openalex_source_id'
 >;
 export interface OpenAlexLookup {
   metadata: Pick<
     LookupPatch,
     'title' | 'authors' | 'year' | 'venue' | 'taxonomy' | 'openalex_id' | 'arxiv_id'
-  > & {
-    keywords: PaperKeyword[];
-  };
+  > &
+    Required<Pick<LookupPatch, 'keywords' | 'authorships' | 'referenced_works' | 'openalex_source_id'>>;
   is_open: boolean;
   sources: OaSource[];
 }
@@ -168,12 +177,14 @@ export function mapOpenAlex(raw: unknown): OpenAlexLookup {
   const work = OpenAlexSchema.parse(raw);
   const locations = [work.best_oa_location, ...(work.locations ?? [])].flatMap((item) => item ?? []);
   const topic = work.primary_topic;
+  const topicId = openAlexShortId(topic?.id, /^(?:topics\/)?T\d+$/u);
   const taxonomy: Taxonomy | null = topic
     ? {
         domain: topic.domain?.display_name ?? null,
         field: topic.field?.display_name ?? null,
         subfield: topic.subfield?.display_name ?? null,
         topic: topic.display_name ?? null,
+        topicId: topicId ? `topics/${topicId.replace(/^topics\//u, '')}` : null,
         score: topic.score ?? null,
         domainId: openAlexLevelId(topic.domain?.id, 'domains'),
         fieldId: openAlexLevelId(topic.field?.id, 'fields'),
@@ -182,6 +193,7 @@ export function mapOpenAlex(raw: unknown): OpenAlexLookup {
     : null;
   return {
     metadata: {
+      ...mapOpenAlexGraphMetadata(work.authorships, work.referenced_works, work.primary_location?.source),
       title: work.title ? stripTags(work.title) : null,
       authors: (work.authorships ?? []).flatMap((item) => item.author?.display_name ?? []),
       year: work.publication_year ?? null,
@@ -283,8 +295,15 @@ export function mergeLookups(input: {
     taxonomy: openalex?.metadata.taxonomy ?? null,
     openalex_id: openalex?.metadata.openalex_id ?? null,
     arxiv_id: openalex?.metadata.arxiv_id ?? null,
-    // Without an OpenAlex record the keywords stay unknown, and stored ones are kept.
-    ...(openalex ? { keywords: openalex.metadata.keywords } : {}),
+    // Without an OpenAlex record, keep the saved keyword, authorship and citation data.
+    ...(openalex
+      ? {
+          keywords: openalex.metadata.keywords,
+          authorships: openalex.metadata.authorships,
+          referenced_works: openalex.metadata.referenced_works,
+        }
+      : {}),
+    openalex_source_id: openalex?.metadata.openalex_source_id ?? null,
     oa_sources: sources,
     access: open ? 'open' : incomplete ? 'unknown' : 'none_found',
   };

@@ -14,6 +14,7 @@ import { PaperContribution } from './PaperContribution';
 import { PaperScg } from './PaperScg';
 import { PaperExtraction } from './PaperExtraction';
 import { PaperMetadata } from './PaperMetadata';
+import { PaperOpenKg } from './PaperOpenKg';
 import { MODES, SPACES, type ViewId } from './paperPlaces';
 import { PaperReferences } from './PaperReferences';
 import { SpaceOverview } from './SpaceOverview';
@@ -136,6 +137,7 @@ export function AnalysisColumn({
       {mode === 'extract' && <PaperExtraction paper={paper} />}
       {mode === 'data' && <PaperContribution paper={paper} onLocation={onLocation} />}
       {mode === 'data' && <PaperScg paper={paper} onLocation={onLocation} />}
+      {mode === 'openkg' && <PaperOpenKg key={paper.id} paper={paper} onLocation={onLocation} />}
       <ArgumentsSpace
         active={mode === 'arguments'}
         paper={paper}

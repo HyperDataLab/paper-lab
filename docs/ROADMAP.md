@@ -100,6 +100,15 @@ The `corpus-topics-v1` contract accepts optional nullable member fit and weak-re
 snapshots. Weakness follows centroid fit or an unassigned topic, independently of HDBSCAN probability.
 AI topic names are candidates until accepted, individually or in bulk.
 
+## Paper OpenKG
+
+| #   | Slice                                                          | Status |
+| --- | -------------------------------------------------------------- | ------ |
+| K1  | Five-layer paper graph and Turtle, JSON-LD, and report exports | ✅     |
+| K2  | Interactive graph in paper analysis                            | ✅     |
+
+See the [paper OpenKG contract](contracts/openkg-paper.md) and [branch plan](plans/OPENKG_PAPER_BRANCH.md).
+
 ## Open decisions
 
 - Hosting: Firebase Hosting (ADR-0001) or an Oracle Cloud Always Free VM (ADR-0005, proposed). Keep the app
