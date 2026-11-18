@@ -1,6 +1,8 @@
 import { ArrowLeft, Download, Library, Pencil, Plus } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { labKgIds } from '@/shared/labKg/client';
+import { LabKgActions } from '@/shared/labKg/LabKgActions';
 import { canonicalDigest } from '@/core/corpus';
 import { CorpusSchema, type Corpus } from '@/core/schemas/corpus';
 import type { CorpusTopics as TopicsSnapshot, TopicName } from '@/core/schemas/corpusTopics';
@@ -244,6 +246,8 @@ export default function DetailPage() {
           </div>
         ))}
       </dl>
+
+      <LabKgActions key={user?.uid} ids={labKgIds(corpus.members.map(({ identifiers }) => identifiers))} />
 
       {corpus.kind !== 'topic' && <JournalHarvest corpus={corpus} save={save} />}
       {corpus.kind === 'topic' && <TopicSearch corpus={corpus} save={save} />}

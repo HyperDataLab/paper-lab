@@ -111,6 +111,12 @@ AI topic names are candidates until accepted, individually or in bulk.
 
 See the [paper OpenKG contract](contracts/openkg-paper.md) and [branch plan](plans/OPENKG_PAPER_BRANCH.md).
 
+## Lab knowledge graph
+
+L1 adds the OpenAlex graph mapper, D1 schema and optional worker bindings. L2 adds ingestion from the corpus,
+Library and published SCG, plus queue status and the scheduled drain. Owner provisioning is pending. Search
+and graph reads are L3. See the [Lab KG contract](contracts/lab-kg.md) and [plan](plans/LAB_KG.md).
+
 ## Open decisions
 
 - Hosting: Firebase Hosting (ADR-0001) or an Oracle Cloud Always Free VM (ADR-0005, proposed). Keep the app

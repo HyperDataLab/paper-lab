@@ -4,12 +4,14 @@ import { scgBodyEtag } from '../../src/core/scg/publish';
 import { examplePaperModel } from '../../src/core/paperModel/contract';
 import { NotAllowedError } from './auth';
 import { handle, type Bucket, type Deps } from './app';
+import type { KgBindings } from './kg/bindings';
+import { testDb } from './kg/testDb';
 
 const id = `sha256-${'a'.repeat(64)}`;
 const other = `sha256-${'b'.repeat(64)}`;
 const modelKey = (paperId: string) => `paperlab/published/${paperId}/model.json`;
 
-function setup() {
+function setup(kg?: KgBindings) {
   const objects = new Map<string, { body: ArrayBuffer; meta: Record<string, string> }>();
   const bucket: Bucket = {
     head: async (key) => {
@@ -46,6 +48,7 @@ function setup() {
     },
     allowedOrigins: ['https://example.org'],
     now: () => now,
+    kg,
   };
   const call = (method: string, path: string, body?: string, extra: Record<string, string> = {}) =>
     handle(
@@ -66,6 +69,49 @@ function setup() {
 const graph = (paperId = id) => ({ ...exampleScgPaper(), paperId });
 
 describe('published contribution graphs', () => {
+  it('projects published contributions and builds_on, and enqueues the DOI with only D1 bound', async () => {
+    const { db, sqlite } = testDb();
+    const { call, publishModel } = setup({ KG: db });
+    publishModel(id);
+    const path = `/v1/papers/${id}/scg`;
+    const value = graph();
+    expect((await call('PUT', path, JSON.stringify(value))).status).toBe(200);
+    expect(await (await call('PUT', path, JSON.stringify(value))).json()).toMatchObject({ unchanged: true });
+    expect(sqlite.prepare('SELECT id, depth, source FROM ingest_queue').all()).toEqual([
+      { id: '10.5555/example.0', depth: 1, source: 'seed' },
+    ]);
+    expect(sqlite.prepare('SELECT count(*) AS count FROM contribution').get()).toEqual({ count: 2 });
+    expect(sqlite.prepare('SELECT relation, target_kind FROM builds_on').all()).toEqual(
+      expect.arrayContaining([
+        { relation: 'prerequisite', target_kind: 'prerequisite' },
+        { relation: 'reference', target_kind: 'paper' },
+      ]),
+    );
+    expect((await call('PUT', path, JSON.stringify({ ...value, contributions: [] }))).status).toBe(200);
+    expect(sqlite.prepare('SELECT * FROM contribution').all()).toEqual([]);
+    expect(sqlite.prepare('SELECT * FROM builds_on').all()).toEqual([]);
+  });
+
+  it('repairs a failed KG projection when the same SCG is published again', async () => {
+    const { db, sqlite } = testDb();
+    const bindings: KgBindings = {
+      KG: {
+        ...db,
+        batch: async () => {
+          throw new Error('D1 unavailable');
+        },
+      },
+    };
+    const { call, publishModel } = setup(bindings);
+    publishModel(id);
+    const path = `/v1/papers/${id}/scg`;
+    const body = JSON.stringify(graph());
+    expect((await call('PUT', path, body)).status).toBe(500);
+    expect(await (await call('GET', path)).text()).toBe(body);
+    bindings.KG = db;
+    expect(await (await call('PUT', path, body)).json()).toMatchObject({ unchanged: true });
+    expect(sqlite.prepare('SELECT count(*) AS count FROM contribution').get()).toEqual({ count: 2 });
+  });
   it('requires a lab sign-in', async () => {
     const { call } = setup();
     const path = `/v1/papers/${id}/scg`;

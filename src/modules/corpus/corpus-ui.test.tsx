@@ -6,7 +6,7 @@ import { expect, it, vi } from 'vitest';
 import { exampleCorpus } from '@/core/corpus/contract';
 import { addMember } from '@/core/corpus/intake';
 import { CorpusSchema } from '@/core/schemas/corpus';
-import { AuthContext } from '@/shared/auth/authContext';
+import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
@@ -16,11 +16,11 @@ import DetailPage from './DetailPage';
 
 // The labelling card needs a model client; no test here lets it reach the network.
 const client = { completeJson: vi.fn(() => Promise.reject(new Error('no network in tests'))) };
-function setup(path: string) {
+function setup(path: string, auth?: AuthValue) {
   vi.stubGlobal('crypto', webcrypto);
   const repo = createRepositories(createDb(`corpus-ui-${crypto.randomUUID()}`));
-  const mount = () =>
-    render(
+  const mount = () => {
+    const page = (
       <MemoryRouter initialEntries={[path]}>
         <StorageProvider repositories={repo}>
           <LlmProvider innerClient={client}>
@@ -30,10 +30,55 @@ function setup(path: string) {
             </Routes>
           </LlmProvider>
         </StorageProvider>
-      </MemoryRouter>,
+      </MemoryRouter>
     );
+    return render(auth ? <AuthContext.Provider value={auth}>{page}</AuthContext.Provider> : page);
+  };
   return { repo, mount };
 }
+
+it('queues eligible members even when filtered out and refreshes the lab KG counts', async () => {
+  let corpus = { ...exampleCorpus(), members: [] as ReturnType<typeof exampleCorpus>['members'] };
+  for (const item of [
+    { doi: '10.1000/synthetic', title: 'DOI record' },
+    { openalexId: 'https://openalex.org/W12', title: 'OpenAlex record' },
+    { title: 'Record with no ID' },
+  ])
+    corpus = addMember(corpus, item, corpus.createdAt).corpus;
+  const { repo, mount } = setup(`/corpus/${corpus.id}`, {
+    user: { uid: 'lab', email: 'lab@example.invalid', name: null },
+    ready: true,
+    error: '',
+    getIdToken: async () => 'token',
+    signIn: async () => {},
+    signOut: async () => {},
+  });
+  let pending = 0;
+  const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).endsWith('/kg/ingest/status'))
+      return Response.json({ counts: { pending, done: 0, processing: 0, failed: 0 }, logs: [] });
+    if (String(input).endsWith('/kg/ingest')) {
+      expect(JSON.parse(String(init?.body))).toEqual({ ids: ['10.1000/synthetic', 'W12'] });
+      pending = 2;
+      return Response.json({ queued: 2, processed: 0, skipped: 0, errors: [] }, { status: 202 });
+    }
+    return Response.json({}, { status: 404 });
+  });
+  vi.stubGlobal('fetch', fetcher);
+  try {
+    await repo.corpora.save(corpus);
+    mount();
+    expect(await screen.findByText(/KG của lab · Chờ 0/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('combobox', { name: 'Trạng thái thu thập' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Không lấy được' }));
+    expect(screen.queryByRole('cell', { name: 'DOI record' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Đưa vào KG của lab' }));
+    expect(await screen.findByText(/Đã xếp 2/)).toBeInTheDocument();
+    expect(await screen.findByText(/KG của lab · Chờ 2/)).toBeInTheDocument();
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
 async function detail() {
   const corpus = { ...exampleCorpus(), members: [] };
   const ctx = setup(`/corpus/${corpus.id}`);
