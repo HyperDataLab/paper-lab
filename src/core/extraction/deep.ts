@@ -45,7 +45,13 @@ export function candidateFromWork(raw: unknown, foundBy: string): Candidate | nu
   const openalexId = typeof work.id === 'string' ? (work.id.split('/').pop() ?? null) : null;
   const location = (work.primary_location ?? {}) as Record<string, unknown>;
   const authorships = Array.isArray(work.authorships) ? work.authorships : [];
+  const keywords = (Array.isArray(work.keywords) ? work.keywords : []).flatMap(
+    (entry: Record<string, unknown> | null) => text(entry?.display_name) ?? [],
+  );
+  const workType = text(work.type);
   return {
+    ...(keywords.length ? { keywords } : {}),
+    ...(workType ? { workType } : {}),
     key: doi ?? openalexId ?? normalTitle(title),
     openalexId,
     doi,
@@ -96,23 +102,27 @@ export function applySuggestions(candidates: Candidate[], output: ScreeningOutpu
   });
 }
 
+/** A person's decision. `ai_accepted` records that they applied the AI triage bucket; reopening clears it. */
 export function decideCandidate(
   candidates: Candidate[],
   key: string,
   status: ScreeningStatus,
   at: string,
   reason?: string,
+  by: 'person' | 'ai_accepted' = 'person',
 ) {
-  return candidates.map((candidate) =>
-    candidate.key === key
-      ? {
-          ...candidate,
-          status,
-          reason: reason ?? null,
-          decidedAt: status === 'candidate' ? null : at,
-        }
-      : candidate,
-  );
+  return candidates.map((candidate) => {
+    if (candidate.key !== key) return candidate;
+    const { decidedBy: _old, ...rest } = candidate;
+    void _old;
+    return {
+      ...rest,
+      status,
+      reason: reason ?? null,
+      decidedAt: status === 'candidate' ? null : at,
+      ...(status === 'candidate' ? {} : { decidedBy: by }),
+    };
+  });
 }
 
 const fingerprint = (value: string) => {

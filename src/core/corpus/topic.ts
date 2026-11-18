@@ -121,6 +121,10 @@ export function promoteProject(project: ExtractionProject, id: string, at: strin
                     reasonCode: 'other',
                     reasonText: candidate.reason ?? '',
                     decider: { kind: 'person' },
+                    // A triage bucket the person applied stays visible in the audit trail.
+                    ...(candidate.decidedBy === 'ai_accepted' && candidate.suggestion
+                      ? { acceptedSuggestion: { decision, reason: candidate.suggestion.reason } }
+                      : {}),
                     at: candidate.decidedAt ?? at,
                   },
                 ],

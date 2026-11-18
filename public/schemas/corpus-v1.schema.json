@@ -196,6 +196,8 @@
                     ]
                   },
                   "foundBy": { "type": "array", "items": { "type": "string" } },
+                  "keywords": { "type": "array", "items": { "type": "string" } },
+                  "workType": { "type": "string" },
                   "status": { "type": "string", "enum": ["candidate", "included", "excluded", "uncertain"] },
                   "suggestion": {
                     "anyOf": [
@@ -203,7 +205,14 @@
                         "type": "object",
                         "properties": {
                           "decision": { "type": "string", "enum": ["included", "excluded", "uncertain"] },
-                          "reason": { "type": "string" }
+                          "reason": { "type": "string" },
+                          "relevance": { "type": "number", "minimum": 0, "maximum": 1 },
+                          "quality": {
+                            "anyOf": [{ "type": "number", "minimum": 0, "maximum": 1 }, { "type": "null" }]
+                          },
+                          "matched": { "type": "array", "items": { "type": "string" } },
+                          "model": { "type": "string" },
+                          "promptVersion": { "type": "string" }
                         },
                         "required": ["decision", "reason"],
                         "additionalProperties": false
@@ -221,7 +230,8 @@
                       },
                       { "type": "null" }
                     ]
-                  }
+                  },
+                  "decidedBy": { "type": "string", "enum": ["person", "ai_accepted"] }
                 },
                 "required": [
                   "key",
@@ -1053,6 +1063,8 @@
                     ]
                   },
                   "foundBy": { "type": "array", "items": { "type": "string" } },
+                  "keywords": { "type": "array", "items": { "type": "string" } },
+                  "workType": { "type": "string" },
                   "status": { "type": "string", "enum": ["candidate", "included", "excluded", "uncertain"] },
                   "suggestion": {
                     "anyOf": [
@@ -1060,7 +1072,14 @@
                         "type": "object",
                         "properties": {
                           "decision": { "type": "string", "enum": ["included", "excluded", "uncertain"] },
-                          "reason": { "type": "string" }
+                          "reason": { "type": "string" },
+                          "relevance": { "type": "number", "minimum": 0, "maximum": 1 },
+                          "quality": {
+                            "anyOf": [{ "type": "number", "minimum": 0, "maximum": 1 }, { "type": "null" }]
+                          },
+                          "matched": { "type": "array", "items": { "type": "string" } },
+                          "model": { "type": "string" },
+                          "promptVersion": { "type": "string" }
                         },
                         "required": ["decision", "reason"],
                         "additionalProperties": false
@@ -1078,7 +1097,8 @@
                       },
                       { "type": "null" }
                     ]
-                  }
+                  },
+                  "decidedBy": { "type": "string", "enum": ["person", "ai_accepted"] }
                 },
                 "required": [
                   "key",
@@ -1910,6 +1930,8 @@
                     ]
                   },
                   "foundBy": { "type": "array", "items": { "type": "string" } },
+                  "keywords": { "type": "array", "items": { "type": "string" } },
+                  "workType": { "type": "string" },
                   "status": { "type": "string", "enum": ["candidate", "included", "excluded", "uncertain"] },
                   "suggestion": {
                     "anyOf": [
@@ -1917,7 +1939,14 @@
                         "type": "object",
                         "properties": {
                           "decision": { "type": "string", "enum": ["included", "excluded", "uncertain"] },
-                          "reason": { "type": "string" }
+                          "reason": { "type": "string" },
+                          "relevance": { "type": "number", "minimum": 0, "maximum": 1 },
+                          "quality": {
+                            "anyOf": [{ "type": "number", "minimum": 0, "maximum": 1 }, { "type": "null" }]
+                          },
+                          "matched": { "type": "array", "items": { "type": "string" } },
+                          "model": { "type": "string" },
+                          "promptVersion": { "type": "string" }
                         },
                         "required": ["decision", "reason"],
                         "additionalProperties": false
@@ -1935,7 +1964,8 @@
                       },
                       { "type": "null" }
                     ]
-                  }
+                  },
+                  "decidedBy": { "type": "string", "enum": ["person", "ai_accepted"] }
                 },
                 "required": [
                   "key",
