@@ -38,6 +38,8 @@ try {
     [profile.CORPUS_PROFILE_SCHEMA_PUBLIC_FILE, profile.corpusProfileJsonSchema()],
     [profileV2.CORPUS_PROFILE_V2_SCHEMA_FILE, profileV2.corpusProfileV2JsonSchema()],
     [profileV2.CORPUS_PROFILE_V2_PUBLIC_FILE, profileV2.corpusProfileV2JsonSchema()],
+    [profileV2.CORPUS_PROFILE_V2_EXAMPLE_FILE, await profileV2.exampleCorpusProfileV2()],
+    [profileV2.FEATURE_REGISTRY_V2_FILE, await profileV2.featureRegistryV2Json()],
     [profile.CORPUS_PROFILE_EXAMPLE_FILE, await profile.exampleCorpusProfile()],
     [profile.FEATURE_REGISTRY_FILE, await profile.featureRegistryJson()],
     [topics.CORPUS_TOPICS_SCHEMA_FILE, topics.corpusTopicsJsonSchema()],

@@ -14,10 +14,10 @@ export const CorpusProfileV2FeatureSchema = CorpusProfileFeatureSchema.extend({
   status,
 });
 
-/** DRAFT: this shape may change until P2 ships; it does not imply that measurements exist. */
+/** DRAFT: this shape may change until the contract leaves draft. Built by `buildCorpusProfileV2` (P2). */
 export const CorpusProfileV2Schema = CorpusProfileSchema.extend({
   schemaVersion: z.literal(2),
-  draft: z.literal(true).describe('DRAFT: the shape may change until P2 ships.'),
+  draft: z.literal(true).describe('DRAFT: the shape may change until the contract leaves draft.'),
   scope: z.enum(['admired', 'signature']),
   sample: z.object({
     n: count,
@@ -32,7 +32,8 @@ export const CorpusProfileV2Schema = CorpusProfileSchema.extend({
   sectionSequences: z.array(z.object({ roles: z.array(role), documentShare: share })),
   keywords: z.array(
     z.object({
-      id: z.string().regex(/^keywords\/[a-z0-9]+(?:-[a-z0-9]+)*$/u),
+      /** The OpenAlex keyword id as PaperLab stores it (`PaperKeywordSchema`). */
+      id: z.string().regex(/^keywords\/[a-z0-9][a-z0-9-]*$/u),
       name: z.string(),
       targetShare: share,
       controlShare: share,
@@ -44,7 +45,8 @@ export const CorpusProfileV2Schema = CorpusProfileSchema.extend({
     subfields: z.array(
       z.object({
         id: z.string().regex(/^subfields\/[0-9]+$/u),
-        name: z.string(),
+        /** Null when no library record of a member names the subfield (members carry only the id). */
+        name: z.string().nullable(),
         targetShare: share,
         controlShare: share,
       }),

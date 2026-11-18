@@ -2,8 +2,8 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://hyperdatalab-paragraph-lab.web.app/schemas/corpus-profile-v2.draft.schema.json",
   "title": "PaperLab corpus profile v2 DRAFT",
-  "description": "DRAFT contract for Writing Bank mapping; the shape may change until P2 ships.",
-  "$comment": "DRAFT: synthetic fixture only; no v2 measurement implementation is implied.",
+  "description": "DRAFT contract for Writing Bank mapping; the shape may change until it leaves draft. Built by PaperLab from feature registry v2 (deterministic P2 features; P6 passive/tense and P7 evidence level not measured yet).",
+  "$comment": "DRAFT: the example is built by PaperLab code from synthetic papers.",
   "type": "object",
   "properties": {
     "format": { "type": "string", "const": "paperlab-corpus-profile" },
@@ -419,7 +419,7 @@
     "draft": {
       "type": "boolean",
       "const": true,
-      "description": "DRAFT: the shape may change until P2 ships."
+      "description": "DRAFT: the shape may change until the contract leaves draft."
     },
     "scope": { "type": "string", "enum": ["admired", "signature"] },
     "sample": {
@@ -514,7 +514,7 @@
       "items": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "pattern": "^keywords\\/[a-z0-9]+(?:-[a-z0-9]+)*$" },
+          "id": { "type": "string", "pattern": "^keywords\\/[a-z0-9][a-z0-9-]*$" },
           "name": { "type": "string" },
           "targetShare": { "type": "number", "minimum": 0, "maximum": 1 },
           "controlShare": { "type": "number", "minimum": 0, "maximum": 1 },
@@ -534,7 +534,7 @@
             "type": "object",
             "properties": {
               "id": { "type": "string", "pattern": "^subfields\\/[0-9]+$" },
-              "name": { "type": "string" },
+              "name": { "type": ["string", "null"] },
               "targetShare": { "type": "number", "minimum": 0, "maximum": 1 },
               "controlShare": { "type": "number", "minimum": 0, "maximum": 1 }
             },

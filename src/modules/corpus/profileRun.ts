@@ -3,9 +3,11 @@ import { testHoldout } from '@/core/corpusProfile/holdout';
 import { confoundChecks } from '@/core/corpusProfile/confounds';
 import { measurePaperDetail } from '@/core/corpusProfile/measure';
 import { buildCorpusProfile, profileEligible, type ProfilePaper } from '@/core/corpusProfile/profile';
+import { buildCorpusProfileV2 } from '@/core/corpusProfile/profileV2';
 import { buildPaperModel } from '@/core/paperModel';
 import type { Corpus } from '@/core/schemas/corpus';
 import { CorpusProfileSchema, type CorpusProfile } from '@/core/schemas/corpusProfile';
+import { CorpusProfileV2Schema, type CorpusProfileV2 } from '@/core/schemas/corpusProfileV2';
 import type { Repositories } from '@/shared/storage/repositories';
 import { labelMembers, loadLabelPaper } from './labelRun';
 
@@ -50,6 +52,35 @@ export async function computeProfile(target: Corpus, control: Corpus, repo: Repo
   await loadProfilePapers(target, repo, papers);
   await loadProfilePapers(control, repo, papers);
   return buildCorpusProfile({ target, control, papers, seed: profileSeed(target), now: new Date() });
+}
+
+/**
+ * Draft profile v2 (P2), built on demand for export and never stored: the v1 profile plus the P2 features, with
+ * the members' OpenAlex keywords and the subfield names the library knows.
+ */
+export async function computeProfileV2(target: Corpus, control: Corpus, repo: Repositories) {
+  const papers = new Map<string, ProfilePaper>();
+  await loadProfilePapers(target, repo, papers);
+  await loadProfilePapers(control, repo, papers);
+  const [targetKeywords, controlKeywords, library] = await Promise.all([
+    repo.corpusKeywords.memberKeywords(target),
+    repo.corpusKeywords.memberKeywords(control),
+    repo.library.list(),
+  ]);
+  const subfieldNames = new Map(
+    library.flatMap(({ taxonomy }) =>
+      taxonomy?.subfieldId && taxonomy.subfield ? [[taxonomy.subfieldId, taxonomy.subfield] as const] : [],
+    ),
+  );
+  return buildCorpusProfileV2({
+    target,
+    control,
+    papers,
+    keywords: { target: targetKeywords.papers, control: controlKeywords.papers },
+    subfieldNames,
+    seed: profileSeed(target),
+    now: new Date(),
+  });
 }
 
 /** The profile and its selected features remain frozen while held-out papers are loaded. */
@@ -121,9 +152,8 @@ export function featureLabel(featureId: string): string {
   return featureId;
 }
 
-/** Downloads the validated profile as `<slug>.corpus-profile.json`. */
-export function downloadProfile(profile: CorpusProfile, title: string) {
-  const json = JSON.stringify(CorpusProfileSchema.parse(profile), null, 2);
+function downloadJson(value: unknown, title: string, suffix: string) {
+  const json = JSON.stringify(value, null, 2);
   const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
   const link = document.createElement('a');
   link.href = url;
@@ -134,7 +164,17 @@ export function downloadProfile(profile: CorpusProfile, title: string) {
       .toLowerCase()
       .replace(/[^a-z0-9]+/gu, '-')
       .replace(/^-|-$/gu, '') || 'corpus'
-  }.corpus-profile.json`;
+  }.${suffix}`;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+/** Downloads the validated profile as `<slug>.corpus-profile.json`. */
+export function downloadProfile(profile: CorpusProfile, title: string) {
+  downloadJson(CorpusProfileSchema.parse(profile), title, 'corpus-profile.json');
+}
+
+/** Downloads the validated draft v2 profile as `<slug>.corpus-profile-v2.draft.json`. */
+export function downloadProfileV2(profile: CorpusProfileV2, title: string) {
+  downloadJson(CorpusProfileV2Schema.parse(profile), title, 'corpus-profile-v2.draft.json');
 }

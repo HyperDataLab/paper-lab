@@ -10,7 +10,14 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { DataTable } from '@/shared/ui/DataTable';
 import { Select } from '@/shared/ui/Select';
-import { computeHoldout, computeProfile, downloadProfile, featureLabel } from './profileRun';
+import {
+  computeHoldout,
+  computeProfile,
+  computeProfileV2,
+  downloadProfile,
+  downloadProfileV2,
+  featureLabel,
+} from './profileRun';
 import styles from './corpus.module.css';
 
 const num = (value: number | null | undefined, digits = 2) =>
@@ -97,6 +104,21 @@ export function CorpusProfileCard({ corpus }: { corpus: Corpus }) {
       setBusy(false);
     }
   }
+  async function exportV2() {
+    const control = controls?.find((c) => c.id === controlId);
+    if (!control) return;
+    setBusy(true);
+    setError('');
+    try {
+      const latest = (await repo.corpora.get(control.id)) ?? control;
+      const target = (await repo.corpora.get(corpus.id)) ?? corpus;
+      downloadProfileV2(await computeProfileV2(target, latest, repo), corpus.title);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
   async function runHoldout() {
     const control = controls?.find((c) => c.id === controlId);
     if (!profile || !control || !stored || stale) return;
@@ -173,11 +195,20 @@ export function CorpusProfileCard({ corpus }: { corpus: Corpus }) {
                 Tải corpus-profile.json
               </Button>
             )}
+            <Button
+              size="sm"
+              disabled={!controlId || busy}
+              leadingIcon={<Download size={16} aria-hidden="true" />}
+              onClick={() => void exportV2()}
+            >
+              Tải profile v2 (nháp)
+            </Button>
           </div>
         </div>
         <p className={styles.muted}>
           So sánh từng bài của tạp chí với corpus đối chứng: chỉ đọc bài đã dựng model, không gọi AI. Bài giữ
-          lại cho kiểm định (held-out) không được tính.
+          lại cho kiểm định (held-out) không được tính. Profile v2 (nháp) thêm đặc trưng theo từng phần, tiêu
+          đề, chuỗi phần, từ khoá và subfield; được tính lại mỗi lần tải và không lưu.
         </p>
         {error && <p role="alert">Có lỗi xảy ra. {error}</p>}
         {profile && status && (
