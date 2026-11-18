@@ -27,6 +27,7 @@ import { createPdfFilesRepository } from './pdfFiles';
 import { createGrobidRepository } from './grobid';
 import { createTransferRepository } from './transfer';
 import { createResearchDesignRepository } from './researchDesigns';
+import { createScgRepository } from './scg';
 export function createRepositories(
   db: ParagraphDb,
   clock = () => new Date(),
@@ -71,6 +72,7 @@ export function createRepositories(
   });
   return {
     analyses,
+    scg: createScgRepository(db, clock),
     audit,
     revisions,
     generations,

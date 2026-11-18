@@ -52,6 +52,7 @@ export function createPapersRepository(db: ParagraphDb, deps: StorageDeps) {
         'rw',
         [
           db.papers,
+          db.scgRuns,
           db.paperOverviews,
           db.paperChecks,
           db.paperRuns,
@@ -69,6 +70,7 @@ export function createPapersRepository(db: ParagraphDb, deps: StorageDeps) {
         async () => {
           if (await db.papers.get(id)) {
             await db.papers.delete(id);
+            await db.scgRuns.delete(id);
             await db.paperOverviews.delete(id);
             await db.paperChecks.delete(id);
             await db.paperReviews.delete(id);

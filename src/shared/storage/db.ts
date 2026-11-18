@@ -1,4 +1,5 @@
 import type { StoredCorpusProfile } from '@/core/schemas/corpusProfile';
+import type { ScgPaperRun } from '@/core/schemas/scg';
 import type { CorpusTopics, TopicName } from '@/core/schemas/corpusTopics';
 import type { CorpusKeywords, DoiKeywords } from '@/core/schemas/corpusKeywords';
 import type { PdfFileRecord } from './pdfFiles';
@@ -59,6 +60,7 @@ export class ParagraphDb extends Dexie {
   researchDesignBanks!: Table<{ projectId: string; bank: BankDoc; bytes: number[] }, string>;
   corpusKeywords!: Table<CorpusKeywords, string>;
   doiKeywords!: Table<DoiKeywords, string>;
+  scgRuns!: Table<ScgPaperRun, string>;
   constructor(name = 'paragraph-lab') {
     super(name);
     this.version(1).stores({
@@ -97,6 +99,7 @@ export class ParagraphDb extends Dexie {
     });
     this.version(23).stores({ researchDesigns: 'projectId', researchDesignBanks: 'projectId' });
     this.version(24).stores({ corpusKeywords: 'corpusId', doiKeywords: 'doi' });
+    this.version(25).stores({ scgRuns: 'paperId' });
   }
 }
 export function createDb(name?: string) {
