@@ -7,6 +7,41 @@
   display: grid;
   gap: var(--space-4);
 }
+.journalPicker {
+  display: grid;
+  gap: var(--space-2);
+}
+.journalPicker p {
+  margin: 0;
+}
+.journalResults {
+  max-block-size: calc(var(--control-h) * 5);
+  overflow: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.journalResults button {
+  inline-size: 100%;
+  justify-content: flex-start;
+  text-align: start;
+  white-space: normal;
+  height: auto;
+}
+.articleTypes {
+  display: grid;
+  gap: var(--space-2);
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.articleTypes legend {
+  padding: 0;
+  margin-block-end: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
 .conflict {
   display: flex;
   flex-wrap: wrap;

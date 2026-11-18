@@ -84,6 +84,12 @@ A separate menu: one matrix per project, rows are papers, columns are fields, ev
 | X3  | Deep Research: search plan, OpenAlex discovery, screening, cross-paper synthesis             | ✅     |
 | X4  | Citation grounding: each synthesis citation shows the verified passage, links into the paper | ✅     |
 
+## Journal corpus setup
+
+The journal form searches Writing Bank's live journal registry and reads article types from the release snapshot.
+Protocol versions record the stable registry ID, its writing profile when available and the release of any selected
+article types. Manual entry and the built-in ESWA values remain available when Writing Bank cannot be reached.
+
 ## Corpus topics
 
 The corpus topics service runs BERTopic and KeyBERT in a separate Cloudflare container, with snapshots

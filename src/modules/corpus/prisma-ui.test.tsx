@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { expect, it, vi } from 'vitest';
 import { exampleCorpus } from '@/core/corpus/contract';
@@ -41,21 +41,22 @@ async function setup() {
 it('C3b excluding needs a reason, full text follows an include, and PRISMA counts the decisions', async () => {
   const { repo, id } = await setup();
   fireEvent.change(screen.getByLabelText('Người quyết định'), { target: { value: 'An' } });
-  const row = () => screen.getByRole('group', { name: 'Quyết định cho Synthetic record' });
+  const name = 'Quyết định cho Synthetic record';
+  const row = () => screen.getByRole('group', { name });
   fireEvent.click(within(row()).getByRole('button', { name: 'Loại' }));
   expect(screen.getByRole('alert')).toHaveTextContent('Chọn lý do loại.');
   chooseSelectOption('Giai đoạn', 'Toàn văn');
   expect(screen.getByText('Chưa có bài nào được chọn ở bước tiêu đề và tóm tắt.')).toBeInTheDocument();
   chooseSelectOption('Giai đoạn', 'Tiêu đề và tóm tắt');
   fireEvent.click(within(row()).getByRole('button', { name: 'Chọn' }));
-  await waitFor(async () => expect((await repo.corpora.get(id))?.members[0]?.decisions).toHaveLength(1));
   chooseSelectOption('Giai đoạn', 'Toàn văn');
+  const fullTextRow = await screen.findByRole('group', { name });
   chooseSelectOption('Lý do loại', 'Sai thiết kế nghiên cứu');
-  fireEvent.click(within(row()).getByRole('button', { name: 'Loại' }));
-  await waitFor(async () => expect((await repo.corpora.get(id))?.members[0]?.decisions).toHaveLength(2));
-  const flow = screen.getByLabelText('PRISMA: Sàng lọc');
-  expect(within(flow).getByText('Báo cáo bị loại, kèm lý do').nextSibling).toHaveTextContent('1');
-  expect(within(flow).getByText('— Sai thiết kế nghiên cứu').nextSibling).toHaveTextContent('1');
+  fireEvent.click(within(fullTextRow).getByRole('button', { name: 'Loại' }));
+  const flow = within(screen.getByLabelText('PRISMA: Sàng lọc'));
+  expect((await flow.findByText('— Sai thiết kế nghiên cứu')).nextSibling).toHaveTextContent('1');
+  expect(flow.getByText('Báo cáo bị loại, kèm lý do').nextSibling).toHaveTextContent('1');
+  expect((await repo.corpora.get(id))?.members[0]?.decisions).toHaveLength(2);
   expect(screen.getByRole('button', { name: 'Tải PRISMA (CSV)' })).toBeInTheDocument();
 });
 

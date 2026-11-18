@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { BankCatalogLinkSchema } from './bankCatalog';
 import { DeepResearchSchema } from './deepResearch';
 
 const timestamp = z.iso.datetime();
@@ -10,6 +11,7 @@ const journalBody = z.object({
   ),
   years,
   articleTypes: z.array(z.string()),
+  bank: BankCatalogLinkSchema.optional(),
   versionOfRecordOnly: z.boolean(),
   samplingRule: z.string(),
   seed: z.string(),
