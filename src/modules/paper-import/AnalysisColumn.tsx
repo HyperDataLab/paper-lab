@@ -11,6 +11,7 @@ import { ModeTab } from './ModeTab';
 import { OrphanedChecks } from './OrphanedChecks';
 import { PaperBlock, type BlockKit } from './PaperBlock';
 import { PaperContribution } from './PaperContribution';
+import { PaperScg } from './PaperScg';
 import { PaperExtraction } from './PaperExtraction';
 import { PaperMetadata } from './PaperMetadata';
 import { MODES, SPACES, type ViewId } from './paperPlaces';
@@ -134,6 +135,7 @@ export function AnalysisColumn({
       </div>
       {mode === 'extract' && <PaperExtraction paper={paper} />}
       {mode === 'data' && <PaperContribution paper={paper} onLocation={onLocation} />}
+      {mode === 'data' && <PaperScg paper={paper} onLocation={onLocation} />}
       <ArgumentsSpace
         active={mode === 'arguments'}
         paper={paper}

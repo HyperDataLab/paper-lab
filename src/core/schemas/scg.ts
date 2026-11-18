@@ -145,6 +145,49 @@ export const ScgPaperRunSchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 
+/* LLM outputs: flat, every field required and nullable where it may be absent, as strict JSON schema needs. */
+const ScgEvidenceOutputSchema = z.object({ sentenceKey: z.string(), quote: z.string() });
+export const ScgContributionOutputSchema = z.object({
+  contributions: z.array(
+    z.object({
+      name: z.string(),
+      description: z.string(),
+      types: z.array(z.object({ type: ScgContributionTypeSchema, explanation: z.string() })),
+      sections: z.array(z.string()),
+      evidence: z.array(ScgEvidenceOutputSchema),
+    }),
+  ),
+});
+export const ScgPrerequisiteOutputSchema = z.object({
+  prerequisites: z.array(
+    z.object({
+      contributionId: z.string(),
+      name: z.string(),
+      description: z.string(),
+      explanation: z.string(),
+      coreOrPeripheral: z.enum(['core', 'peripheral']),
+      /** `ref<n>` ids of the paper's reference list, with the title as written there. */
+      references: z.array(z.object({ refId: z.string(), title: z.string().nullable() })),
+      internalContributionId: z.string().nullable(),
+      toolUrl: z.string().nullable(),
+      evidence: z.array(ScgEvidenceOutputSchema),
+    }),
+  ),
+});
+export const ScgAlignmentOutputSchema = z.object({
+  matches: z.array(
+    z.object({
+      prerequisiteId: z.string(),
+      contributionId: z.string(),
+      matchType: z.enum(['strong', 'weak']),
+      explanation: z.string(),
+    }),
+  ),
+});
+
+export type ScgContributionOutput = z.infer<typeof ScgContributionOutputSchema>;
+export type ScgPrerequisiteOutput = z.infer<typeof ScgPrerequisiteOutputSchema>;
+export type ScgAlignmentOutput = z.infer<typeof ScgAlignmentOutputSchema>;
 export type ScgReview = z.infer<typeof ScgReviewSchema>;
 export type ScgReference = z.infer<typeof ScgReferenceSchema>;
 export type ScgMatch = z.infer<typeof ScgMatchSchema>;
