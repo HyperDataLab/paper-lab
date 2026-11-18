@@ -6,6 +6,7 @@ import {
   LlmHttpError,
   LlmNetworkError,
   LlmTimeoutError,
+  type InvalidOutputDetails,
 } from './errors';
 
 type Options<T> = {
@@ -75,7 +76,7 @@ function contentText(value: unknown): string {
 }
 
 /** Some OpenAI-compatible translators return constrained JSON as a function/tool call. */
-function messageText(value: unknown): string {
+function messageText(value: unknown): { text: string; source: InvalidOutputDetails['source'] } {
   const message = z
     .object({
       content: z.unknown().optional(),
@@ -83,10 +84,13 @@ function messageText(value: unknown): string {
       function_call: z.object({ arguments: z.unknown() }).optional(),
     })
     .safeParse(value);
-  if (!message.success) return '';
-  const calls = message.data.tool_calls?.map((call) => contentText(call.function.arguments)) ?? [];
+  if (!message.success) return { text: '', source: 'none' };
+  const call = message.data.tool_calls?.map((c) => contentText(c.function.arguments)).find(Boolean);
+  if (call) return { text: call, source: 'tool_call' };
   const legacyCall = message.data.function_call ? contentText(message.data.function_call.arguments) : '';
-  return [...calls, legacyCall].find(Boolean) ?? contentText(message.data.content);
+  if (legacyCall) return { text: legacyCall, source: 'function_call' };
+  const content = contentText(message.data.content);
+  return { text: content, source: content ? 'content' : 'none' };
 }
 
 const ChunkSchema = z.object({
@@ -113,8 +117,9 @@ const ChunkSchema = z.object({
  * Some 9router providers (e.g. `ag/…` Gemini) answer with server-sent chunks even when no stream was asked
  * for; the deltas are joined back into one chat completion so the JSON contract can be checked as usual.
  */
+const isStreamed = (text: string) => /^\s*data:/u.test(text);
 function parseBody(text: string): unknown {
-  if (!/^\s*data:/u.test(text)) return JSON.parse(text) as unknown;
+  if (!isStreamed(text)) return JSON.parse(text) as unknown;
   let content = '';
   const calls = new Map<number, string>();
   let usage: unknown;
@@ -161,10 +166,15 @@ export function createLlmClient(config: LlmConfig, deps: Deps = defaults): LlmCl
       let issues = '',
         raw = '';
       // Keep requesting the strict contract; only downgrade when the endpoint explicitly rejects it.
-      let responseFormat: 'json_schema' | 'json_object' | 'none' = 'json_schema';
-      for (let repair = 0; repair < 3; repair++) {
+      let responseFormat: InvalidOutputDetails['responseFormat'] = 'json_schema';
+      let details: InvalidOutputDetails | undefined;
+      // One answer plus one repair round. A rejected response_format is re-sent with a weaker format
+      // without using up a round; that can happen at most twice (json_schema → json_object → none).
+      let repair = 0;
+      while (repair < 2) {
         let response: Response | undefined;
         let body: unknown;
+        let streamed = false;
         let formatRejected = false;
         for (let attempt = 0; attempt < 3; attempt++) {
           if (options.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -225,7 +235,9 @@ export function createLlmClient(config: LlmConfig, deps: Deps = defaults): LlmCl
               if (!retryable || attempt === 2) throw new LlmHttpError(response.status, retryable);
             } else {
               try {
-                body = parseBody(await response.text());
+                const text = await response.text();
+                streamed = isStreamed(text);
+                body = parseBody(text);
               } catch (error) {
                 if (controller.signal.aborted) throw error;
                 body = null;
@@ -267,7 +279,17 @@ export function createLlmClient(config: LlmConfig, deps: Deps = defaults): LlmCl
               .optional(),
           })
           .safeParse(body);
-        raw = envelope.success ? messageText(envelope.data.choices[0]?.message) : '';
+        const answer = envelope.success
+          ? messageText(envelope.data.choices[0]?.message)
+          : { text: '', source: 'none' as const };
+        raw = answer.text;
+        details = {
+          responseFormat,
+          streamed,
+          envelope: envelope.success ? 'chat_completion' : body === null ? 'unparseable' : 'unexpected',
+          source: answer.source,
+          rawLength: raw.length,
+        };
         try {
           const parsed = options.schema.safeParse(JSON.parse(extractObject(raw)) as unknown);
           if (parsed.success)
@@ -285,7 +307,7 @@ export function createLlmClient(config: LlmConfig, deps: Deps = defaults): LlmCl
         } catch {
           issues = raw ? 'Invalid JSON object' : 'The response had no JSON text or tool arguments.';
         }
-        if (repair < 2)
+        if (repair === 0)
           messages.push(
             // An empty assistant turn is rejected by some providers, so only a real answer is echoed back.
             ...(raw ? [{ role: 'assistant', content: raw }] : []),
@@ -294,8 +316,9 @@ export function createLlmClient(config: LlmConfig, deps: Deps = defaults): LlmCl
               content: `Your previous answer failed validation. Return a corrected JSON object that matches this exact schema. Do not add markdown or commentary. Schema: ${JSON.stringify(jsonSchema)}. Validation issues: ${issues}`,
             },
           );
+        repair++;
       }
-      throw new InvalidModelOutputError(safe(issues), safe(raw).slice(0, 300));
+      throw new InvalidModelOutputError(safe(issues), safe(raw).slice(0, 300), details);
     },
   };
 }
