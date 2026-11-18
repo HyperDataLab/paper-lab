@@ -2,7 +2,7 @@
 
 Owner, 2026-11-18: integrate the Scientific Contribution Graph (SCG) as its own PaperLab feature. HyperDataLab is small and works only in Computer Science, so a download of more than 80 GB is not justified.
 
-Status: Phase 1 approved. S1 (schema, storage, S2 ids) and S2 (three-stage pass, "Trích đóng góp (SCG)" on the paper's data view) are built; S3 and S4 are not.
+Status: Phase 1 approved. S1 (schema, storage, S2 ids) and S2 (three-stage pass, "Trích đóng góp (SCG)" on the paper's data view) are built, and so are S3 ("Lộ trình đóng góp" card on the corpus page) and S4 (publishing through the worker). Phase 1 slices S1–S4 are all built.
 
 ## What SCG is
 
@@ -76,6 +76,6 @@ SCG works one level up. Its nodes are whole contributions, and its prerequisite 
 
 - **S1** Schema and Dexie storage for contributions and prerequisites, SCG-compatible, plus DOI → S2 corpus id lookup. Size S.
 - **S2** Three-stage extraction pass with versioned prompts and anchoring checks; synthetic tests. Size M.
-- **S3** Corpus merge and "Lộ trình đóng góp" view: chains, most-built-upon, edge evidence. Size M.
+- **S3** Corpus merge and "Lộ trình đóng góp" view: chains, most-built-upon, edge evidence. Size M. Built: `src/core/scg/roadmap.ts` and `CorpusScgRoadmap` on the corpus page.
 - **S4** Publish through the worker API so Writing Bank and SRD can read it. Size S. Built: contract
   `paperlab-scg-paper` v1 and routes in `docs/contracts/scg-paper.md`.
