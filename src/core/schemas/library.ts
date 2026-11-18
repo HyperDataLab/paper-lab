@@ -17,6 +17,22 @@ export const TaxonomySchema = z.object({
   domainId: z.string().nullable().optional(),
   fieldId: z.string().nullable().optional(),
   subfieldId: z.string().nullable().optional(),
+  topicId: z
+    .string()
+    .regex(/^topics\/T\d+$/u)
+    .nullable()
+    .optional(),
+});
+const AuthorshipSchema = z.object({
+  id: z
+    .string()
+    .regex(/^A\d+$/u)
+    .nullable(),
+  name: z.string().nullable(),
+  orcid: z.string().nullable(),
+  institutions: z.array(
+    z.object({ name: z.string().nullable(), ror: z.string().nullable(), country: z.string().nullable() }),
+  ),
 });
 /** An OpenAlex keyword: `id` is the short form `keywords/<slug>`, `score` is OpenAlex's 0–1 relevance. */
 export const PaperKeywordSchema = z.object({
@@ -46,6 +62,14 @@ export const LibraryItemSchema = z.object({
    * so a backfill does not ask again.
    */
   keywords: z.array(PaperKeywordSchema).optional(),
+  authorships: z.array(AuthorshipSchema).optional(),
+  referenced_works: z.array(z.string().regex(/^W\d+$/u)).optional(),
+  /** Identity of the OpenAlex venue in `venue`, when supplied by the lookup. */
+  openalex_source_id: z
+    .string()
+    .regex(/^S\d+$/u)
+    .nullable()
+    .optional(),
   paper_id: z.uuid().nullable(),
   /** Whether the attached file seems to be this paper; null until a file is attached or when unknown. */
   file_matches_title: z.boolean().nullable(),

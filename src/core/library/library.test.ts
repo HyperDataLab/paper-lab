@@ -154,6 +154,51 @@ it('parses library records saved before taxonomy ids were kept', () => {
   ).toBe(true);
 });
 
+it('saves OpenAlex authorships, venue, cited work ids and primary topic without a schema migration', () => {
+  const raw = {
+    ...work,
+    authorships: [
+      {
+        author: {
+          id: 'https://openalex.org/A10',
+          display_name: 'Ann Lee',
+          orcid: 'https://orcid.org/0000-0002-1825-0097',
+        },
+        institutions: [
+          { display_name: 'Test Institute', ror: 'https://ror.org/03yrm5c26', country_code: 'VN' },
+          { display_name: 'Other Lab', ror: null, country_code: null },
+        ],
+      },
+    ],
+    primary_location: { source: { id: 'https://openalex.org/S12', display_name: 'Journal A' } },
+    referenced_works: ['https://openalex.org/W21', 'W22', 'W21', 'invalid', null],
+    primary_topic: { ...work.primary_topic, id: 'https://openalex.org/T1001' },
+  };
+  const openalex = mapOpenAlex(raw);
+  const patch = mergeLookups({ openalex, crossref: null, oa: [], incomplete: false });
+  expect(LibraryItemSchema.parse(item(patch))).toMatchObject({
+    authors: ['Ann Lee'],
+    authorships: [
+      {
+        id: 'A10',
+        name: 'Ann Lee',
+        orcid: '0000-0002-1825-0097',
+        institutions: [
+          { name: 'Test Institute', ror: '03yrm5c26', country: 'VN' },
+          { name: 'Other Lab', ror: null, country: null },
+        ],
+      },
+    ],
+    openalex_source_id: 'S12',
+    referenced_works: ['W21', 'W22'],
+    taxonomy: { topicId: 'topics/T1001', topic: 'Learning' },
+  });
+  const old = LibraryItemSchema.parse(item());
+  expect(old.authorships).toBeUndefined();
+  expect(old.referenced_works).toBeUndefined();
+  expect(old.taxonomy?.topicId).toBeUndefined();
+});
+
 it('F2 finds an arXiv id from a DOI or a link', () => {
   expect(arxivIdFrom([], '10.48550/arXiv.2605.03202')).toBe('2605.03202');
   expect(arxivIdFrom(['https://arxiv.org/pdf/2605.03202v2.pdf'], null)).toBe('2605.03202');
