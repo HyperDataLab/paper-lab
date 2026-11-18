@@ -77,4 +77,5 @@ SCG works one level up. Its nodes are whole contributions, and its prerequisite 
 - **S1** Schema and Dexie storage for contributions and prerequisites, SCG-compatible, plus DOI → S2 corpus id lookup. Size S.
 - **S2** Three-stage extraction pass with versioned prompts and anchoring checks; synthetic tests. Size M.
 - **S3** Corpus merge and "Lộ trình đóng góp" view: chains, most-built-upon, edge evidence. Size M.
-- **S4** Publish through the worker API so Writing Bank and SRD can read it. Size S.
+- **S4** Publish through the worker API so Writing Bank and SRD can read it. Size S. Built: contract
+  `paperlab-scg-paper` v1 and routes in `docs/contracts/scg-paper.md`.
