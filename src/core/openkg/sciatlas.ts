@@ -41,7 +41,9 @@ export const SciAtlasSearchRequestSchema = z
     path: ['keywords'],
   });
 export type SciAtlasSearchRequest = z.input<typeof SciAtlasSearchRequestSchema>;
-type ParsedRequest = z.output<typeof SciAtlasSearchRequestSchema>;
+/** A parsed request, with defaults applied; `/v1/kg/search` takes the same one. */
+export type SciAtlasSearchInput = z.output<typeof SciAtlasSearchRequestSchema>;
+type ParsedRequest = SciAtlasSearchInput;
 
 /** The `{ plan, options }` body SciAtlas's `/v1/search` expects. */
 export function toSciAtlasPayload(request: ParsedRequest) {

@@ -4,6 +4,11 @@ Slice K4 of `docs/plans/OPENKG_PAPER_BRANCH.md`. The PaperLab PDF worker forward
 SciAtlas (OpenKG, `http://sciatlas.openkg.cn/v1/search`) with the lab's token. SciAtlas is plain HTTP, so the
 https app cannot call it directly.
 
+Since slice L3 of `docs/plans/LAB_KG.md`, SciAtlas is an id source only. The related-papers panel searches the lab
+KG (`POST /v1/kg/search`, see `lab-kg.md`). Its "Tìm thêm id từ SciAtlas" action calls this route, keeps only the
+DOIs and OpenAlex ids of the answer and queues them for KG ingest with `source: "sciatlas_pointer"`. SciAtlas
+records are never shown or stored.
+
 - Code: `worker/src/sciatlas.ts` (route), `src/core/openkg/sciatlas.ts` (request schema, payload, normaliser,
   shared by the worker and the app), `src/core/openkg/sciatlasAnchors.ts` (anchors from a paper or corpus KG),
   `src/shared/openkg/` (client and panel).
@@ -135,8 +140,8 @@ Errors are `{ "error", "message" }` JSON, as on other `/v1` routes. SciAtlas's o
   then name); the first half (rounded up) high, the rest middle; no titles or references; the date range is
   the corpus's first to last publication year.
 
-The panel lets the user remove any anchor and change a keyword's level before searching. Results stay in the
-panel only. In the corpus card, a result whose DOI or OpenAlex id matches a member is marked "Đã có trong
+The panel lets the user remove any anchor and change a keyword's level before searching. The same anchors go to
+the lab KG search, and to SciAtlas in pointer mode. Lab KG results stay in the panel only. In the corpus card, a result whose DOI or OpenAlex id matches a member is marked "Đã có trong
 corpus", and one with a DOI can be added with "Thêm vào corpus" (the corpus "Danh sách DOI" intake path). In the
 paper tab, results are marked "Đã có trong Library" when they match a Library record; there is no corpus to
 add to there.

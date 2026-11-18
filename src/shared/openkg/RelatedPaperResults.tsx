@@ -11,12 +11,16 @@ const linkOf = (paper: SciAtlasPaper) =>
       ? { href: `https://openalex.org/${paper.openalexId}`, label: `OpenAlex ${paper.openalexId}` }
       : null;
 
-export function SciAtlasResults({
+/** Related papers from the lab KG, in the SciAtlas result shape. */
+export function RelatedPaperResults({
   papers,
+  empty,
   known,
   onAdd,
 }: {
   papers: SciAtlasPaper[];
+  /** Shown when there is no paper. */
+  empty: string;
   /** A label such as "Đã có trong corpus" when the paper is already held, else undefined. */
   known?: (paper: SciAtlasPaper) => string | undefined;
   /** Adds a paper with a DOI to the corpus; absent where there is nothing to add to. */
@@ -24,11 +28,10 @@ export function SciAtlasResults({
 }) {
   const [added, setAdded] = useState<ReadonlySet<string>>(new Set());
   const [failed, setFailed] = useState<string>();
-  if (!papers.length)
-    return <p className={styles.muted}>SciAtlas không trả về bài nào cho các anchor này.</p>;
+  if (!papers.length) return <p className={styles.muted}>{empty}</p>;
   return (
     <>
-      <ol className={styles.results} aria-label="Bài liên quan theo SciAtlas">
+      <ol className={styles.results} aria-label="Bài liên quan (KG của lab)">
         {papers.map((paper) => {
           const link = linkOf(paper);
           const held =

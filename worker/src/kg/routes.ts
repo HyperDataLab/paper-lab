@@ -4,10 +4,20 @@ import { publishedError } from '../published';
 import { configuredKg } from './bindings';
 import { drainKgQueue, REQUEST_JOBS } from './ingest';
 import { kgQueue } from './queue';
+import { handleKgRead } from './reads';
+import { handleKgSearch } from './search';
 
 export async function handleKg(deps: Deps, request: Request, path: string, headers: Record<string, string>) {
   const kg = configuredKg(deps.kg);
   if (!kg) return publishedError(503, 'kg_not_configured', 'The lab KG bindings are unavailable.', headers);
+  if (path === '/v1/kg/search') {
+    if (request.method !== 'POST')
+      return publishedError(405, 'bad_request', 'Use POST.', { ...headers, 'Cache-Control': 'no-store' });
+    return handleKgSearch(kg, request, headers, deps.now);
+  }
+  if (path === '/v1/kg/stats' || path.startsWith('/v1/kg/papers/') || path.startsWith('/v1/kg/keywords/'))
+    return handleKgRead(kg.db, request, path, headers);
+
   const queue = kgQueue(kg.db);
   if (path === '/v1/kg/ingest/status' && request.method === 'GET')
     return Response.json(await queue.status(), { headers });
