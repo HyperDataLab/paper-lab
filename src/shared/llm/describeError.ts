@@ -14,7 +14,8 @@ export function describeLlmError(error: unknown): string | null {
   if (error instanceof LlmHttpError)
     return error.status === 401 ? 'Khoá không hợp lệ' : `Máy chủ trả lỗi HTTP ${error.status}`;
   if (error instanceof LlmTimeoutError) return 'Hết thời gian chờ phản hồi';
-  if (error instanceof InvalidModelOutputError) return 'Kết quả của mô hình không hợp lệ';
+  if (error instanceof InvalidModelOutputError)
+    return `Model trong combo chưa trả JSON đúng schema sau 3 lần thử. Chi tiết: ${error.issues.slice(0, 240)}`;
   if (error instanceof LlmNetworkError) return 'Không kết nối được (kiểm tra CORS hoặc mạng)';
   if (error instanceof LlmConfigError)
     return error.message === 'API key is required'

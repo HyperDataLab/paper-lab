@@ -35,6 +35,44 @@ it.each(['```json\n' + valid + '\n```', 'Here is the result: ' + valid + ' Done.
     expect(fetchMock).toHaveBeenCalledTimes(1);
   },
 );
+it('ADR-0003 asks for a non-streamed answer', async () => {
+  const { client, fetchMock } = setup([response(valid)]);
+  await client.completeJson(options);
+  expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({ stream: false });
+});
+it('ADR-0003 joins server-sent chunks that a router returns without being asked to stream', async () => {
+  const chunks = [
+    { choices: [{ delta: { role: 'assistant' } }] },
+    { choices: [{ delta: { reasoning_content: 'thinking…' } }] },
+    { choices: [{ delta: { content: '```json\n{"ok":tr' } }] },
+    { choices: [{ delta: { content: 'ue,"model":"test"}\n```' } }] },
+    { choices: [], usage: { prompt_tokens: 3, completion_tokens: 5 } },
+  ];
+  const sse = `${chunks.map((c) => `data: ${JSON.stringify(c)}`).join('\n\n')}\n\ndata: [DONE]\n\n`;
+  const { client, fetchMock } = setup([
+    new Response(sse, { headers: { 'Content-Type': 'text/event-stream' } }),
+  ]);
+  const result = await client.completeJson(options);
+  expect(result.data).toEqual({ ok: true, model: 'test' });
+  expect(result.meta).toMatchObject({ repaired: false, usage: { prompt_tokens: 3, completion_tokens: 5 } });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+it('ADR-0003 joins streamed tool-call arguments', async () => {
+  const part = (args: string) => ({
+    choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: args } }] } }],
+  });
+  const sse = [part('{"ok":true,'), part('"model":"test"}')]
+    .map((c) => `data: ${JSON.stringify(c)}\n\n`)
+    .join('');
+  const { client } = setup([new Response(sse)]);
+  expect((await client.completeJson(options)).data).toEqual({ ok: true, model: 'test' });
+});
+it('ADR-0003 does not echo an empty answer back as an assistant turn', async () => {
+  const { client, fetchMock } = setup([response('')]);
+  await client.completeJson(options);
+  const retry = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)) as { messages: { role: string }[] };
+  expect(retry.messages.map((m) => m.role)).toEqual(['system', 'user', 'user']);
+});
 it('ADR-0003 retries network failures twice and reports a network error', async () => {
   const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(new TypeError('network'));
   const sleep = vi.fn(async (_ms: number) => {});
@@ -115,7 +153,7 @@ it('repairs invalid output once with validation issues and redacts failures', as
   const consoleSpy = vi.spyOn(console, 'error');
   const fixed = setup([response('{"ok":false}'), response(valid)]);
   expect((await fixed.client.completeJson(options)).meta.repaired).toBe(true);
-  expect(String(fixed.fetchMock.mock.calls[1]?.[1]?.body)).toContain('validation issues');
+  expect(String(fixed.fetchMock.mock.calls[1]?.[1]?.body)).toContain('Validation issues');
   const failed = setup([response('secret'.repeat(100)), response('secret'.repeat(100))], {
     ...config,
     baseUrl: 'https://router.example',
