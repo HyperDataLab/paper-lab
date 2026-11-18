@@ -46,6 +46,22 @@ export function createScholarClient(options: { email?: string | null }, deps: De
   }
   const path = (doi: string) => encodeURIComponent(doi);
 
+  /**
+   * Semantic Scholar corpus id of a DOI, the join key to SCG. Only the DOI is sent. Null when S2 does not
+   * know the DOI; a rate limit that outlasts the retries throws `ScholarHttpError`.
+   */
+  async function lookupS2CorpusId(doi: string, signal?: AbortSignal): Promise<string | null> {
+    // S2 reads the DOI as path segments, so the slashes stay as they are.
+    const segments = doi.trim().split('/').map(encodeURIComponent).join('/');
+    const raw = await getJson(
+      `https://api.semanticscholar.org/graph/v1/paper/DOI:${segments}?fields=corpusId`,
+      signal,
+    );
+    if (!raw || typeof raw !== 'object' || !('corpusId' in raw)) return null;
+    const id = raw.corpusId;
+    return typeof id === 'number' && Number.isSafeInteger(id) && id > 0 ? String(id) : null;
+  }
+
   async function lookupDoi(doi: string, signal?: AbortSignal): Promise<LookupOutcome> {
     const work = await getJson(`https://api.openalex.org/works/https://doi.org/${doi}`, signal);
     const openalex: OpenAlexLookup | null = work ? mapOpenAlex(work) : null;
@@ -228,6 +244,7 @@ export function createScholarClient(options: { email?: string | null }, deps: De
     return { results: body?.results ?? [], nextCursor: body?.meta?.next_cursor ?? null };
   }
   return {
+    lookupS2CorpusId,
     lookupDoi,
     downloadArxivPdf,
     workStatuses,

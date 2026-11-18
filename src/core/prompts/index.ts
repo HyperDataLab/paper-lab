@@ -26,6 +26,9 @@ export const PROMPT_VERSIONS = {
   snapshot: 'snapshot-1',
   digest: 'digest-1',
   contribution: 'contribution-1',
+  scgContributions: 'scg-contrib-1',
+  scgPrerequisites: 'scg-prereq-1',
+  scgAlignment: 'scg-align-1',
   extraction: 'extraction-1',
   extractionVerify: 'extraction-verify-1',
   searchPlan: 'search-plan-1',
@@ -52,3 +55,4 @@ export * from './rhetoric';
 export * from './digest';
 export * from './extraction';
 export * from './contribution';
+export * from './scg';

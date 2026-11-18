@@ -31,3 +31,4 @@ export * from './corpusKeywords';
 export * from './experimentFacts';
 export * from './topicCheck';
 export * from './corpusProfileV2';
+export * from './scg';

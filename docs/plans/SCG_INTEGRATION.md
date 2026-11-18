@@ -2,7 +2,7 @@
 
 Owner, 2026-11-18: integrate the Scientific Contribution Graph (SCG) as its own PaperLab feature. HyperDataLab is small and works only in Computer Science, so a download of more than 80 GB is not justified.
 
-Status: plan, not built.
+Status: Phase 1 approved. S1 (schema, storage, S2 ids) and S2 (three-stage pass, "Trích đóng góp (SCG)" on the paper's data view) are built; S3 and S4 are not.
 
 ## What SCG is
 
