@@ -1,17 +1,18 @@
 import { normalizeDoi } from '../library/doi';
 import { buildPaperModel } from '../paperModel';
-import { addOpenAlex } from './openAlex';
+import { addKeywords, addOpenAlex } from './openAlex';
 import { addArguments } from './arguments';
 import { citationEvidence } from './citationEvidence';
 import { addScg } from './scg';
-import { kgIri, type KgEdge, type KgNode, type PaperKg, type PaperKgInput } from './types';
+import type { LibraryItem, PaperKeyword } from '../schemas';
+import { kgIri, type KgEdge, type KgNode, type PaperKgInput } from './types';
 
 export interface KgBuilder {
   node(node: Omit<KgNode, 'attrs'> & { attrs?: KgNode['attrs'] }): string;
   edge(edge: KgEdge): void;
 }
 
-export function buildPaperKg({ paper, library, scgRun, argumentRun, model }: PaperKgInput): PaperKg {
+function paperGraph() {
   const nodes = new Map<string, KgNode>();
   const edges = new Map<string, KgEdge>();
   const graph: KgBuilder = {
@@ -25,6 +26,19 @@ export function buildPaperKg({ paper, library, scgRun, argumentRun, model }: Pap
       edges.set(key, { ...edge, ...(evidence.length ? { evidence } : {}) });
     },
   };
+  return { graph, finish: () => ({ nodes: [...nodes.values()], edges: [...edges.values()] }) };
+}
+
+export function buildLookupKg(article: KgNode, library?: LibraryItem, keywords?: PaperKeyword[]) {
+  const { graph, finish } = paperGraph();
+  graph.node(article);
+  if (library) addOpenAlex(graph, article.id, library);
+  if (keywords) addKeywords(graph, article.id, keywords);
+  return finish();
+}
+
+export function buildPaperKg({ paper, library, scgRun, argumentRun, model }: PaperKgInput) {
+  const { graph, finish } = paperGraph();
   const current = model ?? buildPaperModel({ paper, metadata: null, now: new Date(paper.updatedAt) });
   const metadata = current.document.metadata;
   const doi = normalizeDoi(library?.doi ?? metadata.doi ?? scgRun?.doi ?? '');
@@ -66,5 +80,5 @@ export function buildPaperKg({ paper, library, scgRun, argumentRun, model }: Pap
   if (scgRun?.paperId === paper.id)
     addScg(graph, article, scgRun, references, new Set(current.sentences.map(({ key }) => key)));
   if (argumentRun) addArguments(graph, article, paper, argumentRun, current.sentences);
-  return { nodes: [...nodes.values()], edges: [...edges.values()] };
+  return finish();
 }

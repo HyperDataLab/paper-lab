@@ -102,10 +102,12 @@ AI topic names are candidates until accepted, individually or in bulk.
 
 ## Paper OpenKG
 
-| #   | Slice                                                          | Status |
-| --- | -------------------------------------------------------------- | ------ |
-| K1  | Five-layer paper graph and Turtle, JSON-LD, and report exports | ✅     |
-| K2  | Interactive graph in paper analysis                            | ✅     |
+| #   | Slice                                                          | Status               |
+| --- | -------------------------------------------------------------- | -------------------- |
+| K1  | Five-layer paper graph and Turtle, JSON-LD, and report exports | ✅                   |
+| K2  | Interactive graph in paper analysis                            | ✅                   |
+| K3  | Corpus knowledge graph, keyword trends, and full exports       | ✅                   |
+| K4  | SciAtlas grounding                                             | Owner token required |
 
 See the [paper OpenKG contract](contracts/openkg-paper.md) and [branch plan](plans/OPENKG_PAPER_BRANCH.md).
 

@@ -4,10 +4,10 @@ import type { Finding, PaperModelSentence } from '@/core/schemas';
 import { downloadText } from '@/shared/calibration/download';
 import { Button } from '@/shared/ui/Button';
 import { Checkbox } from '@/shared/ui/Checkbox';
-import { OpenKgGraph } from './OpenKgGraph';
-import { OpenKgTriples } from './OpenKgTriples';
-import { LAYER_LABELS } from './openkgLabels';
-import styles from './openkg.module.css';
+import { OpenKgGraph } from '@/shared/ui/openkg/OpenKgGraph';
+import { OpenKgTriples } from '@/shared/ui/openkg/OpenKgTriples';
+import { LAYER_LABELS } from '@/shared/ui/openkg/labels';
+import styles from '@/shared/ui/openkg/openkg.module.css';
 
 const EXPORTS = [
   { label: 'Turtle (.ttl)', extension: 'ttl', mime: 'text/turtle', serialize: toTurtle },

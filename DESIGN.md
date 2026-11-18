@@ -423,6 +423,7 @@ authors, venue, year and DOI. Parser counts belong in Minh bạch.
 - The detail screen groups intake, member status, protocol history and releases in separate cards. Intake shows matching counts and asks a person to resolve title-and-year matches. The table can be filtered by retrieval status.
 - A release displays its digest and calls out an unchanged digest; the manifest download contains the validated corpus without paper text.
 - Keywords sits after Chủ đề. It counts the OpenAlex keywords of the members (only DOIs leave the browser) and shows a word cloud (size by number of papers, colour from `--text-muted` to `--accent-strong` by mean score) or a co-occurrence graph (top 40 keywords on a ring, Jaccard edges); the sortable table below is the text alternative, with a year filter. Pressing a keyword lists its papers. "Lấy keywords cho N bài còn thiếu" fetches missing keywords three at a time; a collection built from other members than the current ones reads "Đã cũ".
+- Đồ thị tri thức (OpenKG) sits after Lộ trình đóng góp. It reports local coverage and lets readers toggle layers with counted chips. Its concentric diagram shows up to 120 nodes by degree, with a searchable text list and the same inspector available for every node. Selecting a node shows its relationships and supporting papers. The trend table counts the 15 most frequent keywords by year, and the export menu uses the entire corpus graph.
 
 # Paper page patterns
 

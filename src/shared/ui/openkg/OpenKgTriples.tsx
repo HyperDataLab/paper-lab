@@ -1,8 +1,9 @@
 import type { KgEdge, KgNode } from '@/core/openkg';
 import type { Finding, PaperModelSentence } from '@/core/schemas';
+import type { ReactNode } from 'react';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
-import { edgeKey, PREDICATE_LABELS, PROVENANCE_LABELS } from './openkgLabels';
+import { edgeKey, PREDICATE_LABELS, PROVENANCE_LABELS } from './labels';
 import styles from './openkg.module.css';
 
 export function OpenKgTriples({
@@ -10,11 +11,13 @@ export function OpenKgTriples({
   nodes,
   sentences,
   onLocation,
+  renderDetails,
 }: {
   edges: KgEdge[];
   nodes: ReadonlyMap<string, KgNode>;
-  sentences: ReadonlyMap<string, PaperModelSentence>;
-  onLocation: (location: Finding['locations'][number]) => void;
+  sentences?: ReadonlyMap<string, PaperModelSentence>;
+  onLocation?: (location: Finding['locations'][number]) => void;
+  renderDetails?: (edge: KgEdge) => ReactNode;
 }) {
   if (!edges.length) return <p className={styles.muted}>Không có bộ ba đang hiển thị.</p>;
   return (
@@ -31,9 +34,10 @@ export function OpenKgTriples({
               {PROVENANCE_LABELS[edge.provenance]}
             </Badge>
           </div>
+          {renderDetails?.(edge)}
           {edge.evidence?.map((key) => {
-            const sentence = sentences.get(key);
-            if (!sentence) return null;
+            const sentence = sentences?.get(key);
+            if (!sentence || !onLocation) return null;
             const { paragraphId, start, end } = sentence;
             return (
               <div key={key} className={styles.evidence}>

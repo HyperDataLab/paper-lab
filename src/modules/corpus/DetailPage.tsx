@@ -21,6 +21,7 @@ import { CorpusLabels } from './CorpusLabels';
 import { CorpusProfileCard } from './CorpusProfileCard';
 import { CorpusTopics } from './CorpusTopics';
 import { CorpusKeywords } from './CorpusKeywords';
+import { CorpusOpenKg } from './CorpusOpenKg';
 import { CorpusScgRoadmap } from './CorpusScgRoadmap';
 import { JournalHarvest } from './JournalHarvest';
 import { kinds, memberRoleLabel, versionLabel } from './labels';
@@ -252,6 +253,7 @@ export default function DetailPage() {
       <CorpusTopics corpus={corpus} onData={receiveTopics} />
       <CorpusKeywords corpus={corpus} />
       <CorpusScgRoadmap corpus={corpus} />
+      <CorpusOpenKg key={corpus.id} corpus={corpus} />
 
       <Card>
         <section aria-labelledby="corpus-members" className={styles.members}>

@@ -156,7 +156,7 @@
   padding: 0;
 }
 
-.triples li {
+.triples > li {
   padding-block: var(--space-2);
   border-block-end: 1px solid var(--border-subtle);
 }
