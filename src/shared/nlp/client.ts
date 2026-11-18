@@ -1,13 +1,17 @@
-import { ParseResultSchema, type ParseResult } from '@/core/syntaxParse';
+import {
+  batchSentences,
+  NLP_BATCH_BYTES,
+  NLP_MAX_SENTENCES,
+  ParseResultSchema,
+  type ParseResult,
+  type SentenceInput,
+} from '@/core/syntaxParse';
 
 /** Base URL of the worker that serves POST /nlp/parse (the topics worker). Unset → no spaCy provider. */
 export const NLP_URL: string | null =
   ((import.meta.env.VITE_NLP_URL as string | undefined) ?? '').trim().replace(/\/+$/u, '') || null;
-/** Server caps are 200 sentences and 100 KB per request; batches stay under both. */
-export const NLP_MAX_SENTENCES = 200;
-export const NLP_BATCH_BYTES = 90_000;
+export { batchSentences, NLP_BATCH_BYTES, NLP_MAX_SENTENCES, type SentenceInput };
 
-export type SentenceInput = { key: string; text: string };
 export interface NlpClient {
   /** Parses every sentence, in batches; keys must be unique. */
   parse(items: SentenceInput[], signal?: AbortSignal): Promise<ParseResult>;
@@ -22,28 +26,6 @@ export type NlpClientOptions = {
   /** Extra attempts after a 503 (container starting). */
   retries?: number;
 };
-
-const encoder = new TextEncoder();
-const size = (item: SentenceInput) => encoder.encode(JSON.stringify(item)).length + 1;
-
-/** Splits into batches of at most `maxSentences` items and about `maxBytes` of JSON. */
-export function batchSentences(items: SentenceInput[], maxSentences: number, maxBytes: number) {
-  const batches: SentenceInput[][] = [];
-  let current: SentenceInput[] = [];
-  let bytes = 0;
-  for (const item of items) {
-    const itemBytes = size(item);
-    if (current.length && (current.length >= maxSentences || bytes + itemBytes > maxBytes)) {
-      batches.push(current);
-      current = [];
-      bytes = 0;
-    }
-    current.push(item);
-    bytes += itemBytes;
-  }
-  if (current.length) batches.push(current);
-  return batches;
-}
 
 function abortableSleep(ms: number, signal?: AbortSignal) {
   return new Promise<void>((resolve, reject) => {

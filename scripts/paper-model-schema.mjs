@@ -1,4 +1,4 @@
-// Regenerates the contracts with the Writing Bank (paper model, corpus, corpus profile and feature registry):
+// Regenerates the contracts with the Writing Bank (paper model, corpus, corpus profile, feature registry and draft measure):
 // JSON Schemas and synthetic examples, all from PaperLab code.
 // Usage: npm run schema:paper-model (or schema:corpus, schema:corpus-profile; they run the same script)
 // The code is TypeScript with `@/` aliases, so it is loaded through Vite's SSR loader rather than plain node.
@@ -27,6 +27,7 @@ try {
   const topics = await server.ssrLoadModule('/src/core/corpusTopics/contract.ts');
   const facts = await server.ssrLoadModule('/src/core/experimentFacts/contract.ts');
   const plan = await server.ssrLoadModule('/src/core/researchDesign/plan/contract.ts');
+  const draft = await server.ssrLoadModule('/src/core/draftMeasure/contract.ts');
   const files = [
     [contract.PAPER_MODEL_SCHEMA_FILE, contract.paperModelJsonSchema()],
     [contract.PAPER_MODEL_SCHEMA_PUBLIC_FILE, contract.paperModelJsonSchema()],
@@ -48,6 +49,9 @@ try {
     [facts.EXPERIMENT_FACTS_SCHEMA_PUBLIC_FILE, facts.experimentFactsJsonSchema()],
     [facts.EXPERIMENT_FACTS_EXAMPLE_FILE, facts.exampleExperimentFacts()],
     ...plan.planContractFiles(),
+    [draft.DRAFT_MEASURE_SCHEMA_FILE, draft.draftMeasureJsonSchema()],
+    [draft.DRAFT_MEASURE_PUBLIC_FILE, draft.draftMeasureJsonSchema()],
+    [draft.DRAFT_MEASURE_EXAMPLE_FILE, await draft.exampleDraftMeasure()],
   ];
   for (const [file, value] of files) {
     const path = resolve(root, file);

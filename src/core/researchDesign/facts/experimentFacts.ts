@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ExperimentFactsSchema } from '@/core/schemas/experimentFacts';
+import { ExperimentFactsSchema } from '../../schemas/experimentFacts';
 
 export type FactKind = 'task' | 'dataset' | 'baseline' | 'method' | 'metric' | 'design' | 'sample' | 'result';
 export interface ExperimentFact {
