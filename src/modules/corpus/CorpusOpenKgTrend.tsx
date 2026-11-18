@@ -10,12 +10,12 @@ export function CorpusOpenKgTrend({ trend }: { trend: CorpusKg['trend'] }) {
   const hasUnknown = rows.some(({ unknown }) => unknown > 0);
   return (
     <div>
-      <h3>Từ khóa theo năm</h3>
+      <h3>Keywords theo năm</h3>
       {rows.length ? (
-        <DataTable aria-label="Số bài theo từ khóa và năm xuất bản">
+        <DataTable aria-label="Số bài theo keyword và năm xuất bản">
           <thead>
             <tr>
-              <th scope="col">Từ khóa</th>
+              <th scope="col">Keywords</th>
               <th scope="col">Tổng số bài</th>
               {trend.years.map((year) => (
                 <th key={year} scope="col">
@@ -39,7 +39,7 @@ export function CorpusOpenKgTrend({ trend }: { trend: CorpusKg['trend'] }) {
           </tbody>
         </DataTable>
       ) : (
-        <p className={styles.muted}>Chưa có từ khóa OpenAlex.</p>
+        <p className={styles.muted}>Chưa có keyword từ OpenAlex.</p>
       )}
     </div>
   );

@@ -9,7 +9,7 @@ export function SectionBody({ section: Section }: { section: ComponentType }) {
   const state = useResearchDesign();
   if (!state.loading && state.error)
     return (
-      <Empty title="Không tải được thiết kế nghiên cứu." hint={state.error.message}>
+      <Empty title="Không tải được research design." hint={state.error.message}>
         <Button leadingIcon={<RefreshCw size={16} aria-hidden="true" />} onClick={() => void state.reload()}>
           Thử lại
         </Button>

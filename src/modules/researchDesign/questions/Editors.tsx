@@ -31,8 +31,8 @@ export function QuestionEditor({
   return (
     <Dialog
       kind="form"
-      title={initial ? 'Sửa câu hỏi' : 'Thêm câu hỏi'}
-      description="Ghi câu hỏi và khoảng trống nghiên cứu."
+      title={initial ? 'Sửa research question' : 'Thêm research question'}
+      description="Ghi research question và research gap."
       onClose={close}
     >
       <form
@@ -45,8 +45,13 @@ export function QuestionEditor({
           });
         }}
       >
-        <TextField label="Câu hỏi" required value={text} onChange={(e) => setText(e.target.value)} />
-        <TextField label="Khoảng trống" multiline value={gap} onChange={(e) => setGap(e.target.value)} />
+        <TextField
+          label="Research question"
+          required
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+        <TextField label="Research gap" multiline value={gap} onChange={(e) => setGap(e.target.value)} />
         {papers
           .filter((p) => p.decision === 'included')
           .map((p) => (
@@ -94,8 +99,8 @@ export function HypothesisEditor({
   return (
     <Dialog
       kind="form"
-      title={initial ? 'Sửa giả thuyết' : 'Thêm giả thuyết'}
-      description="Ghi phát biểu và các liên kết của giả thuyết."
+      title={initial ? 'Sửa hypothesis' : 'Thêm hypothesis'}
+      description="Ghi phát biểu và các liên kết của hypothesis."
       onClose={close}
     >
       <form
@@ -125,8 +130,8 @@ export function HypothesisEditor({
             </option>
           ))}
         </Select>
-        <Select label="Câu hỏi" value={linked} onChange={(e) => setLinked(e.target.value)}>
-          <option value="">Chưa gắn câu hỏi</option>
+        <Select label="Research question" value={linked} onChange={(e) => setLinked(e.target.value)}>
+          <option value="">Chưa gắn research question</option>
           {draft.questions.map((q) => (
             <option key={q.id} value={q.id}>
               {q.id} · {q.text}
@@ -134,7 +139,7 @@ export function HypothesisEditor({
           ))}
         </Select>
         {bank ? (
-          <Select label="Loại nhận định" value={claim} onChange={(e) => setClaim(e.target.value)}>
+          <Select label="Loại claim" value={claim} onChange={(e) => setClaim(e.target.value)}>
             <option value="">Chưa phân loại</option>
             {claim && !bank.collections['claim-types'].some((c) => c.id === claim) && (
               <option value={claim}>{claim}</option>
@@ -148,7 +153,7 @@ export function HypothesisEditor({
           </Select>
         ) : (
           <p>
-            Cần bản chụp Writing Bank để phân loại nhận định. <Link to={`?design=bank`}>Writing Bank</Link>
+            Cần bản chụp Writing Bank để phân loại claim. <Link to={`?design=bank`}>Writing Bank</Link>
           </p>
         )}
         <div>

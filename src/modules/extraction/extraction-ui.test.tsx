@@ -187,6 +187,7 @@ it('creates a project, adds a template of columns and reviews a cell with its ev
 
   fireEvent.click(screen.getByRole('button', { name: 'Thêm cột' }));
   const columns = await screen.findByRole('dialog', { name: 'Thêm cột' });
+  expect(within(columns).getByText('Tóm tắt phần abstract.')).toBeInTheDocument();
   fireEvent.click(within(columns).getByRole('button', { name: 'Lý thuyết' }));
   fireEvent.click(within(columns).getByRole('button', { name: 'Thêm 6 cột' }));
   expect(await screen.findByText('0 bài · 6 cột · 0 ô đã xác nhận')).toBeInTheDocument();
@@ -364,10 +365,10 @@ it('citation grounding shows the passage behind a claim and links to it in the p
   fireEvent.click(within(card).getByRole('button', { name: 'Đóng' }));
 
   fireEvent.click(screen.getByRole('button', { name: '1 đoạn trích' }));
-  const evidence = await screen.findByRole('dialog', { name: 'Bằng chứng từ bài này' });
+  const evidence = await screen.findByRole('dialog', { name: 'Evidence từ bài này' });
   expect(within(evidence).getByText('an online survey')).toBeInTheDocument();
   expect(
     within(evidence).getByText('Không có đoạn trích tìm thấy trong bài cho giá trị này.'),
   ).toBeInTheDocument();
-  expect(within(evidence).getAllByText(/Dùng cho 1 nhận định/)).toHaveLength(2);
+  expect(within(evidence).getAllByText(/Dùng cho 1 claim/)).toHaveLength(2);
 });

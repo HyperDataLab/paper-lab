@@ -23,9 +23,9 @@ import { PublishScg } from './PublishScg';
 import styles from './scg.module.css';
 
 const STAGES: Record<ScgStage, string> = {
-  contributions: 'Giai đoạn 1/3: trích đóng góp',
+  contributions: 'Giai đoạn 1/3: trích contribution',
   prerequisites: 'Giai đoạn 2/3: tìm nền tảng (prerequisite)',
-  alignment: 'Giai đoạn 3/3: nối với đóng góp của các bài khác',
+  alignment: 'Giai đoạn 3/3: nối với contribution của các bài khác',
   complete: 'Đã xong',
 };
 const cardState = (review: ScgReview) =>
@@ -34,7 +34,7 @@ const stateWord = (review: ScgReview) =>
   review === 'accepted' ? 'Đã chấp nhận' : review === 'rejected' ? 'Đã bác bỏ' : 'Ứng viên';
 
 function referenceText(reference: ScgReference) {
-  if (reference.kind === 'contribution') return `Đóng góp ${reference.contributionId} của bài này`;
+  if (reference.kind === 'contribution') return `Contribution ${reference.contributionId} của bài này`;
   if (reference.kind === 'tool') return reference.url;
   return [reference.title, reference.year, reference.doi && `doi:${reference.doi}`]
     .filter(Boolean)
@@ -120,12 +120,12 @@ export function PaperScg({
     <section aria-label="Scientific Contribution Graph" className={styles.scg}>
       <h2>Scientific Contribution Graph</h2>
       <p className={styles.muted}>
-        Mỗi đóng góp của bài, các nền tảng nó dựa vào, và chỗ nối với đóng góp của các bài khác trong thư
-        viện. Kết quả là ứng viên cho tới khi bạn chấp nhận.
+        Mỗi contribution của bài, các nền tảng nó dựa vào, và chỗ nối với contribution của các bài khác trong
+        thư viện. Kết quả là ứng viên cho tới khi bạn chấp nhận.
       </p>
       <div className={styles.toolbar}>
         <Button variant="primary" disabled={running || !model.sentences.length} onClick={() => void start()}>
-          {running ? 'Đang trích…' : 'Trích đóng góp (SCG)'}
+          {running ? 'Đang trích…' : 'Trích contribution (SCG)'}
         </Button>
         {running && <Button onClick={() => controller.current?.abort()}>Dừng</Button>}
         <span className={styles.muted}>Tối đa {scgCallBound(model.sentences)} lượt gọi AI.</span>
@@ -141,11 +141,11 @@ export function PaperScg({
       {run && <PublishScg paper={paper} run={run} busy={running} />}
       {run && run.dropped.quotes + run.dropped.contributions + run.dropped.prerequisites > 0 && (
         <p className={styles.muted}>
-          Đã bỏ {run.dropped.quotes} trích dẫn không có trong bài, {run.dropped.contributions} đóng góp và{' '}
+          Đã bỏ {run.dropped.quotes} trích dẫn không có trong bài, {run.dropped.contributions} contribution và{' '}
           {run.dropped.prerequisites} nền tảng không kiểm chứng được.
         </p>
       )}
-      {run?.status === 'complete' && !run.contributions.length && <p>Không tìm thấy đóng góp nào.</p>}
+      {run?.status === 'complete' && !run.contributions.length && <p>Không tìm thấy contribution nào.</p>}
       <div className={styles.list}>
         {run?.contributions.map((contribution) => (
           <FindingCard
@@ -181,7 +181,7 @@ export function PaperScg({
             <p>{contribution.description}</p>
             <p className={styles.muted}>
               {contribution.id}
-              {contribution.sections.length > 0 && ` · Mục: ${contribution.sections.join(', ')}`}
+              {contribution.sections.length > 0 && ` · Section: ${contribution.sections.join(', ')}`}
             </p>
             {contribution.prerequisites.length > 0 && (
               <div className={styles.prerequisites}>

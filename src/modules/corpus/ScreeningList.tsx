@@ -77,7 +77,7 @@ export function ScreeningList({ corpus, save }: { corpus: Corpus; save: (value: 
       </div>
       {error && <p role="alert">{error}</p>}
       {stage === 'full-text' && members.length === 0 && (
-        <p className={styles.muted}>Chưa có bài nào được chọn ở bước tiêu đề và tóm tắt.</p>
+        <p className={styles.muted}>Chưa có bài nào được chọn ở bước title và abstract.</p>
       )}
       <ul className={styles.list}>
         {members.map((member) => {

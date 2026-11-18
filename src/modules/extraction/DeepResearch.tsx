@@ -52,7 +52,7 @@ const CLAIM_TITLES = {
   theme: 'Chủ đề chung',
   agreement: 'Điểm thống nhất',
   disagreement: 'Điểm khác biệt',
-  gap: 'Khoảng trống ứng viên',
+  gap: 'Research gap cần xác minh',
 } as const;
 /** Citation expansion follows at most this many included papers per click, both directions. */
 const EXPAND_PAPERS = 5;
@@ -286,7 +286,7 @@ export function DeepResearch({
         <h2>Kế hoạch tìm kiếm</h2>
         <div className={styles.inlineField}>
           <TextField
-            label="Câu hỏi nghiên cứu"
+            label="Research question"
             multiline
             rows={2}
             value={question}
@@ -438,11 +438,11 @@ export function DeepResearch({
                 )}
                 {item.abstract ? (
                   <details>
-                    <summary>Tóm tắt</summary>
+                    <summary>Abstract</summary>
                     <p>{item.abstract}</p>
                   </details>
                 ) : (
-                  <span className={styles.note}>Không có tóm tắt trên OpenAlex.</span>
+                  <span className={styles.note}>Không có abstract trên OpenAlex.</span>
                 )}
                 <div className={styles.actions}>
                   {(['included', 'excluded', 'uncertain'] as const).map((status) => (
@@ -527,7 +527,7 @@ export function DeepResearch({
                                   ? 'không có đoạn trích'
                                   : citation.fullText
                                     ? 'toàn văn'
-                                    : 'tóm tắt'}
+                                    : 'abstract'}
                               </Chip>
                             ))}
                           </span>
@@ -536,7 +536,7 @@ export function DeepResearch({
                           (key) => !claim.citations.some((citation) => citation.paperKey === key),
                         ) && (
                           <span className={styles.note}>
-                            Chỉ nêu tên bài:{' '}
+                            Chỉ nêu title:{' '}
                             {claim.paperKeys
                               .filter((key) => !claim.citations.some((citation) => citation.paperKey === key))
                               .map(titleOf)
@@ -551,7 +551,7 @@ export function DeepResearch({
               );
             })}
             <p className={styles.note}>
-              Khoảng trống là giả thuyết cần kiểm tra, không phải kết luận rằng chưa ai nghiên cứu.
+              Cần kiểm tra research gap như một hypothesis, không phải kết luận rằng chưa ai nghiên cứu.
             </p>
             {latest.paperKeys.length > 0 && (
               <section>
@@ -559,7 +559,7 @@ export function DeepResearch({
                 {!hasGrounding && (
                   <p className={styles.note}>
                     Bản tổng hợp này tạo trước khi có đối chiếu trích dẫn. Chạy lại tổng hợp để xem đoạn trích
-                    đứng sau từng nhận định.
+                    đứng sau từng claim.
                   </p>
                 )}
                 <ol className={styles.references}>

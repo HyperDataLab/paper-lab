@@ -25,7 +25,7 @@ it('marks the active link and persists collapse', () => {
       <Sidebar />
     </MemoryRouter>,
   );
-  expect(screen.getByRole('link', { name: 'Đoạn văn' })).toHaveAttribute('aria-current', 'page');
+  expect(screen.getByRole('link', { name: 'Paragraph' })).toHaveAttribute('aria-current', 'page');
   fireEvent.click(screen.getByRole('button', { name: 'Thu gọn thanh bên' }));
   expect(localStorage.getItem('sidebar-collapsed')).toBe('true');
   view.unmount();
@@ -60,6 +60,6 @@ it('shows paragraph work as one entry that stays active on its related screens',
     </MemoryRouter>,
   );
   expect(screen.queryByRole('link', { name: /Chỉnh sửa/ })).toBeNull();
-  expect(screen.queryByRole('link', { name: /Soạn đoạn/ })).toBeNull();
-  expect(screen.getByRole('link', { name: 'Đoạn văn' }).className).toMatch(/active/);
+  expect(screen.queryByRole('link', { name: /Soạn paragraph/ })).toBeNull();
+  expect(screen.getByRole('link', { name: 'Paragraph' }).className).toMatch(/active/);
 });

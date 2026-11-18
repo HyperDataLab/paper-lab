@@ -82,7 +82,7 @@ export function PaperFind({
       )}
       {sections.length > 1 && (
         <Select
-          label="Mục"
+          label="Section"
           hideLabel
           size="sm"
           value=""
@@ -90,7 +90,7 @@ export function PaperFind({
             if (event.target.value) onSection(event.target.value);
           }}
         >
-          <option value="">Chọn mục…</option>
+          <option value="">Chọn section…</option>
           {sections.map((section) => (
             <option key={section.id} value={section.id}>
               {section.heading}

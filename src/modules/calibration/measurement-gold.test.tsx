@@ -35,6 +35,7 @@ const upload = (files: File[]) =>
 
 it('§12 stays not measured until labels exist', async () => {
   await setup();
+  expect(screen.getByRole('columnheader', { name: 'Metric' })).toBeInTheDocument();
   expect(screen.getAllByText('Chưa đo')).toHaveLength(6);
   expect(screen.getByText('Đã đo trên 0/30 bài')).toBeInTheDocument();
 });

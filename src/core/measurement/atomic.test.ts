@@ -283,7 +283,7 @@ it('AS-09 groups sentences by role in the tree with unique ids', () => {
   const profile = withAtom();
   const flat = flattenMeasurementTree(buildMeasurementTree(profile));
   expect(flat.find((node) => node.id === 'atomics')?.count).toBe(1);
-  expect(flat.find((node) => node.id === 'atomics/method')?.label).toBe('Phương pháp');
+  expect(flat.find((node) => node.id === 'atomics/method')?.label).toBe('Methods');
   expect(flat.find((node) => node.id === 'atomics/method/a:as-0001')?.flagged).toBe(true);
   expect(new Set(flat.map((node) => node.id)).size).toBe(flat.length);
   expect(flattenMeasurementTree(buildMeasurementTree(fixtureProfile())).some((n) => n.id === 'atomics')).toBe(
@@ -310,7 +310,7 @@ it('AS-12 exports sentences to CSV and Markdown', () => {
   expect(csv[1]).toContain('no,yes');
   const text = measurementMarkdown(profile);
   expect(text).toContain('## Câu nguyên tử');
-  expect(text).toContain('### Phương pháp');
+  expect(text).toContain('### Methods');
   expect(text).toContain('chưa đối chiếu, cần xem lại');
   const done = measurementMarkdown(reviewedProfile(profile, [decide('accept', 'as-0001')], RUN));
   expect(done).toContain('tr. 3, đã đối chiếu');

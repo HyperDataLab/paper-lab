@@ -115,7 +115,7 @@ function science({ measurement, checks, insights }: ProfileInput): ProfileDimens
     indicators: [
       {
         id: 'claims_linked',
-        label: 'Luận điểm nối được với kết quả',
+        label: 'Claim nối được với kết quả',
         value: profile
           ? `${claims.filter((c) => c.linked_result_ids.length > 0).length}/${claims.length}`
           : null,
@@ -137,7 +137,7 @@ function science({ measurement, checks, insights }: ProfileInput): ProfileDimens
       },
       {
         id: 'validity_threats',
-        label: 'Loại đe doạ validity tác giả nêu',
+        label: 'Threats to validity do tác giả nêu',
         value: rhetoric ? `${rhetoric.metrics.threats.length}/${VALIDITY_THREATS.length}` : null,
         source: 'ai',
       },
@@ -170,18 +170,18 @@ function argument({ insights }: ProfileInput): ProfileDimension {
   return {
     id: 'argument',
     letter: 'B',
-    title: 'Lập luận',
-    question: 'Các luận điểm có đứng vững về mặt cấu trúc không?',
+    title: 'Argument',
+    question: 'Các claims có đứng vững về mặt cấu trúc không?',
     state: !run ? 'empty' : run.failedSectionIds.length ? 'partial' : 'ready',
     coverage: run ? `Đã đọc ${run.sectionIds.length} mục` : null,
     indicators: [
       {
         id: 'main_claims',
-        label: 'Luận điểm chính',
+        label: 'Claim chính',
         value: metrics ? String(metrics.main.length) : null,
         source: 'ai',
       },
-      { id: 'with_data', label: 'Luận điểm có dữ liệu', value: ratio(metrics?.withData), source: 'ai' },
+      { id: 'with_data', label: 'Claim có grounds', value: ratio(metrics?.withData), source: 'ai' },
       {
         id: 'warrant_stated',
         label: 'Warrant do tác giả nêu',
@@ -191,7 +191,7 @@ function argument({ insights }: ProfileInput): ProfileDimension {
       { id: 'with_rebuttal', label: 'Có xử lý phản biện', value: ratio(metrics?.withRebuttal), source: 'ai' },
     ],
     attention: metrics?.unsupported.length
-      ? `${metrics.unsupported.length} luận điểm chính chưa thấy tiền đề.`
+      ? `${metrics.unsupported.length} claim chính chưa thấy tiền đề.`
       : null,
     planned: [],
     target: 'toulmin',
@@ -240,13 +240,13 @@ function discourse({ paper, analyses, checks, insights }: ProfileInput): Profile
       },
       {
         id: 'cars_moves',
-        label: 'Moves CARS ở Mở đầu',
+        label: 'Moves CARS ở Introduction',
         value: rhetoric ? `${rhetoric.metrics.cars.length}/${CARS_MOVES.length}` : null,
         source: 'ai',
       },
       {
         id: 'abstract_supported',
-        label: 'Khẳng định Tóm tắt có đoạn tương ứng',
+        label: 'Claim trong abstract có đoạn tương ứng',
         value: rhetoric?.run.abstractChecked
           ? `${rhetoric.metrics.supported}/${rhetoric.metrics.claims.length}`
           : null,
@@ -353,7 +353,7 @@ function context({ paper, checks, scholarly }: ProfileInput): ProfileDimension {
     state: checks && checked ? 'ready' : checks || checked ? 'partial' : 'empty',
     coverage: checked ? `Đã tra ${checked.found}/${checked.checked} DOI trên OpenAlex` : null,
     indicators: [
-      { id: 'references', label: 'Tài liệu tham khảo', value: String(stats.total), source: 'count' },
+      { id: 'references', label: 'References', value: String(stats.total), source: 'count' },
       {
         id: 'references_recent',
         label: `Trong ${RECENT_YEARS} năm tính đến năm mới nhất được trích`,
@@ -372,9 +372,9 @@ function context({ paper, checks, scholarly }: ProfileInput): ProfileDimension {
     attention: retraction
       ? `${retraction.isPaper ? 'Bài này' : 'Một tài liệu được trích'} được OpenAlex ghi nhận là đã rút: ${retraction.title ?? retraction.doi}.`
       : open
-        ? `${open} phát hiện về trích dẫn và tài liệu tham khảo chưa được xử lý.`
+        ? `${open} phát hiện về trích dẫn và references chưa được xử lý.`
         : null,
-    planned: ['Chức năng trích dẫn', 'Định vị đóng góp'],
+    planned: ['Chức năng trích dẫn', 'Định vị contribution'],
     target: 'context-references',
   };
 }

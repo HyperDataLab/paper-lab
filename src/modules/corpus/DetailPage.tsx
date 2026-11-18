@@ -170,7 +170,7 @@ export default function DetailPage() {
     ['Đã lấy', count('retrieval', 'retrieved')],
     ['Không lấy được', count('retrieval', 'not_retrieved')],
     ['Toàn văn', count('textRead', 'FULL_TEXT')],
-    ['Tóm tắt', count('textRead', 'ABSTRACT_ONLY')],
+    ['Abstract', count('textRead', 'ABSTRACT_ONLY')],
     ['Siêu dữ liệu', count('textRead', 'METADATA_ONLY')],
   ];
   const body = protocol?.body;
@@ -179,7 +179,7 @@ export default function DetailPage() {
     ? []
     : 'researchQuestion' in body
       ? [
-          ['Câu hỏi nghiên cứu', body.researchQuestion || 'Chưa đặt'],
+          ['Research question', body.researchQuestion || 'Chưa đặt'],
           ['Tiêu chí chọn', body.inclusion.join('; ') || 'Chưa có'],
           ['Tiêu chí loại', body.exclusion.join('; ') || 'Chưa có'],
           ['Năm', yearRange],
@@ -302,7 +302,7 @@ export default function DetailPage() {
             <DataTable>
               <thead>
                 <tr>
-                  <th>Tiêu đề / DOI</th>
+                  <th>Title / DOI</th>
                   <th>Định danh</th>
                   <th>Vai trò</th>
                   <th>Thu thập</th>
@@ -351,7 +351,7 @@ export default function DetailPage() {
                     </td>
                     <td>
                       {
-                        { FULL_TEXT: 'Toàn văn', ABSTRACT_ONLY: 'Tóm tắt', METADATA_ONLY: 'Siêu dữ liệu' }[
+                        { FULL_TEXT: 'Toàn văn', ABSTRACT_ONLY: 'Abstract', METADATA_ONLY: 'Siêu dữ liệu' }[
                           m.textRead
                         ]
                       }

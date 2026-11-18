@@ -73,7 +73,7 @@ it('the reference list shows every entry on its own line, and each opens its pla
       <PaperReferences paper={paper} onLocation={onLocation} />
     </StorageProvider>,
   );
-  const list = await screen.findByRole('list', { name: 'Tài liệu tham khảo' });
+  const list = await screen.findByRole('list', { name: 'References' });
   const rows = within(list).getAllByRole('listitem');
   expect(rows).toHaveLength(3);
   expect(rows[0]).toHaveTextContent('A. Author, Federated learning, 2020.');

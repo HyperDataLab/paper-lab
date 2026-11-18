@@ -112,7 +112,7 @@ export function BankPanel({
       {!bank || !collections ? (
         <Empty
           title="Chưa có bản chụp"
-          hint="Thiết kế, mối đe doạ và loại nhận định đến từ bản chụp Writing Bank."
+          hint="Research design, threats to validity và loại claim đến từ bản chụp Writing Bank."
         >
           <Button
             variant="primary"
@@ -139,9 +139,9 @@ export function BankPanel({
               Người nhập: {bank.importedBy} · {new Date(bank.importedAt).toLocaleString('vi-VN')}
             </p>
             <StatGrid>
-              <Stat value={collections.designs.length} label="thiết kế" />
-              <Stat value={collections.threats.length} label="mối đe doạ" />
-              <Stat value={collections['claim-types'].length} label="loại nhận định" />
+              <Stat value={collections.designs.length} label="Research design" />
+              <Stat value={collections.threats.length} label="Threats to validity" />
+              <Stat value={collections['claim-types'].length} label="loại claim" />
               <Stat value={collections.metrics.length} label="metric" />
               <Stat value={collections.protocols.length} label="protocol" />
               <Stat value={collections.benchmarks.length} label="benchmark" />

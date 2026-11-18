@@ -49,7 +49,7 @@ const FINDING_LABELS: Record<MeasurementProfile['findings'][number]['type'], str
   protocol_incompleteness: 'Protocol chưa đủ',
   aggregation_ambiguity: 'Cách tổng hợp chưa rõ',
   comparability_risk: 'Rủi ro khi so sánh',
-  claim_evidence_gap: 'Kết luận rộng hơn bằng chứng',
+  claim_evidence_gap: 'Claim rộng hơn evidence',
 };
 const SEVERITY = { low: 'Thấp', medium: 'Vừa', high: 'Cao' } as const;
 const CELL: Record<ProfileField['status'], { mark: string; label: string }> = {
@@ -101,7 +101,7 @@ function FieldGroup({ rows, itemId, context }: { rows: Row[]; itemId: string; co
 }
 
 function ResultsTable({ results, profile, context, open }: ViewProps & { results: ReportedResult[] }) {
-  if (!results.length) return <p className={styles.note}>Chưa có kết quả.</p>;
+  if (!results.length) return <p className={styles.note}>Chưa có results nào.</p>;
   const metric = (id: string | null) => profile.metrics.find((item) => item.id === id)?.reported_name ?? '—';
   return (
     <div className={styles.scroll}>
@@ -199,7 +199,7 @@ function OverviewDetail({ profile, paper, open }: Pick<ViewProps, 'profile' | 'o
   );
   return (
     <Card>
-      <h2>Tổng quan hồ sơ đo lường</h2>
+      <h2>Tổng quan hồ sơ measurement</h2>
       <p>
         Loại bài: <Badge tone="accent">{PAPER_TYPE[profile.paper_type]}</Badge>
       </p>
@@ -207,7 +207,7 @@ function OverviewDetail({ profile, paper, open }: Pick<ViewProps, 'profile' | 'o
       <StatGrid>
         {stat(profile.experiments.length, 'thí nghiệm', { kind: 'experiments' })}
         {stat(profile.metrics.length, 'metric', { kind: 'experiments' })}
-        {stat(profile.results.length, 'kết quả', { kind: 'experiments' })}
+        {stat(profile.results.length, 'Results', { kind: 'experiments' })}
         {stat(profile.claims.length, 'claim', { kind: 'claims' })}
         {profile.atomic_sentences.length > 0 &&
           stat(profile.atomic_sentences.length, 'câu nguyên tử', { kind: 'atomics' })}
@@ -215,7 +215,7 @@ function OverviewDetail({ profile, paper, open }: Pick<ViewProps, 'profile' | 'o
         {stat(reviewQueueSize(profile), 'cần xem lại', { kind: 'review' })}
       </StatGrid>
       <p>
-        Có bằng chứng: {evidence.withEvidence}/{evidence.total}
+        Có evidence: {evidence.withEvidence}/{evidence.total}
         {evidence.rate !== null && ` (${Math.round(evidence.rate * 100)} %)`}
       </p>
       {profile.status === 'partial' && (
@@ -230,7 +230,7 @@ function OverviewDetail({ profile, paper, open }: Pick<ViewProps, 'profile' | 'o
       <ProtocolMatrix profile={profile} open={open} />
       {notRead.length > 0 && (
         <details className={styles.missing}>
-          <summary>{notRead.length} mục chưa phân tích</summary>
+          <summary>{notRead.length} section chưa phân tích</summary>
           <p>{notRead.map(heading).join(', ')}.</p>
         </details>
       )}
@@ -317,7 +317,7 @@ export function MeasurementDetail({
           key: claim.id,
           label: claim.text,
           onOpen: () => open({ kind: 'claim', id: claim.id }),
-          extra: <span className={styles.note}>{claim.linked_result_ids.length} kết quả</span>,
+          extra: <span className={styles.note}>{claim.linked_result_ids.length} results</span>,
         }))}
       />
     );
@@ -436,7 +436,7 @@ export function MeasurementDetail({
               </Button>
             ))}
           </div>
-          <h3>Kết quả</h3>
+          <h3>Results</h3>
           <ResultsTable
             {...props}
             results={profile.results.filter((result) => result.experiment_id === experiment.id)}
@@ -460,7 +460,7 @@ export function MeasurementDetail({
           <FieldGroup itemId={metric.id} context={context} rows={metricRows(metric)} />
         </Card>
         <Card>
-          <h3>Kết quả dùng metric này</h3>
+          <h3>Results dùng metric này</h3>
           <ResultsTable
             {...props}
             results={profile.results.filter((result) => result.metric_usage_id === metric.id)}
@@ -536,12 +536,12 @@ export function MeasurementDetail({
         </div>
         {claim.evidence_scope ? (
           <p>
-            <Badge>AI diễn giải</Badge> Phạm vi bằng chứng: {claim.evidence_scope}
+            <Badge>AI diễn giải</Badge> Phạm vi evidence: {claim.evidence_scope}
           </p>
         ) : (
-          <p className={styles.note}>Chưa liên kết được với kết quả đã kiểm chứng.</p>
+          <p className={styles.note}>Chưa liên kết được với results đã kiểm chứng.</p>
         )}
-        <h3>Kết quả liên quan</h3>
+        <h3>Results liên quan</h3>
         <ResultsTable
           {...props}
           results={profile.results.filter((result) => claim.linked_result_ids.includes(result.id))}
@@ -659,7 +659,7 @@ export function MeasurementDetail({
           ))}
           {results.map((item) => (
             <Button key={item.id} size="sm" onClick={() => open({ kind: 'result', id: item.id })}>
-              Kết quả: {item.system_or_baseline}
+              Results: {item.system_or_baseline}
             </Button>
           ))}
           {claims.map((item) => (

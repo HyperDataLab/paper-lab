@@ -94,7 +94,7 @@ export function AnalysisDialog({
         </Select>
         {value.method && <p>{methodHint(value.method)}</p>}
         <div>
-          Biến
+          Variable
           {draft.variables.map((v) => (
             <Checkbox
               key={v.id}
@@ -113,7 +113,7 @@ export function AnalysisDialog({
           ))}
           {!draft.variables.length && (
             <p>
-              Chưa có biến nào. <Link to={'?design=measurement'}>Thêm biến ở màn Đo lường.</Link>
+              Chưa có variable nào. <Link to={'?design=measurement'}>Thêm variable ở tab Measurement.</Link>
             </p>
           )}
         </div>

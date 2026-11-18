@@ -19,7 +19,7 @@ const ROWS: { key: keyof typeof GOLD_TARGETS; label: string }[] = [
   { key: 'metricPrecision', label: 'Precision phát hiện metric' },
   { key: 'metricRecall', label: 'Recall phát hiện metric' },
   { key: 'numericExact', label: 'Số và đơn vị khớp chính xác (bảng đọc đúng)' },
-  { key: 'evidenceLocation', label: 'Bằng chứng đúng vị trí' },
+  { key: 'evidenceLocation', label: 'Evidence đúng vị trí' },
   { key: 'protocolPrecision', label: 'Precision trường protocol REPORTED' },
   { key: 'falseReported', label: 'Tỉ lệ ghi nhầm thành REPORTED' },
 ];
@@ -67,7 +67,7 @@ export function MeasurementGoldCard() {
     <Card>
       <div className={styles.cardHead}>
         <div>
-          <h2>Đo chất lượng trích xuất đo lường</h2>
+          <h2>Đo chất lượng trích xuất measurement</h2>
           <p>
             So sánh kết quả AI gốc với nhãn của người. Các ngưỡng là mục tiêu, chưa phải kết quả đã đạt; cần
             tối thiểu {GOLD_MIN_PAPERS} bài và hai người gán nhãn.
@@ -111,7 +111,7 @@ export function MeasurementGoldCard() {
         <table>
           <thead>
             <tr>
-              <th>Chỉ số</th>
+              <th>Metric</th>
               <th className={styles.num}>Kết quả</th>
               <th className={styles.num}>n</th>
               <th className={styles.num}>Mục tiêu</th>

@@ -45,8 +45,8 @@ it('imports a paper, persists and audits role edits, then prefills Evaluate', as
   const repo = setup();
   await importPaper();
   expect(await screen.findByText('0 ứng viên cục bộ')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('combobox', { name: 'Vai trò của mục' }));
-  const methodsOption = screen.getByRole('option', { name: 'Phương pháp' });
+  fireEvent.click(screen.getByRole('combobox', { name: 'Vai trò của section' }));
+  const methodsOption = screen.getByRole('option', { name: 'Methods' });
   expect(methodsOption).toHaveAttribute('title', 'methods');
   fireEvent.click(methodsOption);
   await waitFor(async () => expect((await repo.papers.list())[0]?.sections[0]?.role).toBe('methods'));
@@ -56,7 +56,7 @@ it('imports a paper, persists and audits role edits, then prefills Evaluate', as
     'edit_label',
   );
   fireEvent.click(screen.getByRole('button', { name: 'Đánh giá đoạn này' }));
-  expect(await screen.findByLabelText('Dán một đoạn văn tiếng Anh')).toHaveValue('The first paragraph.');
+  expect(await screen.findByLabelText('Dán một paragraph tiếng Anh')).toHaveValue('The first paragraph.');
 });
 it('requires confirmation before deleting a paper', async () => {
   const repo = setup();
@@ -112,7 +112,7 @@ it('P2 estimates selected calls, asks manuscript consent and opens a completed a
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Đánh giá ngữ cảnh' }));
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc đoạn' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc paragraph' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chấm điểm' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chuyển đoạn' }));
   expect(
@@ -175,7 +175,7 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Đánh giá ngữ cảnh' }));
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc đoạn' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc paragraph' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chấm điểm' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chuyển đoạn' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu phân tích' }));
@@ -320,7 +320,7 @@ it('P2 pauses after the current call and resumes the remaining step', async () =
   fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc đoạn' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc paragraph' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chấm điểm' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chuyển đoạn' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu phân tích' }));

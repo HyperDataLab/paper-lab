@@ -97,7 +97,7 @@ export default function Page() {
         title="Lịch sử"
         lead={
           <>
-            Các đoạn văn đã phân tích và đã soạn. Dữ liệu chỉ lưu trong trình duyệt này;{' '}
+            Các paragraph đã phân tích và đã soạn. Dữ liệu chỉ lưu trong trình duyệt này;{' '}
             <Link to="/transfer">xuất JSON</Link> để sao lưu hoặc chuyển máy.
           </>
         }
@@ -154,9 +154,9 @@ export default function Page() {
           {list.items.length === 0 ? (
             <Empty
               title="Chưa có bản phân tích"
-              hint="Phân tích một đoạn văn rồi lưu, bản ghi sẽ hiện ở đây."
+              hint="Phân tích một paragraph rồi lưu, bản ghi sẽ hiện ở đây."
             >
-              <Link to="/evaluate">Phân tích đoạn văn</Link>
+              <Link to="/evaluate">Phân tích paragraph</Link>
             </Empty>
           ) : groups.length === 0 ? (
             <Empty title="Không có bản phân tích nào khớp." hint="Thử từ khoá khác hoặc xoá ô tìm." />
@@ -229,7 +229,7 @@ export default function Page() {
         </>
       )}
       {view !== 'generations' ? null : generations.length === 0 ? (
-        <Empty title="Chưa có đoạn đã soạn." hint="Soạn một đoạn từ luận điểm của bạn.">
+        <Empty title="Chưa có đoạn đã soạn." hint="Soạn một paragraph từ claim của bạn.">
           <Link to="/generate">Soạn đoạn mới</Link>
         </Empty>
       ) : shownGenerations.length === 0 ? (

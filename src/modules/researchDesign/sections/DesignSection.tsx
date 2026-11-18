@@ -33,7 +33,7 @@ export default function DesignSection() {
   const [editing, setEditing] = useState<DraftThreat | 'new' | null>(null);
   const [deleting, setDeleting] = useState<DraftThreat | null>(null);
   if (state.loading) return <Loading />;
-  if (state.error) return <Empty title="Không tải được thiết kế." />;
+  if (state.error) return <Empty title="Không tải được research design." />;
   const { draft } = state.design;
   const { bank } = state;
   const change = (fn: Parameters<typeof saveDraftChange>[1]) => saveDraftChange(state.save, fn, toast);
@@ -50,8 +50,8 @@ export default function DesignSection() {
   );
   return (
     <>
-      <h3>Thiết kế nghiên cứu</h3>
-      <p>Chọn thiết kế, xem nó cho phép kết luận gì, ghi mối đe doạ và cách giảm.</p>
+      <h3>Research design</h3>
+      <p>Chọn research design, xem nó cho phép kết luận gì, ghi threat to validity và cách giảm.</p>
       <SectionSuggest state={state} target="threats" />
       {bank && flags.some((f) => f.rule === 'DS-05' && f.reason === 'other_release') && (
         <Card>
@@ -60,11 +60,11 @@ export default function DesignSection() {
         </Card>
       )}
       <Card>
-        <h3>Thiết kế</h3>
+        <h3>Research design</h3>
         {!draft.design ? (
-          <Empty title="Chưa chọn thiết kế" hint="Chọn một thiết kế để bắt đầu.">
+          <Empty title="Chưa chọn research design" hint="Chọn một research design để bắt đầu.">
             <Button variant="primary" onClick={() => setDrawer(true)}>
-              Chọn thiết kế
+              Chọn research design
             </Button>
           </Empty>
         ) : (
@@ -87,21 +87,23 @@ export default function DesignSection() {
               />
             </fieldset>
             {design && design.assignment !== 'either' && (
-              <p>Writing Bank quy định cách phân nhóm của thiết kế này.</p>
+              <p>Writing Bank quy định cách phân nhóm của research design này.</p>
             )}
             {flags.filter((f) => f.rule === 'DS-03').map(warning)}
             <Button variant="ghost" onClick={() => setDrawer(true)}>
-              Đổi thiết kế
+              Đổi research design
             </Button>
           </>
         )}
       </Card>
       <Card>
-        <h3>Thiết kế này cho phép kết luận gì</h3>
+        <h3>Research design này cho phép kết luận gì</h3>
         {!draft.design ? (
-          <p>Chưa chọn thiết kế.</p>
+          <p>Chưa chọn research design.</p>
         ) : !draft.design.bank ? (
-          <p>Thiết kế tự mô tả không có thông tin từ Writing Bank, nên không kiểm tra được giả thuyết.</p>
+          <p>
+            Research design tự mô tả không có thông tin từ Writing Bank, nên không kiểm tra được hypothesis.
+          </p>
         ) : design ? (
           <>
             <p>Khả năng kết luận nhân quả: {word('causalLicence', design.causalLicence)}</p>
@@ -120,7 +122,7 @@ export default function DesignSection() {
                 <li key={s}>{s}</li>
               ))}
             </ul>
-            <h4>Giả thuyết cần xem lại</h4>
+            <h4>Hypotheses cần xem lại</h4>
             {flags.some((f) => f.rule === 'DS-01') ? (
               flags
                 .filter((f) => f.rule === 'DS-01')
@@ -131,16 +133,16 @@ export default function DesignSection() {
                   </div>
                 ))
             ) : (
-              <p>Không có giả thuyết nào cần xem lại.</p>
+              <p>Không có hypothesis nào cần xem lại.</p>
             )}
           </>
         ) : (
-          <p>Không có thông tin thiết kế trong bản chụp hiện tại.</p>
+          <p>Không có thông tin research design trong bản chụp hiện tại.</p>
         )}
       </Card>
       <Card>
-        <h3>Mối đe doạ</h3>
-        {draft.threats.length === 0 && <p>Chưa có mối đe doạ trong danh sách.</p>}
+        <h3>Threats to validity</h3>
+        {draft.threats.length === 0 && <p>Chưa có threat to validity trong danh sách.</p>}
         {draft.threats.map((t) => (
           <div key={t.id}>
             <p>
@@ -167,9 +169,9 @@ export default function DesignSection() {
             </Button>
           </div>
         ))}
-        {offered.length > 0 && <h4>Gợi ý từ thiết kế</h4>}
+        {offered.length > 0 && <h4>Gợi ý từ research design</h4>}
         {design && design.threats.length > 0 && offered.length === 0 && (
-          <p>Đã thêm mọi mối đe doạ mà thiết kế này gợi ý.</p>
+          <p>Đã thêm mọi threats to validity mà research design này gợi ý.</p>
         )}
         {offered.map(
           (t) =>
@@ -198,7 +200,7 @@ export default function DesignSection() {
               </div>
             ),
         )}
-        <Button onClick={() => setEditing('new')}>Thêm mối đe doạ</Button>
+        <Button onClick={() => setEditing('new')}>Thêm threat to validity</Button>
       </Card>
       {drawer && (
         <DesignDrawer
@@ -228,7 +230,7 @@ export default function DesignSection() {
       )}
       {deleting && (
         <Dialog
-          title="Xoá mối đe doạ"
+          title="Xoá threat to validity"
           description={`Xoá «${deleting.name}» khỏi danh sách?`}
           onClose={() => setDeleting(null)}
         >

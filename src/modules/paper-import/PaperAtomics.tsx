@@ -108,8 +108,8 @@ export function PaperAtomics({
           </section>
         ))}
         {orphans.length > 0 && (
-          <section aria-label="Không rõ mục" className={styles.group}>
-            <h3>Không rõ mục</h3>
+          <section aria-label="Không rõ section" className={styles.group}>
+            <h3>Không rõ section</h3>
             <ol className={styles.list}>{orphans.map(row)}</ol>
           </section>
         )}

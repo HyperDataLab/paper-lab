@@ -121,7 +121,7 @@ export function CellDrawer({
           <p className={styles.hint}>AI trả về: “{cell.aiValue}”</p>
         )}
       </SheetSection>
-      <SheetSection title={`Bằng chứng (${cell.evidence.length})`}>
+      <SheetSection title={`Evidence (${cell.evidence.length})`}>
         {cell.evidence.length === 0 ? (
           <p className={styles.missing}>Không có trích dẫn tìm thấy trong bài.</p>
         ) : (
@@ -135,7 +135,7 @@ export function CellDrawer({
                 <blockquote>{item.quote}</blockquote>
                 <span className={styles.where}>
                   {[item.page ? `Tr. ${item.page}` : null, item.section].filter(Boolean).join(' · ') ||
-                    'Tóm tắt'}
+                    'Abstract'}
                 </span>
               </li>
             ))}

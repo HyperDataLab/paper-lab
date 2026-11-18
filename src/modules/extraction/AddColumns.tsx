@@ -9,6 +9,7 @@ import { OptionCard } from '@/shared/ui/OptionCard';
 import { SheetNote } from '@/shared/ui/SheetNote';
 import { SheetSection } from '@/shared/ui/SheetSection';
 import { TextField } from '@/shared/ui/TextField';
+import { FIELD_HINTS } from './labels';
 import styles from './sheets.module.css';
 
 const GROUPS = [...new Set(FIELD_CATALOG.map((field) => field.group))];
@@ -107,7 +108,9 @@ export function AddColumns({
                           disabled={exists || (!chosen.includes(field.key) && chosen.length >= remaining)}
                           onChange={(value) => toggle(field.key, value)}
                           title={field.label}
-                          description={exists ? 'Đã có trong bảng' : field.description}
+                          description={
+                            exists ? 'Đã có trong bảng' : (FIELD_HINTS[field.key] ?? field.description)
+                          }
                         />
                       </li>
                     );

@@ -32,7 +32,7 @@ const TOP = 10;
 const isAbort = (cause: unknown) => cause instanceof DOMException && cause.name === 'AbortError';
 const clip = (text: string, size = 24) => (text.length > size ? `${text.slice(0, size - 1)}…` : text);
 const whereLabel = (node: RoadmapExternalNode) =>
-  node.memberId ? 'bài trong corpus, chưa khớp đóng góp' : 'ngoài corpus';
+  node.memberId ? 'bài trong corpus, chưa khớp contribution' : 'ngoài corpus';
 
 /** The corpus's SCG runs merged into one graph: coverage, the most built-upon contributions, and chains. */
 export function CorpusScgRoadmap({ corpus }: { corpus: Corpus }) {
@@ -127,7 +127,7 @@ export function CorpusScgRoadmap({ corpus }: { corpus: Corpus }) {
           done++;
         } else skipped++;
       }
-      setProgress(`Đã trích đóng góp cho ${tally()}.`);
+      setProgress(`Đã trích contribution cho ${tally()}.`);
     } catch (cause) {
       if (isAbort(cause)) setProgress(`Đã dừng sau ${tally()}. Bấm lại để tiếp tục.`);
       else setError(describeLlmError(cause) ?? String(cause));
@@ -217,11 +217,11 @@ export function CorpusScgRoadmap({ corpus }: { corpus: Corpus }) {
     <Card>
       <section aria-labelledby="corpus-scg-roadmap" className={styles.section}>
         <div className={styles.head}>
-          <h2 id="corpus-scg-roadmap">Lộ trình đóng góp</h2>
+          <h2 id="corpus-scg-roadmap">Lộ trình contribution</h2>
           <div className={styles.tools}>
             {missing.length > 0 && (
               <Button size="sm" disabled={busy} onClick={() => void backfill()}>
-                Trích đóng góp cho {missing.length} bài còn thiếu
+                Trích contribution cho {missing.length} bài còn thiếu
               </Button>
             )}
             {busy && (
@@ -232,25 +232,25 @@ export function CorpusScgRoadmap({ corpus }: { corpus: Corpus }) {
           </div>
         </div>
         <p className={styles.muted}>
-          Đóng góp của từng bài (Scientific Contribution Graph) nối với nhau qua các nền tảng chúng dựa vào.
-          Kết quả là ứng viên cho tới khi bạn chấp nhận trong từng bài; mục đã bác bỏ không được tính.
+          Contribution của từng bài (Scientific Contribution Graph) nối với nhau qua các nền tảng chúng dựa
+          vào. Kết quả là ứng viên cho tới khi bạn chấp nhận trong từng bài; mục đã bác bỏ không được tính.
         </p>
         <p className={styles.muted}>
-          {`${coverage.withRun}/${coverage.members} bài có kết quả trích đóng góp`}
+          {`${coverage.withRun}/${coverage.members} bài có kết quả trích contribution`}
           {unfinished > 0 && ` (${unfinished} chưa xong)`}
-          {` · ${roadmap.contributions().length} đóng góp · ${roadmap.edges.length} liên kết`}
+          {` · ${roadmap.contributions().length} contribution · ${roadmap.edges.length} liên kết`}
         </p>
         {progress && <p role="status">{progress}</p>}
-        {error && <p role="alert">Không thể trích đóng góp. {error}</p>}
+        {error && <p role="alert">Không thể trích contribution. {error}</p>}
         {!runs && !error ? (
           <p className={styles.muted}>Đang tải…</p>
         ) : coverage.withRun === 0 ? (
-          <p className={styles.muted}>Chưa bài nào của corpus có kết quả trích đóng góp.</p>
+          <p className={styles.muted}>Chưa bài nào của corpus có kết quả trích contribution.</p>
         ) : (
           <>
             <div className={styles.tools}>
               <Select
-                label="Loại đóng góp"
+                label="Loại contribution"
                 size="sm"
                 inline
                 value={type}
@@ -271,10 +271,10 @@ export function CorpusScgRoadmap({ corpus }: { corpus: Corpus }) {
 
             <h3>Được xây dựa trên nhiều nhất</h3>
             <p className={styles.muted}>
-              {`Điểm = ${SCG_EDGE_WEIGHT.core} cho mỗi đóng góp dựa vào nó như nền tảng cốt lõi, ${SCG_EDGE_WEIGHT.peripheral} nếu chỉ là nền tảng phụ; chỉ tính đóng góp trong corpus.`}
+              {`Điểm = ${SCG_EDGE_WEIGHT.core} cho mỗi contribution dựa vào nó như nền tảng cốt lõi, ${SCG_EDGE_WEIGHT.peripheral} nếu chỉ là nền tảng phụ; chỉ tính contribution trong corpus.`}
             </p>
             {top.length === 0 ? (
-              <p className={styles.muted}>Chưa có đóng góp nào được đóng góp khác dựa vào.</p>
+              <p className={styles.muted}>Chưa có contribution nào được contribution khác dựa vào.</p>
             ) : (
               <ol className={styles.list} aria-label="Được xây dựa trên nhiều nhất">
                 {top.map((item) => (
@@ -292,13 +292,13 @@ export function CorpusScgRoadmap({ corpus }: { corpus: Corpus }) {
 
             <div className={styles.tools}>
               <Select
-                label="Đóng góp"
+                label="Contribution"
                 size="sm"
                 inline
                 value={chosen ? selected : ''}
                 onChange={(event) => setSelected(event.target.value)}
               >
-                <option value="">Chọn một đóng góp</option>
+                <option value="">Chọn một contribution</option>
                 {choices.map((node) => (
                   <option key={node.id} value={node.id}>
                     {`${node.name} · ${clip(node.paperTitle, 40)}`}
@@ -342,8 +342,8 @@ function ChainGraph({
   return (
     <>
       <p className={styles.muted}>
-        {layout.byYear ? 'Mỗi cột là một năm.' : 'Cột là số bước từ đóng góp đang chọn.'} Mũi tên đi từ nền
-        tảng tới đóng góp dựa trên nó; nét liền là cốt lõi, nét đứt là phụ; mục mờ là ứng viên.
+        {layout.byYear ? 'Mỗi cột là một năm.' : 'Cột là số bước từ contribution đang chọn.'} Mũi tên đi từ
+        nền tảng tới contribution dựa trên nó; nét liền là cốt lõi, nét đứt là phụ; mục mờ là ứng viên.
         {layout.hidden > 0 && ` Đồ thị ẩn ${layout.hidden} nút; danh sách bên dưới có đủ.`}
       </p>
       <div className={styles.graphWrap}>

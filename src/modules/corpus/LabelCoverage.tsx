@@ -19,8 +19,8 @@ export function LabelCoverage({ items }: { items: LabelPaper[] | undefined }) {
         </div>
         <p className={styles.muted}>
           Tính từ lượt chạy mới nhất của mỗi bài trên chỉ mục câu của paper model. Một bài được tính là đã phủ
-          khi lượt đó dùng prompt hiện tại và đọc đủ các mục; tỷ lệ câu theo vai trò mục chỉ tính trên các bài
-          đã phủ.
+          khi lượt đó dùng prompt hiện tại và đọc đủ các mục; tỷ lệ câu theo vai trò section chỉ tính trên các
+          bài đã phủ.
         </p>
         {!coverage ? (
           <p>Đang tải…</p>
@@ -45,7 +45,7 @@ export function LabelCoverage({ items }: { items: LabelPaper[] | undefined }) {
               </tbody>
             </DataTable>
             {coverage.roles.length > 0 && (
-              <DataTable aria-label="Câu có nhãn theo vai trò mục">
+              <DataTable aria-label="Câu có nhãn theo vai trò section">
                 <thead>
                   <tr>
                     <th>Vai trò mục</th>

@@ -13,8 +13,8 @@ import { Button } from '@/shared/ui/Button';
 import styles from './scg.module.css';
 
 const STATE_TEXT: Record<ScgPublishState | 'unknown', string> = {
-  no_model: 'Cần công bố paper model của bài (mục Thông tin bài) trước khi công bố đồ thị đóng góp.',
-  none: 'Đồ thị đóng góp chưa được công bố.',
+  no_model: 'Cần công bố paper model của bài (mục Thông tin bài) trước khi công bố đồ thị contribution.',
+  none: 'Đồ thị contribution chưa được công bố.',
   current: 'Đã công bố, khớp với bản hiện tại.',
   outdated: 'Bản đã công bố đã cũ so với kết quả duyệt hiện tại.',
   unknown: 'Không kiểm tra được bản đã công bố.',
@@ -68,14 +68,14 @@ export function PublishScg({ paper, run, busy }: { paper: Paper; run: ScgPaperRu
       setState('current');
     } catch (cause) {
       if (cause instanceof PublishScgError && cause.status === 404) setState('no_model');
-      setError(cause instanceof PublishScgError ? cause.message : 'Không công bố được đồ thị đóng góp.');
+      setError(cause instanceof PublishScgError ? cause.message : 'Không công bố được đồ thị contribution.');
     } finally {
       setSending(false);
     }
   }
 
   const note = !user
-    ? 'Đăng nhập tài khoản lab để công bố đồ thị đóng góp.'
+    ? 'Đăng nhập tài khoản lab để công bố đồ thị contribution.'
     : !complete
       ? 'Chạy xong ba giai đoạn rồi mới công bố được.'
       : !graph
@@ -96,7 +96,7 @@ export function PublishScg({ paper, run, busy }: { paper: Paper; run: ScgPaperRu
         }
         onClick={() => void publish()}
       >
-        {sending ? 'Đang công bố…' : 'Công bố đồ thị đóng góp'}
+        {sending ? 'Đang công bố…' : 'Công bố đồ thị contribution'}
       </Button>
       {note && (
         <span className={styles.muted} role="status">

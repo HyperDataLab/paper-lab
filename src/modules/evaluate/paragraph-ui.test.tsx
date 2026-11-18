@@ -100,20 +100,20 @@ it('EV-07 EV-08 AC-05 analyzes after syntax, shows the chain, and reopens withou
   const completeJson = fakeCompleteJson();
   const client = { completeJson } as unknown as LlmClient;
   const view = mount(repo, client);
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), {
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), {
     target: { value: 'Cells grow. Roots spread.' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
-  expect(await screen.findByRole('button', { name: 'Phân tích cấu trúc đoạn (AI)' })).toBeDisabled();
+  expect(await screen.findByRole('button', { name: 'Phân tích cấu trúc paragraph (AI)' })).toBeDisabled();
   expect(screen.getByText('Cần phân tích câu trước')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Phân tích câu (AI)' }));
   expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
   expect(completeJson).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Đồng ý và tiếp tục' }));
   await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Phân tích cấu trúc đoạn (AI)' })).toBeEnabled(),
+    expect(screen.getByRole('button', { name: 'Phân tích cấu trúc paragraph (AI)' })).toBeEnabled(),
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Phân tích cấu trúc đoạn (AI)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Phân tích cấu trúc paragraph (AI)' }));
   await screen.findByText(/· S1 → S2/);
   expect(screen.getByText(/grow → Roots/)).toBeInTheDocument();
   const rect = {
@@ -135,14 +135,14 @@ it('EV-07 EV-08 AC-05 analyzes after syntax, shows the chain, and reopens withou
     expect(document.querySelector('svg[aria-hidden="true"] marker#flow-arrow')).toBeInTheDocument(),
   );
   rectangles.mockRestore();
-  fireEvent.click(screen.getByRole('tab', { name: 'Cấu trúc đoạn' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Cấu trúc paragraph' }));
   expect(screen.getByText('độ tin cậy 80 %')).toBeInTheDocument();
   const pair = screen.getByText('S1 → S2', { selector: 'strong' }).closest('li')!;
   expect(pair).toHaveTextContent('Chuyển chủ đề');
   expect(pair).toHaveTextContent('Không có');
   expect(pair).toHaveTextContent('Chưa liên kết');
   expect(pair).not.toHaveTextContent('shift');
-  const structurePanel = within(screen.getByRole('tabpanel', { name: 'Cấu trúc đoạn' }));
+  const structurePanel = within(screen.getByRole('tabpanel', { name: 'Cấu trúc paragraph' }));
   const alignment = structurePanel.getByTitle('stress_to_next_topic_alignment');
   expect(alignment).toHaveTextContent('Cặp nối Stress → Topic');
   expect(alignment).toHaveTextContent('0/1 cặp (0 %)');
@@ -155,19 +155,19 @@ it('EV-07 EV-08 AC-05 analyzes after syntax, shows the chain, and reopens withou
   ).toBeInTheDocument();
   expect(screen.getByText(/Không nối Stress → Topic/)).toBeInTheDocument();
   expect(screen.getAllByText(/Đứt mạch giữa hai câu/).length).toBeGreaterThan(0);
-  fireEvent.click(screen.getByRole('tab', { name: 'Cấu trúc đoạn' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Cấu trúc paragraph' }));
   fireEvent.click(screen.getByRole('button', { name: 'Lưu vào lịch sử' }));
   await screen.findByRole('button', { name: 'Đã lưu' }, { timeout: 10000 });
   const [saved] = (await repo.analyses.list()).items;
   expect((await repo.analyses.get(saved!.id))?.versions.structurePrompt).toBe('para-struct-2');
   expect((await repo.analyses.get(saved!.id))?.versions.structureModel).toBe('fake');
   expect(screen.getByRole('button', { name: 'Phân tích lại (AI)' })).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'Phân tích cấu trúc đoạn (AI)' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Phân tích cấu trúc paragraph (AI)' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Đánh giá theo ngữ cảnh (AI)' })).toBeDisabled();
   view.unmount();
   completeJson.mockClear();
   mount(repo, client, `/evaluate?id=${saved!.id}`);
-  fireEvent.click(await screen.findByRole('tab', { name: 'Cấu trúc đoạn' }));
+  fireEvent.click(await screen.findByRole('tab', { name: 'Cấu trúc paragraph' }));
   expect(await screen.findByText('độ tin cậy 80 %')).toBeInTheDocument();
   expect(completeJson).not.toHaveBeenCalled();
 });
@@ -185,21 +185,21 @@ it('EV-08 removes decisions for vanished flow issues before saving', async () =>
     return response;
   });
   mount(repo, { completeJson } as unknown as LlmClient);
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), {
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), {
     target: { value: 'Cells grow. Roots spread.' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Phân tích câu (AI)' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
   await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Phân tích cấu trúc đoạn (AI)' })).toBeEnabled(),
+    expect(screen.getByRole('button', { name: 'Phân tích cấu trúc paragraph (AI)' })).toBeEnabled(),
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Phân tích cấu trúc đoạn (AI)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Phân tích cấu trúc paragraph (AI)' }));
   fireEvent.click((await screen.findByText(/grow → Roots/)).closest('button')!);
   fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Phân tích cấu trúc đoạn (AI)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Phân tích cấu trúc paragraph (AI)' }));
   await waitFor(() => expect(screen.queryByText(/grow → Roots/)).not.toBeInTheDocument());
-  fireEvent.click(screen.getByRole('tab', { name: 'Cấu trúc đoạn' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Cấu trúc paragraph' }));
   expect(screen.getByText('Không có đánh giá của AI')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Lưu vào lịch sử' }));
   await screen.findByRole('button', { name: 'Đã lưu' }, { timeout: 10000 });
@@ -212,18 +212,18 @@ it('EV-07 editing the text or re-running sentence syntax clears the structure re
   const repo = createRepositories(createDb(`paragraph-${crypto.randomUUID()}`));
   const completeJson = fakeCompleteJson();
   mount(repo, { completeJson } as unknown as LlmClient);
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), {
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), {
     target: { value: 'Cells grow. Roots spread.' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Phân tích câu (AI)' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
   await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Phân tích cấu trúc đoạn (AI)' })).toBeEnabled(),
+    expect(screen.getByRole('button', { name: 'Phân tích cấu trúc paragraph (AI)' })).toBeEnabled(),
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Phân tích cấu trúc đoạn (AI)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Phân tích cấu trúc paragraph (AI)' }));
   await screen.findByText(/grow → Roots/);
-  fireEvent.click(screen.getByRole('tab', { name: 'Cấu trúc đoạn' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Cấu trúc paragraph' }));
   expect(screen.getByText('độ tin cậy 80 %')).toBeInTheDocument();
   // Re-running sentence syntax drops the structure result and its flow issue.
   fireEvent.click(screen.getByRole('button', { name: 'Phân tích lại (AI)' }));
@@ -231,5 +231,5 @@ it('EV-07 editing the text or re-running sentence syntax clears the structure re
   expect(screen.queryByText(/grow → Roots/)).not.toBeInTheDocument();
   // Back to the textarea: everything is cleared.
   fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa văn bản' }));
-  expect(screen.queryByRole('tab', { name: 'Cấu trúc đoạn' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('tab', { name: 'Cấu trúc paragraph' })).not.toBeInTheDocument();
 });

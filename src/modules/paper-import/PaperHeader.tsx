@@ -53,7 +53,7 @@ export function PaperHeader({
             )}
             <Transparency
               paper={paper}
-              parserCounts={`${paper.source.pageCount ?? 'Không rõ'} trang · ${paper.sections.length} mục · ${bodyCount} đoạn nội dung${counts ? ` · ${counts.sentences} câu · ${counts.words} từ` : ''}`}
+              parserCounts={`${paper.source.pageCount ?? 'Không rõ'} trang · ${paper.sections.length} section · ${bodyCount} paragraph${counts ? ` · ${counts.sentences} câu · ${counts.words} từ` : ''}`}
             />
             <Button aria-label="Thông tin xuất bản" variant="ghost" onClick={onInfo}>
               <Info size={18} aria-hidden="true" />

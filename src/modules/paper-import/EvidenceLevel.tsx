@@ -15,7 +15,7 @@ export function EvidenceLevelBadge({
     .join('\n');
   return (
     <span title={title}>
-      <Badge>Mức bằng chứng {level}</Badge>
+      <Badge>Mức evidence {level}</Badge>
     </span>
   );
 }

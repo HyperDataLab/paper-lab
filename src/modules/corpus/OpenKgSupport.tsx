@@ -17,7 +17,7 @@ export function OpenKgSupport({ edge, papers }: { edge: KgEdge; papers: Readonly
       <span className={styles.muted}>
         {edge.supportCount} bài làm căn cứ
         {edge.weight !== undefined && ` · Jaccard ${number.format(edge.weight)}`}
-        {edge.keywordScore !== undefined && ` · Điểm từ khóa ${number.format(edge.keywordScore)}`}
+        {edge.keywordScore !== undefined && ` · Điểm keyword ${number.format(edge.keywordScore)}`}
       </span>
       <ul className={corpusStyles.support} aria-label="Bài báo làm căn cứ">
         {[...sources].map(([id, origins]) => (

@@ -1,20 +1,8 @@
 import type { Paper } from '@/core/schemas';
+import { SECTION_ROLE_LABELS } from './sectionRoles';
 
 type Role = Paper['sections'][number]['role'];
 
-/** The kind of section a reader names a place by; a section of another kind is named by its heading. */
-export const ROLE_LABELS: Partial<Record<Role, string>> = {
-  title: 'Front matter',
-  abstract: 'Abstract',
-  introduction: 'Introduction',
-  related_work: 'Related work',
-  methods: 'Methods',
-  results: 'Results',
-  discussion: 'Discussion',
-  conclusion: 'Conclusion',
-  references: 'References',
-  appendix: 'Appendix',
-};
 const SHORT = 24;
 
 /** Where a paragraph is: the kind of its section, a short name for it, its page and the full heading. */
@@ -25,8 +13,11 @@ export function placeOf(paper: Paper, paragraphId: string) {
   const role: Role = section?.role ?? 'other';
   const heading = section?.heading.trim() ?? '';
   const label =
-    ROLE_LABELS[role] ??
-    (heading.length > SHORT ? `${heading.slice(0, SHORT - 1).trimEnd()}…` : heading || 'Không rõ mục');
+    role !== 'other'
+      ? SECTION_ROLE_LABELS[role]
+      : heading.length > SHORT
+        ? `${heading.slice(0, SHORT - 1).trimEnd()}…`
+        : heading || 'Không rõ section';
   return { role, label, page: paragraph.pageStart, heading };
 }
 

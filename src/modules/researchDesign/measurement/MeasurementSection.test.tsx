@@ -49,12 +49,12 @@ it.each([
 
 it('ME-01 shows tab counts and adds a variable', async () => {
   const { stored } = await setup();
-  fireEvent.click(await screen.findByRole('tab', { name: 'Biến (0)' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Thêm biến' }));
+  fireEvent.click(await screen.findByRole('tab', { name: 'Variable (0)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm variable' }));
   fireEvent.change(screen.getByLabelText('Tên'), { target: { value: 'Test variable' } });
   fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
   expect(await screen.findByText('Test variable')).toBeInTheDocument();
-  expect(screen.getByRole('tab', { name: 'Biến (1)' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'Variable (1)' })).toHaveAttribute('aria-selected', 'true');
   expect((await stored()).variables).toHaveLength(1);
 });
 
@@ -177,7 +177,7 @@ it('ME-08 attaches a dependent variable and refuses to delete its metric', async
     protocolBank: null,
   });
   await setup({ draft });
-  fireEvent.click(await screen.findByRole('button', { name: 'Gắn biến' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Gắn variable' }));
   fireEvent.click(screen.getByLabelText('v-1 Test variable'));
   fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -195,7 +195,7 @@ it('ME-09 reports loading and then an error', async () => {
   vi.spyOn(repo.researchDesigns, 'get').mockRejectedValue(new Error('offline'));
   renderSection(repo);
   expect(screen.getByRole('status', { name: 'Đang tải…' })).toBeInTheDocument();
-  expect(await screen.findByText('Không tải được đo lường.')).toBeInTheDocument();
+  expect(await screen.findByText('Không tải được measurement.')).toBeInTheDocument();
 });
 
 it('ME-10 opens the tab named by the query', async () => {
@@ -206,8 +206,8 @@ it('ME-10 opens the tab named by the query', async () => {
 
 it('ME-11 shows a missing chain link once', async () => {
   await setup({ draft: measurementDraft() });
-  expect(await screen.findByText('chưa gắn biến phụ thuộc')).toBeInTheDocument();
-  expect(screen.queryByText('h-1 chưa gắn biến phụ thuộc.')).not.toBeInTheDocument();
+  expect(await screen.findByText('chưa gắn dependent variable')).toBeInTheDocument();
+  expect(screen.queryByText('h-1 chưa gắn dependent variable.')).not.toBeInTheDocument();
   expect(screen.getAllByText('chưa có phân tích')).toHaveLength(1);
   expect(screen.queryByText('h-1 chưa có phân tích nào.')).not.toBeInTheDocument();
 });
@@ -230,14 +230,14 @@ it('ME-13 labels variable details and metric links', async () => {
     'href',
     '/?design=measurement&measure=metrics',
   );
-  expect(screen.getByText('Hiệp biến · chưa có metric')).toBeInTheDocument();
+  expect(screen.getByText('Covariate · chưa có metric')).toBeInTheDocument();
 });
 
 it('ME-14 describes the strongest supported claim', async () => {
   await setup();
   fireEvent.click(await screen.findByRole('tab', { name: /Metric/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Thêm metric' }));
-  expect(screen.getAllByText(/Nhận định mạnh nhất mà metric tự nó hỗ trợ:/).length).toBeGreaterThan(0);
+  expect(screen.getAllByText(/Claim mạnh nhất mà metric tự nó hỗ trợ:/).length).toBeGreaterThan(0);
   expect(['descriptive', 'comparative', 'inferential', 'invented'].map(claimWord)).toEqual([
     'mô tả',
     'so sánh',
@@ -251,7 +251,7 @@ it('ME-15 names each deletion and describes the item', async () => {
   for (const [tab, title, description] of [
     ['Dataset (1)', 'Xoá dataset', 'Xoá d-1 «Invented data»?'],
     ['Điều kiện (1)', 'Xoá điều kiện', 'Xoá c-1 «Invented condition»?'],
-    ['Biến (3)', 'Xoá biến', 'Xoá v-1 «Invented factor»?'],
+    ['Variable (3)', 'Xoá variable', 'Xoá v-1 «Invented factor»?'],
   ]) {
     fireEvent.click(await screen.findByRole('tab', { name: tab }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Xoá' })[0]!);
@@ -263,7 +263,7 @@ it('ME-15 names each deletion and describes the item', async () => {
 
 it('ME-16 renders each tab label as one text node', async () => {
   await setup({ draft: measurementDraft() });
-  const tab = await screen.findByRole('tab', { name: 'Biến (3)' });
+  const tab = await screen.findByRole('tab', { name: 'Variable (3)' });
   expect(tab.childNodes).toHaveLength(1);
   expect(tab.firstChild?.nodeType).toBe(Node.TEXT_NODE);
 });
@@ -304,8 +304,8 @@ it('retries a save once after a version conflict', async () => {
     .spyOn(repo.researchDesigns, 'save')
     .mockRejectedValueOnce(new ResearchDesignConflictError('changed'))
     .mockImplementation(real);
-  fireEvent.click(await screen.findByRole('tab', { name: 'Biến (0)' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Thêm biến' }));
+  fireEvent.click(await screen.findByRole('tab', { name: 'Variable (0)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm variable' }));
   fireEvent.change(screen.getByLabelText('Tên'), { target: { value: 'Retried variable' } });
   fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
   expect(await screen.findByText('Retried variable')).toBeInTheDocument();

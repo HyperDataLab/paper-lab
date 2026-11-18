@@ -105,7 +105,7 @@ it('EV-12 renders report sections and prints', async () => {
     'Thông tin & phiên bản',
     'Văn bản gốc',
     'Câu',
-    'Cấu trúc đoạn & mạch',
+    'Cấu trúc paragraph & mạch',
     'Số liệu',
     'Điểm',
     'Vấn đề',

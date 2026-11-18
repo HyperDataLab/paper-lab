@@ -48,7 +48,7 @@ export function ItemCard({
       <Link to={to} className={styles.itemTitle}>
         {title}
       </Link>
-      <span className={styles.itemDescription}>{description || 'Chưa có câu hỏi nghiên cứu.'}</span>
+      <span className={styles.itemDescription}>{description || 'Chưa có research question nào.'}</span>
       <span className={styles.itemStats}>
         {stats.map((stat) => (
           <span key={stat.label}>

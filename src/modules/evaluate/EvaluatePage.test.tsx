@@ -17,7 +17,7 @@ it('EV-01 AC-01 displays two sentences from entered text', async () => {
       </StorageProvider>
     </MemoryRouter>,
   );
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), {
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), {
     target: { value: 'First sentence. Second sentence.' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));

@@ -35,13 +35,13 @@ export function OverviewTable({
   const categories = Object.fromEntries(FOCUS[focus].categories.map((id) => [id, CATEGORIES[id]]));
   const rows = overview.sections.filter((section) => section.analysed > 0);
   if (!rows.length)
-    return <p>Chưa có đoạn nào được phân tích. Chọn mục ở phần trên rồi bấm Bắt đầu phân tích.</p>;
+    return <p>Chưa có paragraph nào được phân tích. Chọn section ở phần trên rồi bấm Bắt đầu phân tích.</p>;
   return (
     <div className={styles.scroll}>
       <table className={styles.table}>
         <thead>
           <tr>
-            <th scope="col">Mục</th>
+            <th scope="col">Section</th>
             <th scope="col">Độ bao phủ</th>
             <th scope="col">Vấn đề cần xem lại</th>
             {dimensions.map((dimension) => (

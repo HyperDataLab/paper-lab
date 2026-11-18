@@ -48,7 +48,7 @@ function analysisSteps(report: AnalysisReport): Step[] {
   return [
     make('Phân tích câu', 'syntax', a.versions.model, a.versions.prompt),
     make('Đánh giá theo ngữ cảnh', 'judge', a.versions.model, a.versions.judgePrompt),
-    make('Cấu trúc đoạn', 'structure', a.versions.structureModel, a.versions.structurePrompt),
+    make('Cấu trúc paragraph', 'structure', a.versions.structureModel, a.versions.structurePrompt),
     make('Chấm điểm', 'score', a.versions.scoringModel, a.versions.scoringPrompt),
   ];
 }
@@ -136,7 +136,7 @@ function paperSteps(
       calibration: null,
     })),
     ...(insights?.argumentRuns ?? []).map((run): Step => ({
-      step: 'Lập luận',
+      step: 'Argument',
       model: run.model,
       prompt: run.promptVersion,
       rubric: null,
@@ -169,7 +169,7 @@ function paperSteps(
       calibration: null,
     })),
     ...(measurements?.runs ?? []).map((run): Step => ({
-      step: 'Đo lường',
+      step: 'Measurement',
       model: run.profile.model_id,
       prompt: run.profile.prompt_version,
       rubric: null,
@@ -202,7 +202,7 @@ const CALIBRATION = {
 const STEP_NAMES: Record<string, string> = {
   syntax: 'Phân tích câu',
   judge: 'Đánh giá ngữ cảnh',
-  structure: 'Cấu trúc đoạn',
+  structure: 'Cấu trúc paragraph',
   score: 'Chấm điểm',
   transitions: 'Chuyển đoạn',
 };

@@ -3,7 +3,7 @@ import { Pilcrow } from 'lucide-react';
 import type { ModuleDefinition } from '@/app/moduleTypes';
 const module: ModuleDefinition = {
   id: 'evaluate',
-  label: 'Đoạn văn',
+  label: 'Paragraph',
   icon: Pilcrow,
   path: '/evaluate',
   group: 'analysis',

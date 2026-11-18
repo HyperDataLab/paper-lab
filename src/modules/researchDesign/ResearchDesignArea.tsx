@@ -17,8 +17,8 @@ export function ResearchDesignArea({ project }: { project: ExtractionProject }) 
   return (
     <ResearchDesignProvider project={project}>
       <section aria-labelledby="research-design-heading">
-        <h2 id="research-design-heading">Thiết kế nghiên cứu</h2>
-        <Tabs label="Thiết kế nghiên cứu">
+        <h2 id="research-design-heading">Research design</h2>
+        <Tabs label="Research design">
           {researchDesignSections.map((section) => (
             <Button
               key={section.id}

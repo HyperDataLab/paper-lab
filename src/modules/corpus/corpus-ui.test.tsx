@@ -101,7 +101,7 @@ it('C1c creates a topic corpus with its first protocol', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Corpus mới' }));
   expect(screen.getByRole('dialog', { name: 'Tạo corpus' })).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Tên corpus'), { target: { value: 'Review' } });
-  fireEvent.change(screen.getByLabelText('Câu hỏi nghiên cứu'), { target: { value: 'Why?' } });
+  fireEvent.change(screen.getByLabelText('Research question'), { target: { value: 'Why?' } });
   fireEvent.click(screen.getByRole('button', { name: 'Tạo corpus' }));
   expect(await screen.findByRole('heading', { name: 'Review' })).toBeInTheDocument();
   expect((await repo.corpora.list())[0]?.protocol[0]).toMatchObject({

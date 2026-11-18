@@ -1,7 +1,7 @@
 import type { KgEdge, KgLayer, KgPredicate, KgProvenance } from '@/core/openkg';
 
 export const LAYER_LABELS: Record<KgLayer, string> = {
-  evidential: 'Dẫn chứng',
+  evidential: 'Evidence',
   conceptual: 'Khái niệm',
   disciplinary: 'Chuyên ngành',
   expertise: 'Chuyên môn',
@@ -11,26 +11,26 @@ export const LAYER_LABELS: Record<KgLayer, string> = {
 export const PREDICATE_LABELS: Record<KgPredicate, string> = {
   cites: 'trích dẫn',
   publishedIn: 'xuất bản tại',
-  hasKeyword: 'có từ khóa',
-  contributes: 'đóng góp',
+  hasKeyword: 'có keyword',
+  contributes: 'có contribution',
   buildsOn: 'dựa trên',
-  relatedKeyword: 'liên quan đến từ khóa',
+  relatedKeyword: 'liên quan đến keyword',
   coAuthor: 'đồng tác giả với',
   inTopic: 'thuộc',
   broader: 'thuộc nhóm rộng hơn',
   authoredBy: 'có tác giả',
   affiliatedWith: 'có cơ quan công tác',
-  hasClaim: 'nêu luận điểm',
+  hasClaim: 'nêu claim',
   supportedBy: 'được củng cố bởi',
-  evidenceLevel: 'có mức bằng chứng',
+  evidenceLevel: 'có mức evidence',
 };
 
 export const NODE_LABELS = {
   Paper: 'Bài báo',
   Work: 'Tài liệu được dẫn',
   Source: 'Nơi xuất bản',
-  Keyword: 'Từ khóa',
-  Contribution: 'Đóng góp',
+  Keyword: 'Keyword',
+  Contribution: 'Contribution',
   Prerequisite: 'Nền tảng',
   Tool: 'Công cụ',
   Domain: 'Lĩnh vực',
@@ -39,9 +39,9 @@ export const NODE_LABELS = {
   Topic: 'Chủ đề',
   Author: 'Tác giả',
   Institution: 'Cơ quan',
-  Claim: 'Luận điểm',
-  Evidence: 'Bằng chứng',
-  EvidenceLevel: 'Mức bằng chứng',
+  Claim: 'Claim',
+  Evidence: 'Evidence',
+  EvidenceLevel: 'Mức evidence',
 } as const;
 
 export const PROVENANCE_LABELS: Record<KgProvenance, string> = {

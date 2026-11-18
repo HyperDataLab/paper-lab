@@ -45,7 +45,7 @@ export default function ProjectPage() {
         </Link>
         <h1>{project.title}</h1>
         {project.researchQuestion && (
-          <p className={styles.note}>Câu hỏi nghiên cứu: {project.researchQuestion}</p>
+          <p className={styles.note}>Research question: {project.researchQuestion}</p>
         )}
       </header>
       <section>

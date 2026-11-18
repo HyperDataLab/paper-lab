@@ -4,7 +4,7 @@ import type { Props } from './types';
 export function StatementCard({ check, change }: Props) {
   return (
     <Card>
-      <h3>Đề tài và khoảng trống</h3>
+      <h3>Topic và research gaps</h3>
       <BlurField
         label="Phát biểu đề tài"
         value={check.statement}

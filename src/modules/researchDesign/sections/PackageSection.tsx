@@ -72,14 +72,14 @@ export default function PackageSection() {
   const designFlags = checkDesign(draft, state.bank);
   const planFlags = checkPlan(draft).filter((f) => f.level !== 'note');
   const counts = [
-    ['Thiết kế nghiên cứu', 'design', designFlags.length],
+    ['Research design', 'design', designFlags.length],
     [
-      'Câu hỏi và giả thuyết',
+      'Research questions và hypotheses',
       'questions',
       designFlags.filter((f) => draft.hypotheses.some((h) => h.id === f.subject)).length,
     ],
-    ['Đo lường', 'measurement', checkChain(draft).length],
-    ['Phân tích thống kê', 'analyses', planFlags.filter((f) => f.rule.startsWith('AN-')).length],
+    ['Measurement', 'measurement', checkChain(draft).length],
+    ['Statistical analysis', 'analyses', planFlags.filter((f) => f.rule.startsWith('AN-')).length],
     ['Ma trận chạy', 'runs', planFlags.filter((f) => f.rule.startsWith('RM-')).length],
   ] as const;
   const destination = (subject: string | undefined, rule: string) =>

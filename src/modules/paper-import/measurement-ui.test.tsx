@@ -243,7 +243,7 @@ it('AS-10 opens an atomic sentence, marks it checked, undoes it and tracks progr
   fireEvent.click(screen.getByRole('button', { name: /1\s*câu nguyên tử/ }));
   expect(screen.getByText('Đã đối chiếu 0/1')).toBeInTheDocument();
   expand(/Câu nguyên tử/);
-  expand(/Phương pháp/);
+  expand(/Methods/);
   pick(/Accuracy is the share/);
   expect(screen.getByText('7 từ')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Đã đối chiếu với nguồn' }));

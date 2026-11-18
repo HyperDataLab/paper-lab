@@ -19,7 +19,7 @@ export function GenerationResult({
   return (
     <>
       <Card>
-        <h2>Đoạn đã soạn</h2>
+        <h2>Paragraph đã soạn</h2>
         {generation ? (
           <div className={styles.reading}>
             {generation.sentences.map((sentence, index) => {
@@ -43,7 +43,7 @@ export function GenerationResult({
                       onMouseLeave={() => highlight(null)}
                       onFocus={() => highlight(id)}
                       onBlur={() => highlight(null)}
-                      aria-label={`Bằng chứng ${id}`}
+                      aria-label={`Evidence ${id}`}
                     >
                       {id}
                     </Chip>
@@ -58,7 +58,7 @@ export function GenerationResult({
             )}
           </div>
         ) : (
-          <p>Nhập luận điểm và bằng chứng để soạn đoạn.</p>
+          <p>Nhập claim và evidence để soạn paragraph.</p>
         )}
       </Card>
       <Card>
@@ -91,7 +91,7 @@ export function GenerationResult({
             </ul>
             {generation.checks.unanchored.length > 0 && (
               <>
-                <h3>Câu không khớp với đoạn</h3>
+                <h3>Câu không khớp với paragraph</h3>
                 <ul>
                   {generation.checks.unanchored.map((item) => (
                     <li key={item.sentenceIndex}>
@@ -101,9 +101,9 @@ export function GenerationResult({
                 </ul>
               </>
             )}
-            <h3>Bằng chứng chưa dùng</h3>
+            <h3>Evidence chưa dùng</h3>
             <p>{generation.checks.unusedEvidence.join(', ') || 'Không có.'}</p>
-            <h3>Cần bằng chứng từ bạn</h3>
+            <h3>Cần evidence từ bạn</h3>
             {generation.needsEvidence.length ? (
               <ul>
                 {generation.needsEvidence.map((item, index) => (

@@ -220,7 +220,7 @@ export function PaperMeasurement({
     resumeEstimate,
     stop: () => controller.current?.abort(),
   });
-  if (loading) return <Loading label="Đang tải hồ sơ đo lường…" />;
+  if (loading) return <Loading label="Đang tải hồ sơ measurement…" />;
   const pending = record?.pending ?? null;
   const setup = (
     <RunSetup
@@ -261,7 +261,7 @@ export function PaperMeasurement({
   return (
     <div className={styles.panel}>
       <Card padding="md">
-        {!run && <h2>Phân tích đo lường và đánh giá</h2>}
+        {!run && <h2>Phân tích measurement và đánh giá</h2>}
         {!run && (
           <p>
             Trích xuất bài báo đã đo gì, bằng metric nào, dưới protocol nào. Mọi thông tin được đối chiếu lại
@@ -358,7 +358,7 @@ export function PaperMeasurement({
               />
               {treeNodes.length ? (
                 <Tree
-                  label="Hồ sơ đo lường"
+                  label="Hồ sơ measurement"
                   nodes={treeNodes}
                   selectedId={selected.id}
                   onSelect={setSelectedNode}
