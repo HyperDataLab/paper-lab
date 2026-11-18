@@ -104,12 +104,15 @@ export const scgPrerequisiteCarryKey = (contributionName: string, name: string) 
 /** Accepted and rejected items of a run by name, for `reviewCarry` of the next run. */
 export function scgReviewCarry(run: ScgPaperRun | undefined): ScgPaperRun['reviewCarry'] {
   const carry: ScgPaperRun['reviewCarry'] = { ...run?.reviewCarry };
+  // An item set back to candidate drops its old decision.
+  const set = (key: string, review: ScgReview) => {
+    if (review === 'candidate') delete carry[key];
+    else carry[key] = review;
+  };
   for (const contribution of run?.contributions ?? []) {
-    if (contribution.review !== 'candidate')
-      carry[scgContributionCarryKey(contribution.name)] = contribution.review;
+    set(scgContributionCarryKey(contribution.name), contribution.review);
     for (const prerequisite of contribution.prerequisites)
-      if (prerequisite.review !== 'candidate')
-        carry[scgPrerequisiteCarryKey(contribution.name, prerequisite.name)] = prerequisite.review;
+      set(scgPrerequisiteCarryKey(contribution.name, prerequisite.name), prerequisite.review);
   }
   return carry;
 }

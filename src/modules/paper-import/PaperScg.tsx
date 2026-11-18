@@ -58,6 +58,8 @@ export function PaperScg({
   const sentences = useMemo(() => new Map(model.sentences.map((s) => [s.key, s])), [model]);
   useEffect(() => {
     void repo.scg.get(paper.id).then(setRun);
+    // Leaving the view stops the run; the checkpoint lets the next start resume it.
+    return () => controller.current?.abort();
   }, [paper.id, repo]);
 
   async function start() {
@@ -161,14 +163,17 @@ export function PaperScg({
             quote={quotes(contribution.sourceSentenceKeys)}
             source={source(contribution.sourceSentenceKeys)}
             actions={
-              <ReviewActions
-                decided={contribution.review !== 'candidate'}
-                confirmLabel="Chấp nhận"
-                dismissLabel="Bác bỏ"
-                onConfirm={() => void review({ contributionId: contribution.id }, 'accepted')}
-                onDismiss={() => void review({ contributionId: contribution.id }, 'rejected')}
-                onUndo={() => void review({ contributionId: contribution.id }, 'candidate')}
-              />
+              // The running pass rewrites the run at each checkpoint, so reviews wait until it stops.
+              !running && (
+                <ReviewActions
+                  decided={contribution.review !== 'candidate'}
+                  confirmLabel="Chấp nhận"
+                  dismissLabel="Bác bỏ"
+                  onConfirm={() => void review({ contributionId: contribution.id }, 'accepted')}
+                  onDismiss={() => void review({ contributionId: contribution.id }, 'rejected')}
+                  onUndo={() => void review({ contributionId: contribution.id }, 'candidate')}
+                />
+              )
             }
           >
             <p>{contribution.description}</p>
@@ -195,14 +200,16 @@ export function PaperScg({
                       quote={quotes(prerequisite.sourceSentenceKeys)}
                       source={source(prerequisite.sourceSentenceKeys)}
                       actions={
-                        <ReviewActions
-                          decided={prerequisite.review !== 'candidate'}
-                          confirmLabel="Chấp nhận"
-                          dismissLabel="Bác bỏ"
-                          onConfirm={() => void review(target, 'accepted')}
-                          onDismiss={() => void review(target, 'rejected')}
-                          onUndo={() => void review(target, 'candidate')}
-                        />
+                        !running && (
+                          <ReviewActions
+                            decided={prerequisite.review !== 'candidate'}
+                            confirmLabel="Chấp nhận"
+                            dismissLabel="Bác bỏ"
+                            onConfirm={() => void review(target, 'accepted')}
+                            onDismiss={() => void review(target, 'rejected')}
+                            onUndo={() => void review(target, 'candidate')}
+                          />
+                        )
                       }
                     >
                       <p>{prerequisite.explanation || prerequisite.description}</p>

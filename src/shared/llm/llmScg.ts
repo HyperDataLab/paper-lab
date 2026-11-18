@@ -6,12 +6,10 @@ import {
   PROMPT_VERSIONS,
 } from '@/core/prompts';
 import { scgIdBase, scgReviewCarry } from '@/core/scg';
+import { scgAlignmentCandidates, scgAlignmentGroups, scgApplyMatches } from '@/core/scg/align';
 import {
   addDropped,
   emptyScgDropped,
-  scgAlignmentCandidates,
-  scgAlignmentGroups,
-  scgApplyMatches,
   scgApplyPrerequisites,
   scgContributionBatches,
   scgDraftsFromOutput,

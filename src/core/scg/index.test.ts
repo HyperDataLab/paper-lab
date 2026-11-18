@@ -141,4 +141,11 @@ it('sets reviews on contributions, prerequisites and matches, and carries them b
   expect(updated?.prerequisites[0]?.review).toBe('rejected');
   expect(updated?.prerequisites[0]?.matches[0]?.review).toBe('accepted');
   expect(scgReviewCarry(run)).toEqual({ 'c:encoder': 'accepted', 'p:encoder|attention': 'rejected' });
+  // Undoing a decision clears the carried one too.
+  const undone = setScgReview(
+    { ...run, reviewCarry: scgReviewCarry(run) },
+    { contributionId: 'p.c0' },
+    'candidate',
+  );
+  expect(scgReviewCarry(undone)).toEqual({ 'p:encoder|attention': 'rejected' });
 });

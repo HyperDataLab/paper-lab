@@ -69,8 +69,13 @@ it('SCG lists a run with prerequisites and quotes, and saves accept and reject',
       ],
     },
   };
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
   const completeJson = vi.fn(async (request: Parameters<LlmClient['completeJson']>[0]) => {
     await request.onRequest?.();
+    if (request.schemaName === 'scg_prerequisites') await gate;
     return {
       data: request.schema.parse(outputs[request.schemaName]),
       meta: { model: 'm', promptVersion: request.promptVersion, latencyMs: 1, repaired: false },
@@ -84,6 +89,11 @@ it('SCG lists a run with prerequisites and quotes, and saves accept and reject',
     </StorageProvider>,
   );
   fireEvent.click(screen.getByRole('button', { name: 'Trích đóng góp (SCG)' }));
+  // Stage 1 is shown while the pass goes on, without review controls the next checkpoint would overwrite.
+  expect(await screen.findByText('Foo encoder')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Dừng' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Chấp nhận' })).toBeNull();
+  release();
   expect(await screen.findByText('Bar attention')).toBeInTheDocument();
   expect(screen.getByText('Foo encoder')).toBeInTheDocument();
   expect(screen.getByText('models_or_architectures')).toBeInTheDocument();
@@ -93,7 +103,7 @@ it('SCG lists a run with prerequisites and quotes, and saves accept and reject',
   expect(completeJson).toHaveBeenCalledTimes(2);
 
   const [contributionCard, prerequisiteCard] = screen.getAllByRole('article');
-  fireEvent.click(within(prerequisiteCard!).getByRole('button', { name: 'Bác bỏ' }));
+  fireEvent.click(await within(prerequisiteCard!).findByRole('button', { name: 'Bác bỏ' }));
   await waitFor(async () =>
     expect((await repo.scg.get(paper.id))?.contributions[0]?.prerequisites[0]?.review).toBe('rejected'),
   );

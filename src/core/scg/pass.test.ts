@@ -1,9 +1,8 @@
 import { expect, it } from 'vitest';
 import type { PaperModelSentence, ScgContribution, ScgPaperRun } from '../schemas';
+import { scgAlignmentCandidates, scgAlignmentGroups } from './align';
 import {
   SCG_LIMITS,
-  scgAlignmentCandidates,
-  scgAlignmentGroups,
   scgCallBound,
   scgContributionBatches,
   scgMergeDrafts,
