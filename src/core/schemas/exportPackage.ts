@@ -18,6 +18,7 @@ import { ExtractionProjectSchema } from './extraction';
 import { CalibrationLabelSetSchema } from './calibration';
 import { ResearchDesignSchema } from './researchDesign';
 import { bankDocSchema } from '../researchDesign/bank/snapshot';
+import { runSchema } from '../autoresearch/record';
 export const ExportPackageSchema = z.object({
   format: z.literal('paragraph-lab-export'),
   formatVersion: z.literal(1),
@@ -50,5 +51,6 @@ export const ExportPackageSchema = z.object({
     .default([]),
   corpora: z.array(CorpusSchema).default([]),
   corpusProfiles: z.array(StoredCorpusProfileSchema).default([]),
+  autoresearchRuns: z.array(runSchema).default([]),
 });
 export type ExportPackage = z.infer<typeof ExportPackageSchema>;

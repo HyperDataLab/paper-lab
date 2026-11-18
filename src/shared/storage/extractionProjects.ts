@@ -46,11 +46,12 @@ export function createExtractionRepository(
     async remove(id: string) {
       await db.transaction(
         'rw',
-        [db.extractionProjects, db.researchDesigns, db.researchDesignBanks],
+        [db.extractionProjects, db.researchDesigns, db.researchDesignBanks, db.autoresearchRuns],
         async () => {
           await db.extractionProjects.delete(id);
           await db.researchDesigns.delete(id);
           await db.researchDesignBanks.delete(id);
+          await db.autoresearchRuns.where('projectId').equals(id).delete();
         },
       );
     },

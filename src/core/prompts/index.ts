@@ -36,6 +36,14 @@ export const PROMPT_VERSIONS = {
   screeningTriage: 'screening-triage-1',
   synthesis: 'synthesis-3',
   planSuggestion: 'plan-suggestion-2',
+  autoresearchS1: 'autoresearch-s1-1',
+  autoresearchS2: 'autoresearch-s2-1',
+  autoresearchS3: 'autoresearch-s3-1',
+  autoresearchS6: 'autoresearch-s6-1',
+  autoresearchS7: 'autoresearch-s7-1',
+  autoresearchS8: 'autoresearch-s8-1',
+  autoresearchPi: 'autoresearch-pi-1',
+  autoresearchCritic: 'autoresearch-critic-1',
 } as const;
 export const CONNECTION_TEST_SYSTEM = 'You are a connection test. Return the requested JSON object.';
 export const CONNECTION_TEST_USER =

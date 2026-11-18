@@ -29,6 +29,7 @@ import { createGrobidRepository } from './grobid';
 import { createTransferRepository } from './transfer';
 import { createResearchDesignRepository } from './researchDesigns';
 import { createScgRepository } from './scg';
+import { createAutoResearchRepository } from './autoresearch';
 export function createRepositories(
   db: ParagraphDb,
   clock = () => new Date(),
@@ -76,6 +77,7 @@ export function createRepositories(
   return {
     analyses,
     scg,
+    autoresearch: createAutoResearchRepository(db, deps),
     audit,
     revisions,
     generations,
