@@ -9,4 +9,4 @@ Format: MADR-lite. One file per decision, `NNNN-title.md`, never edited after ac
 | 0003 | LLM through owner-supplied 9router                             | Accepted |
 | 0004 | Hybrid NLP behind a SyntaxProvider interface                   | Accepted |
 | 0005 | Option: self-host everything on an Oracle Cloud Always Free VM | Proposed |
-| 0007 | Central lab store replaces browser-local storage | Accepted |
+| 0007 | Central lab store replaces browser-local storage               | Accepted |
