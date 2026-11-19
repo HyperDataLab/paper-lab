@@ -6,7 +6,11 @@ import { kgQueue, MAX_ATTEMPTS } from './queue';
 import { kgRepo } from './repo';
 
 export const REQUEST_JOBS = 1;
-export const CRON_JOBS = 3;
+/**
+ * Jobs per cron run (every 5 minutes). A job makes about seven subrequests (claim, OpenAlex work, citing works,
+ * D1 upsert batch, Workers AI embedding, Vectorize upsert, finish), so 20 jobs stay far below the paid plan's 1000.
+ */
+export const CRON_JOBS = 20;
 
 function retryAt(now: Date, attempts: number, header: string | null) {
   const retryAfter =
