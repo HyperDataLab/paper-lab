@@ -1,4 +1,8 @@
 import { expect, it, vi } from 'vitest';
+import { newCorpus } from '@/core/corpus';
+import { addMember } from '@/core/corpus/intake';
+import { recordDecision } from '@/core/corpus/screening';
+import { corpusPlan, corpusQuestion, storeTriage, triageView } from '@/core/corpus/triage';
 import { candidateFromWork } from '@/core/extraction';
 import type { Candidate, ExtractionProject, SearchPlan } from '@/core/schemas';
 import { createLlmClient, type LlmClient } from './client';
@@ -160,6 +164,72 @@ it('R1 repairs an invalid triage reply once through the client and validates it'
     quality: null,
     matched: ['E1'],
   });
+});
+
+it('R1 corpus: triages a corpus screening list with a checkpoint per batch, and resumes after a stop', async () => {
+  vi.mocked(triageReply).mockClear();
+  const at = '2026-01-01T00:00:00.000Z';
+  let corpus = newCorpus({
+    id: 'c',
+    kind: 'topic',
+    title: 'Synthetic',
+    createdAt: at,
+    protocol: [
+      {
+        version: 1,
+        createdAt: at,
+        body: { researchQuestion: 'RQ', inclusion: ['edge'], exclusion: ['simulation only'], years: [] },
+      },
+    ],
+  });
+  for (let i = 0; i < 20; i++) {
+    const added = addMember(corpus, { doi: `10.1000/r2-${i}`, title: `Member ${i}`, year: 2021 }, at);
+    corpus = added.corpus;
+  }
+  // The first member is decided by a person before the run; triage leaves it alone.
+  const decided = recordDecision(
+    corpus,
+    corpus.members[0]!.memberId,
+    { stage: 'title-abstract', decision: 'include', person: 'An' },
+    at,
+  );
+  if (!decided.ok) throw new Error('decide');
+  let saved = decided.corpus;
+  const abort = new AbortController();
+  const run = (signal?: AbortSignal) =>
+    llmTriage(
+      { completeJson: triageReply },
+      corpusQuestion(saved),
+      corpusPlan(saved),
+      triageView(saved, 'title-abstract'),
+      {
+        config,
+        signal,
+        onBatch: ({ apply }) => {
+          const before = triageView(saved, 'title-abstract');
+          saved = storeTriage(saved, 'title-abstract', before, apply(before), at);
+          abort.abort();
+        },
+      },
+    );
+  await run(abort.signal);
+  expect(triageReply).toHaveBeenCalledTimes(1);
+  const triaged = () => saved.members.filter((member) => member.suggestions?.['title-abstract']).length;
+  expect(triaged()).toBe(18);
+  const prompt = vi.mocked(triageReply).mock.calls[0]![0];
+  expect(prompt.system).toContain('Research question: RQ');
+  expect(prompt.system).toContain('E1: simulation only');
+  await run();
+  expect(triageReply).toHaveBeenCalledTimes(2);
+  expect(triaged()).toBe(19);
+  expect(saved.members[0]?.suggestions).toBeUndefined();
+  expect(saved.members[1]?.suggestions?.['title-abstract']).toMatchObject({
+    relevance: 0.9,
+    matched: ['I1'],
+  });
+  // Nothing left: a third run makes no call.
+  await run();
+  expect(triageReply).toHaveBeenCalledTimes(2);
 });
 
 it('synthesises from at least two papers and keeps only known references', async () => {

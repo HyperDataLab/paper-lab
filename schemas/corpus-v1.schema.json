@@ -444,6 +444,26 @@
                   "additionalProperties": false
                 }
               },
+              "suggestions": {
+                "type": "object",
+                "propertyNames": { "type": "string", "enum": ["title-abstract", "full-text"] },
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "decision": { "type": "string", "enum": ["included", "excluded", "uncertain"] },
+                    "reason": { "type": "string" },
+                    "relevance": { "type": "number", "minimum": 0, "maximum": 1 },
+                    "quality": {
+                      "anyOf": [{ "type": "number", "minimum": 0, "maximum": 1 }, { "type": "null" }]
+                    },
+                    "matched": { "type": "array", "items": { "type": "string" } },
+                    "model": { "type": "string" },
+                    "promptVersion": { "type": "string" }
+                  },
+                  "required": ["decision", "reason"],
+                  "additionalProperties": false
+                }
+              },
               "appraisal": {
                 "type": "array",
                 "items": {
@@ -1311,6 +1331,26 @@
                   "additionalProperties": false
                 }
               },
+              "suggestions": {
+                "type": "object",
+                "propertyNames": { "type": "string", "enum": ["title-abstract", "full-text"] },
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "decision": { "type": "string", "enum": ["included", "excluded", "uncertain"] },
+                    "reason": { "type": "string" },
+                    "relevance": { "type": "number", "minimum": 0, "maximum": 1 },
+                    "quality": {
+                      "anyOf": [{ "type": "number", "minimum": 0, "maximum": 1 }, { "type": "null" }]
+                    },
+                    "matched": { "type": "array", "items": { "type": "string" } },
+                    "model": { "type": "string" },
+                    "promptVersion": { "type": "string" }
+                  },
+                  "required": ["decision", "reason"],
+                  "additionalProperties": false
+                }
+              },
               "appraisal": {
                 "type": "array",
                 "items": {
@@ -2175,6 +2215,26 @@
                     }
                   },
                   "required": ["stage", "decision", "reasonCode", "reasonText", "decider", "at"],
+                  "additionalProperties": false
+                }
+              },
+              "suggestions": {
+                "type": "object",
+                "propertyNames": { "type": "string", "enum": ["title-abstract", "full-text"] },
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "decision": { "type": "string", "enum": ["included", "excluded", "uncertain"] },
+                    "reason": { "type": "string" },
+                    "relevance": { "type": "number", "minimum": 0, "maximum": 1 },
+                    "quality": {
+                      "anyOf": [{ "type": "number", "minimum": 0, "maximum": 1 }, { "type": "null" }]
+                    },
+                    "matched": { "type": "array", "items": { "type": "string" } },
+                    "model": { "type": "string" },
+                    "promptVersion": { "type": "string" }
+                  },
+                  "required": ["decision", "reason"],
                   "additionalProperties": false
                 }
               },

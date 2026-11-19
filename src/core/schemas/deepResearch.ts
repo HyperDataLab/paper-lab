@@ -28,6 +28,20 @@ export type SearchRound = z.infer<typeof SearchRoundSchema>;
 export const ScreeningStatusSchema = z.enum(['candidate', 'included', 'excluded', 'uncertain']);
 export type ScreeningStatus = z.infer<typeof ScreeningStatusSchema>;
 
+/** A model's screening suggestion. A corpus member keeps the same shape per screening stage. */
+export const CandidateSuggestionSchema = z.object({
+  decision: z.enum(['included', 'excluded', 'uncertain']),
+  reason: z.string(),
+  /** Screening triage scores (0–1); a suggestion without them has not been triaged. */
+  relevance: z.number().min(0).max(1).optional(),
+  quality: z.number().min(0).max(1).nullable().optional(),
+  /** Criterion ids (I1…, E1…) the paper meets or, for exclusion criteria, matches. */
+  matched: z.array(z.string()).optional(),
+  model: z.string().optional(),
+  promptVersion: z.string().optional(),
+});
+export type CandidateSuggestion = z.infer<typeof CandidateSuggestionSchema>;
+
 export const CandidateSchema = z.object({
   key: z.string(),
   openalexId: z.string().nullable(),
@@ -44,19 +58,7 @@ export const CandidateSchema = z.object({
   workType: z.string().optional(),
   status: ScreeningStatusSchema,
   /** The model's suggestion. The status changes only when a person decides. */
-  suggestion: z
-    .object({
-      decision: z.enum(['included', 'excluded', 'uncertain']),
-      reason: z.string(),
-      /** Screening triage scores (0–1); a suggestion without them has not been triaged. */
-      relevance: z.number().min(0).max(1).optional(),
-      quality: z.number().min(0).max(1).nullable().optional(),
-      /** Criterion ids (I1…, E1…) the paper meets or, for exclusion criteria, matches. */
-      matched: z.array(z.string()).optional(),
-      model: z.string().optional(),
-      promptVersion: z.string().optional(),
-    })
-    .nullable(),
+  suggestion: CandidateSuggestionSchema.nullable(),
   reason: z.string().nullable(),
   decidedAt: z.iso.datetime().nullable(),
   /** `ai_accepted` when a person applied the AI triage bucket; the decision is still theirs. */
