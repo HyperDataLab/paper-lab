@@ -3,7 +3,7 @@ import { contracts, stageErrorSchema, STAGES } from './contracts';
 import { outputs } from './fixtures';
 import { overallTopicScore, passStage } from './validation';
 
-describe('AR1 stage contracts', () => {
+describe('AutoResearch stage contracts', () => {
   it.each(STAGES)('%s parses and passes with a linked synthetic chain', (stage) => {
     expect(contracts[stage].safeParse(outputs[stage]).success).toBe(true);
     expect(contracts[stage].safeParse({}).success).toBe(false);
@@ -49,7 +49,7 @@ describe('AR1 stage contracts', () => {
   it('S4 refuses empty candidates or fabricated query references', () => {
     const value = { candidates: outputs.S4.candidates.map((paper) => ({ ...paper, queryIds: ['unknown'] })) };
     expect(passStage('S4', value, outputs)).toBe('STAGE_ERROR');
-    expect(passStage('S4', { candidates: [] }, outputs)).toBe('MISSING_INPUT');
+    expect(passStage('S4', { candidates: [] }, outputs)).toBe('NO_LITERATURE');
   });
 
   it('S5 requires a decision for every known paper and a nonempty shortlist', () => {

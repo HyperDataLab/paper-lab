@@ -39,9 +39,11 @@ export const PROMPT_VERSIONS = {
   autoresearchS1: 'autoresearch-s1-1',
   autoresearchS2: 'autoresearch-s2-1',
   autoresearchS3: 'autoresearch-s3-1',
-  autoresearchS6: 'autoresearch-s6-1',
+  autoresearchS4: 'autoresearch-s4-1',
+  autoresearchS6: 'autoresearch-s6-2',
   autoresearchS7: 'autoresearch-s7-1',
   autoresearchS8: 'autoresearch-s8-1',
+  autoresearchS9: 'autoresearch-s9-1',
   autoresearchPi: 'autoresearch-pi-1',
   autoresearchCritic: 'autoresearch-critic-1',
 } as const;

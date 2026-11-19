@@ -43,6 +43,8 @@ export function reviewItemIds(artifact: Artifact | undefined): string[] {
       return contentOf('S4', artifact).candidates.map((p) => p.id);
     case 'S5':
       return contentOf('S5', artifact).decisions.map((d) => d.id);
+    case 'S9':
+      return contentOf('S9', artifact).claims.map((claim) => claim.id);
     default:
       return selectable(artifact).map((item) => item.id);
   }
@@ -94,6 +96,7 @@ export function checkpointDigest(state: StageState) {
     screeningProgress,
     cardProgress,
     cardCursor,
+    cardInputHash,
   } = state;
   return canonicalDigest({
     stage,
@@ -109,6 +112,7 @@ export function checkpointDigest(state: StageState) {
     screeningProgress,
     cardProgress,
     cardCursor,
+    ...(cardInputHash && { cardInputHash }),
   });
 }
 

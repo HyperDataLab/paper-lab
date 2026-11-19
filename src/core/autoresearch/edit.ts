@@ -30,6 +30,18 @@ export async function editArtifact(
     )
       throw new RunTransitionError('Retrieved paper records are immutable');
   }
+  if (stage === 'S6') {
+    const base = new Map(contentOf('S6', original).cards.map((card) => [card.decisionId, card]));
+    for (const card of contracts.S6.parse(parsed.data).cards) {
+      const old = base.get(card.decisionId);
+      if (
+        (old?.full_text_source || card.full_text_source) &&
+        (await canonicalDigest(old?.full_text_source ?? null)) !==
+          (await canonicalDigest(card.full_text_source ?? null))
+      )
+        throw new RunTransitionError('Full-text sentence sources are immutable');
+    }
+  }
   const error = passStage(stage, parsed.data, acceptedInputs(run, stage));
   if (error) throw new RunTransitionError(error);
   const pending = state.state === 'gate' ? patchStage(run, stage, { state: 'rejected' }) : run;

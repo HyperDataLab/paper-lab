@@ -11,6 +11,7 @@ export function referenceLabels(run: Run) {
   const plan = content('S3');
   const queries = new Map(plan ? searchQueries(plan).map((q) => [q.id, q.query]) : []);
   const hypotheses = content('S8');
+  const hypothesisLabels = new Map(hypotheses?.hypotheses.map((h) => [h.id, h.statement]));
   const papers = new Map([
     ...(content('S4')?.candidates.map((p) => [p.id, p.title] as const) ?? []),
     ...(hypotheses?.retrievedPapers.map((p) => [p.id, p.title] as const) ?? []),
@@ -29,6 +30,8 @@ export function referenceLabels(run: Run) {
     ['cardIds', cards],
     ['evidenceRefs', cards],
     ['gapId', new Map(content('S7')?.gaps.map((g) => [g.id, g.text]))],
-    ['hypothesisIds', new Map(hypotheses?.hypotheses.map((h) => [h.id, h.statement]))],
+    ['hypothesisId', hypothesisLabels],
+    ['hypothesisIds', hypothesisLabels],
+    ['claimId', new Map(content('S9')?.claims.map((claim) => [claim.id, claim.text]))],
   ]);
 }

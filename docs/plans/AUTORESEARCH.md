@@ -9,7 +9,7 @@ Owner, 2026-11-19:
 
 This plan replaces slices R2–R5 of `RESEARCH_PIPELINE.md`. R1, screening at scale, becomes the screening stage here.
 
-Status: AR1 implemented. S1–S8 run in the browser with human approval at each stage. AR2–AR4 remain planned.
+Status: AR1 and AR2 implemented. S1–S9 run in the browser with human approval at each stage. AR3 and AR4 remain planned.
 
 ## Ground rules
 
@@ -107,7 +107,7 @@ An edit upstream marks every later artifact `stale`. Resuming is allowed only wh
   - PI and Critic, with code guards and retry by observation;
   - stages S1–S3 and S5–S8 on top of the existing corpus and screening code, with S5 reusing R1;
   - an "AutoResearch" area inside a Project, with a stage track, artifact viewer, gate sheet, PI advice and Critic report panels, and a decision inbox.
-- **AR2:** S4 using lab KG search (needs L3), S6 from full text where it exists, and S9 linked to the argument model.
+- **AR2** (implemented): S4 searches the lab KG and OpenAlex before adding Project corpus records. S6 uses DOI-matched full text with sentence anchors when available. S9 builds an Argument map and exports the approved map as JSON.
 - **AR3:** S10–S12 (design into the Research design sections, freeze, import results).
 - **AR4:** S13, writing with Writing Bank. First, ask Writing Bank (`_coord`) to serve blueprints, moves and paragraph types through the API.
 
@@ -120,3 +120,10 @@ An edit upstream marks every later artifact `stale`. Resuming is allowed only wh
 - Dexie version 26 stores runs and checkpoints. Backups include the runs. Interrupted stages can continue while hashes and model and prompt versions match.
 - An edited artifact keeps its previous version and marks subsequent artifacts stale. The edited draft returns to the reviewers and the human gate. The charter has its own approval, and retrieved paper records keep their original provenance.
 - Researchers approve the charter and its amendments, select the primary hypothesis, and act on PI and Critic advice. AutoResearch selections copy to Research design as candidates for confirmation there.
+
+## AR2 implementation
+
+- S4 runs the S3 queries against the lab KG and OpenAlex, then adds existing corpus, harvest and Project records. Candidates deduplicate by DOI, OpenAlex work ID and normalized title. Each candidate retains the source records, and the artifact keeps retrieval status and errors for each provider. An unconfigured or empty lab KG falls back to OpenAlex. When no papers are found, the gate records `NO_LITERATURE`. The researcher can queue papers with a DOI or OpenAlex ID for the lab KG.
+- S6 uses the local Paper model when its DOI matches an included paper and the model contains body sentences. Full-text cards preserve the cited sentence keys, quotes and locations. Other cards use the Abstract when available. The resolved inputs are hashed in the stage checkpoint.
+- S9 judges each clustered card once and requires at least one claim rationale per accepted hypothesis. The graph keeps directed, typed relationships and identifies their review status. Both PI and Critic can read it through the artifact tool. The Project has no candidate intake for AKU or Argument items, so approval enables JSON export of the map.
+- S9 is the last stage of a new run. Existing AR1 records and backups keep their artifact hashes and completion status. AR2 uses the same Dexie version.

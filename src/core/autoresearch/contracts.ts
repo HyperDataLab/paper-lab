@@ -1,13 +1,12 @@
 import { z } from 'zod';
+import { s9Schema } from './argument-map';
+import { cardSchema, collectionMetaSchema, refs, sourceRecordSchema, text, texts } from './stage-fields';
+export { cardSchema, evidenceScope, text, texts } from './stage-fields';
 
-export const STAGES = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'] as const;
+export const STAGES = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9'] as const;
 export const stageSchema = z.enum(STAGES);
 export type Stage = z.infer<typeof stageSchema>;
-export const text = z.string().trim().min(1);
-export const texts = z.array(text);
-export const refs = texts.min(1);
 export const score = z.number().min(0).max(1).nullable();
-export const evidenceScope = z.enum(['abstract', 'full_text']);
 export const charterSchema = z.strictObject({
   question: text,
   objectives: texts.min(2).max(4),
@@ -61,22 +60,44 @@ export const candidateSchema = z.strictObject({
   abstract: text.nullable(),
   year: z.number().int().nullable(),
   citationKey: text,
+  paper_id: text.optional(),
+  cite_key: text.optional(),
+  authors: texts.optional(),
+  venue: text.nullable().optional(),
+  citations: z.number().int().nonnegative().nullable().optional(),
+  openalexId: z
+    .string()
+    .regex(/^W\d+$/u)
+    .nullable()
+    .optional(),
+  source_records: z.array(sourceRecordSchema).min(1).optional(),
   queryIds: refs,
   sources: z
     .array(
       z.strictObject({
-        kind: z.enum(['corpus', 'harvest', 'project', 'local_abstract', 'openalex_abstract']),
+        kind: z.enum([
+          'lab_kg',
+          'openalex',
+          'corpus',
+          'harvest',
+          'project',
+          'local_abstract',
+          'openalex_abstract',
+        ]),
         ref: text,
       }),
     )
     .min(1),
-  queryLink: z.enum(['matched_harvest', 'pool_context']),
+  queryLink: z.enum(['retrieved', 'matched_harvest', 'pool_context']),
   existingDecision: z
     .strictObject({ decision: z.enum(['included', 'excluded', 'uncertain']), reason: text })
     .nullable(),
 });
 export type ResearchCandidate = z.infer<typeof candidateSchema>;
-export const s4Schema = z.strictObject({ candidates: z.array(candidateSchema).min(1) });
+export const s4Schema = z.strictObject({
+  candidates: z.array(candidateSchema),
+  meta: collectionMetaSchema.optional(),
+});
 export const s5Schema = z.strictObject({
   decisions: z.array(
     z.strictObject({
@@ -89,17 +110,6 @@ export const s5Schema = z.strictObject({
     }),
   ),
   thresholds: z.strictObject({ relevance: score, quality: score }),
-});
-export const cardSchema = z.strictObject({
-  id: text,
-  decisionId: text,
-  problem: text.nullable(),
-  method: text.nullable(),
-  data: text.nullable(),
-  metrics: text.nullable(),
-  findings: text.nullable(),
-  limitations: text.nullable(),
-  evidence_scope: evidenceScope,
 });
 export const s6Schema = z.strictObject({ cards: z.array(cardSchema) });
 export const s7Schema = z.strictObject({
@@ -155,6 +165,7 @@ export const contracts = {
   S6: s6Schema,
   S7: s7Schema,
   S8: s8Schema,
+  S9: s9Schema,
 } as const;
 export type StageContent = { [K in Stage]: z.infer<(typeof contracts)[K]> };
 export type Inputs = Partial<StageContent>;
@@ -163,11 +174,13 @@ export const errors = [
   'INVALID_GOAL',
   'TOPIC_BELOW_THRESHOLD',
   'INVALID_SEARCH_PLAN',
+  'NO_LITERATURE',
   'EMPTY_SHORTLIST',
   'INVALID_CARDS',
   'NO_CARDS',
   'INVALID_SYNTHESIS',
   'INVALID_HYPOTHESES',
+  'INVALID_ARGUMENT_MAP',
   'LLM_OUTPUT_INVALID',
   'LLM_TIMEOUT',
   'LLM_RATE_LIMITED',

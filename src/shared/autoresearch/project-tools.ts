@@ -9,6 +9,7 @@ import type { ExtractionProject } from '@/core/schemas';
 import type { createLabResearchClient } from '@/shared/labResearch';
 import type { createScholarClient } from '@/shared/scholar/client';
 import type { Repositories } from '@/shared/storage/repositories';
+import { loadProjectFullTexts } from './card-sources';
 import { collectCandidates } from './collection';
 import type { NoveltyPaper } from './engines';
 
@@ -21,6 +22,8 @@ export function projectTools(deps: {
   lab: ReturnType<typeof createLabResearchClient> | null;
   getRun: () => Run;
   requireConsent: () => void;
+  getLabToken?: () => Promise<string | null>;
+  now?: () => string;
   signal?: AbortSignal;
 }) {
   const { scholar, signal, requireConsent } = deps;
@@ -54,48 +57,30 @@ export function projectTools(deps: {
     });
   };
   return {
-    async collect(plan: StageContent['S3']) {
+    collect(plan: StageContent['S3']) {
       const { project, repo } = deps;
-      const corpus = project.corpusId ? await repo.corpora.get(project.corpusId) : undefined;
-      const { candidates } = collectCandidates(project, corpus, plan);
-      const paperIds = new Map<string, string[]>();
-      for (const member of corpus?.members ?? []) paperIds.set(member.memberId, member.identifiers.paperIds);
-      for (const paper of project.papers)
-        if (paper.source.kind === 'paper') paperIds.set(paper.key, [paper.source.paperId]);
-      for (const candidate of candidates.filter((item) => !item.abstract)) {
-        for (const id of new Set(candidate.sources.flatMap((source) => paperIds.get(source.ref) ?? []))) {
-          signal?.throwIfAborted();
-          const paper = await repo.papers.get(id);
-          const abstract = paper && abstractOf(paper);
-          if (!abstract) continue;
-          candidate.abstract = abstract;
-          candidate.sources.push({ kind: 'local_abstract', ref: id });
-          break;
-        }
-      }
-      // Existing corpus records can be metadata-only. Only the DOI is used to fill a missing abstract.
-      const missing = candidates.filter((paper) => !paper.abstract && paper.doi);
-      for (let start = 0; start < missing.length; start += 4) {
-        const batch = await Promise.all(
-          missing.slice(start, start + 4).map(async (paper) => {
-            check();
-            if (!paper.doi) return true;
-            try {
-              const abstract = (await scholar.workAbstract(paper.doi, signal))?.trim();
-              if (abstract) {
-                paper.abstract = abstract;
-                paper.sources.push({ kind: 'openalex_abstract', ref: paper.doi });
-              }
-              return true;
-            } catch {
-              check();
-              return false;
-            }
-          }),
-        );
-        if (batch.includes(false)) break;
-      }
-      return { candidates };
+      return collectCandidates(plan, {
+        project,
+        corpus: async () => (project.corpusId ? repo.corpora.get(project.corpusId) : undefined),
+        localAbstract: async (ids) => {
+          for (const paperId of ids) {
+            signal?.throwIfAborted();
+            const paper = await repo.papers.get(paperId);
+            const text = paper && abstractOf(paper);
+            if (text) return { paperId, text };
+          }
+          return null;
+        },
+        scholar,
+        getLabToken: deps.getLabToken,
+        check,
+        now: deps.now ?? (() => new Date().toISOString()),
+        signal,
+      });
+    },
+    loadFullTexts(dois: string[]) {
+      check();
+      return loadProjectFullTexts(deps.repo, deps.project, dois, signal);
     },
     async search(query: string, filter: StageContent['S3']['yearFilter']) {
       try {
@@ -120,11 +105,16 @@ export function projectTools(deps: {
               evidence_scope,
             }));
           case 'read_artifact': {
-            const match = /^(S[1-8])(?::([1-9][0-9]*))?$/u.exec(input ?? '');
-            const stage = stageSchema.safeParse(match?.[1]);
-            if (!stage.success) return { error: 'Use a stage ID or stage:attempt from list_artifacts.' };
-            const artifact = match?.[2]
-              ? run.artifacts.find((a) => a.stage === stage.data && a.attempt === Number(match[2]))
+            const [id, attempt, extra] = input?.split(':') ?? [];
+            const stage = stageSchema.safeParse(id);
+            if (
+              !stage.success ||
+              extra !== undefined ||
+              (attempt !== undefined && !/^[1-9][0-9]*$/u.test(attempt))
+            )
+              return { error: 'Use a stage ID or stage:attempt from list_artifacts.' };
+            const artifact = attempt
+              ? run.artifacts.find((a) => a.stage === stage.data && a.attempt === Number(attempt))
               : currentArtifact(run, stage.data);
             return artifact ?? { error: 'Artifact unavailable.' };
           }

@@ -11,6 +11,7 @@ export const stageLabels: Record<Stage, string> = {
   S6: 'Thẻ kiến thức',
   S7: 'Tổng hợp',
   S8: 'Hypotheses',
+  S9: 'Argument map',
 };
 export const stageStates: Record<StageState['state'], string> = {
   idle: 'Chưa chạy',
@@ -53,14 +54,16 @@ export const stageErrors: Record<StageError, string> = {
   INVALID_GOAL: 'Mục tiêu chưa thể nghiên cứu hoặc chưa giữ đúng tiêu chí của charter.',
   TOPIC_BELOW_THRESHOLD: 'Topic chưa đạt ngưỡng heuristic hoặc còn tiêu chí chưa xác định.',
   INVALID_SEARCH_PLAN: 'Kiểm tra lại truy vấn, liên kết với câu hỏi và khoảng năm.',
+  NO_LITERATURE: 'Không tìm thấy bài báo nào. Hãy xem lại truy vấn hoặc tập bài của Project.',
   EMPTY_SHORTLIST: 'Không có bài nào được đề xuất đưa vào danh sách ngắn.',
   INVALID_CARDS: 'Thẻ kiến thức có liên kết hoặc nội dung chưa đối chiếu được.',
-  NO_CARDS: 'Chưa có thẻ kiến thức từ Abstract của các bài được giữ lại.',
+  NO_CARDS: 'Chưa có thẻ kiến thức từ Full text hoặc Abstract của các bài được giữ lại.',
   INVALID_SYNTHESIS: 'Tổng hợp chưa bao quát các thẻ hoặc còn thông tin chưa có Evidence.',
   INVALID_HYPOTHESES: 'Kiểm tra liên kết, Evidence và sự khác biệt giữa các hypotheses.',
+  INVALID_ARGUMENT_MAP: 'Kiểm tra liên kết Evidence, Claim và Hypothesis trong Argument map.',
   LLM_OUTPUT_INVALID: 'Phản hồi AI chưa đúng cấu trúc.',
   LLM_TIMEOUT: 'Model phản hồi quá thời gian chờ.',
   LLM_RATE_LIMITED: 'Endpoint đang giới hạn số lượt gọi.',
-  MISSING_INPUT: 'Stage thiếu đầu vào. Ở S4, hãy liên kết corpus hoặc dùng tập bài đã tìm.',
+  MISSING_INPUT: 'Stage thiếu đầu vào đã duyệt.',
   STAGE_ERROR: 'Không thể hoàn tất stage.',
 };

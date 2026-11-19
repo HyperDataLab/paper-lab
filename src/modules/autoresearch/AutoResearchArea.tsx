@@ -225,9 +225,10 @@ export function AutoResearchArea({ project }: { project: ExtractionProject }) {
           </div>
         )}
         {state.models?.sharedModel && run.endReason && <p>PI và Critic đã dùng chung model cho stage này.</p>}
-        {(!state.error || state.error === 'TOPIC_BELOW_THRESHOLD' || state.error === 'EMPTY_SHORTLIST') && (
-          <ArtifactViewer run={run} stage={stage} />
-        )}
+        {(!state.error ||
+          state.error === 'TOPIC_BELOW_THRESHOLD' ||
+          state.error === 'EMPTY_SHORTLIST' ||
+          state.error === 'NO_LITERATURE') && <ArtifactViewer run={run} stage={stage} />}
         {stage === 'S8' && <CopyHypothesesAction key={run.id} run={run} />}
         {state.pi && <PiPanel decision={state.pi} names={names} />}
         {state.critic && <CriticPanel report={state.critic} stage={stage} obligations={run.obligations} />}
