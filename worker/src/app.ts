@@ -6,15 +6,16 @@ import { handleMeasure, MEASURE_PATH } from './measure';
 import { handleFactRequests, isAdmin } from './factRequests';
 import { handleScg, SCG_LIST_PATH, SCG_PATH } from './scg';
 import { handleSciAtlas, SCIATLAS_PATH } from './sciatlas';
-import type { KgBindings } from './kg/bindings';
+import type { D1Database, KgBindings } from './kg/bindings';
 import { handleKg } from './kg/routes';
+import { DATA_PATH_PREFIX, handleData } from './data/routes';
 
 /** The part of an R2 bucket this worker uses, so the logic runs in tests without Cloudflare. */
 export interface Bucket {
   head(key: string): Promise<{ etag: string; customMetadata?: Record<string, string> } | null>;
   get(key: string): Promise<{ body: ReadableStream; size: number; etag: string } | null>;
   list(options: { prefix: string; cursor?: string; limit?: number; include: ['customMetadata'] }): Promise<{
-    objects: { key: string; etag: string; customMetadata?: Record<string, string> }[];
+    objects: { key: string; etag: string; uploaded?: Date; customMetadata?: Record<string, string> }[];
     truncated: boolean;
     cursor?: string;
   }>;
@@ -27,6 +28,8 @@ export interface Bucket {
       onlyIf?: { etagMatches?: string; etagDoesNotMatch?: string };
     },
   ): Promise<{ etag: string } | null>;
+  /** Used by the lab data store to remove orphan bodies; optional so older test fakes still fit. */
+  delete?(keys: string | string[]): Promise<void>;
 }
 export interface Deps {
   verifyToken: (token: string) => Promise<{ uid: string; email: string }>;
@@ -43,6 +46,8 @@ export interface Deps {
   fetch?: typeof fetch;
   sciatlasTimeoutMs?: number;
   kg?: KgBindings;
+  /** The central lab store's D1 (`DATA`); absent → /v1/data answers 503. */
+  data?: D1Database;
 }
 
 export const MAX_BYTES = 25 * 1024 * 1024;
@@ -58,7 +63,7 @@ function cors(request: Request, deps: Deps): Record<string, string> {
   if (!origin || !deps.allowedOrigins.includes(origin)) return { Vary: 'Origin' };
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, HEAD, PUT, POST',
+    'Access-Control-Allow-Methods': 'GET, HEAD, PUT, POST, DELETE',
     'Access-Control-Expose-Headers': 'X-Grobid-Cache, X-Grobid-Ms, ETag, Retry-After',
     'Access-Control-Allow-Headers': 'authorization, content-type, if-match, if-none-match',
     'Access-Control-Max-Age': '3600',
@@ -113,6 +118,8 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
       if (path === MEASURE_PATH) return await handleMeasure(deps, request, token, headers);
       if (path === SCIATLAS_PATH) return await handleSciAtlas(deps, request, headers);
       if (path.startsWith('/v1/kg/')) return await handleKg(deps, request, path, headers);
+      if (path.startsWith(DATA_PATH_PREFIX))
+        return await handleData(deps, request, path, caller.email, headers);
       if (path === SCG_LIST_PATH || SCG_PATH.test(path))
         return await handleScg(deps, request, caller.email, headers);
       if (path.startsWith('/v1/admin/') || path.endsWith('/experiment-facts/requests'))

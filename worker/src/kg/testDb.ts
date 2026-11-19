@@ -18,13 +18,14 @@ class Statement implements D1Statement {
 export const D1_MAX_COMPOUND_SELECT = 5;
 const compoundTerms = (sql: string) => (sql.match(/\b(?:UNION|INTERSECT|EXCEPT)\b/giu)?.length ?? 0) + 1;
 
-export function testDb() {
+/** An in-memory D1 with the migrations of `migrationsDir` (relative to worker/) applied. */
+export function testDb(migrationsDir = 'migrations') {
   const sqlite = new DatabaseSync(':memory:');
   // `limits` exists from Node 24; the statement check below covers older runtimes.
   const limits = (sqlite as { limits?: { compoundSelect: number } }).limits;
   if (limits) limits.compoundSelect = D1_MAX_COMPOUND_SELECT;
   onTestFinished(() => sqlite.close());
-  const migrations = new URL('../../migrations/', import.meta.url);
+  const migrations = new URL(`../../${migrationsDir}/`, import.meta.url);
   for (const file of readdirSync(migrations)
     .filter((name) => name.endsWith('.sql'))
     .sort())

@@ -29,6 +29,15 @@ database_name = "paperlab-kg"
 # Created 2026-11-19 on the HyperDataLab account (APAC).
 database_id = "ca50e0f2-1ea6-4a3a-bec1-12d3b6fd2820"
 
+# The central lab store (ADR-0007): one row per record; bodies in BUCKET under paperlab/data/.
+# Created at the owner's deploy: `wrangler d1 create paperlab-data`, put its id here, then
+# `wrangler d1 migrations apply paperlab-data --remote`. Without it the /v1/data routes answer 503.
+[[d1_databases]]
+binding = "DATA"
+database_name = "paperlab-data"
+database_id = "TO_BE_CREATED_ON_DEPLOY"
+migrations_dir = "migrations-data"
+
 [[vectorize]]
 binding = "KG_VECTORS"
 index_name = "paperlab-kg-papers"
