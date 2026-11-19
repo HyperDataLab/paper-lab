@@ -51,6 +51,10 @@ const labels: Record<string, string> = {
   findings: 'Findings',
   limitations: 'Limitations',
   evidence_scope: 'Phạm vi Evidence',
+  full_text_source: 'Trích dẫn từ Full text',
+  sentences: 'Câu gốc',
+  section: 'Section',
+  page: 'Trang',
   clusters: 'Nhóm chủ đề',
   setAside: 'Thẻ đặt riêng',
   gaps: 'Research gaps',
@@ -77,6 +81,16 @@ const labels: Record<string, string> = {
   title: 'Title',
   source: 'Nguồn',
   abstract: 'Abstract',
+  authors: 'Tác giả',
+  venue: 'Nơi xuất bản',
+  citations: 'Lượt trích dẫn',
+  claims: 'Claims',
+  evidence_links: 'Liên kết Evidence',
+  rationales: 'Lập luận cho Hypothesis',
+  claimId: 'Claim',
+  hypothesisId: 'Hypothesis',
+  polarity: 'Chiều lập luận',
+  relation: 'Quan hệ',
   year: 'Năm',
 };
 const values: Record<string, string> = {
@@ -94,7 +108,7 @@ const values: Record<string, string> = {
   unavailable: 'Không tra cứu được',
   retrieved: 'Đã tra cứu',
 };
-const technical = /(?:^id$|Ids?$|Refs?$)/u;
+const technical = /(?:^(?:id|paper_id|cite_key|source_records|meta|quote_anchors|key)$|Ids?$|Refs?$)/u;
 
 type References = Map<string, Map<string, string>>;
 function render(value: unknown, path: string, references?: References): ReactNode {
@@ -117,6 +131,7 @@ function render(value: unknown, path: string, references?: References): ReactNod
     <dl className={styles.fields}>
       {Object.entries(value)
         .filter(([key]) => !technical.test(key) || references?.has(key))
+        .filter(([key, item]) => key !== 'paperId' || references?.get(key)?.has(String(item)))
         .map(([key, item]) => {
           const lookup = references?.get(key);
           const display = lookup

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { acceptedInputs, canResume, currentArtifact } from './artifacts';
 import { STAGES } from './contracts';
 import { editArtifact } from './edit';
-import { at, charter, critic, outputs, seriousPoint } from './fixtures';
+import { argumentFixture, at, charter, critic, outputs, seriousPoint } from './fixtures';
 import { runSchema, type Run } from './record';
 import {
   approveCharter,
@@ -35,7 +35,12 @@ async function through(count: number, risk = false) {
   for (const stage of STAGES.slice(0, count)) {
     run = await beginStage(run, stage, models, at);
     expect(run.status).toBe('running');
-    run = await putArtifact(run, stage, outputs[stage], at);
+    run = await putArtifact(
+      run,
+      stage,
+      stage === 'S9' ? argumentFixture(acceptedInputs(run, stage)) : outputs[stage],
+      at,
+    );
     if (risk && stage === 'S1')
       run = patchStage(run, stage, { critic: { ...critic, points: [seriousPoint], verdict: 'serious' } });
     run = openGate(run, stage, at);
@@ -152,12 +157,68 @@ it('carries accepted Critic risks forward and lists unresolved obligations on co
     locator: currentArtifact(run, 'S2')?.hash,
   });
   expect((await beginStage(controlled, 'S2', models, at)).obligations[0]?.status).toBe('open');
-  const ended = await through(8, true);
+  const ended = await through(9, true);
   expect(ended).toMatchObject({
     status: 'ended',
     endReason: 'with_gaps',
     obligations: [{ status: 'unresolved' }],
   });
   expect(acceptedInputs(ended, 'S8').S7?.gaps).toHaveLength(2);
-  expect((await through(8)).endReason).toBe('complete');
+  expect((await through(9)).endReason).toBe('complete');
+});
+
+it('AR2 rerunning S4 marks S4 through S9 stale and keeps earlier digests intact', async () => {
+  const run = await through(8);
+  expect(run.status).toBe('waiting');
+  expect(nextStage(run)?.stage).toBe('S9');
+  const working = await beginStage(run, 'S9', models, at);
+  const gate = openGate(
+    await putArtifact(working, 'S9', argumentFixture(acceptedInputs(run, 'S9')), at),
+    'S9',
+    at,
+  );
+  const rerun = await beginStage(gate, 'S4', models, at);
+  expect(rerun.artifacts.slice(0, 3)).toEqual(run.artifacts.slice(0, 3));
+  expect(rerun.artifacts.slice(3).map((artifact) => [artifact.stage, artifact.status])).toEqual(
+    STAGES.slice(3).map((stage) => [stage, 'stale']),
+  );
+  expect(await canResume(rerun)).toBe(true);
+});
+
+it('loads AR1 backups without changing existing hashes or reopening a completed run', async () => {
+  const run = await through(8);
+  const legacy = {
+    ...run,
+    pipeline: run.pipeline.slice(0, 8),
+    status: 'ended',
+    endReason: 'complete',
+    endedAt: at,
+  };
+  const parsed = runSchema.parse(legacy);
+  expect(parsed.status).toBe('ended');
+  expect(parsed.pipeline.at(-1)).toMatchObject({ stage: 'S9', state: 'idle' });
+  expect(parsed.artifacts).toEqual(legacy.artifacts);
+  expect(await canResume(parsed)).toBe(true);
+});
+
+it('AR2 records the S6 artifact scope as full_text, or null when cards mix full text and Abstract', async () => {
+  const [card] = outputs.S6.cards;
+  if (!card) throw new Error('Missing fixture');
+  const full = {
+    ...card,
+    id: 'card-full',
+    evidence_scope: 'full_text' as const,
+    quote_anchors: ['0000000000000000#1'],
+    full_text_source: {
+      paperId: 'paper',
+      sentences: [{ key: '0000000000000000#1', section: 'Methods', page: 2, text: 'We compared reviewers.' }],
+    },
+  };
+  const scopeOf = async (cards: (typeof full | typeof card)[]) => {
+    const working = await beginStage(await through(5), 'S6', models, at);
+    return currentArtifact(await putArtifact(working, 'S6', { cards }, at), 'S6')?.evidence_scope;
+  };
+  expect(await scopeOf([full])).toBe('full_text');
+  expect(await scopeOf([card, full])).toBeNull();
+  expect(await scopeOf([card])).toBe('abstract');
 });

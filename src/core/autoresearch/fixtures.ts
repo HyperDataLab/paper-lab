@@ -1,4 +1,5 @@
-import type { Charter, StageContent } from './contracts';
+import { buildArgumentMap } from './argument-map';
+import type { Charter, Inputs, StageContent } from './contracts';
 import type { CriticReport, PiDecision } from './reviews';
 
 export const at = '2026-01-01T00:00:00.000Z';
@@ -33,7 +34,7 @@ const views: StageContent['S8']['perspectives'] = [
   { lens: 'feasibility', assessment: 'Simulation is feasible.', hypothesisIds: ['h-agree', 'h-repeat'] },
   { lens: 'soundness', assessment: 'Control the order effects.', hypothesisIds: ['h-agree', 'h-repeat'] },
 ];
-export const outputs: StageContent = {
+const ar1Outputs: Omit<StageContent, 'S9'> = {
   S1: {
     charter,
     goal: {
@@ -152,6 +153,30 @@ export const outputs: StageContent = {
     ],
   },
 };
+export function argumentJudgments(hypothesisIds: string[]) {
+  return {
+    claims: [{ id: 'claim-a', clusterId: 'cluster:1', text: 'Reviewer disagreement was observed.' }],
+    evidence_links: [
+      {
+        cardId: 'card-a',
+        claimId: 'claim-a',
+        relation: 'supports' as const,
+        rationale: 'The study reports disagreement.',
+      },
+    ],
+    rationales: hypothesisIds.map((hypothesisId) => ({
+      claimId: 'claim-a',
+      hypothesisId,
+      polarity: 'supports' as const,
+      rationale: 'Reviewer differences motivate a test.',
+    })),
+    entities: [],
+    relations: [],
+  };
+}
+export const argumentFixture = (prior: Inputs) =>
+  buildArgumentMap(prior, argumentJudgments(prior.S8?.hypotheses.map(({ id }) => id) ?? []));
+export const outputs: StageContent = { ...ar1Outputs, S9: argumentFixture(ar1Outputs) };
 export const seriousPoint: CriticReport['points'][number] = {
   id: 'point-a',
   lens: 'charter',

@@ -3,14 +3,16 @@ import { webcrypto } from 'node:crypto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { canResume, currentArtifact, selectedContent, selectable } from '@/core/autoresearch/artifacts';
 import { STAGES } from '@/core/autoresearch/contracts';
-import { at, charter, outputs, pi } from '@/core/autoresearch/fixtures';
+import { argumentJudgments, at, charter, outputs, pi } from '@/core/autoresearch/fixtures';
 import { approveCharter, decideGate, stageState } from '@/core/autoresearch/run';
 import { newProject } from '@/core/extraction';
 import { runStage, errorCode } from '@/shared/autoresearch/runner';
+import { projectTools } from '@/shared/autoresearch/project-tools';
 import { defaultScreen } from '@/shared/autoresearch/screening';
 import type { LlmClient } from '@/shared/llm/client';
 import { acceptConsent } from '@/shared/llm/consent';
 import { LlmHttpError, LlmTimeoutError, InvalidModelOutputError } from '@/shared/llm/errors';
+import { createScholarClient } from '@/shared/scholar/client';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
 
@@ -31,16 +33,17 @@ const answerFor = {
   screening: {
     decisions: [{ key: 'title:fictional study', decision: 'included', reason: 'Reports reviewer outcomes.' }],
   },
-  autoresearch_s6: outputs.S6,
+  autoresearch_s6: { cards: outputs.S6.cards.map((card) => ({ ...card, quote_anchors: [] })) },
   autoresearch_s7: outputs.S7,
   autoresearch_s8: {
     hypotheses: outputs.S8.hypotheses,
     perspectives: outputs.S8.perspectives,
     debateRounds: outputs.S8.debateRounds,
   },
+  autoresearch_s9: argumentJudgments(['h-agree']),
 };
 
-it('AR1 walks S1–S8 through isolated browser storage, two mocked models, shared screening and human gates', async () => {
+it('AR2 walks S1–S9 through storage, both supervisors, shared screening and human gates', async () => {
   const db = createDb(crypto.randomUUID());
   const repo = createRepositories(db, () => new Date(at));
   const project = await repo.extraction.save(
@@ -64,12 +67,18 @@ it('AR1 walks S1–S8 through isolated browser storage, two mocked models, share
         if (!scripted.has('critic')) {
           scripted.add('critic');
           answer = { next: { action: 'read_notebook', input: null } };
+        } else if (user.includes('"stage":"S9"') && !scripted.has('critic-map')) {
+          scripted.add('critic-map');
+          answer = { next: { action: 'read_artifact', input: 'S9:1' } };
         } else answer = { next: { action: 'report', value: { points: [], resolutions: [] } } };
       } else if (name === 'autoresearch_pi') {
         expect(model).toBe(config.model);
         if (!scripted.has('pi')) {
           scripted.add('pi');
           answer = { next: { action: 'decide', value: { ...pi, selectionIds: ['invented'] } } };
+        } else if (user.includes('"stage":"S9"') && !scripted.has('pi-map')) {
+          scripted.add('pi-map');
+          answer = { next: { action: 'read_artifact', input: 'S9' } };
         } else {
           if (!scripted.has('retried')) {
             expect(user).toContain('UNKNOWN_SELECTION');
@@ -87,6 +96,16 @@ it('AR1 walks S1–S8 through isolated browser storage, two mocked models, share
   const requireConsent = vi.fn();
   acceptConsent(config, true, true);
   let run = await repo.autoresearch.create(project.id, 100);
+  const tools = projectTools({
+    project,
+    repo,
+    getRun: () => run,
+    requireConsent,
+    bank: null,
+    lab: null,
+    scholar: createScholarClient({}),
+  });
+  const read = vi.fn(tools.read);
   run = await repo.autoresearch.save(await approveCharter(run, charter, at, null));
   let checkpoint;
   for (const stage of STAGES) {
@@ -97,15 +116,14 @@ it('AR1 walks S1–S8 through isolated browser storage, two mocked models, share
       lead: { model: config.model, client: lead },
       critic: { model: config.criticModel, client: mock(config.criticModel) },
       collect: async () => outputs.S4,
+      loadFullTexts: async () => new Map(),
       search: async () => [],
-      read: async (tool) => {
-        expect(tool).toBe('read_notebook');
-        return [];
-      },
+      read,
       screen: (progress) => screen({ ...progress, client: lead, config }),
       save: async (next) => {
         const saved = await repo.autoresearch.save(next);
         if (next.pipeline.some((row) => row.criticProgress.pending)) checkpoint = saved;
+        run = saved;
         return saved;
       },
     });
@@ -143,6 +161,19 @@ it('AR1 walks S1–S8 through isolated browser storage, two mocked models, share
   });
   expect(checkpoint).toBeDefined();
   expect(requireConsent).toHaveBeenCalled();
+  expect(read).toHaveBeenCalledWith('read_artifact', 'S9:1');
+  expect(read).toHaveBeenCalledWith('read_artifact', 'S9');
+  expect(await tools.read('read_artifact', 'S4')).toMatchObject({ stage: 'S4', content: outputs.S4 });
+  expect(await tools.read('read_artifact', 'S6')).toMatchObject({
+    stage: 'S6',
+    content: answerFor.autoresearch_s6,
+  });
+  expect(await tools.read('read_artifact', 'S9')).toMatchObject({
+    stage: 'S9',
+    content: {
+      graph: { entities: expect.arrayContaining([expect.objectContaining({ id: 'hypothesis:h-agree' })]) },
+    },
+  });
   expect(calls.filter((call) => call.name === 'screening')).toHaveLength(1);
   const artifact = currentArtifact(run, 'S8');
   expect(artifact && selectedContent('S8', artifact).hypotheses.map((h) => h.id)).toEqual(['h-agree']);

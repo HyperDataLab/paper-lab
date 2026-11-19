@@ -3,7 +3,6 @@ import type { Stage } from '@/core/autoresearch/contracts';
 import type { Run } from '@/core/autoresearch/record';
 import { stageState } from '@/core/autoresearch/run';
 import { SCREENING_BATCH } from '@/core/extraction';
-import { CARD_BATCH } from '@/shared/autoresearch/engines';
 import { Button } from '@/shared/ui/Button';
 import { Dialog } from '@/shared/ui/Dialog';
 import { stageLabels } from './labels';
@@ -21,12 +20,10 @@ function estimateCalls(run: Run, stage: Stage) {
     return supervisors + Math.ceil(awaiting.length / SCREENING_BATCH);
   }
   if (stage === 'S6') {
-    const withAbstract = new Set(inputs.S4?.candidates.filter((p) => p.abstract).map((p) => p.id));
+    const eligible = new Set(inputs.S4?.candidates.filter((p) => p.abstract || p.doi).map((p) => p.id));
     const included =
-      inputs.S5?.decisions.filter((d) => d.decision === 'included' && withAbstract.has(d.paperId)) ?? [];
-    return (
-      supervisors + Math.ceil(Math.max(0, included.length - (resuming ? state.cardCursor : 0)) / CARD_BATCH)
-    );
+      inputs.S5?.decisions.filter((d) => d.decision === 'included' && eligible.has(d.paperId)) ?? [];
+    return supervisors + Math.max(0, included.length - (resuming ? state.cardCursor : 0));
   }
   return supervisors + 1;
 }
@@ -51,8 +48,8 @@ export function LaunchStageDialog({
       onClose={close}
     >
       <p>
-        Dự kiến {estimateCalls(run, stage)} lượt gọi AI nếu không cần tra cứu, sửa JSON hoặc thử lại. Số tiền
-        chưa xác định.
+        {stage === 'S6' ? 'Tối đa' : 'Dự kiến'} {estimateCalls(run, stage)} lượt gọi AI nếu không cần tra cứu,
+        sửa JSON hoặc thử lại. Số tiền chưa xác định.
       </p>
       <p>Run còn {run.budget.maxCalls - run.budget.calls} lượt gọi trong giới hạn.</p>
       {stageState(run, stage).state === 'accepted' && (

@@ -1,10 +1,10 @@
 import type { ZodType } from 'zod';
+import { argumentClusters, argumentOutputSchema, buildArgumentMap } from '@/core/autoresearch/argument-map';
 import {
   decompositionSchema,
   goalSchema,
   hypothesisOutputSchema,
   s3Schema,
-  s6Schema,
   s7Schema,
   type Charter,
   type Inputs,
@@ -15,6 +15,8 @@ import {
 import { cardQuestionLinks, overallTopicScore, searchQueries } from '@/core/autoresearch/validation';
 import { PROMPT_VERSIONS as versions } from '@/core/prompts';
 import type { StageState } from '@/core/autoresearch/record';
+import { cardInputs, type LoadFullTexts } from './card-sources';
+import { extractCards } from './knowledge-cards';
 import type { Screen } from './screening';
 import { screeningPromptVersion } from './screening';
 
@@ -22,13 +24,13 @@ export const stagePrompts = {
   S1: versions.autoresearchS1,
   S2: versions.autoresearchS2,
   S3: versions.autoresearchS3,
-  S4: null,
+  S4: versions.autoresearchS4,
   S5: screeningPromptVersion,
   S6: versions.autoresearchS6,
   S7: versions.autoresearchS7,
   S8: versions.autoresearchS8,
+  S9: versions.autoresearchS9,
 } satisfies Record<Stage, string | null>;
-export const CARD_BATCH = 8;
 export const NOVELTY_QUERIES = 3;
 export class StageFailure extends Error {
   constructor(readonly code: StageError) {
@@ -55,6 +57,7 @@ export async function executeEngine(
     state: StageState;
     ask: Ask;
     collect: (plan: StageContent['S3']) => Promise<StageContent['S4']>;
+    loadFullTexts: LoadFullTexts;
     screen: Screen;
     search: (query: string, filter: StageContent['S3']['yearFilter']) => Promise<NoveltyPaper[] | null>;
     checkpoint: (patch: Partial<StageState>) => Promise<void>;
@@ -105,39 +108,26 @@ export async function executeEngine(
         { charter, decomposition: inputs.S2 },
         s3Schema,
       );
-    case 'S4': {
+    case 'S4':
       if (!inputs.S3) throw new StageFailure('MISSING_INPUT');
-      const result = await collect(inputs.S3);
-      if (!result.candidates.length) throw new StageFailure('MISSING_INPUT');
-      return result;
-    }
+      return collect(inputs.S3);
     case 'S5':
       if (!inputs.S3 || !inputs.S4) throw new StageFailure('MISSING_INPUT');
       return screen(inputs.S4.candidates, { charter, plan: inputs.S3 });
     case 'S6': {
       if (!inputs.S4 || !inputs.S5) throw new StageFailure('MISSING_INPUT');
-      const papers = new Map(inputs.S4.candidates.map((p) => [p.id, p]));
-      const eligible = inputs.S5.decisions.flatMap((d) => {
-        const paper = papers.get(d.paperId);
-        return d.decision === 'included' && paper?.abstract
-          ? [{ decisionId: d.id, title: paper.title, abstract: paper.abstract }]
-          : [];
-      });
-      const cards = [...state.cardProgress];
-      for (let start = state.cardCursor; start < eligible.length; start += CARD_BATCH) {
-        const batch = eligible.slice(start, start + CARD_BATCH);
-        const answer = await ask(
+      const { S4, S5 } = inputs;
+      const eligible = await cardInputs(S4.candidates, S5.decisions, deps.loadFullTexts);
+      const result = await extractCards(eligible, { S4, S5 }, state, checkpoint, (batch, schema) =>
+        ask(
           stagePrompts.S6,
-          'For each abstract extract only explicitly supported statements. One card per decision; use the decision ID as the card ID, set evidence_scope to abstract, and use null for missing fields. Omit an entirely uninformative card. Preserve exact reported numbers and qualifiers.',
+          'Extract only explicitly supported statements from the supplied Abstract or Full text sections. One card per decision; use the decision ID as the card ID and copy evidence_scope from its input. For full_text, include the exact sentence keys that support the extracted fields in quote_anchors, including every sentence that supplies a reported number. For abstract, return an empty quote_anchors array. Use null for missing fields. Omit an entirely uninformative card. Preserve exact reported numbers and qualifiers.',
           batch,
-          s6Schema,
-        );
-        if (answer.cards.some((card) => !batch.some((item) => item.decisionId === card.decisionId)))
-          throw new StageFailure('INVALID_CARDS');
-        cards.push(...answer.cards);
-        await checkpoint({ cardProgress: [...cards], cardCursor: start + batch.length });
-      }
-      return { cards };
+          schema,
+        ),
+      );
+      if (!result) throw new StageFailure('INVALID_CARDS');
+      return result;
     }
     case 'S7':
       if (!inputs.S6 || !inputs.S2) throw new StageFailure('MISSING_INPUT');
@@ -183,6 +173,24 @@ export async function executeEngine(
         hypothesisOutputSchema,
       );
       return { ...result, noveltyMethod: 'heuristic', noveltySearches, retrievedPapers };
+    }
+    case 'S9': {
+      if (!inputs.S2 || !inputs.S6 || !inputs.S7 || !inputs.S8) throw new StageFailure('MISSING_INPUT');
+      const clusters = argumentClusters(inputs);
+      const clustered = new Set(clusters.flatMap(({ cardIds }) => cardIds));
+      const result = await ask(
+        stagePrompts.S9,
+        'Draft claims by cluster using only its cards. Judge every clustered card exactly once against a claim in that same cluster, using supports, contradicts, or unrelated, with a rationale; leave out cards set aside in synthesis. Give at least one claim rationale per accepted hypothesis with supports or contradicts polarity and preserve conflicting evidence. In claims, evidence_links and rationales use the supplied cluster, card and hypothesis IDs and short unique claim IDs. Optionally propose assumption or contribution entities with IDs prefixed assumption: or contribution:. In relations use only claim:<id> substantiates gap:<id>, hypothesis:<id> depends_on assumption:<id>, hypothesis:<id> informs contribution:<id>, and contribution:<id> targets gap:<id>. Give a rationale for each relation and use stated for an explicit source statement, derived for an inference, or unreviewed when it needs checking. The application adds the other graph links from the accepted inputs and judgments.',
+        {
+          charter,
+          clusters,
+          cards: groundedCards().filter(({ id }) => clustered.has(id)),
+          gaps: inputs.S7.gaps,
+          hypotheses: inputs.S8.hypotheses,
+        },
+        argumentOutputSchema,
+      );
+      return buildArgumentMap(inputs, result);
     }
   }
 }

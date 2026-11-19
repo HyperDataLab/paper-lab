@@ -4,7 +4,15 @@ import { useAuth } from '@/shared/auth/authContext';
 import { Button } from '@/shared/ui/Button';
 import { enqueueLabKg, getLabKgStatus, LabKgError } from './client';
 
-export function LabKgActions({ ids }: { ids: string[] }) {
+export function LabKgActions({
+  ids,
+  label = 'Đưa vào KG của lab',
+  showStatus = true,
+}: {
+  ids: string[];
+  label?: string;
+  showStatus?: boolean;
+}) {
   const { user, getIdToken } = useAuth();
   const uid = user?.uid;
   const [status, setStatus] = useState<KgIngestStatus['counts']>();
@@ -15,7 +23,7 @@ export function LabKgActions({ ids }: { ids: string[] }) {
   const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {
-    if (!uid) return;
+    if (!uid || !showStatus) return;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     async function load() {
@@ -39,7 +47,7 @@ export function LabKgActions({ ids }: { ids: string[] }) {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [uid, getIdToken, refresh]);
+  }, [uid, getIdToken, refresh, showStatus]);
 
   async function queue() {
     setBusy(true);
@@ -61,21 +69,23 @@ export function LabKgActions({ ids }: { ids: string[] }) {
   return (
     <div>
       <Button size="sm" disabled={!uid || !ids.length || busy} onClick={() => void queue()}>
-        Đưa vào KG của lab
+        {label}
       </Button>
-      <small role={uid ? 'status' : undefined}>
-        {' '}
-        KG của lab ·{' '}
-        {busy
-          ? 'Đang gửi…'
-          : !uid
-            ? 'Cần đăng nhập'
-            : statusError
-              ? 'Không tải được trạng thái'
-              : status
-                ? `Chờ ${status.pending} · Đang xử lý ${status.processing} · Đã xử lý ${status.done} · Lỗi ${status.failed}`
-                : 'Đang tải…'}
-      </small>
+      {(showStatus || !uid || busy) && (
+        <small role={uid ? 'status' : undefined}>
+          {' '}
+          KG của lab ·{' '}
+          {busy
+            ? 'Đang gửi…'
+            : !uid
+              ? 'Cần đăng nhập'
+              : statusError
+                ? 'Không tải được trạng thái'
+                : status
+                  ? `Chờ ${status.pending} · Đang xử lý ${status.processing} · Đã xử lý ${status.done} · Lỗi ${status.failed}`
+                  : 'Đang tải…'}
+        </small>
+      )}
       {result && (
         <small role="status">
           {' '}

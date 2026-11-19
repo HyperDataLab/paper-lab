@@ -31,7 +31,7 @@ import type { Screen } from './screening';
 
 type EngineDeps = Parameters<typeof executeEngine>[1];
 type ReviewDeps = Parameters<typeof supervise>[2];
-type RunnerDeps = Pick<EngineDeps, 'collect' | 'search'> &
+type RunnerDeps = Pick<EngineDeps, 'collect' | 'search' | 'loadFullTexts'> &
   Pick<ReviewDeps, 'now' | 'signal' | 'read'> & {
     lead: { model: string; client: LlmClient };
     critic: { model: string; client: LlmClient };
@@ -132,6 +132,7 @@ export async function runStage(initial: Run, stage: Stage, deps: RunnerDeps): Pr
             onRequest,
           }),
           search: deps.search,
+          loadFullTexts: deps.loadFullTexts,
           checkpoint,
           guidance: {
             directives: run.notebook.filter((entry) => entry.kind === 'directive').map((entry) => entry.text),
@@ -140,14 +141,23 @@ export async function runStage(initial: Run, stage: Stage, deps: RunnerDeps): Pr
         });
         signal?.throwIfAborted();
         const parsed = contracts[stage].safeParse(result);
-        if (!parsed.success) throw new StageFailure('LLM_OUTPUT_INVALID');
+        if (!parsed.success)
+          throw new StageFailure(stage === 'S9' ? 'INVALID_ARGUMENT_MAP' : 'LLM_OUTPUT_INVALID');
         const withArtifact = await putArtifact(run, stage, parsed.data, now());
         const artifact = currentArtifact(withArtifact, stage);
         if (!artifact) throw new StageFailure('STAGE_ERROR');
         await saveCheckpoint(withArtifact, { error: passStage(stage, contentOf(stage, artifact), inputs) });
       } catch (error) {
         if (abortOrConflict(error)) throw error;
-        await checkpoint({ error: errorCode(error) });
+        const code = errorCode(error);
+        await checkpoint({
+          error:
+            code === 'LLM_OUTPUT_INVALID' && stage === 'S9'
+              ? 'INVALID_ARGUMENT_MAP'
+              : code === 'LLM_OUTPUT_INVALID' && stage === 'S6'
+                ? 'INVALID_CARDS'
+                : code,
+        });
       }
     }
     try {

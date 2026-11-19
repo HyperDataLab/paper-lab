@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { loopProgressSchema } from './agent-loop';
+import { emptyProgress, loopProgressSchema } from './agent-loop';
 import {
   cardSchema,
   charterSchema,
@@ -9,6 +9,7 @@ import {
   STAGES,
   stageErrorSchema,
   stageSchema,
+  type Stage,
   text,
   texts,
 } from './contracts';
@@ -63,10 +64,31 @@ const reviewState = z.strictObject({
   screeningProgress: s5Schema.shape.decisions,
   cardProgress: z.array(cardSchema),
   cardCursor: z.number().int().nonnegative(),
+  cardInputHash: hash.optional(),
   checkpointHash: hash.nullable(),
   at: time.nullable(),
 });
 export type StageState = z.infer<typeof reviewState>;
+export function emptyStage(stage: Stage, attempt: number): StageState {
+  return {
+    stage,
+    attempt,
+    state: 'idle',
+    error: null,
+    reviewError: null,
+    models: null,
+    critic: null,
+    previousCritic: null,
+    pi: null,
+    criticProgress: emptyProgress,
+    piProgress: emptyProgress,
+    screeningProgress: [],
+    cardProgress: [],
+    cardCursor: 0,
+    checkpointHash: null,
+    at: null,
+  };
+}
 const endReasonSchema = z.enum(['complete', 'with_gaps', 'failed', 'cancelled']);
 export type EndReason = z.infer<typeof endReasonSchema>;
 const runFields = z.strictObject({
@@ -78,7 +100,10 @@ const runFields = z.strictObject({
   endReason: endReasonSchema.nullable(),
   charter: charterSchema.nullable(),
   charterHash: hash.nullable(),
-  pipeline: z.array(reviewState).length(STAGES.length),
+  pipeline: z
+    .array(reviewState)
+    .min(STAGES.length - 1)
+    .max(STAGES.length),
   artifacts: z.array(artifactSchema),
   notebook: z.array(notebookEntrySchema),
   obligations: z.array(obligationSchema),
@@ -102,13 +127,22 @@ const runFields = z.strictObject({
   updatedAt: time,
   endedAt: time.nullable(),
 });
-export const runSchema = runFields.superRefine((run, context) => {
-  if (
-    run.pipeline.some((row, index) => row.stage !== STAGES[index]) ||
-    (run.status === 'ended') !== (run.endReason !== null) ||
-    (run.status === 'ended') !== (run.endedAt !== null) ||
-    (run.charter === null) !== (run.charterHash === null)
-  )
-    context.addIssue({ code: 'custom', message: 'Invalid run state' });
-});
+export const runSchema = runFields
+  .superRefine((run, context) => {
+    if (
+      run.pipeline.some((row, index) => row.stage !== STAGES[index]) ||
+      (run.pipeline.length === STAGES.length - 1 &&
+        run.artifacts.some((artifact) => artifact.stage === 'S9')) ||
+      (run.status === 'ended') !== (run.endReason !== null) ||
+      (run.status === 'ended') !== (run.endedAt !== null) ||
+      (run.charter === null) !== (run.charterHash === null)
+    )
+      context.addIssue({ code: 'custom', message: 'Invalid run state' });
+  })
+  .transform((run) =>
+    // Keep AR1 records and their digests intact, including completed runs in backups.
+    run.pipeline.length === STAGES.length
+      ? run
+      : { ...run, pipeline: [...run.pipeline, emptyStage('S9', 0)] },
+  );
 export type Run = z.infer<typeof runSchema>;

@@ -1,4 +1,6 @@
 import type { Inputs, Stage, StageContent, StageError } from './contracts';
+import { validArgumentMap } from './argument-map';
+import { normalTitle } from '../text/normalizeTitle';
 
 export const TOPIC_MINIMUM = 0.5; // Heuristic triage threshold, subject to calibration.
 export const TOPIC_RUBRIC_VERSION = 'ar-topic-1';
@@ -60,7 +62,20 @@ function checkCards(value: StageContent['S6'], prior: Inputs): StageError | null
   for (const card of value.cards) {
     const decision = decisions.get(card.decisionId);
     const paper = decision && papers.get(decision.paperId);
-    if (!paper?.abstract || card.evidence_scope !== 'abstract') return 'INVALID_CARDS';
+    if (!paper) return 'INVALID_CARDS';
+    const anchors = card.quote_anchors ?? [];
+    const source = card.full_text_source;
+    if (card.evidence_scope === 'full_text') {
+      const sentenceKeys = source?.sentences.map(({ key }) => key) ?? [];
+      if (
+        !paper.doi ||
+        !source ||
+        !anchors.length ||
+        sentenceKeys.length !== anchors.length ||
+        !known(anchors, new Set(sentenceKeys))
+      )
+        return 'INVALID_CARDS';
+    } else if (!paper.abstract || anchors.length || source) return 'INVALID_CARDS';
     if (!cardFields.some((key) => card[key] !== null)) return 'INVALID_CARDS';
     if (
       cardFields.some((key) =>
@@ -70,7 +85,8 @@ function checkCards(value: StageContent['S6'], prior: Inputs): StageError | null
       )
     )
       return 'INVALID_CARDS';
-    if (!numericGrounding(cardText(card), paper.abstract)) return 'INVALID_CARDS';
+    const evidence = source?.sentences.map(({ text }) => text).join(' ') ?? paper.abstract ?? '';
+    if (!numericGrounding(cardText(card), evidence)) return 'INVALID_CARDS';
   }
   return null;
 }
@@ -222,11 +238,25 @@ export const passConditions: {
       ? 'INVALID_SEARCH_PLAN'
       : null;
   },
-  S4: ({ candidates }, prior) => {
+  S4: ({ candidates, meta }, prior) => {
     const queries = ids(prior.S3 ? searchQueries(prior.S3) : []);
     return !candidates.length
-      ? 'MISSING_INPUT'
-      : !uniqueItems(candidates) || candidates.some((paper) => !known(paper.queryIds, queries))
+      ? 'NO_LITERATURE'
+      : !uniqueItems(candidates) ||
+          candidates.some(
+            (paper) =>
+              !known(paper.queryIds, queries) ||
+              (meta &&
+                ((paper.doi ?? paper.openalexId ?? normalTitle(paper.title)) !== paper.id ||
+                  paper.paper_id !== paper.id ||
+                  paper.cite_key !== paper.citationKey ||
+                  paper.openalexId === undefined ||
+                  !paper.authors ||
+                  paper.venue === undefined ||
+                  paper.citations === undefined ||
+                  !paper.source_records?.length)),
+          ) ||
+          (meta && meta.sources.map(({ provider }) => provider).join(',') !== 'lab_kg,openalex,corpus')
         ? 'STAGE_ERROR'
         : null;
   },
@@ -246,6 +276,7 @@ export const passConditions: {
   S6: checkCards,
   S7: checkSynthesis,
   S8: checkHypotheses,
+  S9: (value, prior) => (validArgumentMap(value, prior) ? null : 'INVALID_ARGUMENT_MAP'),
 };
 
 export function passStage<K extends Stage>(

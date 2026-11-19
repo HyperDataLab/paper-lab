@@ -1,5 +1,4 @@
 import { canonicalDigest } from '../corpus';
-import { emptyProgress } from './agent-loop';
 import {
   acceptedInputs,
   canResume,
@@ -11,7 +10,14 @@ import {
   selectionDigest,
 } from './artifacts';
 import { charterSchema, contracts, STAGES, type Charter, type Stage, type StageContent } from './contracts';
-import { artifactSchema, type Artifact, type EndReason, type Run, type StageState } from './record';
+import {
+  artifactSchema,
+  emptyStage,
+  type Artifact,
+  type EndReason,
+  type Run,
+  type StageState,
+} from './record';
 import { carryObligations, closeObligations } from './obligations';
 import { passStage } from './validation';
 
@@ -39,26 +45,6 @@ export function newRun(projectId: string, id: string, maxCalls: number, at: stri
   };
 }
 
-function emptyStage(stage: Stage, attempt: number): StageState {
-  return {
-    stage,
-    attempt,
-    state: 'idle',
-    error: null,
-    reviewError: null,
-    models: null,
-    critic: null,
-    previousCritic: null,
-    pi: null,
-    criticProgress: emptyProgress,
-    piProgress: emptyProgress,
-    screeningProgress: [],
-    cardProgress: [],
-    cardCursor: 0,
-    checkpointHash: null,
-    at: null,
-  };
-}
 export function stageState(run: Run, stage: Stage) {
   const state = run.pipeline.find((row) => row.stage === stage);
   if (!state) throw new RunTransitionError('Missing pipeline stage');
@@ -158,6 +144,13 @@ export async function putArtifact<K extends Stage>(
   if (run.status !== 'running' || state.state !== 'working' || currentArtifact(run, stage))
     throw new RunTransitionError('Stage is inactive or already has an artifact');
   const value = contracts[stage].parse(content);
+  const cards =
+    stage === 'S6'
+      ? contracts.S6.parse(value).cards
+      : stage === 'S7' || stage === 'S8' || stage === 'S9'
+        ? acceptedInputs(run, stage).S6?.cards
+        : undefined;
+  const scopes = new Set(cards?.map(({ evidence_scope }) => evidence_scope));
   const artifact = artifactSchema.parse({
     stage,
     attempt: state.attempt,
@@ -170,10 +163,10 @@ export async function putArtifact<K extends Stage>(
     selectionIds: null,
     selectionHash: null,
     primaryId: null,
-    evidence_scope: stage === 'S6' || stage === 'S7' || stage === 'S8' ? 'abstract' : null,
+    evidence_scope: scopes.size === 1 ? ([...scopes][0] ?? null) : null,
     author,
     model: author === 'model' ? (state.models?.lead ?? null) : null,
-    promptVersion: author === 'model' ? (state.models?.stagePrompt ?? null) : null,
+    promptVersion: author === 'person' ? null : (state.models?.stagePrompt ?? null),
     createdAt: at,
   });
   return { ...run, artifacts: [...run.artifacts, artifact] };
@@ -279,7 +272,7 @@ export async function decideGate(
       obligations: carryObligations(next, state),
     };
   }
-  return stage === 'S8' && choice.approve
+  return stage === STAGES.at(-1) && choice.approve
     ? endRun(
         next,
         next.obligations.some((o) => o.status !== 'controlled') ||

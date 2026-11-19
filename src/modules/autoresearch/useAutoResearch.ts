@@ -106,6 +106,8 @@ export function useAutoResearch(project: ExtractionProject, bank: BankDoc | null
           bank,
           signal,
           requireConsent,
+          getLabToken: user ? getIdToken : undefined,
+          now,
           getRun: () => latest,
           scholar: createScholarClient({ email: getScholarEmail() }),
           lab:
