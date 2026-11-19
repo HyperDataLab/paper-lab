@@ -1,5 +1,7 @@
 // Maps a lab KG neighbourhood onto the OpenKG graph model, so the shared graph view and the Turtle / JSON-LD
-// exporters work on it unchanged. IRIs follow the OpenKG scheme (`work`, `keyword`, `discipline`, `author`).
+// exporters work on it unchanged. IRIs reuse the OpenKG segments: works and authors are keyed by OpenAlex ID as
+// in `openkg/openAlex.ts` (which prefers an ORCID for authors and a ROR for institutions; the lab KG view has
+// neither, so it uses the OpenAlex IDs), keywords and disciplines by their OpenAlex short IDs.
 import {
   kgIri,
   type KgEdge,

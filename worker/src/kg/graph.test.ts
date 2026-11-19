@@ -56,6 +56,7 @@ const slug = (name: string) => `keywords/${name.replace(/\s+/gu, '-')}`;
 function raw(work: Work) {
   return {
     id: work.id,
+    doi: `https://doi.org/10.1000/${work.id.toLowerCase()}`,
     title: `Synthetic paper ${work.id}`,
     publication_year: work.year,
     cited_by_count: work.cites,
@@ -80,8 +81,23 @@ function raw(work: Work) {
 }
 
 async function setup({ seed = true } = {}) {
-  const { db } = testDb();
-  if (seed) for (const work of WORKS) await kgRepo(db).upsertWork(mapOpenAlexWorkToKg(raw(work)));
+  const { db, sqlite } = testDb();
+  if (seed) {
+    for (const work of WORKS) await kgRepo(db).upsertWork(mapOpenAlexWorkToKg(raw(work)));
+    // W4's published contribution builds on W1 through a DOI reference.
+    sqlite
+      .prepare(
+        `INSERT INTO contribution (id, published_paper_id, paper_doi, name, description, review, body)
+        VALUES ('c1', 'pub1', '10.1000/w4', 'Synthetic method', 'A synthetic contribution.', 'accepted', '{}')`,
+      )
+      .run();
+    sqlite
+      .prepare(
+        `INSERT INTO builds_on (published_paper_id, contribution_id, prerequisite_id, target_kind, target_id,
+        relation, review) VALUES ('pub1', 'c1', 'p1', 'paper', '10.1000/w1', 'reference', 'accepted')`,
+      )
+      .run();
+  }
   const bindings: KgBindings = {
     KG: db,
     KG_VECTORS: { upsert: async () => ({}), query: vi.fn(async () => ({ matches: [] })) },
@@ -156,7 +172,14 @@ describe('L4 GET /v1/kg/graph', () => {
       ].sort(),
     );
     const types = new Set(result.edges.map(({ type }) => type));
-    expect([...types].sort()).toEqual(['affiliated', 'authored', 'cites', 'has_keyword', 'has_topic']);
+    expect([...types].sort()).toEqual([
+      'affiliated',
+      'authored',
+      'builds_on',
+      'cites',
+      'has_keyword',
+      'has_topic',
+    ]);
     expect(result.edges).toContainEqual({
       source: 'W2',
       target: 'W1',
@@ -177,6 +200,21 @@ describe('L4 GET /v1/kg/graph', () => {
     );
   });
 
+  it('L4 links papers through builds_on in both directions, with the review', async () => {
+    const { graph } = await setup();
+    const edge = { source: 'W4', target: 'W1', type: 'builds_on', weight: 1, review: 'accepted' };
+    expect((await graph('center=W4&layers=papers')).edges).toContainEqual(edge);
+    expect((await graph('center=10.1000/W1&layers=papers')).edges).toContainEqual(edge);
+  });
+
+  it('L4 answers an author centre with papers, coauthors and institutions', async () => {
+    const { graph } = await setup();
+    const result = await graph('center=A2');
+    expect(result.nodes.map(({ id }) => id).sort()).toEqual(['A1', 'A2', 'I1', 'W1', 'W4']);
+    expect(result.edges).toContainEqual({ source: 'A2', target: 'A1', type: 'coauthor', weight: 0.3333 });
+    expect(result.edges).toContainEqual({ source: 'W4', target: 'A2', type: 'authored', weight: 1 });
+  });
+
   it('L4 keeps only the requested layers', async () => {
     const { graph } = await setup();
     const result = await graph('center=W1&layers=keywords');
@@ -188,12 +226,13 @@ describe('L4 GET /v1/kg/graph', () => {
   it('L4 caps the nodes by weight and drops edges to cut nodes', async () => {
     const { graph } = await setup();
     const result = await graph('center=W1&limit=3');
-    // W3 (2000 citations) and A1 (first author) both weigh 1; the paper kind comes first.
-    expect(result.nodes.map(({ id }) => id)).toEqual(['W1', 'W3', 'A1']);
+    // W3 (2000 citations), W4 (builds on W1) and A1 (first author) all weigh 1; papers come first, then by ID.
+    expect(result.nodes.map(({ id }) => id)).toEqual(['W1', 'W3', 'W4']);
     expect(result.truncated).toBe(true);
-    expect(result.edges.map(({ type, target }) => `${type}:${target}`).sort()).toEqual([
-      'authored:A1',
-      'cites:W3',
+    expect(result.edges.map(({ type, source, target }) => `${type}:${source}>${target}`).sort()).toEqual([
+      'builds_on:W4>W1',
+      'cites:W1>W3',
+      'cites:W4>W1',
     ]);
     const capped = await graph('center=W1&limit=999');
     expect(capped.nodes.length).toBeLessThanOrEqual(150);

@@ -121,7 +121,7 @@ Both are reads like the L3 routes: weak `ETag`, `Cache-Control: private, no-cach
   - For a paper centre, `outside` lists up to 50 cited works that have no paper row yet, so a client can queue them.
 - **`trend?keywords=…`** takes 1–10 comma-separated keywords: IDs (`keywords/…`) or texts matched on `text_normalized`. The answer has a contiguous `years` axis from the first to the last counted year, each found keyword with `total` (its frequency, papers without a year included) and `counts` per year, and the requested values the KG does not hold in `missing`.
 
-Turtle and JSON-LD export happens in the browser. `src/core/labKg/graphKg.ts` maps the graph answer onto the OpenKG model with OpenKG IRIs (`kg/work/W…`, `kg/keyword/…`, `kg/discipline/…`, `kg/author/…`, `kg/institution/…`), and the OpenKG exporters serialise it. The worker has no export route.
+Turtle and JSON-LD export happens in the browser. `src/core/labKg/graphKg.ts` maps the graph answer onto the OpenKG model with the OpenKG IRI segments keyed by OpenAlex IDs (`kg/work/W…`, `kg/keyword/…`, `kg/discipline/…`, `kg/author/A…`, `kg/institution/I…`), and the OpenKG exporters serialise it. Per-paper OpenKG graphs key authors by ORCID and institutions by ROR when known, so those IRIs can differ. The worker has no export route.
 
 ## Lab KG explorer page (L4)
 
