@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { ResearchDesign } from '@/core/schemas/researchDesign';
-import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
+import { ResearchDesignConflictError } from '@/shared/storage/errors';
 
 type Save = (update: (design: ResearchDesign) => ResearchDesign) => Promise<void>;
 

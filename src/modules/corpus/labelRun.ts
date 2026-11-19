@@ -9,7 +9,7 @@ import { llmArgument } from '@/shared/llm/llmArgument';
 import { llmRhetoric } from '@/shared/llm/llmRhetoric';
 import { llmStance } from '@/shared/llm/llmStance';
 import { budgetFor } from '@/shared/llm/runDefaults';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 import { labelCovered, labelEstimate, labelSections, type LabelPaper, type LabelScheme } from './labelPlan';
 import { modelInputs } from './modelInputs';
 

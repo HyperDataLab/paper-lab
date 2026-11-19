@@ -1,4 +1,8 @@
 import type { ParagraphDb } from './db';
+import type { DocStore } from './docStore';
+import { DexieDocStore } from './dexieDocStore';
+import type { Repositories } from './types';
+export type { Repositories } from './types';
 import { createStorageDeps } from './storageShared';
 export { SourceImmutableError } from './storageShared';
 export type { AnalysisPatch } from './analyses';
@@ -34,29 +38,30 @@ export function createRepositories(
   db: ParagraphDb,
   clock = () => new Date(),
   ids = () => crypto.randomUUID(),
-) {
+  store: DocStore = new DexieDocStore(db),
+): Repositories {
   const deps = createStorageDeps(clock, ids);
   const { now, makeAudit } = deps;
   const analyses = createAnalysesRepository(db, deps);
   const audit = createAuditRepository(db);
   const generations = createGenerationsRepository(db, deps);
-  const papers = createPapersRepository(db, deps);
-  const paperRuns = createPaperRunsRepository(db, deps);
+  const papers = createPapersRepository(store, deps);
+  const paperRuns = createPaperRunsRepository(store, deps);
   const paperOverviews = createPaperOverviewsRepository(db, deps, analyses, papers);
-  const paperChecks = createPaperChecksRepository(db, deps, papers);
-  const paperContext = createPaperContextRepository(db);
+  const paperChecks = createPaperChecksRepository(store, deps);
+  const paperContext = createPaperContextRepository(store);
   const calibrationLabels = createCalibrationLabelsRepository(db, deps);
   const corpora = createCorporaRepository(db);
   const revisions = createRevisionsRepository(db, deps, analyses);
   const paperReviews = createPaperReviewsRepository(db, now, makeAudit);
-  const paperProbes = createPaperProbesRepository(db, now, makeAudit);
-  const measurements = createMeasurementsRepository(db, now, makeAudit);
-  const stance = createStanceRepository(db, now, makeAudit);
-  const paperInsights = createPaperInsightsRepository(db, now, makeAudit);
-  const extraction = createExtractionRepository(db, now, makeAudit);
-  const library = createLibraryRepository(db, now, ids);
-  const corpusKeywords = createCorpusKeywordsRepository(db, library, now);
-  const scg = createScgRepository(db, clock);
+  const paperProbes = createPaperProbesRepository(store, now, makeAudit);
+  const measurements = createMeasurementsRepository(store, now, makeAudit);
+  const stance = createStanceRepository(store, now, makeAudit);
+  const paperInsights = createPaperInsightsRepository(store, now, makeAudit);
+  const extraction = createExtractionRepository(store, now, makeAudit);
+  const library = createLibraryRepository(store, now, ids);
+  const corpusKeywords = createCorpusKeywordsRepository(store, library, now);
+  const scg = createScgRepository(store, clock);
   const pdfFiles = createPdfFilesRepository(db, now);
   const transfer = createTransferRepository(db, clock, deps, {
     analyses,
@@ -77,7 +82,7 @@ export function createRepositories(
   return {
     analyses,
     scg,
-    autoresearch: createAutoResearchRepository(db, deps),
+    autoresearch: createAutoResearchRepository(store, deps),
     audit,
     revisions,
     generations,
@@ -93,16 +98,15 @@ export function createRepositories(
     paperContext,
     paperInsights,
     extraction,
-    researchDesigns: createResearchDesignRepository(db, now),
+    researchDesigns: createResearchDesignRepository(store, now),
     corpora,
-    corpusProfiles: createCorpusProfilesRepository(db),
-    corpusTopics: createCorpusTopicsRepository(db),
+    corpusProfiles: createCorpusProfilesRepository(store),
+    corpusTopics: createCorpusTopicsRepository(store),
     corpusKeywords,
     corpusOpenKg: createCorpusOpenKgRepository(db, corpusKeywords, scg),
     pdfFiles,
-    grobid: createGrobidRepository(db),
+    grobid: createGrobidRepository(store),
     calibrationLabels,
     transfer,
   };
 }
-export type Repositories = ReturnType<typeof createRepositories>;

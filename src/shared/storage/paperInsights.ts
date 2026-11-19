@@ -20,16 +20,17 @@ import {
   type SnapshotRun,
 } from '@/core/schemas';
 import { carryDecisions, mergeArgumentRuns, mergeRhetoricRuns } from '@/core/sectionRun';
-import type { ParagraphDb } from './db';
+import type { DocReader, DocStore, DocWriter } from './docStore';
+import { appendAudit, requirePaper } from './storageShared';
 
 export function createPaperInsightsRepository(
-  db: ParagraphDb,
+  store: DocStore,
   now: () => string,
   makeAudit: (id: string, action: AuditEvent['action'], actor: AuditEvent['actor']) => AuditEvent,
 ) {
-  async function get(paperId: string) {
-    const row = await db.paperInsights.get(paperId);
-    return row ? PaperInsightsRecordSchema.parse(row) : undefined;
+  async function read(reader: DocReader, paperId: string) {
+    const row = await reader.get('paperInsights', paperId);
+    return row ? PaperInsightsRecordSchema.parse(row.doc) : undefined;
   }
   const empty = (paperId: string): PaperInsightsRecord => ({
     schemaVersion: 1,
@@ -45,17 +46,16 @@ export function createPaperInsightsRepository(
     contributionPending: null,
     decisions: [],
   });
-  async function requirePaper(paperId: string) {
-    if (!(await db.papers.get(paperId))) throw new Error('Paper not found');
-  }
   async function audit(
+    tx: DocWriter,
     paperId: string,
     action: AuditEvent['action'],
     at: string,
     after: unknown,
     issueId?: string,
   ) {
-    await db.auditEvents.add(
+    await appendAudit(
+      tx,
       AuditEventSchema.parse({
         ...makeAudit(paperId, action, action.startsWith('run_') ? 'model' : 'human'),
         at,
@@ -65,51 +65,51 @@ export function createPaperInsightsRepository(
     );
   }
   return {
-    get,
+    get: (paperId: string) => read(store, paperId),
     async saveContributionPending(paperId: string, pending: ContributionPending | null) {
-      return db.transaction('rw', [db.papers, db.paperInsights], async () => {
-        await requirePaper(paperId);
+      return store.unitOfWork(async (tx) => {
+        await requirePaper(tx, paperId);
         const value = PaperInsightsRecordSchema.parse({
-          ...((await get(paperId)) ?? empty(paperId)),
+          ...((await read(tx, paperId)) ?? empty(paperId)),
           updatedAt: now(),
           contributionPending: pending,
         });
-        await db.paperInsights.put(value);
+        await tx.put('paperInsights', paperId, value);
         return value;
       });
     },
     async saveContributionRun(paperId: string, input: ContributionRun) {
       const run = ContributionRunSchema.parse(input);
-      return db.transaction('rw', [db.papers, db.paperInsights], async () => {
-        await requirePaper(paperId);
-        const previous = (await get(paperId)) ?? empty(paperId);
+      return store.unitOfWork(async (tx) => {
+        await requirePaper(tx, paperId);
+        const previous = (await read(tx, paperId)) ?? empty(paperId);
         const value = PaperInsightsRecordSchema.parse({
           ...previous,
           updatedAt: now(),
           contributionRuns: [...previous.contributionRuns, run],
           contributionPending: null,
         });
-        await db.paperInsights.put(value);
+        await tx.put('paperInsights', paperId, value);
         return value;
       });
     },
     async saveRhetoricPending(paperId: string, pending: RhetoricPending | null) {
-      return db.transaction('rw', [db.papers, db.paperInsights], async () => {
-        await requirePaper(paperId);
+      return store.unitOfWork(async (tx) => {
+        await requirePaper(tx, paperId);
         const value = PaperInsightsRecordSchema.parse({
-          ...((await get(paperId)) ?? empty(paperId)),
+          ...((await read(tx, paperId)) ?? empty(paperId)),
           updatedAt: now(),
           rhetoricPending: pending,
         });
-        await db.paperInsights.put(value);
+        await tx.put('paperInsights', paperId, value);
         return value;
       });
     },
     async saveRhetoricRun(paperId: string, input: RhetoricRun, pending: RhetoricPending | null = null) {
       const run = RhetoricRunSchema.parse(input);
-      return db.transaction('rw', [db.papers, db.paperInsights, db.auditEvents], async () => {
-        await requirePaper(paperId);
-        const previous = (await get(paperId)) ?? empty(paperId);
+      return store.unitOfWork(async (tx) => {
+        await requirePaper(tx, paperId);
+        const previous = (await read(tx, paperId)) ?? empty(paperId);
         const at = now();
         const value = PaperInsightsRecordSchema.parse({
           ...previous,
@@ -117,17 +117,17 @@ export function createPaperInsightsRepository(
           rhetoricPending: pending,
           rhetoricRuns: [...previous.rhetoricRuns, run],
         });
-        await db.paperInsights.put(value);
-        await audit(paperId, 'run_rhetoric', at, { runId: run.id });
+        await tx.put('paperInsights', paperId, value);
+        await audit(tx, paperId, 'run_rhetoric', at, { runId: run.id });
         return value;
       });
     },
     /** Merges a run over a few sections into the latest rhetoric run; see core/sectionRun for the rules. */
     async saveRhetoricSectionRun(paperId: string, input: RhetoricRun, sectionIds: string[]) {
       const next = RhetoricRunSchema.parse(input);
-      return db.transaction('rw', [db.papers, db.paperInsights, db.auditEvents], async () => {
-        await requirePaper(paperId);
-        const previous = (await get(paperId)) ?? empty(paperId);
+      return store.unitOfWork(async (tx) => {
+        await requirePaper(tx, paperId);
+        const previous = (await read(tx, paperId)) ?? empty(paperId);
         const latest = previous.rhetoricRuns.at(-1);
         const at = now();
         const merged = latest
@@ -150,8 +150,8 @@ export function createPaperInsightsRepository(
               : []),
           ],
         });
-        await db.paperInsights.put(value);
-        await audit(paperId, 'run_rhetoric', at, {
+        await tx.put('paperInsights', paperId, value);
+        await audit(tx, paperId, 'run_rhetoric', at, {
           runId: merged.run.id,
           mergedFrom: latest?.id ?? null,
           sectionIds,
@@ -162,9 +162,9 @@ export function createPaperInsightsRepository(
     /** Merges a run over a few sections into the latest argument run; see core/sectionRun for the rules. */
     async saveArgumentSectionRun(paperId: string, input: ArgumentRun, sectionIds: string[]) {
       const next = ArgumentRunSchema.parse(input);
-      return db.transaction('rw', [db.papers, db.paperInsights, db.auditEvents], async () => {
-        await requirePaper(paperId);
-        const previous = (await get(paperId)) ?? empty(paperId);
+      return store.unitOfWork(async (tx) => {
+        await requirePaper(tx, paperId);
+        const previous = (await read(tx, paperId)) ?? empty(paperId);
         const latest = previous.argumentRuns.at(-1);
         const at = now();
         const merged = latest
@@ -187,8 +187,8 @@ export function createPaperInsightsRepository(
               : []),
           ],
         });
-        await db.paperInsights.put(value);
-        await audit(paperId, 'run_argument', at, {
+        await tx.put('paperInsights', paperId, value);
+        await audit(tx, paperId, 'run_argument', at, {
           runId: merged.run.id,
           mergedFrom: latest?.id ?? null,
           sectionIds,
@@ -197,22 +197,22 @@ export function createPaperInsightsRepository(
       });
     },
     async saveArgumentPending(paperId: string, pending: ArgumentPending | null) {
-      return db.transaction('rw', [db.papers, db.paperInsights], async () => {
-        await requirePaper(paperId);
+      return store.unitOfWork(async (tx) => {
+        await requirePaper(tx, paperId);
         const value = PaperInsightsRecordSchema.parse({
-          ...((await get(paperId)) ?? empty(paperId)),
+          ...((await read(tx, paperId)) ?? empty(paperId)),
           updatedAt: now(),
           argumentPending: pending,
         });
-        await db.paperInsights.put(value);
+        await tx.put('paperInsights', paperId, value);
         return value;
       });
     },
     async saveArgumentRun(paperId: string, input: ArgumentRun, pending: ArgumentPending | null = null) {
       const run = ArgumentRunSchema.parse(input);
-      return db.transaction('rw', [db.papers, db.paperInsights, db.auditEvents], async () => {
-        await requirePaper(paperId);
-        const previous = (await get(paperId)) ?? empty(paperId);
+      return store.unitOfWork(async (tx) => {
+        await requirePaper(tx, paperId);
+        const previous = (await read(tx, paperId)) ?? empty(paperId);
         const at = now();
         const value = PaperInsightsRecordSchema.parse({
           ...previous,
@@ -220,47 +220,47 @@ export function createPaperInsightsRepository(
           argumentPending: pending,
           argumentRuns: [...previous.argumentRuns, run],
         });
-        await db.paperInsights.put(value);
-        await audit(paperId, 'run_argument', at, { runId: run.id });
+        await tx.put('paperInsights', paperId, value);
+        await audit(tx, paperId, 'run_argument', at, { runId: run.id });
         return value;
       });
     },
     async saveSnapshotRun(paperId: string, input: SnapshotRun) {
       const run = SnapshotRunSchema.parse(input);
-      return db.transaction('rw', [db.papers, db.paperInsights, db.auditEvents], async () => {
-        await requirePaper(paperId);
-        const previous = (await get(paperId)) ?? empty(paperId);
+      return store.unitOfWork(async (tx) => {
+        await requirePaper(tx, paperId);
+        const previous = (await read(tx, paperId)) ?? empty(paperId);
         const at = now();
         const value = PaperInsightsRecordSchema.parse({
           ...previous,
           updatedAt: at,
           snapshotRuns: [...previous.snapshotRuns, run],
         });
-        await db.paperInsights.put(value);
-        await audit(paperId, 'run_snapshot', at, { runId: run.id });
+        await tx.put('paperInsights', paperId, value);
+        await audit(tx, paperId, 'run_snapshot', at, { runId: run.id });
         return value;
       });
     },
     async saveDigestRun(paperId: string, input: DigestRun) {
       const run = DigestRunSchema.parse(input);
-      return db.transaction('rw', [db.papers, db.paperInsights, db.auditEvents], async () => {
-        await requirePaper(paperId);
-        const previous = (await get(paperId)) ?? empty(paperId);
+      return store.unitOfWork(async (tx) => {
+        await requirePaper(tx, paperId);
+        const previous = (await read(tx, paperId)) ?? empty(paperId);
         const at = now();
         const value = PaperInsightsRecordSchema.parse({
           ...previous,
           updatedAt: at,
           digestRuns: [...previous.digestRuns, run],
         });
-        await db.paperInsights.put(value);
-        await audit(paperId, 'run_digest', at, { runId: run.id });
+        await tx.put('paperInsights', paperId, value);
+        await audit(tx, paperId, 'run_digest', at, { runId: run.id });
         return value;
       });
     },
     async decide(paperId: string, input: Omit<InsightDecision, 'at'>) {
-      return db.transaction('rw', [db.papers, db.paperInsights, db.auditEvents], async () => {
-        await requirePaper(paperId);
-        const previous = await get(paperId);
+      return store.unitOfWork(async (tx) => {
+        await requirePaper(tx, paperId);
+        const previous = await read(tx, paperId);
         if (!previous) throw new Error('Run not found');
         const isArgument = previous.argumentRuns.some((run) => run.id === input.run_id);
         const isSnapshot = previous.snapshotRuns.some((run) => run.id === input.run_id);
@@ -273,8 +273,9 @@ export function createPaperInsightsRepository(
           updatedAt: at,
           decisions: [...previous.decisions, decision],
         });
-        await db.paperInsights.put(value);
+        await tx.put('paperInsights', paperId, value);
         await audit(
+          tx,
           paperId,
           isArgument ? 'review_argument' : 'review_rhetoric',
           at,

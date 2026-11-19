@@ -1,41 +1,25 @@
 import { normalizeDoi } from '@/core/library';
 import type { Corpus } from '@/core/schemas/corpus';
-import {
-  CorpusKeywordsSchema,
-  DoiKeywordsSchema,
-  type CorpusKeywords,
-  type KeywordPaper,
-} from '@/core/schemas/corpusKeywords';
+import { CorpusKeywordsSchema, DoiKeywordsSchema, type CorpusKeywords } from '@/core/schemas/corpusKeywords';
 import { LibraryItemSchema, type LibraryItem, type PaperKeyword } from '@/core/schemas/library';
-import type { ParagraphDb } from './db';
-import type { createLibraryRepository } from './library';
-
-/** A member whose keywords have not been fetched yet; `libraryId` is where they will be saved, if it has a record. */
-export interface KeywordTarget {
-  memberId: string;
-  doi: string;
-  libraryId: string | null;
-}
-export interface MemberKeywords {
-  papers: KeywordPaper[];
-  missing: KeywordTarget[];
-  /** Members with no keywords and no DOI to look them up by. */
-  withoutDoi: number;
-}
+import type { DocStore } from './docStore';
+import { libraryByDois, type createLibraryRepository } from './library';
+import type { KeywordTarget, MemberKeywords } from './types';
+export type { KeywordTarget, MemberKeywords } from './types';
 
 export function createCorpusKeywordsRepository(
-  db: ParagraphDb,
+  store: DocStore,
   library: ReturnType<typeof createLibraryRepository>,
   now: () => string,
 ) {
   return {
     async get(corpusId: string) {
-      const row = await db.corpusKeywords.get(corpusId);
-      return row ? CorpusKeywordsSchema.parse(row) : undefined;
+      const row = await store.get('corpusKeywords', corpusId);
+      return row ? CorpusKeywordsSchema.parse(row.doc) : undefined;
     },
     async save(collection: CorpusKeywords) {
       const value = CorpusKeywordsSchema.parse(collection);
-      await db.corpusKeywords.put(value);
+      await store.put('corpusKeywords', value.corpusId, value);
       return value;
     },
     /**
@@ -48,19 +32,17 @@ export function createCorpusKeywordsRepository(
       const dois = [...new Set(corpus.members.flatMap((member) => doiOf(member.identifiers.doi) ?? []))];
       const byId = new Map<string, LibraryItem>();
       const byDoi = new Map<string, LibraryItem>();
-      for (const row of [
-        ...(await db.library.bulkGet(libraryIds)),
-        ...(await db.library.where('doi').anyOf(dois).toArray()),
-      ]) {
-        if (!row) continue;
-        const item = LibraryItemSchema.parse(row);
+      const linked = (await store.getMany('library', libraryIds)).flatMap((row) =>
+        row ? [LibraryItemSchema.parse(row.doc)] : [],
+      );
+      for (const item of [...linked, ...(await libraryByDois(store, dois))]) {
         byId.set(item.id, item);
         byDoi.set(item.doi, item);
       }
       const fetched = new Map(
-        (await db.doiKeywords.bulkGet(dois)).flatMap((row) => {
+        (await store.getMany('doiKeywords', dois)).flatMap((row) => {
           if (!row) return [];
-          const value = DoiKeywordsSchema.parse(row);
+          const value = DoiKeywordsSchema.parse(row.doc);
           return [[value.doi, value.keywords] as const];
         }),
       );
@@ -84,7 +66,12 @@ export function createCorpusKeywordsRepository(
     /** Saves fetched keywords on the library record when there is one, otherwise against the DOI alone. */
     async saveFetched(target: KeywordTarget, keywords: PaperKeyword[]) {
       if (target.libraryId) await library.update(target.libraryId, { keywords });
-      else await db.doiKeywords.put(DoiKeywordsSchema.parse({ doi: target.doi, fetchedAt: now(), keywords }));
+      else
+        await store.put(
+          'doiKeywords',
+          target.doi,
+          DoiKeywordsSchema.parse({ doi: target.doi, fetchedAt: now(), keywords }),
+        );
     },
   };
 }

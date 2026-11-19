@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 import { loadCalibration, type CalibrationData } from './data';
 export function useCalibration(repo: Repositories, refreshKey?: unknown) {
   const [data, setData] = useState<CalibrationData>();

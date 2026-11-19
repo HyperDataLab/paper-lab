@@ -7,7 +7,7 @@ import { checkPackage } from '@/core/researchDesign/plan/exportPackage';
 import { emptyResearchDesign, type ResearchDesign } from '@/core/schemas/researchDesign';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
 import { ToastProvider } from '@/shared/ui/ToastProvider';
-import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
+import { ResearchDesignConflictError } from '@/shared/storage/errors';
 import * as downloads from './download';
 import PackageSection from '../sections/PackageSection';
 

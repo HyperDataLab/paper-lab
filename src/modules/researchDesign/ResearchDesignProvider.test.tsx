@@ -10,7 +10,7 @@ import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
-import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
+import { ResearchDesignConflictError } from '@/shared/storage/errors';
 import { ResearchDesignProvider, useResearchDesign } from './ResearchDesignProvider';
 import { SectionBody } from './SectionBody';
 import BankSection from './sections/BankSection';

@@ -4,56 +4,53 @@ import {
   type AuditEvent,
   type ExtractionProject,
 } from '@/core/schemas';
-import type { ParagraphDb } from './db';
+import type { DocStore } from './docStore';
 
 export function createExtractionRepository(
-  db: ParagraphDb,
+  store: DocStore,
   now: () => string,
   makeAudit: (id: string, action: AuditEvent['action'], actor: AuditEvent['actor']) => AuditEvent,
 ) {
   async function get(id: string) {
-    const row = await db.extractionProjects.get(id);
-    return row ? ExtractionProjectSchema.parse(row) : undefined;
+    const row = await store.get('extractionProjects', id);
+    return row ? ExtractionProjectSchema.parse(row.doc) : undefined;
   }
   return {
     get,
     async forPaper(paperId: string) {
-      const rows = await db.extractionProjects.toArray();
-      return rows.map((row) => ExtractionProjectSchema.parse(row)).find((row) => row.paperId === paperId);
+      const [row] = await store.query('extractionProjects', { where: { paperId }, limit: 1 });
+      return row ? ExtractionProjectSchema.parse(row.doc) : undefined;
     },
     async list() {
-      const rows = await db.extractionProjects.orderBy('updatedAt').reverse().toArray();
-      return rows.map((row) => ExtractionProjectSchema.parse(row));
+      const rows = await store.query('extractionProjects', { orderBy: 'updatedAt', desc: true });
+      return rows.map((row) => ExtractionProjectSchema.parse(row.doc));
     },
     async save(
       input: ExtractionProject,
       event?: { action: 'run_extraction' | 'review_extraction'; after: unknown },
     ) {
       const value = ExtractionProjectSchema.parse({ ...input, updatedAt: now() });
-      await db.transaction('rw', [db.extractionProjects, db.auditEvents], async () => {
-        await db.extractionProjects.put(value);
-        if (event)
-          await db.auditEvents.add(
-            AuditEventSchema.parse({
-              ...makeAudit(value.id, event.action, event.action === 'run_extraction' ? 'model' : 'human'),
-              at: value.updatedAt,
-              after: event.after,
-            }),
-          );
+      await store.unitOfWork(async (tx) => {
+        await tx.put('extractionProjects', value.id, value);
+        if (event) {
+          const audit = AuditEventSchema.parse({
+            ...makeAudit(value.id, event.action, event.action === 'run_extraction' ? 'model' : 'human'),
+            at: value.updatedAt,
+            after: event.after,
+          });
+          await tx.put('auditEvents', audit.id, audit, null);
+        }
       });
       return value;
     },
     async remove(id: string) {
-      await db.transaction(
-        'rw',
-        [db.extractionProjects, db.researchDesigns, db.researchDesignBanks, db.autoresearchRuns],
-        async () => {
-          await db.extractionProjects.delete(id);
-          await db.researchDesigns.delete(id);
-          await db.researchDesignBanks.delete(id);
-          await db.autoresearchRuns.where('projectId').equals(id).delete();
-        },
-      );
+      await store.unitOfWork(async (tx) => {
+        await tx.remove('extractionProjects', id);
+        await tx.remove('researchDesigns', id);
+        await tx.remove('researchDesignBanks', id);
+        for (const run of await tx.query('autoresearchRuns', { where: { projectId: id }, select: 'summary' }))
+          await tx.remove('autoresearchRuns', run.id);
+      });
     },
   };
 }

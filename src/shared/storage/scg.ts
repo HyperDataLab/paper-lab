@@ -1,36 +1,36 @@
 import { setScgReview, type ScgReviewTarget } from '@/core/scg';
 import { ScgPaperRunSchema, type ScgPaperRun, type ScgReview } from '@/core/schemas';
-import type { ParagraphDb } from './db';
+import type { DocStore } from './docStore';
 
 /** One SCG run per paper, keyed by the PaperLab paper id. Every read and write is validated. */
-export function createScgRepository(db: ParagraphDb, clock = () => new Date()) {
+export function createScgRepository(store: DocStore, clock = () => new Date()) {
   const parse = (value: unknown) => ScgPaperRunSchema.parse(value);
   return {
     async get(paperId: string) {
-      const value = await db.scgRuns.get(paperId);
-      return value ? parse(value) : undefined;
+      const row = await store.get('scgRuns', paperId);
+      return row ? parse(row.doc) : undefined;
     },
     async save(input: ScgPaperRun) {
       const value = parse(input);
-      await db.scgRuns.put(value);
+      await store.put('scgRuns', value.paperId, value);
       return value;
     },
     /** Every stored run: the lab graph that alignment and the corpus view read. */
     async list() {
-      return (await db.scgRuns.toArray()).map(parse);
+      return (await store.query('scgRuns')).map((row) => parse(row.doc));
     },
     async listByPapers(paperIds: string[]) {
-      return (await db.scgRuns.bulkGet(paperIds)).filter((v) => v !== undefined).map(parse);
+      return (await store.getMany('scgRuns', paperIds)).flatMap((row) => (row ? [parse(row.doc)] : []));
     },
     async setReview(paperId: string, target: ScgReviewTarget, review: ScgReview) {
-      return db.transaction('rw', db.scgRuns, async () => {
-        const current = await db.scgRuns.get(paperId);
+      return store.unitOfWork(async (tx) => {
+        const current = await tx.get('scgRuns', paperId);
         if (!current) return undefined;
         const value = parse({
-          ...setScgReview(parse(current), target, review),
+          ...setScgReview(parse(current.doc), target, review),
           updatedAt: clock().toISOString(),
         });
-        await db.scgRuns.put(value);
+        await tx.put('scgRuns', paperId, value);
         return value;
       });
     },

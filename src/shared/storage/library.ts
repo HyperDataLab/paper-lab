@@ -1,19 +1,28 @@
 import { LibraryItemSchema, type LibraryItem } from '@/core/schemas';
-import type { ParagraphDb } from './db';
+import type { DocReader, DocStore } from './docStore';
 
 type Patch = Partial<Omit<LibraryItem, 'id' | 'doi' | 'addedAt' | 'schemaVersion'>>;
 
-export function createLibraryRepository(db: ParagraphDb, now: () => string, ids: () => string) {
+/** Library items with any of these DOIs, one index lookup per DOI. */
+export async function libraryByDois(reader: DocReader, dois: readonly string[]) {
+  const rows = await Promise.all(
+    [...new Set(dois)].map((doi) => reader.query('library', { where: { doi } })),
+  );
+  return rows.flat().map((row) => LibraryItemSchema.parse(row.doc));
+}
+
+export function createLibraryRepository(store: DocStore, now: () => string, ids: () => string) {
   async function get(id: string) {
-    const row = await db.library.get(id);
-    return row ? LibraryItemSchema.parse(row) : undefined;
+    const row = await store.get('library', id);
+    return row ? LibraryItemSchema.parse(row.doc) : undefined;
   }
   async function update(id: string, patch: Patch) {
-    return db.transaction('rw', db.library, async () => {
-      const current = await get(id);
-      if (!current) throw new Error('Library item not found');
+    return store.unitOfWork(async (tx) => {
+      const row = await tx.get('library', id);
+      if (!row) throw new Error('Library item not found');
+      const current = LibraryItemSchema.parse(row.doc);
       const value = LibraryItemSchema.parse({ ...current, ...patch, updatedAt: now() });
-      await db.library.put(value);
+      await tx.put('library', id, value);
       return value;
     });
   }
@@ -21,14 +30,14 @@ export function createLibraryRepository(db: ParagraphDb, now: () => string, ids:
     get,
     update,
     async list() {
-      return (await db.library.toArray())
-        .map((row) => LibraryItemSchema.parse(row))
+      return (await store.query('library'))
+        .map((row) => LibraryItemSchema.parse(row.doc))
         .sort((a, b) => b.addedAt.localeCompare(a.addedAt) || a.doi.localeCompare(b.doi));
     },
     /** Adds what is new. A DOI already in the library is counted, not reset. */
     async addDois(dois: string[]) {
-      return db.transaction('rw', db.library, async () => {
-        const known = new Set((await db.library.where('doi').anyOf(dois).toArray()).map((row) => row.doi));
+      return store.unitOfWork(async (tx) => {
+        const known = new Set((await libraryByDois(tx, dois)).map((row) => row.doi));
         const at = now();
         const added = dois
           .filter((doi) => !known.has(doi))
@@ -54,12 +63,14 @@ export function createLibraryRepository(db: ParagraphDb, now: () => string, ids:
               error: null,
             }),
           );
-        await db.library.bulkAdd(added);
+        for (const item of added) await tx.put('library', item.id, item, null);
         return { added, duplicates: known.size };
       });
     },
     async remove(ids_: string[]) {
-      await db.library.bulkDelete(ids_);
+      await store.unitOfWork(async (tx) => {
+        for (const id of ids_) await tx.remove('library', id);
+      });
     },
   };
 }

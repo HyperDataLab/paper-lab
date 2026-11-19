@@ -3,7 +3,7 @@ import { PAPER_PARSER_VERSION, segmentPaper } from '@/core/paper';
 import { guardPaperSize } from '@/shared/paper/sizeGuard';
 import { parseLatex } from '@/shared/paper/latexParser';
 import { parseMarkdown, parsePlainText } from '@/shared/paper/markdownParser';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 
 /** Reads a file in the browser and stores it as a paper. The same file imported twice is one paper. */
 export async function importPaperFile(
@@ -23,7 +23,7 @@ export async function importPaperFile(
   if (ext === 'pdf')
     await repo.pdfFiles.put(sha256.slice('sha256:'.length), new Blob([data], { type: 'application/pdf' }));
   if (options.reuseExisting) {
-    const existing = (await repo.papers.list()).find((paper) => paper.source.sha256 === sha256);
+    const existing = await repo.papers.findBySourceHash(sha256);
     if (existing) return existing;
   }
   let parsed: Awaited<ReturnType<typeof segmentPaper>>;

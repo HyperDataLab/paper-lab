@@ -1,7 +1,7 @@
 import { parseGrobidTei } from '@/core/grobid/parseTei';
 import { runPaperChecks } from '@/core/paperChecks';
 import { GROBID_VERSION, type GrobidRecord, type GrobidResult, type Paper } from '@/core/schemas';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 import { fetchGrobidTei } from './grobid';
 import { paperSha, pdfRemote, PdfRemoteError } from './index';
 

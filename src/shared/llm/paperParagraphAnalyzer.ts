@@ -25,7 +25,7 @@ import { computeScores } from '@/core/scoring/computeScores';
 import { buildEvidencePackages } from '@/core/scoring/evidencePackage';
 import { DIMENSIONS, RUBRIC_VERSION } from '@/core/scoring/rubric';
 import { analyzeText } from '@/core/text/analyzeText';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 import type { LlmClient } from './client';
 import { contextFor } from '@/core/batch';
 

@@ -8,7 +8,7 @@ import type { BankDoc } from '@/core/researchDesign/bank/snapshot';
 import type { ExtractionProject } from '@/core/schemas';
 import type { createLabResearchClient } from '@/shared/labResearch';
 import type { createScholarClient } from '@/shared/scholar/client';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 import { loadProjectFullTexts } from './card-sources';
 import { collectCandidates } from './collection';
 import type { NoveltyPaper } from './engines';

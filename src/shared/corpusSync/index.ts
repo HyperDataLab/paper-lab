@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { CorpusSchema, type Corpus } from '@/core/schemas/corpus';
 import { CorpusTopicsSchema } from '@/core/schemas/corpusTopics';
 import { PDF_WORKER_URL } from '@/shared/pdfStore';
+import { CorpusConflict } from '@/shared/storage/errors';
+export { CorpusConflict };
 
 export const TOPICS_WORKER_URL: string =
   (import.meta.env.VITE_TOPICS_WORKER_URL as string | undefined) ||
@@ -15,11 +17,6 @@ const entry = z.object({
   version: z.string(),
 });
 const result = z.object({ corpus: CorpusSchema, version: z.string() });
-export class CorpusConflict extends Error {
-  constructor(public version: string | null) {
-    super('Corpus đã được người khác sửa');
-  }
-}
 async function checked(response: Response) {
   if (response.status === 409) {
     const body = z.object({ version: z.string().nullable() }).parse(await response.json());

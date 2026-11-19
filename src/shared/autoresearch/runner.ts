@@ -28,7 +28,7 @@ import {
   LlmHttpError,
   LlmTimeoutError,
 } from '@/shared/llm/errors';
-import { AutoResearchConflictError } from '@/shared/storage/autoresearch';
+import { AutoResearchConflictError } from '@/shared/storage/errors';
 import { executeEngine, StageFailure, stagePrompts, type Ask } from './engines';
 import { supervise } from './supervisors';
 import type { Screen } from './screening';

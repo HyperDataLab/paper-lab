@@ -2,7 +2,7 @@ import { useCallback, useLayoutEffect, useRef } from 'react';
 import type { DraftError, DraftResult } from '@/core/researchDesign/draft/ops';
 import type { Draft } from '@/core/researchDesign/draft/schema';
 import type { ResearchDesign } from '@/core/schemas/researchDesign';
-import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
+import { ResearchDesignConflictError } from '@/shared/storage/errors';
 import { useToast } from '@/shared/ui/toastContext';
 import { useResearchDesign } from '../ResearchDesignProvider';
 import { errorWords, fallbackError } from './words';
