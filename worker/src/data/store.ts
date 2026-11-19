@@ -308,29 +308,91 @@ export async function commit(
   if (conflicts.length) return { ok: false, status: 409, error: 'version_conflict', conflicts };
 
   const at = env.now().toISOString();
+  // Bodies this commit uploaded. They are removed only when the batch certainly did not apply.
   const owned: string[] = [];
-  try {
-    const writes = await Promise.all(
-      prepared.map(async ({ op, check }) => {
-        const prior = rows.get(refKey(op));
-        const version = (prior?.version ?? 0) + 1;
-        if (!check) return { op, prior, version, values: null };
-        const sha256 = await sha256Hex(check.bytes);
-        let r2Key: string | null = null;
-        if (check.def.storage === 'r2') {
-          r2Key = await putBody(env, op, version, check.bytes, sha256, owned);
-        }
-        const live = prior && !prior.deleted_at;
-        const values: Record<(typeof DOC_COLUMNS)[number], SqlValue> = {
-          collection: op.collection,
-          id: op.id,
-          version,
-          r2_key: r2Key,
-          body_json: r2Key ? null : (op.text as string),
+  const writes = await Promise.all(
+    prepared.map(async ({ op, check }) => {
+      const prior = rows.get(refKey(op));
+      const version = (prior?.version ?? 0) + 1;
+      if (!check) return { op, prior, version, values: null };
+      const sha256 = await sha256Hex(check.bytes);
+      let r2Key: string | null = null;
+      if (check.def.storage === 'r2') {
+        r2Key = await putBody(env, op, version, check.bytes, sha256, owned);
+      }
+      const live = prior && !prior.deleted_at;
+      const values: Record<(typeof DOC_COLUMNS)[number], SqlValue> = {
+        collection: op.collection,
+        id: op.id,
+        version,
+        r2_key: r2Key,
+        body_json: r2Key ? null : (op.text as string),
+        size: check.bytes.byteLength,
+        sha256,
+        created_by: live ? prior.created_by : env.email,
+        created_at: live ? prior.created_at : at,
+        updated_by: env.email,
+        updated_at: at,
+        deleted_at: null,
+        lab_id: LAB_ID,
+        visibility: 'lab',
+        ...indexValues(check.index),
+        summary_json: check.summary,
+      };
+      return { op, prior, version, values };
+    }),
+  ).catch(async (error: unknown) => {
+    await removeBodies(env.bucket, owned);
+    throw error;
+  });
+
+  const { db } = env;
+  const statements: D1Statement[] = [];
+  for (const write of writes)
+    statements.push(guardStatement(db, write.op.collection, write.op.id, write.prior));
+  for (const guard of guards)
+    statements.push(guardStatement(db, guard.collection, guard.id, rows.get(refKey(guard))));
+  for (const write of writes) {
+    if (!write.values) {
+      statements.push(
+        db
+          .prepare(
+            'UPDATE doc SET version = ?, deleted_at = ?, updated_by = ?, updated_at = ?, r2_key = NULL, body_json = NULL WHERE collection = ? AND id = ? AND version = ?',
+          )
+          .bind(write.version, at, env.email, at, write.op.collection, write.op.id, write.version - 1),
+      );
+    } else if (write.prior) {
+      statements.push(
+        db
+          .prepare(
+            `UPDATE doc SET ${MUTABLE_COLUMNS.map((column) => `${column} = ?`).join(', ')} WHERE collection = ? AND id = ? AND version = ?`,
+          )
+          .bind(
+            ...MUTABLE_COLUMNS.map((column) => write.values[column]),
+            write.op.collection,
+            write.op.id,
+            write.prior.version,
+          ),
+      );
+    } else {
+      statements.push(insertDoc(db, write.values, ''));
+    }
+  }
+  const fresh = appendChecks.filter(({ append }) => !rows.has(refKey(append)));
+  for (const { append, check } of fresh)
+    statements.push(
+      insertDoc(
+        db,
+        {
+          collection: append.collection,
+          id: append.id,
+          version: 1,
+          r2_key: null,
+          body_json: append.text,
           size: check.bytes.byteLength,
-          sha256,
-          created_by: live ? prior.created_by : env.email,
-          created_at: live ? prior.created_at : at,
+          sha256: await sha256Hex(check.bytes),
+          created_by: env.email,
+          created_at: at,
           updated_by: env.email,
           updated_at: at,
           deleted_at: null,
@@ -338,127 +400,66 @@ export async function commit(
           visibility: 'lab',
           ...indexValues(check.index),
           summary_json: check.summary,
-        };
-        return { op, prior, version, values };
-      }),
+        },
+        ' ON CONFLICT (collection, id) DO NOTHING',
+      ),
+    );
+  const log = [
+    ...writes.map((write) => [write.op.collection, write.op.id, write.version, write.op.op, env.email, at]),
+    ...fresh.map(({ append }) => [append.collection, append.id, 1, 'put', env.email, at]),
+  ];
+  for (const part of chunk(log, Math.floor(MAX_PARAMS / 6)))
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO change_log (collection, id, version, op, actor, at) VALUES ${part.map(() => '(?, ?, ?, ?, ?, ?)').join(', ')}`,
+        )
+        .bind(...part.flat()),
     );
 
-    const { db } = env;
-    const statements: D1Statement[] = [];
-    for (const write of writes)
-      statements.push(guardStatement(db, write.op.collection, write.op.id, write.prior));
-    for (const guard of guards)
-      statements.push(guardStatement(db, guard.collection, guard.id, rows.get(refKey(guard))));
-    for (const write of writes) {
-      if (!write.values) {
-        statements.push(
-          db
-            .prepare(
-              'UPDATE doc SET version = ?, deleted_at = ?, updated_by = ?, updated_at = ?, r2_key = NULL, body_json = NULL WHERE collection = ? AND id = ? AND version = ?',
-            )
-            .bind(write.version, at, env.email, at, write.op.collection, write.op.id, write.version - 1),
-        );
-      } else if (write.prior) {
-        statements.push(
-          db
-            .prepare(
-              `UPDATE doc SET ${MUTABLE_COLUMNS.map((column) => `${column} = ?`).join(', ')} WHERE collection = ? AND id = ? AND version = ?`,
-            )
-            .bind(
-              ...MUTABLE_COLUMNS.map((column) => write.values[column]),
-              write.op.collection,
-              write.op.id,
-              write.prior.version,
-            ),
-        );
-      } else {
-        statements.push(insertDoc(db, write.values, ''));
-      }
-    }
-    const fresh = appendChecks.filter(({ append }) => !rows.has(refKey(append)));
-    for (const { append, check } of fresh)
-      statements.push(
-        insertDoc(
-          db,
-          {
-            collection: append.collection,
-            id: append.id,
-            version: 1,
-            r2_key: null,
-            body_json: append.text,
-            size: check.bytes.byteLength,
-            sha256: await sha256Hex(check.bytes),
-            created_by: env.email,
-            created_at: at,
-            updated_by: env.email,
-            updated_at: at,
-            deleted_at: null,
-            lab_id: LAB_ID,
-            visibility: 'lab',
-            ...indexValues(check.index),
-            summary_json: check.summary,
-          },
-          ' ON CONFLICT (collection, id) DO NOTHING',
-        ),
-      );
-    const log = [
-      ...writes.map((write) => [write.op.collection, write.op.id, write.version, write.op.op, env.email, at]),
-      ...fresh.map(({ append }) => [append.collection, append.id, 1, 'put', env.email, at]),
-    ];
-    for (const part of chunk(log, Math.floor(MAX_PARAMS / 6)))
-      statements.push(
-        db
-          .prepare(
-            `INSERT INTO change_log (collection, id, version, op, actor, at) VALUES ${part.map(() => '(?, ?, ?, ?, ?, ?)').join(', ')}`,
-          )
-          .bind(...part.flat()),
-      );
-
-    try {
-      await db.batch(statements);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (/version_conflict|UNIQUE constraint failed: doc\.collection, doc\.id/u.test(message)) {
-        await removeBodies(env.bucket, owned);
-        const now = await readRows(db, [...ops, ...guards]);
-        return {
-          ok: false,
-          status: 409,
-          error: 'version_conflict',
-          conflicts: [...ops, ...guards]
-            .map((ref) => ({
-              collection: ref.collection,
-              id: ref.id,
-              expectedVersion: ref.expectedVersion,
-              serverVersion: liveVersion(now.get(refKey(ref))),
-            }))
-            .filter((conflict) => conflict.serverVersion !== conflict.expectedVersion),
-        };
-      }
-      if (/UNIQUE constraint failed/u.test(message)) {
-        await removeBodies(env.bucket, owned);
-        return {
-          ok: false,
-          status: 409,
-          error: 'unique_conflict',
-          message: 'Another live record has the same DOI.',
-        };
-      }
-      throw error;
-    }
-    return {
-      ok: true,
-      results: writes.map((write) => ({
-        collection: write.op.collection,
-        id: write.op.id,
-        version: write.version,
-      })),
-      appended: fresh.length,
-    };
+  try {
+    await db.batch(statements);
   } catch (error) {
-    await removeBodies(env.bucket, owned);
+    const message = error instanceof Error ? error.message : String(error);
+    if (/version_conflict|UNIQUE constraint failed: doc\.collection, doc\.id/u.test(message)) {
+      await removeBodies(env.bucket, owned);
+      const now = await readRows(db, [...ops, ...guards]);
+      return {
+        ok: false,
+        status: 409,
+        error: 'version_conflict',
+        conflicts: [...ops, ...guards]
+          .map((ref) => ({
+            collection: ref.collection,
+            id: ref.id,
+            expectedVersion: ref.expectedVersion,
+            serverVersion: liveVersion(now.get(refKey(ref))),
+          }))
+          .filter((conflict) => conflict.serverVersion !== conflict.expectedVersion),
+      };
+    }
+    if (/UNIQUE constraint failed/u.test(message)) {
+      await removeBodies(env.bucket, owned);
+      return {
+        ok: false,
+        status: 409,
+        error: 'unique_conflict',
+        message: 'Another live record has the same DOI.',
+      };
+    }
+    // Any other failure may have happened after the batch applied (a lost response), so the bodies
+    // stay; the garbage collector removes them if no row points at them.
     throw error;
   }
+  return {
+    ok: true,
+    results: writes.map((write) => ({
+      collection: write.op.collection,
+      id: write.op.id,
+      version: write.version,
+    })),
+    appended: fresh.length,
+  };
 }
 
 function indexValues(index: DocIndex) {
@@ -477,8 +478,9 @@ function insertDoc(db: D1Database, values: Record<(typeof DOC_COLUMNS)[number], 
 
 /**
  * Writes a version's body under a key nobody else holds. `v{n}.json` can already exist when an earlier
- * attempt at the same version failed after its upload, or while another writer races for that version:
- * the same bytes are reused, otherwise the body goes to a key with a random suffix.
+ * attempt at the same version failed after its upload, or while another writer races for that version.
+ * That object is never shared (its owner may delete it after losing the race), so the body goes to a key
+ * with a random suffix.
  */
 async function putBody(
   env: StoreEnv,
@@ -499,7 +501,6 @@ async function putBody(
     owned.push(key);
     return key;
   }
-  if ((await env.bucket.head(key))?.customMetadata?.sha256 === sha256) return key;
   const unique = bodyKey(op.collection, op.id, version, crypto.randomUUID());
   if (!(await env.bucket.put(unique, body, options))) throw new Error('Could not store the record body.');
   owned.push(unique);

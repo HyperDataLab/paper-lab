@@ -201,6 +201,28 @@ describe('/v1/data/{col}/{id}', () => {
     expect(row('doiKeywords', doi)?.version).toBe(2);
   });
 
+  it('never shares a body key that another attempt uploaded, even with the same bytes', async () => {
+    const { call, row, objects, bucket } = setup();
+    const doi = '10.1/race';
+    const text = JSON.stringify(doiKeywords(doi));
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+    // Left by a writer whose commit may still lose its D1 race and then delete it.
+    await bucket.put(bodyKey('doiKeywords', doi, 1), new TextEncoder().encode(text).buffer, {
+      httpMetadata: { contentType: 'application/json' },
+      customMetadata: { sha256 },
+    });
+    expect((await call('PUT', path('doiKeywords', doi), text, { 'if-none-match': '*' })).status).toBe(201);
+    const key = row('doiKeywords', doi)?.r2_key as string;
+    expect(key).toMatch(/^paperlab\/data\/doiKeywords\/10\.1%2Frace\/v1-[0-9a-f-]{36}\.json$/u);
+    expect(objects.has(bodyKey('doiKeywords', doi, 1))).toBe(true);
+    await bucket.delete(bodyKey('doiKeywords', doi, 1));
+    expect(await (await call('GET', path('doiKeywords', doi))).json()).toEqual(doiKeywords(doi));
+    expect(
+      (await call('GET', path('doiKeywords', doi), undefined, { 'if-none-match': 'W/"v1"' })).status,
+    ).toBe(304);
+  });
+
   it('requires a precondition on writes', async () => {
     const { call } = setup();
     const doi = '10.1/c';
@@ -693,6 +715,20 @@ describe('orphan body garbage collection', () => {
     await collectOrphanBodies(db, bucket, new Date(START.getTime() + GC_MAX_AGE_MS + 2000));
     expect([...objects.keys()]).toEqual([key(5)]);
     expect((await call('GET', path('doiKeywords', doi))).status).toBe(200);
+  });
+
+  it('continues from the saved listing cursor in the next run', async () => {
+    const { bucket, db } = setup();
+    // Keys the store did not write are never touched, so every run only moves the cursor.
+    for (let index = 0; index < 600; index++)
+      await bucket.put(`paperlab/data/notes/${index.toString().padStart(3, '0')}.txt`, new ArrayBuffer(1), {
+        httpMetadata: { contentType: 'text/plain' },
+        customMetadata: {},
+      });
+    const later = new Date(START.getTime() + GC_MAX_AGE_MS + 1);
+    expect(await collectOrphanBodies(db, bucket, later)).toEqual({ scanned: 500, deleted: 0, done: false });
+    expect(await collectOrphanBodies(db, bucket, later)).toEqual({ scanned: 100, deleted: 0, done: true });
+    expect(await collectOrphanBodies(db, bucket, later)).toMatchObject({ scanned: 500 });
   });
 
   it('deletes at most 100 bodies per run and finishes over several runs', async () => {

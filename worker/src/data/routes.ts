@@ -145,7 +145,8 @@ export async function handleData(
     const row = (await readRows(db, [{ collection, id }])).get(refKey({ collection, id }));
     if (!row || row.deleted_at) return fail(404, 'not_found', 'No such record.', headers);
     const etag = etagOf(row.version);
-    if (request.headers.get('if-none-match') === etag)
+    // A weak validator matches for a GET, as on the other /v1 routes.
+    if (parseEtag(request.headers.get('if-none-match')?.replace(/^W\//u, '') ?? null) === row.version)
       return new Response(null, { status: 304, headers: { ...headers, ETag: etag } });
     const body = await readBody(deps.bucket, row);
     if (body === null) return fail(500, 'internal', 'The record body is missing.', headers);
