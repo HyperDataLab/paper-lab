@@ -104,9 +104,12 @@ export async function searchKg(kg: ConfiguredKg, input: SciAtlasSearchInput, now
     statements.push(
       db
         .prepare(
-          `SELECT k.id AS id FROM keyword k WHERE k.text_normalized = ?1
-        UNION SELECT k.id FROM keyword_fts JOIN keyword k ON k.rowid = keyword_fts.rowid
-        WHERE keyword_fts MATCH ?2 LIMIT 5`,
+          // Exact matches come first so a one-word anchor keeps its own keyword under the limit.
+          `SELECT id, max(exact) AS exact FROM (
+          SELECT k.id AS id, 1 AS exact FROM keyword k WHERE k.text_normalized = ?1
+          UNION ALL SELECT k.id, 0 FROM keyword_fts JOIN keyword k ON k.rowid = keyword_fts.rowid
+          WHERE keyword_fts MATCH ?2
+        ) GROUP BY id ORDER BY exact DESC, id LIMIT 5`,
         )
         .bind(normalizeText(keyword.text), phrase),
     );

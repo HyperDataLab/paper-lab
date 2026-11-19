@@ -197,6 +197,19 @@ describe('L3 POST /v1/kg/search', () => {
     expect(result.papers.map(({ id }) => id)).toContain('W1');
   });
 
+  it('L3 keeps the exact keyword among many partial matches and expands through co-occurrence', async () => {
+    const { search, sqlite } = await setup();
+    for (let i = 0; i < 6; i++)
+      sqlite
+        .prepare(`INSERT INTO keyword (id, text, text_normalized) VALUES (?, ?, ?)`)
+        .run(`keywords/a${i}`, `message passing ${i}`, `message passing ${i}`);
+    const result = await search({ keywords: [{ text: 'message passing', level: 'high' }] });
+    const ids = result.papers.map(({ id }) => id);
+    expect(ids[0]).toBe('W4');
+    // W1 carries "molecules", which co-occurs with "message passing" on W4; it has no other link to the query.
+    expect(ids).toContain('W1');
+  });
+
   it('L3 filters by publication year', async () => {
     const { search } = await setup();
     const result = await search({

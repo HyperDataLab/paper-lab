@@ -52,7 +52,7 @@ async function request(path: string, token: string | null, init?: RequestInit): 
         ? 'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.'
         : response.status === 403
           ? 'Tài khoản này không được dùng KG của lab.'
-          : response.status === 400
+          : response.status === 400 && path === '/search'
             ? 'Yêu cầu chưa hợp lệ: cần ít nhất một keyword hoặc title.'
             : 'Yêu cầu tới KG của lab gặp lỗi.';
   throw new LabKgError(message, [`HTTP ${response.status}`, code].filter(Boolean).join(' · '));

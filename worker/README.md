@@ -128,8 +128,10 @@ R2 and Worker usage have their own charges. The CRF image is pulled from a regis
 ## Lab knowledge graph
 
 Signed-in lab accounts can `POST /v1/kg/ingest` with up to 50 OpenAlex work IDs or DOIs and can read queue
-counts and recent attempts from `GET /v1/kg/ingest/status`. Both routes return `503 kg_not_configured` when
-any KG binding is missing. The five-minute cron drains the queue. Publishing an SCG also projects its
+counts and recent attempts from `GET /v1/kg/ingest/status`. `POST /v1/kg/search` finds related papers in the KG
+(hybrid FTS5, keyword, title, Vectorize and graph signals, in the `/v1/sciatlas/search` shape), and
+`GET /v1/kg/papers/:id`, `GET /v1/kg/keywords/:id` and `GET /v1/kg/stats` read it. Every KG route returns
+`503 kg_not_configured` when any KG binding is missing. The five-minute cron drains the queue. Publishing an SCG also projects its
 contributions and enqueues its DOI when D1 is bound. See the [Lab KG contract](../docs/contracts/lab-kg.md).
 
 For first-time provisioning, run these steps on the HyperDataLab account from `worker/`.
