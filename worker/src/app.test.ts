@@ -135,7 +135,7 @@ describe('R8 PDF worker', () => {
       new Request('https://worker.test/pdfs/x', { method: 'OPTIONS', headers: { origin: ORIGIN } }),
     );
     expect(allowed.status).toBe(204);
-    expect(allowed.headers.get('access-control-allow-methods')).toBe('GET, HEAD, PUT, POST');
+    expect(allowed.headers.get('access-control-allow-methods')).toBe('GET, HEAD, PUT, POST, DELETE');
     const other = await handle(
       deps(),
       new Request('https://worker.test/pdfs/x', {

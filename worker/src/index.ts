@@ -3,7 +3,8 @@ import { getContainer } from '@cloudflare/containers';
 import { handle, type Bucket } from './app';
 import { SECURETOKEN_JWKS, verifyFirebaseToken } from './auth';
 import { GrobidStartingError } from './grobid-error';
-import { configuredKg, type KgBindings } from './kg/bindings';
+import { collectOrphanBodies } from './data/gc';
+import { configuredKg, type D1Database, type KgBindings } from './kg/bindings';
 import { drainKgQueue } from './kg/ingest';
 
 export { GrobidContainer } from './grobid';
@@ -20,6 +21,8 @@ interface Env extends KgBindings {
   NLP_URL?: string;
   /** Secret (`wrangler secret put SCIATLAS_API_KEY`), never a [vars] entry; unset → SciAtlas search answers 503. */
   SCIATLAS_API_KEY?: string;
+  /** The central lab store (`paperlab-data`); unset until the owner creates it → /v1/data answers 503. */
+  DATA?: D1Database;
 }
 
 function nlpParse(env: Env) {
@@ -91,6 +94,7 @@ export default {
         nlpParse: nlpParse(env),
         sciatlasKey: env.SCIATLAS_API_KEY,
         kg: env,
+        data: env.DATA,
       },
       request,
     );
@@ -98,5 +102,6 @@ export default {
   async scheduled(_event: unknown, env: Env): Promise<void> {
     const kg = configuredKg(env);
     if (kg) await drainKgQueue(kg, { now: () => new Date() });
+    if (env.DATA) await collectOrphanBodies(env.DATA, env.BUCKET, new Date());
   },
 };

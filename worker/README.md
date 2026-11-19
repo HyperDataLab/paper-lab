@@ -146,6 +146,28 @@ comment out the `[[d1_databases]]`, `[[vectorize]]` and `[ai]` blocks. The cron 
 uses the existing `OPENALEX_API_KEY` secret if set. `OPENALEX_MAILTO` is unset by default and can be set to a
 lab contact for OpenAlex.
 
+## Central lab store
+
+The lab's records (ADR-0007) live in the D1 database `paperlab-data` (binding `DATA`), one `doc` row per
+record, with bodies in R2 at `paperlab/data/{collection}/{id}/v{n}.json` (one immutable object per version;
+small inline collections keep their body in the row). Collections, their Zod schemas, index columns and size
+caps are in `src/core/storage/collections.ts`. Every route returns `503 data_not_configured` without `DATA`.
+
+- `GET /v1/data/:collection/:id` returns the body with `ETag: "v<n>"`; `If-None-Match` gives 304.
+- `PUT` needs `If-Match: "v<n>"` or `If-None-Match: *` (otherwise 428). The body is validated on the server.
+  A stale version returns `409 version_conflict` with `serverVersion`. `DELETE` with `If-Match` soft-deletes.
+- `POST /v1/data/query` filters on index columns (`projectId`, `corpusId`, `paperId`, `refId`, `doi`, `title`,
+  `kind`, `status`, `sourceSha256`) and returns summary rows, or bodies with `include: "body"`.
+- `POST /v1/data/batch-get` reads up to 100 ids. `POST /v1/data/commit` applies up to 100 puts and deletes,
+  100 read guards and 200 inline appends in one D1 batch: all of them land, or none (409 lists the conflicts).
+
+Writes are stamped with the caller's email. The cron removes bodies that are no longer current after a day,
+or at once when three versions behind. To provision on the HyperDataLab account, from `worker/`:
+
+1. Run `wrangler d1 create paperlab-data`.
+2. Put the returned ID in the `DATA` block of `wrangler.toml` in place of `TO_BE_CREATED_ON_DEPLOY`.
+3. Run `wrangler d1 migrations apply paperlab-data --remote` (migrations in `migrations-data/`).
+
 ## Deploy
 
 ```bash
