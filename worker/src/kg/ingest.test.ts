@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest';
 import { handle, type Deps } from '../app';
 import { NotAllowedError } from '../auth';
 import { configuredKg, EMBEDDING_MODEL, type KgBindings } from './bindings';
-import { drainKgQueue } from './ingest';
+import { CRON_JOBS, drainKgQueue } from './ingest';
 import { kgQueue } from './queue';
 import { testDb } from './testDb';
 
@@ -144,8 +144,21 @@ it('queues 50 identifiers, processes one submitted seed immediately, and reports
   });
 });
 
-it('cron drains at most three jobs and follows references and highly cited citing works only to the requested depth', async () => {
+it('cron drains at most CRON_JOBS jobs per run', async () => {
   const { drain, queue, now, fetcher } = setup();
+  fetcher.mockImplementation(async (input) =>
+    Response.json({ id: new URL(String(input)).pathname.split('/').at(-1), title: 'Synthetic work' }),
+  );
+  const ids = Array.from({ length: CRON_JOBS + 2 }, (_, i) => `W${i + 1}`);
+  await queue.enqueue(ids, 0, 'seed', now().toISOString());
+  expect(await drain()).toEqual({ processed: CRON_JOBS, errors: [] });
+  expect((await queue.status()).counts).toMatchObject({ pending: 2, done: CRON_JOBS });
+  expect(await drain()).toEqual({ processed: 2, errors: [] });
+});
+
+it('a run with a limit stops at it and follows references and highly cited citing works only to the requested depth', async () => {
+  const { queue, now, fetcher, kg } = setup();
+  const drain = () => drainKgQueue(kg, { now, fetcher, limit: 3 });
   fetcher.mockImplementation(async (input) => {
     const url = new URL(String(input));
     const target = url.pathname.split('/').at(-1);
