@@ -146,3 +146,117 @@ export const KgKeywordDetailSchema = z.object({
   papersPerYear: z.array(z.object({ year: z.number().int(), count: z.number().int().positive() })),
 });
 export type KgKeywordDetail = z.infer<typeof KgKeywordDetailSchema>;
+
+/** `GET /v1/kg/graph` (L4): the neighbourhood of one KG node, ranked by weight and capped. */
+export const KG_GRAPH_MAX_NODES = 150;
+export const KG_GRAPH_DEFAULT_NODES = 80;
+export const KG_GRAPH_LAYERS = ['papers', 'keywords', 'authors', 'institutions', 'topics'] as const;
+export type KgGraphLayer = (typeof KG_GRAPH_LAYERS)[number];
+export const KG_GRAPH_NODE_KINDS = [
+  'paper',
+  'keyword',
+  'author',
+  'institution',
+  'topic',
+  'subfield',
+  'field',
+  'domain',
+] as const;
+export type KgGraphNodeKind = (typeof KG_GRAPH_NODE_KINDS)[number];
+export const KG_GRAPH_EDGE_TYPES = [
+  'has_keyword',
+  'cites',
+  'cooccur',
+  'authored',
+  'affiliated',
+  'coauthor',
+  'has_topic',
+  'hierarchy',
+  'builds_on',
+] as const;
+export type KgGraphEdgeType = (typeof KG_GRAPH_EDGE_TYPES)[number];
+
+export const KG_GRAPH_KIND_LAYER: Record<KgGraphNodeKind, KgGraphLayer> = {
+  paper: 'papers',
+  keyword: 'keywords',
+  author: 'authors',
+  institution: 'institutions',
+  topic: 'topics',
+  subfield: 'topics',
+  field: 'topics',
+  domain: 'topics',
+};
+
+const PREFIXED_KINDS = {
+  keywords: 'keyword',
+  topics: 'topic',
+  subfields: 'subfield',
+  fields: 'field',
+  domains: 'domain',
+} as const;
+
+/** The node a graph centre names: an OpenAlex work (or DOI), author or institution ID, or a prefixed KG ID. */
+export function kgGraphCentre(input: string): { id: string; kind: KgGraphNodeKind } | null {
+  const value = input.trim();
+  const prefix = /^(keywords|topics|subfields|fields|domains)\/\S+$/u.exec(value)?.[1];
+  if (prefix) return { id: value, kind: PREFIXED_KINDS[prefix as keyof typeof PREFIXED_KINDS] };
+  if (/^A\d+$/u.test(value)) return { id: value, kind: 'author' };
+  if (/^I\d+$/u.test(value)) return { id: value, kind: 'institution' };
+  const paper = kgIdentifier(value);
+  return paper ? { id: paper, kind: 'paper' } : null;
+}
+
+export const KgGraphNodeSchema = z.object({
+  id: z.string(),
+  kind: z.enum(KG_GRAPH_NODE_KINDS),
+  label: z.string(),
+  /** 1 for the centre; otherwise the strongest path weight, in [0, 1]. */
+  weight: z.number().min(0).max(1),
+  depth: z.union([z.literal(0), z.literal(1), z.literal(2)]),
+  year: z.number().int().nullable().optional(),
+  doi: z.string().nullable().optional(),
+  citations: z.number().int().nullable().optional(),
+});
+export type KgGraphNode = z.infer<typeof KgGraphNodeSchema>;
+
+export const KgGraphEdgeSchema = z.object({
+  source: z.string(),
+  target: z.string(),
+  type: z.enum(KG_GRAPH_EDGE_TYPES),
+  weight: z.number().min(0).max(1),
+  review: z.enum(['candidate', 'accepted']).optional(),
+});
+export type KgGraphEdge = z.infer<typeof KgGraphEdgeSchema>;
+
+export const KgGraphSchema = z.object({
+  centre: z.string(),
+  depth: z.union([z.literal(1), z.literal(2)]),
+  layers: z.array(z.enum(KG_GRAPH_LAYERS)),
+  nodes: z.array(KgGraphNodeSchema),
+  edges: z.array(KgGraphEdgeSchema),
+  /** True when more neighbours were found than the node limit allowed. */
+  truncated: z.boolean(),
+  /** Works the centre paper cites that are not in the KG yet (at most 50). */
+  outside: z.array(z.string()),
+});
+export type KgGraph = z.infer<typeof KgGraphSchema>;
+
+/** `GET /v1/kg/trend` (L4): papers per year for up to ten keywords. */
+export const KG_TREND_LIMIT = 10;
+export const KgTrendSchema = z.object({
+  /** Every year from the first to the last with a counted paper. */
+  years: z.array(z.number().int()),
+  keywords: z.array(
+    z.object({
+      id: z.string(),
+      text: z.string(),
+      /** Papers carrying the keyword, including those with no year. */
+      total: count,
+      /** Papers per year, aligned with `years`. */
+      counts: z.array(count),
+    }),
+  ),
+  /** Requested keywords the KG does not hold. */
+  missing: z.array(z.string()),
+});
+export type KgTrend = z.infer<typeof KgTrendSchema>;

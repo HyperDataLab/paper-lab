@@ -2,11 +2,16 @@ import type { SciAtlasSearchRequest } from '@/core/openkg';
 import {
   KG_INGEST_LIMIT,
   KgIngestResultSchema,
+  KgGraphSchema,
   KgIngestStatusSchema,
+  KgKeywordDetailSchema,
+  KgPaperDetailSchema,
   KgSearchResponseSchema,
   KgStatsSchema,
+  KgTrendSchema,
   kgIdentifier,
   paperId,
+  type KgGraphLayer,
   type KgIngestResult,
   type KgIngestSource,
 } from '@/core/schemas/labKg';
@@ -54,7 +59,9 @@ async function request(path: string, token: string | null, init?: RequestInit): 
           ? 'Tài khoản này không được dùng KG của lab.'
           : response.status === 400 && path === '/search'
             ? 'Yêu cầu chưa hợp lệ: cần ít nhất một keyword hoặc title.'
-            : 'Yêu cầu tới KG của lab gặp lỗi.';
+            : response.status === 404
+              ? 'KG của lab chưa có mục này.'
+              : 'Yêu cầu tới KG của lab gặp lỗi.';
   throw new LabKgError(message, [`HTTP ${response.status}`, code].filter(Boolean).join(' · '));
 }
 
@@ -111,5 +118,47 @@ export async function searchLabKg(
 export async function getLabKgStats(token: string | null, signal?: AbortSignal) {
   const parsed = KgStatsSchema.safeParse(await request('/stats', token, { signal }));
   if (!parsed.success) throw new LabKgError('Không đọc được số liệu KG của lab.', 'Invalid stats response.');
+  return parsed.data;
+}
+
+/** The neighbourhood of one KG node (`W…`, `keywords/…`, `topics/…`, `A…`), ranked and capped by the worker. */
+export async function getLabKgGraph(
+  options: { centre: string; depth: 1 | 2; layers: readonly KgGraphLayer[]; limit?: number },
+  token: string | null,
+  signal?: AbortSignal,
+) {
+  const query = new URLSearchParams({
+    center: options.centre,
+    depth: String(options.depth),
+    layers: options.layers.join(','),
+  });
+  if (options.limit) query.set('limit', String(options.limit));
+  const parsed = KgGraphSchema.safeParse(await request(`/graph?${query.toString()}`, token, { signal }));
+  if (!parsed.success) throw new LabKgError('Không đọc được đồ thị KG của lab.', 'Invalid graph response.');
+  return parsed.data;
+}
+
+export async function getLabKgTrend(keywords: string[], token: string | null, signal?: AbortSignal) {
+  const query = new URLSearchParams({ keywords: keywords.join(',') });
+  const parsed = KgTrendSchema.safeParse(await request(`/trend?${query.toString()}`, token, { signal }));
+  if (!parsed.success) throw new LabKgError('Không đọc được xu hướng keyword.', 'Invalid trend response.');
+  return parsed.data;
+}
+
+export async function getLabKgPaper(id: string, token: string | null, signal?: AbortSignal) {
+  const parsed = KgPaperDetailSchema.safeParse(
+    await request(`/papers/${encodeURIComponent(id)}`, token, { signal }),
+  );
+  if (!parsed.success)
+    throw new LabKgError('Không đọc được bài trong KG của lab.', 'Invalid paper response.');
+  return parsed.data;
+}
+
+export async function getLabKgKeyword(id: string, token: string | null, signal?: AbortSignal) {
+  const parsed = KgKeywordDetailSchema.safeParse(
+    await request(`/keywords/${encodeURIComponent(id)}`, token, { signal }),
+  );
+  if (!parsed.success)
+    throw new LabKgError('Không đọc được keyword trong KG của lab.', 'Invalid keyword response.');
   return parsed.data;
 }

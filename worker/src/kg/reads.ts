@@ -14,7 +14,7 @@ import { kgQueue } from './queue';
 
 type Headers = Record<string, string>;
 
-async function withEtag(request: Request, body: unknown, headers: Headers) {
+export async function withEtag(request: Request, body: unknown, headers: Headers) {
   const text = JSON.stringify(body);
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   const hex = [...new Uint8Array(digest).slice(0, 12)].map((byte) => byte.toString(16).padStart(2, '0'));

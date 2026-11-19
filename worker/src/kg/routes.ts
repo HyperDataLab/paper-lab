@@ -2,6 +2,7 @@ import { KgIngestRequestSchema } from '../../../src/core/schemas/labKg';
 import type { Deps } from '../app';
 import { publishedError } from '../published';
 import { configuredKg } from './bindings';
+import { handleKgGraph } from './graph';
 import { drainKgQueue, REQUEST_JOBS } from './ingest';
 import { kgQueue } from './queue';
 import { handleKgRead } from './reads';
@@ -17,6 +18,7 @@ export async function handleKg(deps: Deps, request: Request, path: string, heade
   }
   if (path === '/v1/kg/stats' || path.startsWith('/v1/kg/papers/') || path.startsWith('/v1/kg/keywords/'))
     return handleKgRead(kg.db, request, path, headers);
+  if (path === '/v1/kg/graph' || path === '/v1/kg/trend') return handleKgGraph(kg.db, request, path, headers);
 
   const queue = kgQueue(kg.db);
   if (path === '/v1/kg/ingest/status' && request.method === 'GET')

@@ -1,4 +1,4 @@
-# Lab knowledge graph (L1–L3)
+# Lab knowledge graph (L1–L4)
 
 The PaperLab PDF worker builds the lab graph from OpenAlex works. It stores graph data and full-text indexes in D1 and one title + abstract embedding per paper in Vectorize. The corpus detail and Library actions send identifiers only. Abstracts are stored for internal search. The ingest routes expose counts and job logs. The search and read routes (L3) answer from this graph only.
 
@@ -105,6 +105,27 @@ Each answers `200` JSON with a weak `ETag` and `Cache-Control: private, no-cache
   - `contributions`: SCG contributions whose `paper_doi` equals the paper's DOI.
 - **`keywords/:id`** takes the keyword ID either raw (`/v1/kg/keywords/keywords/graph-theory`) or encoded (`keywords%2Fgraph-theory`). An unknown ID gets `404`. The answer contains `keyword` (ID, text and frequency), the 30 strongest `cooccurring` keywords with count and Jaccard, and `papersPerYear`.
 - **`stats`** returns row counts for every node table (`paper`, `keyword`, `author`, `institution`, `source`, `topic`, `subfield`, `field`, `domain` and `contribution`), every edge table, and the ingest queue counts by state.
+
+### `GET /v1/kg/graph`, `GET /v1/kg/trend` (L4)
+
+Both are reads like the L3 routes: weak `ETag`, `Cache-Control: private, no-cache`, `304` on a matching `If-None-Match`, `405` for other methods. Shapes are `KgGraphSchema` and `KgTrendSchema` in `src/core/schemas/labKg.ts`.
+
+- **`graph?center=…&depth=1|2&layers=…&limit=…`** answers the neighbourhood of one node.
+  - `center` (or `centre`) is an OpenAlex work ID or DOI, an author (`A…`) or institution (`I…`) ID, or a prefixed ID (`keywords/…`, `topics/…`, `subfields/…`, `fields/…`, `domains/…`). A malformed centre gets `400`, and one outside the KG gets `404`.
+  - `layers` is a comma list of `papers`, `keywords`, `authors`, `institutions` and `topics` (topics include subfields, fields and domains). Without the parameter every layer is on. An empty value keeps the centre alone. An unknown layer gets `400`.
+  - `limit` is the node cap including the centre: default 80, at most 150 (larger values are clamped). `depth` defaults to 1.
+  - Edges are `has_keyword`, `cites`, `cooccur` (weight = Jaccard), `authored`, `affiliated` (author → institution), `coauthor`, `has_topic`, `hierarchy` (topic → subfield → field → domain) and `builds_on` (paper → paper through an SCG contribution, with its `review`). `cites` and `builds_on` join `paper`, so they stay inside the KG. `cooccur` and `coauthor` are read in both stored directions.
+  - Each relation of an expanded node returns at most 40 rows. Edge weights lie in [0, 1]: keyword relevance, Jaccard, `0.5 + 0.5 · impact` for citations, `max(0.4, 1 − 0.1 · (position − 1))` for authorship, `count / 3` for coauthors (capped at 1), the topic score (0.5 when unknown), 0.6 for affiliations, and 1 for the hierarchy and `builds_on`.
+  - A first-hop node weighs its strongest edge. Depth 2 expands the 8 strongest first-hop nodes, institutions excepted; a second-hop node weighs `0.5 · parent weight · edge weight` and keeps depth 1 when it was already reached at depth 1.
+  - Nodes are ranked centre first, then by weight, depth, kind and ID. The top `limit` are kept, and `truncated` says whether any were cut. Edges whose ends were cut are dropped.
+  - For a paper centre, `outside` lists up to 50 cited works that have no paper row yet, so a client can queue them.
+- **`trend?keywords=…`** takes 1–10 comma-separated keywords: IDs (`keywords/…`) or texts matched on `text_normalized`. The answer has a contiguous `years` axis from the first to the last counted year, each found keyword with `total` (its frequency, papers without a year included) and `counts` per year, and the requested values the KG does not hold in `missing`.
+
+Turtle and JSON-LD export happens in the browser. `src/core/labKg/graphKg.ts` maps the graph answer onto the OpenKG model with the OpenKG IRI segments keyed by OpenAlex IDs (`kg/work/W…`, `kg/keyword/…`, `kg/discipline/…`, `kg/author/A…`, `kg/institution/I…`), and the OpenKG exporters serialise it. Per-paper OpenKG graphs key authors by ORCID and institutions by ROR when known, so those IRIs can differ. The worker has no export route.
+
+## Lab KG explorer page (L4)
+
+"KG của lab" (`/lab-kg`, after Corpus in the sidebar) shows the `stats` counts and the queued jobs, a search box that picks a centre through `POST /v1/kg/search` (or takes an ID or DOI directly), layer chips, a depth control and the shared OpenKG graph with the centre in the middle. The side panel loads `papers/:id` or `keywords/:id` for the selected node. A paper shows its year, venue, keywords, references and citing papers inside the KG and its contributions, plus "Mở bài trong PaperLab" when a local paper has the same DOI. A keyword shows co-occurring keywords with Jaccard and its papers per year. Authors, institutions and topics list their neighbours from the loaded graph only. "Đưa n bài được dẫn vào KG" queues `outside` at depth 0 (`source: "expansion"`). A text list of the nodes, a keyword trend table for the five strongest keywords and the `.ttl` / `.jsonld` exports complete the page. An empty KG points to "Đưa vào KG của lab" on a corpus.
 
 ## SciAtlas as an ID source
 
