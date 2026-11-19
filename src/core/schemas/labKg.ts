@@ -84,6 +84,20 @@ export const KgStatsSchema = z.object({
 });
 export type KgStats = z.infer<typeof KgStatsSchema>;
 
+/** `GET /v1/kg/overview`: starting points for the explorer. */
+export const KgOverviewSchema = z.object({
+  papers: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      year: z.number().int().nullable(),
+      citations: z.number().int().nullable(),
+    }),
+  ),
+  keywords: z.array(z.object({ id: z.string(), text: z.string(), frequency: count })),
+});
+export type KgOverview = z.infer<typeof KgOverviewSchema>;
+
 const ref = z.object({ id: z.string(), name: z.string().nullable() });
 const linkedPaper = z.object({ id: z.string(), title: z.string(), year: z.number().int().nullable() });
 

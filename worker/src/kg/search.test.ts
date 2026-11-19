@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { mapOpenAlexWorkToKg } from '../../../src/core/labKg';
-import { KgPaperDetailSchema, KgSearchResponseSchema, KgStatsSchema } from '../../../src/core/schemas/labKg';
+import {
+  KG_EDGE_TABLES,
+  KgOverviewSchema,
+  KgPaperDetailSchema,
+  KgSearchResponseSchema,
+  KgStatsSchema,
+} from '../../../src/core/schemas/labKg';
 import { handle, type Deps } from '../app';
 import { NotAllowedError } from '../auth';
 import { EMBEDDING_MODEL, type KgBindings } from './bindings';
@@ -140,7 +146,13 @@ describe('L3 POST /v1/kg/search', () => {
     expect((await call('/v1/kg/search', { body, token: 'nope' })).status).toBe(401);
     expect((await call('/v1/kg/search', { body, token: 'outsider' })).status).toBe(403);
     bindings.KG_VECTORS = undefined;
-    for (const path of ['/v1/kg/search', '/v1/kg/stats', '/v1/kg/papers/W1', '/v1/kg/keywords/k']) {
+    for (const path of [
+      '/v1/kg/search',
+      '/v1/kg/stats',
+      '/v1/kg/overview',
+      '/v1/kg/papers/W1',
+      '/v1/kg/keywords/k',
+    ]) {
       const response = await call(path, path.endsWith('search') ? { body } : {});
       expect(response.status).toBe(503);
       expect(await response.json()).toMatchObject({ error: 'kg_not_configured' });
@@ -374,5 +386,28 @@ describe('L3 KG reads', () => {
     expect(stats.nodes).toMatchObject({ paper: 4, keyword: 5, author: 2, institution: 1, topic: 1 });
     expect(stats.edges).toMatchObject({ has_keyword: 7, cites: 2, authored: 2, coauthor: 1 });
     expect(stats.queue).toEqual({ pending: 0, processing: 0, done: 0, failed: 0 });
+  });
+
+  it('L3 counts an empty KG within D1 limits (no compound SELECT over five terms)', async () => {
+    // Regression: one UNION ALL over all 22 tables failed on D1 with "too many terms in compound SELECT",
+    // so /v1/kg/stats answered 500 on the live worker.
+    const { call } = await setup({ seed: false });
+    const response = await call('/v1/kg/stats');
+    expect(response.status).toBe(200);
+    const stats = KgStatsSchema.parse(await response.json());
+    expect(Object.values(stats.nodes).every((value) => value === 0)).toBe(true);
+    expect(Object.keys(stats.edges)).toHaveLength(KG_EDGE_TABLES.length);
+  });
+
+  it('L4 lists starting points: most cited papers and most frequent keywords', async () => {
+    const { call } = await setup();
+    const response = await call('/v1/kg/overview');
+    expect(response.status).toBe(200);
+    const overview = KgOverviewSchema.parse(await response.json());
+    expect(overview.papers.map(({ id }) => id)).toEqual(['W3', 'W1', 'W4', 'W2']);
+    expect(overview.keywords[0]).toMatchObject({ frequency: 2 });
+    expect(overview.keywords.map(({ id }) => id)).toContain('keywords/lattices');
+    const empty = await (await setup({ seed: false })).call('/v1/kg/overview');
+    expect(KgOverviewSchema.parse(await empty.json())).toEqual({ papers: [], keywords: [] });
   });
 });

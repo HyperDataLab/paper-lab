@@ -14,8 +14,15 @@ class Statement implements D1Statement {
   }
 }
 
+/** D1 allows at most five terms in a compound SELECT; SQLite's default is 500. */
+export const D1_MAX_COMPOUND_SELECT = 5;
+const compoundTerms = (sql: string) => (sql.match(/\b(?:UNION|INTERSECT|EXCEPT)\b/giu)?.length ?? 0) + 1;
+
 export function testDb() {
   const sqlite = new DatabaseSync(':memory:');
+  // `limits` exists from Node 24; the statement check below covers older runtimes.
+  const limits = (sqlite as { limits?: { compoundSelect: number } }).limits;
+  if (limits) limits.compoundSelect = D1_MAX_COMPOUND_SELECT;
   onTestFinished(() => sqlite.close());
   const migrations = new URL('../../migrations/', import.meta.url);
   for (const file of readdirSync(migrations)
@@ -30,6 +37,8 @@ export function testDb() {
         const results = statements.map((statement) => {
           if (!(statement instanceof Statement)) throw new Error('Expected a bound SQLite statement');
           if (statement.values.length > 100) throw new Error('D1 supports at most 100 bindings');
+          if (compoundTerms(statement.sql) > D1_MAX_COMPOUND_SELECT)
+            throw new Error('D1_ERROR: too many terms in compound SELECT: SQLITE_ERROR');
           const prepared = sqlite.prepare(statement.sql);
           const rows = (
             /\?\d+/u.test(statement.sql)

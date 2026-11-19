@@ -252,7 +252,7 @@ describe('L3 related papers panel (lab KG)', () => {
   it.each([
     [503, 'kg_not_configured', 'KG của lab chưa được cấu hình'],
     [401, 'unauthenticated', 'Phiên đăng nhập đã hết hạn'],
-    [502, 'kg_error', 'Yêu cầu tới KG của lab gặp lỗi'],
+    [502, 'kg_error', 'Máy chủ KG của lab gặp lỗi (HTTP 502)'],
   ])('L3 shows a Vietnamese message for KG %i %s', async (status, error, message) => {
     mockWorker({ '/v1/kg/search': () => json(status, { error, message: 'detail' }) });
     show();

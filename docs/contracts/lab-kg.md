@@ -92,7 +92,7 @@ score     = r · relevance + i · impact + n · novelty
 - Papers matched by a title anchor are left out, because a title anchor is the paper being searched from.
 - Ties go to more citations, then the smaller ID. `score` is rounded to four decimals.
 
-### `GET /v1/kg/papers/:id`, `GET /v1/kg/keywords/:id`, `GET /v1/kg/stats` (L3)
+### `GET /v1/kg/papers/:id`, `GET /v1/kg/keywords/:id`, `GET /v1/kg/stats`, `GET /v1/kg/overview` (L3)
 
 Each answers `200` JSON with a weak `ETag` and `Cache-Control: private, no-cache`. A matching `If-None-Match` gets `304`. Other methods get `405`. Shapes are `KgPaperDetailSchema`, `KgKeywordDetailSchema` and `KgStatsSchema` in `src/core/schemas/labKg.ts`.
 
@@ -104,7 +104,8 @@ Each answers `200` JSON with a weak `ETag` and `Cache-Control: private, no-cache
   - `cites` and `citedBy`: limited to papers inside the KG;
   - `contributions`: SCG contributions whose `paper_doi` equals the paper's DOI.
 - **`keywords/:id`** takes the keyword ID either raw (`/v1/kg/keywords/keywords/graph-theory`) or encoded (`keywords%2Fgraph-theory`). An unknown ID gets `404`. The answer contains `keyword` (ID, text and frequency), the 30 strongest `cooccurring` keywords with count and Jaccard, and `papersPerYear`.
-- **`stats`** returns row counts for every node table (`paper`, `keyword`, `author`, `institution`, `source`, `topic`, `subfield`, `field`, `domain` and `contribution`), every edge table, and the ingest queue counts by state.
+- **`stats`** returns row counts for every node table (`paper`, `keyword`, `author`, `institution`, `source`, `topic`, `subfield`, `field`, `domain` and `contribution`), every edge table, and the ingest queue counts by state. The counts are one row of scalar subqueries: D1 rejects a compound `SELECT` of more than five terms, so a `UNION ALL` over the tables fails there (the test database enforces the same limit).
+- **`overview`** (L4) returns starting points for the explorer (`KgOverviewSchema`): the 8 most cited `papers` (ID, title, year, citations) and the 12 most frequent `keywords` (ID, text, frequency). An empty KG answers two empty lists.
 
 ### `GET /v1/kg/graph`, `GET /v1/kg/trend` (L4)
 
@@ -125,7 +126,16 @@ Turtle and JSON-LD export happens in the browser. `src/core/labKg/graphKg.ts` ma
 
 ## Lab KG explorer page (L4)
 
-"KG của lab" (`/lab-kg`, after Corpus in the sidebar) shows the `stats` counts and the queued jobs, a search box that picks a centre through `POST /v1/kg/search` (or takes an ID or DOI directly), layer chips, a depth control and the shared OpenKG graph with the centre in the middle. The side panel loads `papers/:id` or `keywords/:id` for the selected node. A paper shows its year, venue, keywords, references and citing papers inside the KG and its contributions, plus "Mở bài trong PaperLab" when a local paper has the same DOI. A keyword shows co-occurring keywords with Jaccard and its papers per year. Authors, institutions and topics list their neighbours from the loaded graph only. "Đưa n bài được dẫn vào KG" queues `outside` at depth 0 (`source: "expansion"`). A text list of the nodes, a keyword trend table for the five strongest keywords and the `.ttl` / `.jsonld` exports complete the page. An empty KG points to "Đưa vào KG của lab" on a corpus.
+"KG của lab" (`/lab-kg`, after Corpus in the sidebar) shows the `stats` counts and the queued jobs, a search box that picks a centre through `POST /v1/kg/search` (or takes an ID or DOI directly), layer chips, a depth control and the shared OpenKG graph with the centre in the middle. The side panel loads `papers/:id` or `keywords/:id` for the selected node. A paper shows its year, venue, keywords, references and citing papers inside the KG and its contributions, plus "Mở bài trong PaperLab" when a local paper has the same DOI. A keyword shows co-occurring keywords with Jaccard and its papers per year. Authors, institutions and topics list their neighbours from the loaded graph only. "Đưa n bài được dẫn vào KG" queues `outside` at depth 0 (`source: "expansion"`). A text list of the nodes, a keyword trend table for the five strongest keywords and the `.ttl` / `.jsonld` exports complete the page.
+
+- Layer chips show how many nodes of each layer the loaded graph holds. While a new graph loads, the old one is replaced by a loading state.
+- With no centre chosen, chips from `overview` (most cited papers, frequent keywords) open a centre. Without that route (an older worker) the page simply leaves them out.
+- A paper centre that gets `404` shows "Bài này chưa có trong KG của lab" and "Đưa bài này vào KG". That sends the ID or DOI to `POST /v1/kg/ingest` (seed, depth 1). The page then reads `papers/:id` every 4 s, for up to 2 minutes, and centres on the paper once it is there. It stops early when `ingest/status` logs `openalex_not_found` for the ID. Otherwise it says the paper is still queued.
+- A keyword or other centre that is not in the KG offers a text search for its words instead.
+- An empty KG (`stats.nodes.paper = 0`) shows the steps and "Chọn corpus để đưa vào KG". This lists the corpora in the browser with member counts and sends one corpus's IDs to `ingest` in batches of 50, showing what was sent, queued and processed. The search box stays available, so a single DOI can be ingested.
+- While the queue has work, the counts refresh every 20 s.
+- Failures name the HTTP status, and "Chi tiết kỹ thuật" holds the status and server code: `kg_not_configured`, 5xx, 429, a network error.
+- A bodiless `304` that reaches the client is fetched again with `cache: "reload"`.
 
 ## SciAtlas as an ID source
 

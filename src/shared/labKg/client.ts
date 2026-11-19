@@ -5,6 +5,7 @@ import {
   KgGraphSchema,
   KgIngestStatusSchema,
   KgKeywordDetailSchema,
+  KgOverviewSchema,
   KgPaperDetailSchema,
   KgSearchResponseSchema,
   KgStatsSchema,
@@ -21,9 +22,31 @@ export class LabKgError extends Error {
   constructor(
     message: string,
     public detail = '',
+    /** The HTTP status, when the server answered. */
+    public status?: number,
+    /** The server's error code, such as `not_found` or `kg_not_configured`. */
+    public code = '',
   ) {
     super(message);
   }
+}
+
+/** A thrown value as a `LabKgError`, keeping an unexpected error's message as its technical detail. */
+export const asLabKgError = (cause: unknown, fallback: string) =>
+  cause instanceof LabKgError
+    ? cause
+    : new LabKgError(fallback, cause instanceof Error && cause.message ? cause.message : '');
+
+function errorMessage(status: number, code: string, path: string) {
+  if (code === 'kg_not_configured') return 'KG của lab chưa được cấu hình trên máy chủ lab.';
+  if (status === 401) return 'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.';
+  if (status === 403) return 'Tài khoản này không được dùng KG của lab.';
+  if (status === 400 && path === '/search') return 'Yêu cầu chưa hợp lệ: cần ít nhất một keyword hoặc title.';
+  if (status === 400) return 'Yêu cầu tới KG của lab chưa hợp lệ.';
+  if (status === 404) return 'KG của lab chưa có mục này.';
+  if (status === 429) return 'Máy chủ lab đang bận. Hãy thử lại sau ít phút.';
+  if (status >= 500) return `Máy chủ KG của lab gặp lỗi (HTTP ${status}).`;
+  return `Yêu cầu tới KG của lab gặp lỗi (HTTP ${status}).`;
 }
 
 export function labKgIds(records: Iterable<{ openalexId?: string | null; doi?: string | null }>) {
@@ -36,37 +59,48 @@ export function labKgIds(records: Iterable<{ openalexId?: string | null; doi?: s
 
 async function request(path: string, token: string | null, init?: RequestInit): Promise<unknown> {
   if (!token) throw new LabKgError('Hãy đăng nhập bằng tài khoản lab để dùng KG.');
-  let response: Response;
-  try {
-    response = await fetch(`${PDF_WORKER_URL}/v1/kg${path}`, {
-      ...init,
-      headers: { Authorization: `Bearer ${token}`, ...init?.headers },
-    });
-  } catch (cause) {
-    if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
-    throw new LabKgError('Không kết nối được máy chủ lab.');
+  const url = `${PDF_WORKER_URL}/v1/kg${path}`;
+  const send = async (cache?: RequestCache) => {
+    try {
+      return await fetch(url, {
+        ...init,
+        ...(cache ? { cache } : {}),
+        headers: { Authorization: `Bearer ${token}`, ...init?.headers },
+      });
+    } catch (cause) {
+      if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
+      throw new LabKgError(
+        'Không kết nối được máy chủ lab. Hãy kiểm tra mạng rồi thử lại.',
+        `Network error${cause instanceof Error && cause.message ? `: ${cause.message}` : ''}`,
+      );
+    }
+  };
+  let response = await send();
+  if (response.status === 304) {
+    // Read routes answer 304 to a matching If-None-Match. The browser normally hides that behind its cache;
+    // a 304 that reaches us has no body, so ask again without revalidation.
+    response = await send('reload');
   }
   const body: unknown = await response.json().catch(() => null);
   if (response.ok) return body;
   const code =
     body && typeof body === 'object' && 'error' in body && typeof body.error === 'string' ? body.error : '';
-  const message =
-    code === 'kg_not_configured'
-      ? 'KG của lab chưa được cấu hình.'
-      : response.status === 401
-        ? 'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.'
-        : response.status === 403
-          ? 'Tài khoản này không được dùng KG của lab.'
-          : response.status === 400 && path === '/search'
-            ? 'Yêu cầu chưa hợp lệ: cần ít nhất một keyword hoặc title.'
-            : response.status === 404
-              ? 'KG của lab chưa có mục này.'
-              : 'Yêu cầu tới KG của lab gặp lỗi.';
-  throw new LabKgError(message, [`HTTP ${response.status}`, code].filter(Boolean).join(' · '));
+  throw new LabKgError(
+    errorMessage(response.status, code, path),
+    [`HTTP ${response.status}`, code].filter(Boolean).join(' · '),
+    response.status,
+    code,
+  );
 }
 
 /** Sends ids to the ingest queue. A SciAtlas pointer is queued at depth 0: only the work itself is fetched. */
-export async function enqueueLabKg(ids: string[], token: string | null, source: KgIngestSource = 'seed') {
+export async function enqueueLabKg(
+  ids: string[],
+  token: string | null,
+  source: KgIngestSource = 'seed',
+  /** Called after each batch with the combined result so far and how many ids were sent. */
+  onProgress?: (result: KgIngestResult, sent: number) => void,
+) {
   const result: KgIngestResult = { queued: 0, processed: 0, skipped: 0, errors: [] };
   for (let i = 0; i < ids.length; i += KG_INGEST_LIMIT) {
     const raw = await request('/ingest', token, {
@@ -85,8 +119,16 @@ export async function enqueueLabKg(ids: string[], token: string | null, source: 
     result.processed += processed;
     result.skipped += skipped;
     result.errors.push(...errors);
+    onProgress?.({ ...result, errors: [...result.errors] }, Math.min(ids.length, i + KG_INGEST_LIMIT));
   }
   return result;
+}
+
+export async function getLabKgOverview(token: string | null, signal?: AbortSignal) {
+  const parsed = KgOverviewSchema.safeParse(await request('/overview', token, { signal }));
+  if (!parsed.success)
+    throw new LabKgError('Không đọc được điểm bắt đầu trong KG của lab.', 'Invalid overview response.');
+  return parsed.data;
 }
 
 export async function getLabKgStatus(token: string | null, signal?: AbortSignal) {

@@ -16,7 +16,12 @@ export async function handleKg(deps: Deps, request: Request, path: string, heade
       return publishedError(405, 'bad_request', 'Use POST.', { ...headers, 'Cache-Control': 'no-store' });
     return handleKgSearch(kg, request, headers, deps.now);
   }
-  if (path === '/v1/kg/stats' || path.startsWith('/v1/kg/papers/') || path.startsWith('/v1/kg/keywords/'))
+  if (
+    path === '/v1/kg/stats' ||
+    path === '/v1/kg/overview' ||
+    path.startsWith('/v1/kg/papers/') ||
+    path.startsWith('/v1/kg/keywords/')
+  )
     return handleKgRead(kg.db, request, path, headers);
   if (path === '/v1/kg/graph' || path === '/v1/kg/trend') return handleKgGraph(kg.db, request, path, headers);
 
