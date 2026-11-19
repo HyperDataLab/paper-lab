@@ -59,8 +59,8 @@ export function createRepositories(
   const stance = createStanceRepository(store, now, makeAudit);
   const paperInsights = createPaperInsightsRepository(store, now, makeAudit);
   const extraction = createExtractionRepository(store, now, makeAudit);
-  const library = createLibraryRepository(db, now, ids);
-  const corpusKeywords = createCorpusKeywordsRepository(db, library, now);
+  const library = createLibraryRepository(store, now, ids);
+  const corpusKeywords = createCorpusKeywordsRepository(store, library, now);
   const scg = createScgRepository(store, clock);
   const pdfFiles = createPdfFilesRepository(db, now);
   const transfer = createTransferRepository(db, clock, deps, {
@@ -101,7 +101,7 @@ export function createRepositories(
     researchDesigns: createResearchDesignRepository(store, now),
     corpora,
     corpusProfiles: createCorpusProfilesRepository(store),
-    corpusTopics: createCorpusTopicsRepository(db),
+    corpusTopics: createCorpusTopicsRepository(store),
     corpusKeywords,
     corpusOpenKg: createCorpusOpenKgRepository(db, corpusKeywords, scg),
     pdfFiles,

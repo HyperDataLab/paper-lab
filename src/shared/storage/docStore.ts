@@ -248,6 +248,13 @@ export class MemoryDocStore implements DocStore {
   }
   private write(collection: string, id: string, doc: unknown) {
     const table = this.table(collection);
+    if (docId(collection, doc) !== id) throw new Error(`${collection}: document key is not ${id}`);
+    for (const field of collectionDef(collection)?.unique ?? []) {
+      const value = pathValue(doc, field);
+      for (const [other, row] of table)
+        if (other !== id && pathValue(row.doc, field) === value)
+          throw new Error(`${collection}: ${field} ${String(value)} already exists`);
+    }
     const version = (table.get(id)?.version ?? 0) + 1;
     table.set(id, { doc: this.copy(doc), version });
     return version;
@@ -263,9 +270,16 @@ export class MemoryDocStore implements DocStore {
       if (signatureOf(rows) !== read.signature) throw new StorageConflictError(read.collection, '', null);
     }
     for (const write of tx.writes.values()) this.check(write.collection, write.id, write.expectedVersion);
-    for (const write of tx.writes.values()) {
-      if (write.removed) this.table(write.collection).delete(write.id);
-      else this.write(write.collection, write.id, write.doc);
+    const touched = new Set([...tx.writes.values()].map((write) => write.collection));
+    const backup = new Map([...touched].map((collection) => [collection, new Map(this.table(collection))]));
+    try {
+      for (const write of tx.writes.values()) {
+        if (write.removed) this.table(write.collection).delete(write.id);
+        else this.write(write.collection, write.id, write.doc);
+      }
+    } catch (error) {
+      for (const [collection, table] of backup) this.data.set(collection, table);
+      throw error;
     }
   }
   async unitOfWork<R>(fn: (tx: DocTx) => Promise<R>): Promise<R> {
