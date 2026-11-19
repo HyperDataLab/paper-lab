@@ -17,13 +17,22 @@ export function OpenKgGraph({
   selected,
   onSelect,
   layout = 'paper',
+  centre,
+  label,
 }: {
   graph: PaperKg;
   selected?: string;
   onSelect: (id: string) => void;
   layout?: 'paper' | 'corpus';
+  /** The node drawn in the middle; by default the paper in the `paper` layout. */
+  centre?: string;
+  label?: string;
 }) {
-  const article = layout === 'paper' ? graph.nodes.find((node) => node.type === 'Paper') : undefined;
+  const article = centre
+    ? graph.nodes.find((node) => node.id === centre)
+    : layout === 'paper'
+      ? graph.nodes.find((node) => node.type === 'Paper')
+      : undefined;
   const rings = (
     layout === 'corpus'
       ? CORPUS_RINGS
@@ -68,7 +77,9 @@ export function OpenKgGraph({
       className={styles.graph}
       viewBox={`0 0 ${SIZE} ${SIZE}`}
       role="group"
-      aria-label={layout === 'paper' ? 'Đồ thị tri thức của bài báo' : 'Đồ thị tri thức của corpus'}
+      aria-label={
+        label ?? (layout === 'paper' ? 'Đồ thị tri thức của bài báo' : 'Đồ thị tri thức của corpus')
+      }
     >
       <g aria-hidden="true">
         {rings.map(
@@ -88,7 +99,7 @@ export function OpenKgGraph({
           aria-pressed={selected === node.id}
           className={styles.node}
           data-layer={node.layer}
-          data-paper={node.type === 'Paper'}
+          data-paper={node.type === 'Paper' || node.id === centre}
           onClick={() => onSelect(node.id)}
           onKeyDown={(event) => {
             if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -98,7 +109,7 @@ export function OpenKgGraph({
         >
           <title>{node.label}</title>
           <circle cx={x} cy={y} r={r} />
-          {node.id === article?.id && (
+          {node.id === article?.id && node.type === 'Paper' && (
             <text x={x} y={y} textAnchor="middle" dominantBaseline="central">
               Bài báo
             </text>
