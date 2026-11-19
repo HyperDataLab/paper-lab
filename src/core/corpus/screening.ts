@@ -1,4 +1,4 @@
-import type { Corpus, CorpusDecision, CorpusMember } from '../schemas';
+import type { Candidate, CandidateSuggestion, Corpus, CorpusDecision, CorpusMember } from '../schemas';
 
 /** The fixed exclusion reasons (PRISMA 2020 "reports excluded, with reasons"). Labels live in the module. */
 export const SCREENING_REASON_CODES = [
@@ -49,17 +49,39 @@ export function isIncluded(member: CorpusMember): boolean {
 
 export type AiSuggestion = { decision: ScreeningDecision; reason: string };
 
-/** The deep-research suggestion for a member, matched by DOI or OpenAlex id. Shown apart, never counted. */
-export function suggestionFor(corpus: Corpus, member: CorpusMember): AiSuggestion | undefined {
-  const candidate = corpus.deep?.candidates.find(
-    (item) =>
-      item.suggestion &&
-      ((item.doi && item.doi === member.identifiers.doi) ||
-        (item.openalexId && item.openalexId === member.identifiers.openalexId)),
+const sameRecord = (item: Candidate, member: CorpusMember) =>
+  Boolean(
+    (item.doi && item.doi === member.identifiers.doi) ||
+    (item.openalexId && item.openalexId === member.identifiers.openalexId),
   );
-  if (!candidate?.suggestion) return undefined;
+
+/** The search record a member came from, matched by DOI or OpenAlex id; it holds the abstract and venue. */
+export const deepCandidateFor = (corpus: Corpus, member: CorpusMember): Candidate | undefined =>
+  corpus.deep?.candidates.find((item) => sameRecord(item, member));
+
+/** The AI suggestion stored on the member for a stage; title-abstract falls back to the search record's. */
+export function memberSuggestion(
+  corpus: Corpus,
+  member: CorpusMember,
+  stage: ScreeningStage,
+): CandidateSuggestion | null {
+  const own = member.suggestions?.[stage];
+  if (own || stage !== 'title-abstract') return own ?? null;
+  return (
+    corpus.deep?.candidates.find((item) => item.suggestion && sameRecord(item, member))?.suggestion ?? null
+  );
+}
+
+/** The AI suggestion for a member at a stage, as a decision. Shown apart, never counted. */
+export function suggestionFor(
+  corpus: Corpus,
+  member: CorpusMember,
+  stage: ScreeningStage = 'title-abstract',
+): AiSuggestion | undefined {
+  const suggestion = memberSuggestion(corpus, member, stage);
+  if (!suggestion) return undefined;
   const decision = { included: 'include', excluded: 'exclude', uncertain: 'uncertain' } as const;
-  return { decision: decision[candidate.suggestion.decision], reason: candidate.suggestion.reason };
+  return { decision: decision[suggestion.decision], reason: suggestion.reason };
 }
 
 export type DecisionInput = {

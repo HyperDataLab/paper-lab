@@ -177,16 +177,27 @@ export function acceptTriage(
   thresholds: Thresholds,
   at: string,
 ) {
+  const accepted = acceptableKeys(candidates, keys, bucket, thresholds);
   let next = candidates;
-  let applied = 0;
-  for (const key of new Set(keys)) {
-    const candidate = next.find((item) => item.key === key);
-    if (!candidate || candidate.status !== 'candidate' || bucketOf(candidate, thresholds) !== bucket)
-      continue;
-    next = decideCandidate(next, key, bucket, at, undefined, 'ai_accepted');
-    applied++;
-  }
-  return { candidates: next, applied };
+  for (const key of accepted) next = decideCandidate(next, key, bucket, at, undefined, 'ai_accepted');
+  return { candidates: next, applied: accepted.length };
+}
+
+/**
+ * The keys a bulk apply may decide: each once, still undecided and still in `bucket` under the current
+ * thresholds. Every decide path (Project candidates, corpus members) filters through this first.
+ */
+export function acceptableKeys(
+  candidates: Candidate[],
+  keys: string[],
+  bucket: TriageBucket,
+  thresholds: Thresholds,
+) {
+  const byKey = new Map(candidates.map((item) => [item.key, item]));
+  return [...new Set(keys)].filter((key) => {
+    const candidate = byKey.get(key);
+    return candidate?.status === 'candidate' && bucketOf(candidate, thresholds) === bucket;
+  });
 }
 
 export type TriageSort = 'default' | 'relevance-desc' | 'relevance-asc' | 'quality-desc';
