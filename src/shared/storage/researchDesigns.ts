@@ -9,6 +9,10 @@ import { toBankDoc } from '@/core/researchDesign/bank/readSnapshot';
 import { freezeGate, nextVersion } from '@/core/researchDesign/draft/freezeGate';
 import type { PapersDoc } from '@/core/researchDesign/papers';
 import type { ParagraphDb } from './db';
+import { checkLockPlan } from '@/core/autoresearch/lock';
+import { runSchema } from '@/core/autoresearch/record';
+
+export type FreezeForRun = { runId: string; revision: number; designVersion: number };
 
 export class ResearchDesignConflictError extends Error {}
 
@@ -29,7 +33,15 @@ export function createResearchDesignRepository(db: ParagraphDb, now: () => strin
         if (JSON.stringify(parsed.frozenPlans) !== JSON.stringify(current.frozenPlans))
           throw new ResearchDesignConflictError('Frozen plans are immutable');
         if (parsed.bankRelease !== current.bankRelease) throw new Error('Use importBank to change the bank');
-        const value = ResearchDesignSchema.parse({ ...parsed, version: current.version + 1 });
+        const latest = current.frozenPlans.at(-1);
+        const runId = latest?.context?.autoresearch?.runId;
+        const changed = JSON.stringify(parsed.draft) !== JSON.stringify(current.draft);
+        const planDeviation =
+          current.planDeviation ??
+          (latest && runId && changed
+            ? { runId, planVersion: latest.planVersion, changedAt: now() }
+            : undefined);
+        const value = ResearchDesignSchema.parse({ ...parsed, planDeviation, version: current.version + 1 });
         await db.researchDesigns.put(value);
         return value;
       });
@@ -42,40 +54,68 @@ export function createResearchDesignRepository(db: ParagraphDb, now: () => strin
       deviation: string | null,
       papers: PapersDoc,
       appVersion: string,
+      lock?: FreezeForRun,
     ) {
-      return db.transaction('rw', [db.extractionProjects, db.researchDesigns], async () => {
-        const project = await db.extractionProjects.get(projectId);
-        if (!project) throw new Error('Project not found');
-        const current = (await get(projectId)) ?? emptyResearchDesign(projectId);
-        if (
-          current.version !== expectedVersion ||
-          version !== nextVersion(current.frozenPlans.map((p) => p.planVersion))
-        )
-          throw new ResearchDesignConflictError('Research design or plan version changed');
-        const previous = current.frozenPlans.at(-1) ?? null;
-        const gate = freezeGate(
-          current.draft,
-          {
-            planId: projectId,
-            planVersion: version,
-            title: current.draft.planTitle || project.title,
-            frozenAt: now(),
-            frozenBy: who,
-            deviation,
-            appVersion,
-          },
-          papers,
-          previous,
-        );
-        if (gate.state !== 'plan' || gate.blocked || gate.unchanged) throw new Error('Plan cannot be frozen');
-        const value = ResearchDesignSchema.parse({
-          ...current,
-          version: current.version + 1,
-          frozenPlans: [...current.frozenPlans, gate.plan],
-        });
-        await db.researchDesigns.put(value);
-        return value;
-      });
+      return db.transaction(
+        'rw',
+        [db.extractionProjects, db.researchDesigns, db.autoresearchRuns],
+        async () => {
+          const project = await db.extractionProjects.get(projectId);
+          if (!project) throw new Error('Project not found');
+          const current = (await get(projectId)) ?? emptyResearchDesign(projectId);
+          if (
+            current.version !== expectedVersion ||
+            version !== nextVersion(current.frozenPlans.map((p) => p.planVersion)) ||
+            (lock && lock.designVersion !== current.version)
+          )
+            throw new ResearchDesignConflictError('Research design or plan version changed');
+          const previous = current.frozenPlans.at(-1) ?? null;
+          if ((current.draft.autoresearchDesign || previous?.context?.autoresearch) && !lock)
+            throw new Error('Use the pinned AutoResearch lock action');
+          const gate = freezeGate(
+            current.draft,
+            {
+              planId: projectId,
+              planVersion: version,
+              title: current.draft.planTitle || project.title,
+              frozenAt: now(),
+              frozenBy: who,
+              deviation,
+              appVersion,
+            },
+            papers,
+            previous,
+          );
+          if (gate.state !== 'plan' || gate.blocked || (gate.unchanged && !current.planDeviation))
+            throw new Error('Plan cannot be frozen');
+          if (lock) {
+            const stored = await db.autoresearchRuns.get(lock.runId);
+            if (!stored || stored.revision !== lock.revision)
+              throw new ResearchDesignConflictError('AutoResearch run changed');
+            const run = runSchema.parse(stored);
+            if (
+              run.status === 'running' ||
+              run.pipeline.some((row) => row.state === 'working' && row.stage !== 'S12') ||
+              (run.status === 'ended' && (run.endReason === 'failed' || run.endReason === 'cancelled'))
+            )
+              throw new Error('AutoResearch run cannot be locked');
+            if (run.status === 'ended') {
+              const projectRuns = await db.autoresearchRuns.where('projectId').equals(projectId).toArray();
+              if (projectRuns.some((item) => item.id !== run.id && item.status !== 'ended'))
+                throw new ResearchDesignConflictError('Another AutoResearch run is active');
+            }
+            checkLockPlan(run, gate.plan);
+          }
+          const value = ResearchDesignSchema.parse({
+            ...current,
+            version: current.version + 1,
+            frozenPlans: [...current.frozenPlans, gate.plan],
+            planDeviation: undefined,
+          });
+          await db.researchDesigns.put(value);
+          return value;
+        },
+      );
     },
     async listFrozenVersions(projectId: string) {
       return (await get(projectId))?.frozenPlans ?? [];

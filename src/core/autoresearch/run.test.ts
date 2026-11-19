@@ -32,7 +32,9 @@ afterEach(() => vi.unstubAllGlobals());
 
 async function through(count: number, risk = false) {
   let run: Run = await approveCharter(newRun('project', 'run', 200, at), charter, at, null);
-  for (const stage of STAGES.slice(0, count)) {
+  for (const stage of STAGES.filter((stage): stage is keyof typeof outputs =>
+    Object.hasOwn(outputs, stage),
+  ).slice(0, count)) {
     run = await beginStage(run, stage, models, at);
     expect(run.status).toBe('running');
     run = await putArtifact(
@@ -157,14 +159,14 @@ it('carries accepted Critic risks forward and lists unresolved obligations on co
     locator: currentArtifact(run, 'S2')?.hash,
   });
   expect((await beginStage(controlled, 'S2', models, at)).obligations[0]?.status).toBe('open');
-  const ended = await through(9, true);
-  expect(ended).toMatchObject({
-    status: 'ended',
-    endReason: 'with_gaps',
-    obligations: [{ status: 'unresolved' }],
+  const waiting = await through(9, true);
+  expect(waiting).toMatchObject({
+    status: 'waiting',
+    endReason: null,
+    obligations: [{ status: 'open' }],
   });
-  expect(acceptedInputs(ended, 'S8').S7?.gaps).toHaveLength(2);
-  expect((await through(9)).endReason).toBe('complete');
+  expect(acceptedInputs(waiting, 'S8').S7?.gaps).toHaveLength(2);
+  expect(() => endRun(waiting, 'complete', at)).toThrow('approval');
 });
 
 it('AR2 rerunning S4 marks S4 through S9 stale and keeps earlier digests intact', async () => {
@@ -180,7 +182,7 @@ it('AR2 rerunning S4 marks S4 through S9 stale and keeps earlier digests intact'
   const rerun = await beginStage(gate, 'S4', models, at);
   expect(rerun.artifacts.slice(0, 3)).toEqual(run.artifacts.slice(0, 3));
   expect(rerun.artifacts.slice(3).map((artifact) => [artifact.stage, artifact.status])).toEqual(
-    STAGES.slice(3).map((stage) => [stage, 'stale']),
+    STAGES.slice(3, 9).map((stage) => [stage, 'stale']),
   );
   expect(await canResume(rerun)).toBe(true);
 });
@@ -196,7 +198,9 @@ it('loads AR1 backups without changing existing hashes or reopening a completed 
   };
   const parsed = runSchema.parse(legacy);
   expect(parsed.status).toBe('ended');
-  expect(parsed.pipeline.at(-1)).toMatchObject({ stage: 'S9', state: 'idle' });
+  expect(parsed.pipeline.slice(8).map(({ stage, state }) => [stage, state])).toEqual(
+    STAGES.slice(8).map((stage) => [stage, 'idle']),
+  );
   expect(parsed.artifacts).toEqual(legacy.artifacts);
   expect(await canResume(parsed)).toBe(true);
 });

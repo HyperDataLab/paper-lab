@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { autoResearchContextSchema } from '../plan/autoresearchContext';
 import {
   analysisId,
   analysisMethod,
@@ -183,6 +184,13 @@ export const runCount = (matrix: z.infer<typeof draftRunMatrixSchema>): number =
 
 const counter = z.number().int().positive();
 
+const candidateSchema = z.strictObject({
+  section: z.enum(['design', 'measurement', 'analyses', 'runs']),
+  id: text,
+  label: text,
+  status: z.enum(['candidate', 'accepted']),
+});
+export type DesignCandidate = z.infer<typeof candidateSchema>;
 export const draftSchema = z.strictObject({
   schemaVersion: z.literal(DRAFT_SCHEMA_VERSION),
   /** The plan's title. Empty until written; the project's title is used then. Added with Gói kế hoạch (S10). */
@@ -210,6 +218,12 @@ export const draftSchema = z.strictObject({
   conditions: z.array(draftConditionSchema).default([]),
   analyses: z.array(draftAnalysisSchema).default([]),
   runMatrix: draftRunMatrixSchema.default(emptyRunMatrix),
+  autoresearchDesign: z
+    .strictObject({
+      context: autoResearchContextSchema,
+      candidates: z.array(candidateSchema),
+    })
+    .optional(),
 });
 export type Draft = z.infer<typeof draftSchema>;
 export type DraftQuestion = Draft['questions'][number];

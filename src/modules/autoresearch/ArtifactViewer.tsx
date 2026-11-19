@@ -11,8 +11,17 @@ import { Card } from '@/shared/ui/Card';
 import { ArgumentGraph } from './ArgumentGraph';
 import { ArtifactFields } from './ArtifactFields';
 import { referenceLabels } from './referenceLabels';
+import { ResultsView } from './ResultsView';
 
-export function ArtifactViewer({ run, stage }: { run: Run; stage: Stage }) {
+export function ArtifactViewer({
+  run,
+  stage,
+  publishedAt,
+}: {
+  run: Run;
+  stage: Stage;
+  publishedAt?: string;
+}) {
   const artifact = currentArtifact(run, stage) ?? run.artifacts.findLast((item) => item.stage === stage);
   if (!artifact) return null;
   const references = referenceLabels(run);
@@ -23,6 +32,9 @@ export function ArtifactViewer({ run, stage }: { run: Run; stage: Stage }) {
   const collection = stage === 'S4' ? contentOf('S4', artifact) : null;
   const ingest = collection && artifact.status !== 'stale' ? labKgIds(collection.candidates) : [];
   const map = stage === 'S9' ? contentOf('S9', artifact) : null;
+  const design = stage === 'S10' ? contentOf('S10', artifact) : null;
+  const lock = stage === 'S11' ? contentOf('S11', artifact) : null;
+  const results = stage === 'S12' ? contentOf('S12', artifact) : null;
   const provenance = (
     <details>
       <summary>Nguồn và phiên bản</summary>
@@ -90,6 +102,51 @@ export function ArtifactViewer({ run, stage }: { run: Run; stage: Stage }) {
               references={references}
             />
           </details>
+        </>
+      ) : lock ? (
+        <dl>
+          <dt>Phiên bản đã đóng băng</dt>
+          <dd>{lock.planVersion}</dd>
+          <dt>Đóng băng lúc</dt>
+          <dd>
+            <time dateTime={lock.frozenAt}>{lock.frozenAt}</time>
+          </dd>
+          <dt>ETag</dt>
+          <dd>
+            <code>{lock.etag}</code>
+          </dd>
+          <dt>Scientific Research Desktop</dt>
+          <dd>
+            {publishedAt || lock.publishedAt
+              ? `Đã gửi · ${publishedAt ?? lock.publishedAt}`
+              : 'Chưa gửi kế hoạch'}
+          </dd>
+        </dl>
+      ) : results ? (
+        <ResultsView value={results} hypotheses={references.get('hypothesisId')} />
+      ) : design ? (
+        <>
+          <p>Writing Bank · {design.bank?.release ?? 'Chưa có snapshot'}</p>
+          <p>Research design · {design.design.id ?? 'Tuỳ chỉnh'}</p>
+          <ArtifactFields
+            value={{ ...design, bank: undefined }}
+            references={
+              new Map([
+                ...references,
+                [
+                  'bankRef',
+                  new Map(
+                    [
+                      ...(design.bank?.benchmarks ?? []),
+                      ...(design.bank?.metrics ?? []),
+                      ...(design.bank?.threats ?? []),
+                    ].map((id) => [id, id]),
+                  ),
+                ],
+                ['protocolRef', new Map((design.bank?.protocols ?? []).map((id) => [id, id]))],
+              ])
+            }
+          />
         </>
       ) : (
         <ArtifactFields

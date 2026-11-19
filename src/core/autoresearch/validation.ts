@@ -1,6 +1,9 @@
 import type { Inputs, Stage, StageContent, StageError } from './contracts';
 import { validArgumentMap } from './argument-map';
 import { normalTitle } from '../text/normalizeTitle';
+import { validDesign } from './experiment-design';
+import { numericGrounding } from './number-grounding';
+import { validResults } from './results-interpretation';
 
 export const TOPIC_MINIMUM = 0.5; // Heuristic triage threshold, subject to calibration.
 export const TOPIC_RUBRIC_VERSION = 'ar-topic-1';
@@ -17,11 +20,6 @@ const unique = (values: string[]) => new Set(values).size === values.length;
 const known = (values: string[], allowed: Set<string>) =>
   unique(values) && values.every((value) => allowed.has(value));
 const uniqueItems = (items: Item[]) => ids(items).size === items.length;
-const numbers = (text: string) => text.match(/(?<![\p{L}\d])[-+−]?\d+(?:[.,]\d+)*/gu) ?? [];
-const numericGrounding = (value: string, source: string) => {
-  const observed = new Set(numbers(source));
-  return numbers(value).every((number) => observed.has(number));
-};
 export const searchQueries = (plan: StageContent['S3']) =>
   plan.strategies.flatMap((strategy) => strategy.queries);
 const cardFields = ['problem', 'method', 'data', 'metrics', 'findings', 'limitations'] as const;
@@ -277,6 +275,9 @@ export const passConditions: {
   S7: checkSynthesis,
   S8: checkHypotheses,
   S9: (value, prior) => (validArgumentMap(value, prior) ? null : 'INVALID_ARGUMENT_MAP'),
+  S10: (value, prior) => (validDesign(value, prior) ? null : 'INVALID_DESIGN'),
+  S11: (_value, prior) => (prior.S10 ? null : 'MISSING_INPUT'),
+  S12: (value, prior) => (validResults(value, prior) ? null : 'INVALID_RESULTS'),
 };
 
 export function passStage<K extends Stage>(

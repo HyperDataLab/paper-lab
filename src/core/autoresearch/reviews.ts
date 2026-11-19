@@ -21,7 +21,15 @@ export const criticReportSchema = criticOutputSchema.extend({
 });
 export type CriticOutput = z.infer<typeof criticOutputSchema>;
 export type CriticReport = z.infer<typeof criticReportSchema>;
-export const integrityTags = ['post-hoc-criteria', 'spin', 'suppressed-result', 'fabrication', 'leakage'];
+export const integrityTags = [
+  'post-hoc-criteria',
+  'post_hoc_criteria',
+  'spin',
+  'suppressed-result',
+  'suppressed_result',
+  'fabrication',
+  'leakage',
+];
 export const notebookEntrySchema = z.strictObject({
   id: text,
   kind: z.enum(['directive', 'lesson', 'risk', 'observation', 'question']),

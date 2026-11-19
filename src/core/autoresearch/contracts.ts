@@ -1,9 +1,11 @@
 import { z } from 'zod';
 import { s9Schema } from './argument-map';
+import { s10Schema } from './experiment-design';
+import { lockSchema, s12Schema } from './results-contract';
 import { cardSchema, collectionMetaSchema, refs, sourceRecordSchema, text, texts } from './stage-fields';
 export { cardSchema, evidenceScope, text, texts } from './stage-fields';
 
-export const STAGES = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9'] as const;
+export const STAGES = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12'] as const;
 export const stageSchema = z.enum(STAGES);
 export type Stage = z.infer<typeof stageSchema>;
 export const score = z.number().min(0).max(1).nullable();
@@ -166,6 +168,9 @@ export const contracts = {
   S7: s7Schema,
   S8: s8Schema,
   S9: s9Schema,
+  S10: s10Schema,
+  S11: lockSchema,
+  S12: s12Schema,
 } as const;
 export type StageContent = { [K in Stage]: z.infer<(typeof contracts)[K]> };
 export type Inputs = Partial<StageContent>;
@@ -181,6 +186,8 @@ export const errors = [
   'INVALID_SYNTHESIS',
   'INVALID_HYPOTHESES',
   'INVALID_ARGUMENT_MAP',
+  'INVALID_DESIGN',
+  'INVALID_RESULTS',
   'LLM_OUTPUT_INVALID',
   'LLM_TIMEOUT',
   'LLM_RATE_LIMITED',

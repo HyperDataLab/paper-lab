@@ -34,7 +34,7 @@ const views: StageContent['S8']['perspectives'] = [
   { lens: 'feasibility', assessment: 'Simulation is feasible.', hypothesisIds: ['h-agree', 'h-repeat'] },
   { lens: 'soundness', assessment: 'Control the order effects.', hypothesisIds: ['h-agree', 'h-repeat'] },
 ];
-const ar1Outputs: Omit<StageContent, 'S9'> = {
+const ar1Outputs: Pick<StageContent, 'S1' | 'S2' | 'S3' | 'S4' | 'S5' | 'S6' | 'S7' | 'S8'> = {
   S1: {
     charter,
     goal: {
@@ -176,7 +176,7 @@ export function argumentJudgments(hypothesisIds: string[]) {
 }
 export const argumentFixture = (prior: Inputs) =>
   buildArgumentMap(prior, argumentJudgments(prior.S8?.hypotheses.map(({ id }) => id) ?? []));
-export const outputs: StageContent = { ...ar1Outputs, S9: argumentFixture(ar1Outputs) };
+export const outputs = { ...ar1Outputs, S9: argumentFixture(ar1Outputs) };
 export const seriousPoint: CriticReport['points'][number] = {
   id: 'point-a',
   lens: 'charter',

@@ -4,6 +4,8 @@ import { STAGES } from '@/core/autoresearch/contracts';
 import { editArtifact } from '@/core/autoresearch/edit';
 import type { Run } from '@/core/autoresearch/record';
 import { endRun } from '@/core/autoresearch/run';
+import { importResults } from '@/core/autoresearch/import-results';
+import { recordPlanLock } from '@/core/autoresearch/lock';
 import type { BankDoc } from '@/core/researchDesign/bank/snapshot';
 import type { ExtractionProject } from '@/core/schemas';
 import { defaultScreen } from '@/shared/autoresearch/screening';
@@ -23,12 +25,12 @@ import { useRepositories } from '@/shared/storage/StorageProvider';
 const now = () => new Date().toISOString();
 type Task = { controller: AbortController; stop: boolean };
 
-export function useAutoResearch(project: ExtractionProject, bank: BankDoc | null) {
+export function useAutoResearch(project: ExtractionProject, bank: BankDoc | null, initialRunId?: string) {
   const repo = useRepositories();
   const { user, getIdToken } = useAuth();
   const llm = useLlm();
   const [runs, setRuns] = useState<Run[] | null>(null);
-  const [runId, setRunId] = useState<string>();
+  const [runId, setRunId] = useState(initialRunId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
@@ -80,7 +82,7 @@ export function useAutoResearch(project: ExtractionProject, bank: BankDoc | null
   };
   const create = () =>
     perform(async () => {
-      const created = await repo.autoresearch.create(project.id, budgetFor(STAGES.length * 3 - 1));
+      const created = await repo.autoresearch.create(project.id, budgetFor((STAGES.length - 1) * 3 - 1));
       setRuns((items) => [created, ...(items ?? [])]);
       setRunId(created.id);
     });
@@ -120,6 +122,8 @@ export function useAutoResearch(project: ExtractionProject, bank: BankDoc | null
           now,
           signal,
           requireConsent,
+          bank: await repo.researchDesigns.getBank(project.id),
+          researchDesign: stage === 'S12' ? await repo.researchDesigns.get(project.id) : undefined,
           lead: { model: llm.config.model, client: llm.client },
           critic: { model: criticModel, client: llm.criticClient },
           save: async (next) => {
@@ -142,6 +146,18 @@ export function useAutoResearch(project: ExtractionProject, bank: BankDoc | null
     create,
     change,
     start,
+    connectLock: (version: number) =>
+      change(async (run, at) => {
+        const record = await repo.researchDesigns.get(project.id);
+        if (!record) throw new Error('Frozen plan not found');
+        return recordPlanLock(run, record, version, at);
+      }),
+    importResults: (raw: string, format: 'json' | 'csv') =>
+      change(async (run) => {
+        const record = await repo.researchDesigns.get(project.id);
+        if (!record) throw new Error('Frozen plan not found');
+        return importResults(run, record, raw, format);
+      }),
     edit: (stage: Stage, value: unknown, note: string) =>
       change((run, at) =>
         editArtifact(run, stage, value, modelsFor(stage, llm.config.model, criticModel), at, note),

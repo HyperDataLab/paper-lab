@@ -12,6 +12,9 @@ export const stageLabels: Record<Stage, string> = {
   S7: 'Tổng hợp',
   S8: 'Hypotheses',
   S9: 'Argument map',
+  S10: 'Experiment design',
+  S11: 'Đóng băng kế hoạch',
+  S12: 'Results và statistical analysis',
 };
 export const stageStates: Record<StageState['state'], string> = {
   idle: 'Chưa chạy',
@@ -61,6 +64,8 @@ export const stageErrors: Record<StageError, string> = {
   INVALID_SYNTHESIS: 'Tổng hợp chưa bao quát các thẻ hoặc còn thông tin chưa có Evidence.',
   INVALID_HYPOTHESES: 'Kiểm tra liên kết, Evidence và sự khác biệt giữa các hypotheses.',
   INVALID_ARGUMENT_MAP: 'Kiểm tra liên kết Evidence, Claim và Hypothesis trong Argument map.',
+  INVALID_DESIGN: 'Kiểm tra hypotheses, tham chiếu Writing Bank và khoá trích dẫn trong thiết kế.',
+  INVALID_RESULTS: 'Results hoặc phần diễn giải chưa đối chiếu được với bảng thống kê.',
   LLM_OUTPUT_INVALID: 'Phản hồi AI chưa đúng cấu trúc.',
   LLM_TIMEOUT: 'Model phản hồi quá thời gian chờ.',
   LLM_RATE_LIMITED: 'Endpoint đang giới hạn số lượt gọi.',

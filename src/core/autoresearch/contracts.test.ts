@@ -4,11 +4,14 @@ import { outputs } from './fixtures';
 import { overallTopicScore, passStage } from './validation';
 
 describe('AutoResearch stage contracts', () => {
-  it.each(STAGES)('%s parses and passes with a linked synthetic chain', (stage) => {
-    expect(contracts[stage].safeParse(outputs[stage]).success).toBe(true);
-    expect(contracts[stage].safeParse({}).success).toBe(false);
-    expect(passStage(stage, outputs[stage], outputs)).toBeNull();
-  });
+  it.each(STAGES.filter((stage): stage is keyof typeof outputs => Object.hasOwn(outputs, stage)))(
+    '%s parses and passes with a linked synthetic chain',
+    (stage) => {
+      expect(contracts[stage].safeParse(outputs[stage]).success).toBe(true);
+      expect(contracts[stage].safeParse({}).success).toBe(false);
+      expect(passStage(stage, outputs[stage], outputs)).toBeNull();
+    },
+  );
 
   it('S1 rejects nonresearchable goals and missing required nullable fields', () => {
     const value = structuredClone(outputs.S1);

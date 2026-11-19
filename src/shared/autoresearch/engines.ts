@@ -15,6 +15,19 @@ import {
 import { cardQuestionLinks, overallTopicScore, searchQueries } from '@/core/autoresearch/validation';
 import { PROMPT_VERSIONS as versions } from '@/core/prompts';
 import type { StageState } from '@/core/autoresearch/record';
+import { analyzeResults } from '@/core/autoresearch/analyze-results';
+import {
+  bankDesignInputs,
+  experimentDesignSchema,
+  pinDesignBank,
+} from '@/core/autoresearch/experiment-design';
+import { interpretationSchema, type ResultsImport } from '@/core/autoresearch/results-contract';
+import { normalizeResultsLog } from '@/core/autoresearch/results-input';
+import { groundedInterpretation, hypothesisVerdicts } from '@/core/autoresearch/results-interpretation';
+import { canonicalDigest } from '@/core/corpus';
+import type { BankDoc } from '@/core/researchDesign/bank/snapshot';
+import type { ExperimentPlan } from '@/core/researchDesign/plan/schema';
+import { SRD_P0_METHODS, SRD_P1_METHODS } from '@/core/researchDesign/plan/schema';
 import { cardInputs, type LoadFullTexts } from './card-sources';
 import { extractCards } from './knowledge-cards';
 import type { Screen } from './screening';
@@ -30,6 +43,9 @@ export const stagePrompts = {
   S7: versions.autoresearchS7,
   S8: versions.autoresearchS8,
   S9: versions.autoresearchS9,
+  S10: versions.autoresearchS10,
+  S11: null,
+  S12: versions.autoresearchS12,
 } satisfies Record<Stage, string | null>;
 export const NOVELTY_QUERIES = 3;
 export class StageFailure extends Error {
@@ -62,6 +78,8 @@ export async function executeEngine(
     search: (query: string, filter: StageContent['S3']['yearFilter']) => Promise<NoveltyPaper[] | null>;
     checkpoint: (patch: Partial<StageState>) => Promise<void>;
     guidance: { directives: string[]; handoff: string[] };
+    bank?: BankDoc | null;
+    experiment?: { plan: ExperimentPlan; entry: ResultsImport };
   },
 ): Promise<StageContent[Stage]> {
   const { charter, inputs, state, collect, screen, search, checkpoint } = deps;
@@ -191,6 +209,57 @@ export async function executeEngine(
         argumentOutputSchema,
       );
       return buildArgumentMap(inputs, result);
+    }
+    case 'S10': {
+      if (!inputs.S8 || !inputs.S9 || !inputs.S4 || !inputs.S5) throw new StageFailure('MISSING_INPUT');
+      const bank = bankDesignInputs(deps.bank ?? null);
+      const result = await ask(
+        stagePrompts.S10,
+        'Propose a candidate design. Cover every accepted hypothesis with a method, metric and analysis. Use dataset, condition and metric names consistently. When comparing two conditions, list them in estimand order (first minus second) and identify the outcome metric. Use a method identifier from the allowed tests. Use only the given bank IDs and citeKeys, and omit unavailable optional references. Do not claim empirical results. Describe compute estimates and budget qualitatively unless the charter gives numerical limits.',
+        {
+          charter,
+          hypotheses: inputs.S8.hypotheses,
+          argumentMap: inputs.S9,
+          bank,
+          papers: inputs.S5.decisions.flatMap(
+            (decision) =>
+              inputs.S4?.candidates
+                .filter((p) => p.id === decision.paperId)
+                .map(({ citationKey, title }) => ({
+                  citeKey: citationKey,
+                  title,
+                  decision: decision.decision,
+                })) ?? [],
+          ),
+          tests: [...SRD_P0_METHODS, ...SRD_P1_METHODS],
+        },
+        experimentDesignSchema,
+      );
+      return { ...result, bank: await pinDesignBank(bank) };
+    }
+    case 'S11':
+      throw new StageFailure('MISSING_INPUT');
+    case 'S12': {
+      const { plan, entry } = deps.experiment ?? {};
+      if (!plan || !entry || !inputs.S8 || !inputs.S10 || !inputs.S11)
+        throw new StageFailure('MISSING_INPUT');
+      if (entry.etag !== inputs.S11.etag || entry.hash !== (await canonicalDigest(entry.log)))
+        throw new StageFailure('INVALID_RESULTS');
+      const log = normalizeResultsLog(entry.log, inputs.S10, plan);
+      const computed = analyzeResults(log, plan, inputs.S8.hypotheses);
+      const hypotheses = hypothesisVerdicts(
+        inputs.S8.hypotheses.map((h) => h.id),
+        computed.tests,
+      );
+      const interpretation = await ask(
+        stagePrompts.S12,
+        'Interpret the computed summaries and tests in Vietnamese with academic terms in English. Discuss every hypothesis against its preregistered falsification criterion and the computed verdict. Preserve inconclusive, missing and unsupported results. Copy numbers verbatim from the numeric cells of the computed table or tests, or omit the number. Do not round, convert, infer new numbers, or use numbered labels and IDs in the narrative. End with a candidate recommendation: proceed, refine or pivot.',
+        { ...computed, verdicts: hypotheses, hypotheses: inputs.S8.hypotheses },
+        interpretationSchema,
+      );
+      if (!groundedInterpretation(interpretation.narrative, computed))
+        throw new StageFailure('INVALID_RESULTS');
+      return { resultsHash: entry.hash, ...computed, hypotheses, ...interpretation };
     }
   }
 }

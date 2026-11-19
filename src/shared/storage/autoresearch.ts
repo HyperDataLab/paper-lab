@@ -31,6 +31,11 @@ export function createAutoResearchRepository(db: ParagraphDb, { now, ids }: Stor
         const current = await db.autoresearchRuns.get(run.id);
         if (current?.revision !== run.revision || current.projectId !== run.projectId)
           throw new AutoResearchConflictError('AutoResearch run changed');
+        if (current.status === 'ended' && run.status !== 'ended') {
+          const projectRuns = await db.autoresearchRuns.where('projectId').equals(run.projectId).toArray();
+          if (projectRuns.some((item) => item.id !== run.id && item.status !== 'ended'))
+            throw new AutoResearchConflictError('Another AutoResearch run is active');
+        }
         const next = runSchema.parse({ ...run, revision: run.revision + 1, updatedAt: now() });
         await db.autoresearchRuns.put(next);
         return next;

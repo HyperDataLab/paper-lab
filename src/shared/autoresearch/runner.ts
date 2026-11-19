@@ -4,9 +4,13 @@ import {
   checkpointDigest,
   contentOf,
   currentArtifact,
+  currentResultsImport,
 } from '@/core/autoresearch/artifacts';
 import { contracts, STAGES, type Stage, type StageError } from '@/core/autoresearch/contracts';
 import type { Run, StageState } from '@/core/autoresearch/record';
+import { linkedFrozenPlan } from '@/core/autoresearch/lock';
+import { ResultsLogError } from '@/core/autoresearch/results-input';
+import type { ResearchDesign } from '@/core/schemas/researchDesign';
 import {
   beginStage,
   openGate,
@@ -31,11 +35,12 @@ import type { Screen } from './screening';
 
 type EngineDeps = Parameters<typeof executeEngine>[1];
 type ReviewDeps = Parameters<typeof supervise>[2];
-type RunnerDeps = Pick<EngineDeps, 'collect' | 'search' | 'loadFullTexts'> &
+type RunnerDeps = Pick<EngineDeps, 'collect' | 'search' | 'loadFullTexts' | 'bank'> &
   Pick<ReviewDeps, 'now' | 'signal' | 'read'> & {
     lead: { model: string; client: LlmClient };
     critic: { model: string; client: LlmClient };
     requireConsent: () => void;
+    researchDesign?: ResearchDesign;
     save: (run: Run) => Promise<Run>;
     screen: (options: {
       completed: StageState['screeningProgress'];
@@ -46,6 +51,7 @@ type RunnerDeps = Pick<EngineDeps, 'collect' | 'search' | 'loadFullTexts'> &
 
 export function errorCode(error: unknown): StageError {
   if (error instanceof StageFailure) return error.code;
+  if (error instanceof ResultsLogError) return 'INVALID_RESULTS';
   if (error instanceof InvalidModelOutputError) return 'LLM_OUTPUT_INVALID';
   if (error instanceof LlmTimeoutError) return 'LLM_TIMEOUT';
   if (error instanceof LlmHttpError && error.status === 429) return 'LLM_RATE_LIMITED';
@@ -58,12 +64,13 @@ export function modelsFor(stage: Stage, lead: string, critic: string) {
     critic,
     sharedModel: lead === critic,
     stagePrompt: stagePrompts[stage],
-    piPrompt: versions.autoresearchPi,
-    criticPrompt: versions.autoresearchCritic,
+    piPrompt: stage === 'S12' ? versions.autoresearchS12Pi : versions.autoresearchPi,
+    criticPrompt: stage === 'S12' ? versions.autoresearchS12Critic : versions.autoresearchCritic,
   };
 }
 
 export async function runStage(initial: Run, stage: Stage, deps: RunnerDeps): Promise<Run> {
+  if (stage === 'S11') throw new RunTransitionError('S11 is a pinned person action');
   const { now, signal, requireConsent, lead, critic } = deps;
   signal?.throwIfAborted();
   requireConsent();
@@ -120,6 +127,11 @@ export async function runStage(initial: Run, stage: Stage, deps: RunnerDeps): Pr
     if (!currentArtifact(run, stage) && !state.error) {
       const inputs = acceptedInputs(run, stage);
       try {
+        const entry = stage === 'S12' ? currentResultsImport(run) : undefined;
+        const experiment =
+          entry && deps.researchDesign
+            ? { entry, plan: await linkedFrozenPlan(run, deps.researchDesign) }
+            : undefined;
         const result = await executeEngine(stage, {
           charter,
           inputs,
@@ -134,6 +146,8 @@ export async function runStage(initial: Run, stage: Stage, deps: RunnerDeps): Pr
           search: deps.search,
           loadFullTexts: deps.loadFullTexts,
           checkpoint,
+          bank: deps.bank,
+          experiment,
           guidance: {
             directives: run.notebook.filter((entry) => entry.kind === 'directive').map((entry) => entry.text),
             handoff: run.pipeline[STAGES.indexOf(stage) - 1]?.pi?.handoff ?? [],
@@ -141,8 +155,7 @@ export async function runStage(initial: Run, stage: Stage, deps: RunnerDeps): Pr
         });
         signal?.throwIfAborted();
         const parsed = contracts[stage].safeParse(result);
-        if (!parsed.success)
-          throw new StageFailure(stage === 'S9' ? 'INVALID_ARGUMENT_MAP' : 'LLM_OUTPUT_INVALID');
+        if (!parsed.success) throw new StageFailure(stageOutputError(stage));
         const withArtifact = await putArtifact(run, stage, parsed.data, now());
         const artifact = currentArtifact(withArtifact, stage);
         if (!artifact) throw new StageFailure('STAGE_ERROR');
@@ -151,16 +164,12 @@ export async function runStage(initial: Run, stage: Stage, deps: RunnerDeps): Pr
         if (abortOrConflict(error)) throw error;
         const code = errorCode(error);
         await checkpoint({
-          error:
-            code === 'LLM_OUTPUT_INVALID' && stage === 'S9'
-              ? 'INVALID_ARGUMENT_MAP'
-              : code === 'LLM_OUTPUT_INVALID' && stage === 'S6'
-                ? 'INVALID_CARDS'
-                : code,
+          error: code === 'LLM_OUTPUT_INVALID' ? stageOutputError(stage) : code,
         });
       }
     }
     try {
+      if (stage === 'S12' && stageState(run, stage).reviewError) await checkpoint({ reviewError: null });
       await supervise(stage, charter, {
         getRun: () => run,
         checkpoint,
@@ -173,6 +182,10 @@ export async function runStage(initial: Run, stage: Stage, deps: RunnerDeps): Pr
     } catch (error) {
       if (abortOrConflict(error)) throw error;
       await checkpoint({ reviewError: errorCode(error) });
+      if (stage === 'S12' && !stageState(run, stage).error) {
+        await save({ ...run, status: 'waiting' });
+        return run;
+      }
     }
     signal?.throwIfAborted();
     await save(openGate(run, stage, now()));
@@ -181,4 +194,19 @@ export async function runStage(initial: Run, stage: Stage, deps: RunnerDeps): Pr
     if (!signal?.aborted) throw error;
   }
   return run;
+}
+
+function stageOutputError(stage: Stage): StageError {
+  switch (stage) {
+    case 'S6':
+      return 'INVALID_CARDS';
+    case 'S9':
+      return 'INVALID_ARGUMENT_MAP';
+    case 'S10':
+      return 'INVALID_DESIGN';
+    case 'S12':
+      return 'INVALID_RESULTS';
+    default:
+      return 'LLM_OUTPUT_INVALID';
+  }
 }

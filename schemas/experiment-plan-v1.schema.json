@@ -532,6 +532,215 @@
         {
           "type": "object",
           "properties": {
+            "autoresearch": {
+              "type": "object",
+              "properties": {
+                "runId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "designHash": {
+                  "type": "string",
+                  "pattern": "^sha256:[0-9a-f]{64}$"
+                },
+                "charterHash": {
+                  "type": "string",
+                  "pattern": "^sha256:[0-9a-f]{64}$"
+                },
+                "inputHashes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                },
+                "rationale": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "baselines": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "why": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "citeKey": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "why"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "methods": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "hypothesisIds": {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "hypothesisIds"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "ablations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "removes": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "hypothesisId": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "removes",
+                      "hypothesisId"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "compute": {
+                  "type": "object",
+                  "properties": {
+                    "estimate": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "budget": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "estimate",
+                    "budget"
+                  ],
+                  "additionalProperties": false
+                },
+                "licenses": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "datasetId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "license": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "datasetId",
+                      "license"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "hypotheses": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "sourceId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "outcome": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "estimand": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "prediction": {
+                        "type": "string",
+                        "enum": [
+                          "> 0",
+                          "< 0",
+                          "≠ 0"
+                        ]
+                      },
+                      "criterion": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "threshold": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "sourceId",
+                      "outcome",
+                      "estimand",
+                      "prediction",
+                      "criterion",
+                      "threshold"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "runId",
+                "designHash",
+                "charterHash",
+                "inputHashes",
+                "rationale",
+                "baselines",
+                "methods",
+                "ablations",
+                "compute",
+                "licenses",
+                "hypotheses"
+              ],
+              "additionalProperties": false
+            },
             "questions": {
               "type": "array",
               "items": {

@@ -57,6 +57,20 @@ export function nextStage(run: Run) {
   return run.pipeline.find((row) => row.state !== 'accepted');
 }
 
+export function canContinueLegacyRun(run: Run) {
+  return (
+    run.status === 'ended' &&
+    (run.endReason === 'complete' || run.endReason === 'with_gaps') &&
+    stageState(run, 'S8').state === 'accepted' &&
+    stageState(run, 'S10').attempt === 0
+  );
+}
+
+export function continueLegacyRun(run: Run): Run {
+  if (!canContinueLegacyRun(run)) throw new RunTransitionError('Run has no unfinished legacy stages');
+  return { ...run, status: 'waiting', endReason: null, endedAt: null };
+}
+
 export function invalidateFrom(run: Run, stage: Stage): Run {
   const index = STAGES.indexOf(stage);
   return {
@@ -107,13 +121,14 @@ export async function approveCharter(
 export async function beginStage(
   run: Run,
   stage: Stage,
-  models: NonNullable<StageState['models']>,
+  models: StageState['models'],
   at: string,
 ): Promise<Run> {
   if (run.status !== 'waiting' || !run.charter || !(await canResume(run)))
     throw new RunTransitionError('Run cannot start until its charter and artifact hashes match');
   if (STAGES.slice(0, STAGES.indexOf(stage)).some((earlier) => stageState(run, earlier).state !== 'accepted'))
     throw new RunTransitionError('Earlier stages require approval');
+  if ((stage === 'S11') !== (models === null)) throw new RunTransitionError('S11 is a pinned person action');
   const previous = stageState(run, stage);
   if (previous.state === 'gate') throw new RunTransitionError('Human decision required');
   const state =
@@ -141,7 +156,12 @@ export async function putArtifact<K extends Stage>(
   author: Artifact['author'] = stage === 'S4' ? 'code' : 'model',
 ) {
   const state = stageState(run, stage);
-  if (run.status !== 'running' || state.state !== 'working' || currentArtifact(run, stage))
+  if (
+    run.status !== 'running' ||
+    state.state !== 'working' ||
+    currentArtifact(run, stage) ||
+    (stage === 'S11' && author !== 'person')
+  )
     throw new RunTransitionError('Stage is inactive or already has an artifact');
   const value = contracts[stage].parse(content);
   const cards =
@@ -232,6 +252,8 @@ export async function decideGate(
     if (
       !artifact ||
       state.error ||
+      (stage === 'S11' && artifact.author !== 'person') ||
+      (stage === 'S12' && (!state.critic || !state.pi)) ||
       !(await canResume(run)) ||
       passStage(stage, contentOf(stage, artifact), acceptedInputs(run, stage))
     )

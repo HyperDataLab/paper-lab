@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { autoResearchContextSchema } from './autoresearchContext';
 
 /**
  * ExperimentPlanPackage v1: the plan this app freezes and Scientific Research Desktop (SRD) reads.
@@ -136,6 +137,7 @@ export const analysisSchema = z.strictObject({
 
 /** Why the plan looks the way it does. SRD may ignore this block. */
 export const contextSchema = z.strictObject({
+  autoresearch: autoResearchContextSchema.optional(),
   questions: z.array(
     z.strictObject({
       id: localId('q'),

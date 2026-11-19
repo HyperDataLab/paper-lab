@@ -14,6 +14,7 @@ import {
   texts,
 } from './contracts';
 import { criticReportSchema, notebookEntrySchema, obligationSchema, piDecisionSchema } from './reviews';
+import { resultsImportSchema } from './results-contract';
 
 const hash = z.string().regex(/^sha256:[0-9a-f]{64}$/u);
 const time = z.iso.datetime();
@@ -100,18 +101,16 @@ const runFields = z.strictObject({
   endReason: endReasonSchema.nullable(),
   charter: charterSchema.nullable(),
   charterHash: hash.nullable(),
-  pipeline: z
-    .array(reviewState)
-    .min(STAGES.length - 1)
-    .max(STAGES.length),
+  pipeline: z.array(reviewState).min(8).max(STAGES.length),
   artifacts: z.array(artifactSchema),
+  resultsImports: z.array(resultsImportSchema).optional(),
   notebook: z.array(notebookEntrySchema),
   obligations: z.array(obligationSchema),
   decisions: z.array(
     z.strictObject({
       stage: stageSchema,
       attempt: z.number().int().nonnegative(),
-      action: z.enum(['approve', 'reject', 'charter', 'escalate', 'edit']),
+      action: z.enum(['approve', 'reject', 'charter', 'escalate', 'edit', 'lock', 'deviation']),
       selectionIds: texts,
       primaryId: text.nullable(),
       note: text.nullable(),
@@ -131,8 +130,8 @@ export const runSchema = runFields
   .superRefine((run, context) => {
     if (
       run.pipeline.some((row, index) => row.stage !== STAGES[index]) ||
-      (run.pipeline.length === STAGES.length - 1 &&
-        run.artifacts.some((artifact) => artifact.stage === 'S9')) ||
+      ![8, 9, STAGES.length].includes(run.pipeline.length) ||
+      run.artifacts.some((artifact) => STAGES.indexOf(artifact.stage) >= run.pipeline.length) ||
       (run.status === 'ended') !== (run.endReason !== null) ||
       (run.status === 'ended') !== (run.endedAt !== null) ||
       (run.charter === null) !== (run.charterHash === null)
@@ -143,6 +142,12 @@ export const runSchema = runFields
     // Keep AR1 records and their digests intact, including completed runs in backups.
     run.pipeline.length === STAGES.length
       ? run
-      : { ...run, pipeline: [...run.pipeline, emptyStage('S9', 0)] },
+      : {
+          ...run,
+          pipeline: [
+            ...run.pipeline,
+            ...STAGES.slice(run.pipeline.length).map((stage) => emptyStage(stage, 0)),
+          ],
+        },
   );
 export type Run = z.infer<typeof runSchema>;
