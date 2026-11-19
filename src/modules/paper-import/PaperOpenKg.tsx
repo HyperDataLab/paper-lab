@@ -16,7 +16,7 @@ import type {
   ScgPaperRun,
 } from '@/core/schemas';
 import { paperDoi } from '@/core/scholarlyContext';
-import { SciAtlasPanel } from '@/shared/openkg/SciAtlasPanel';
+import { RelatedPapersPanel } from '@/shared/openkg/RelatedPapersPanel';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Loading } from '@/shared/ui/StateNote';
 import { OpenKgView } from './OpenKgView';
@@ -118,7 +118,7 @@ export function PaperOpenKg({
         hasArguments={Boolean(sources.argumentRun)}
         onLocation={onLocation}
       />
-      <SciAtlasPanel
+      <RelatedPapersPanel
         anchors={data.anchors}
         known={(result) =>
           (result.doi && held.has(result.doi)) || (result.openalexId && held.has(result.openalexId))

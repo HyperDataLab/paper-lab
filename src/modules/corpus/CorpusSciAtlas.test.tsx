@@ -102,14 +102,20 @@ it('K4 corpus SciAtlas panel sends corpus keywords, marks members and adds a res
       </StorageProvider>
     </AuthContext.Provider>,
   );
-  const panel = await screen.findByRole('region', { name: 'Bài liên quan theo SciAtlas' });
+  const panel = await screen.findByRole('region', { name: 'Bài liên quan (KG của lab)' });
   await waitFor(() => expect(within(panel).getByText('Synthetic keyword')).toBeInTheDocument());
   fireEvent.click(within(panel).getByRole('button', { name: 'Tìm' }));
-  const list = await within(panel).findByRole('list', { name: 'Bài liên quan theo SciAtlas' });
+  const list = await within(panel).findByRole('list', { name: 'Bài liên quan (KG của lab)' });
   const [held, outside] = within(list).getAllByRole('listitem');
   if (!held || !outside) throw new Error('missing results');
   expect(within(held).getByText('Đã có trong corpus')).toBeInTheDocument();
-  const body = JSON.parse(String((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body));
+  const body = JSON.parse(
+    String(
+      (fetcher.mock.calls as unknown as [string, RequestInit][]).find(([url]) =>
+        url.endsWith('/v1/kg/search'),
+      )?.[1].body,
+    ),
+  );
   expect(body).toMatchObject({ keywords: [{ text: 'Synthetic keyword', level: 'high' }], titles: [] });
 
   fireEvent.click(within(outside).getByRole('button', { name: 'Thêm vào corpus' }));
@@ -129,7 +135,7 @@ it('K4 corpus SciAtlas panel sends corpus keywords, marks members and adds a res
   await waitFor(() =>
     expect(screen.getByText('Bài có tra cứu OpenAlex').parentElement).toHaveTextContent('2/2'),
   );
-  const after = screen.getByRole('region', { name: 'Bài liên quan theo SciAtlas' });
-  expect(within(after).getByRole('list', { name: 'Bài liên quan theo SciAtlas' })).toBeInTheDocument();
+  const after = screen.getByRole('region', { name: 'Bài liên quan (KG của lab)' });
+  expect(within(after).getByRole('list', { name: 'Bài liên quan (KG của lab)' })).toBeInTheDocument();
   expect(within(after).queryByText('Outside keyword')).toBeNull();
 });

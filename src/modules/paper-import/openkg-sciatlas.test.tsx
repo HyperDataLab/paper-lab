@@ -64,14 +64,20 @@ it('K4 paper OpenKG tab sends keyword, title and GROBID reference anchors and ma
       </StorageProvider>
     </AuthContext.Provider>,
   );
-  const panel = await screen.findByRole('region', { name: 'Bài liên quan theo SciAtlas' });
+  const panel = await screen.findByRole('region', { name: 'Bài liên quan (KG của lab)' });
   expect(within(panel).getByText('High keyword')).toBeInTheDocument();
   expect(within(panel).queryByText('Low keyword')).toBeNull();
   fireEvent.click(within(panel).getByRole('button', { name: 'Tìm' }));
-  const list = await within(panel).findByRole('list', { name: 'Bài liên quan theo SciAtlas' });
+  const list = await within(panel).findByRole('list', { name: 'Bài liên quan (KG của lab)' });
   expect(within(list).getByText('Đã có trong Library')).toBeInTheDocument();
   expect(within(list).queryByRole('button', { name: 'Thêm vào corpus' })).toBeNull();
-  const body = JSON.parse(String((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body));
+  const body = JSON.parse(
+    String(
+      (fetcher.mock.calls as unknown as [string, RequestInit][]).find(([url]) =>
+        url.endsWith('/v1/kg/search'),
+      )?.[1].body,
+    ),
+  );
   expect(body).toMatchObject({
     keywords: [{ text: 'High keyword', level: 'high' }],
     titles: [{ title: grobidPaper.title, level: 'high' }],

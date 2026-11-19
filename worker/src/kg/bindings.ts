@@ -17,6 +17,7 @@ export interface KgBindings {
     upsert(
       vectors: { id: string; values: number[]; metadata: { year?: number; subfieldId?: string } }[],
     ): Promise<unknown>;
+    query(vector: number[], options: { topK: number }): Promise<{ matches: { id: string; score: number }[] }>;
   };
   AI?: {
     run(model: typeof EMBEDDING_MODEL, input: { text: string[] }): Promise<{ data?: number[][] }>;

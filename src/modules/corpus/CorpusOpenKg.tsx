@@ -8,7 +8,7 @@ import {
   type SciAtlasPaper,
 } from '@/core/openkg';
 import type { Corpus } from '@/core/schemas/corpus';
-import { SciAtlasPanel } from '@/shared/openkg/SciAtlasPanel';
+import { RelatedPapersPanel } from '@/shared/openkg/RelatedPapersPanel';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Card } from '@/shared/ui/Card';
 import openKgStyles from '@/shared/ui/openkg/openkg.module.css';
@@ -36,7 +36,7 @@ export function CorpusOpenKg({
   save,
 }: {
   corpus: Corpus;
-  /** Saves the corpus; with it, SciAtlas results can be added to the corpus by DOI. */
+  /** Saves the corpus; with it, related papers from the lab KG can be added to the corpus by DOI. */
   save?: (value: Corpus) => Promise<void>;
 }) {
   const { corpusOpenKg } = useRepositories();
@@ -51,7 +51,7 @@ export function CorpusOpenKg({
   }, [corpus, corpusOpenKg]);
 
   const current = result?.corpus === corpus ? result : undefined;
-  // The last graph keeps the SciAtlas panel (and its results) on screen while the graph rebuilds after an add.
+  // The last graph keeps the related-papers panel (and its results) on screen while the graph rebuilds after an add.
   const lastGraph = result?.graph;
   const anchors = useMemo(() => (lastGraph ? corpusSciAtlasAnchors(lastGraph) : undefined), [lastGraph]);
   const held = useMemo(() => heldIds(corpus), [corpus]);
@@ -84,7 +84,7 @@ export function CorpusOpenKg({
         ) : (
           <p className={openKgStyles.muted}>Đang tải đồ thị tri thức…</p>
         )}
-        {anchors && <SciAtlasPanel anchors={anchors} known={known} onAdd={add} />}
+        {anchors && <RelatedPapersPanel anchors={anchors} known={known} onAdd={add} />}
       </section>
     </Card>
   );

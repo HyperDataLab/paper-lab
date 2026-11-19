@@ -19,7 +19,7 @@ export type SciAtlasErrorCode =
   | 'error';
 
 const MESSAGES: Record<SciAtlasErrorCode, string> = {
-  signed_out: 'Hãy đăng nhập bằng tài khoản lab để tìm bài liên quan theo SciAtlas.',
+  signed_out: 'Hãy đăng nhập bằng tài khoản lab để lấy thêm id từ SciAtlas.',
   unauthenticated: 'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.',
   forbidden: 'Tài khoản này không được dùng SciAtlas qua máy chủ lab.',
   not_configured:

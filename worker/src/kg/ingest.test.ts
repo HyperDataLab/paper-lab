@@ -14,7 +14,7 @@ function setup() {
   const upsert = vi.fn(async () => ({}));
   const bindings: KgBindings = {
     KG: db,
-    KG_VECTORS: { upsert },
+    KG_VECTORS: { upsert, query: async () => ({ matches: [] }) },
     AI: { run },
     OPENALEX_MAILTO: 'test@example.invalid',
     OPENALEX_API_KEY: 'synthetic-key',

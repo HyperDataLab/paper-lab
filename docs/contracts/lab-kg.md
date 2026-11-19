@@ -1,10 +1,10 @@
-# Lab knowledge graph (L1–L2)
+# Lab knowledge graph (L1–L3)
 
-The PaperLab PDF worker builds the lab graph from OpenAlex works. It stores graph data and full-text indexes in D1 and one title + abstract embedding per paper in Vectorize. The corpus detail and Library actions send identifiers only. Abstracts are stored for internal search. The ingest routes expose counts and job logs.
+The PaperLab PDF worker builds the lab graph from OpenAlex works. It stores graph data and full-text indexes in D1 and one title + abstract embedding per paper in Vectorize. The corpus detail and Library actions send identifiers only. Abstracts are stored for internal search. The ingest routes expose counts and job logs. The search and read routes (L3) answer from this graph only.
 
 ## HTTP contract
 
-Both routes require `Authorization: Bearer <Firebase ID token>` from an accepted project and a verified lab account. Missing or invalid credentials return `401`, and an account outside the lab returns `403`. An authenticated request gets `503` with `error: "kg_not_configured"` when any of `KG`, `KG_VECTORS` or `AI` is absent. Errors use the worker's usual `{ error, message }` JSON shape.
+Every `/v1/kg/*` route requires `Authorization: Bearer <Firebase ID token>` from an accepted project and a verified lab account. Missing or invalid credentials return `401`, and an account outside the lab returns `403`. An authenticated request gets `503` with `error: "kg_not_configured"` when any of `KG`, `KG_VECTORS` or `AI` is absent. Errors use the worker's usual `{ error, message }` JSON shape.
 
 ### `POST /v1/kg/ingest`
 
@@ -32,6 +32,83 @@ Both routes require `Authorization: Bearer <Firebase ID token>` from an accepted
 ```
 
 Logs contain the latest 20 attempt outcomes, newest first, with UTC timestamps. A queue row is keyed by the normalized submitted identifier. A DOI and an OpenAlex ID can have distinct queue rows and converge on the same graph paper and vector. Completed rows keep the resolved OpenAlex paper ID so alternate DOIs can be linked to the paper.
+
+### `POST /v1/kg/search` (L3)
+
+The request and response have the same shape as [`POST /v1/sciatlas/search`](sciatlas-proxy.md): `query`, `keywords` and `titles` with `high` / `middle` / `low` levels, `references`, `after` / `before`, `topK` (capped at 20), `mode` (`keyword` | `semantic` | `title` | `hybrid`, default `hybrid`) and `ranking` (`precision` | `balanced` | `discovery` | `impact`, default `balanced`). At least one keyword or title is required. The body is limited to 64 KB (`413`). A `400` names only the failing fields. Every answer carries `Cache-Control: no-store`, and the query text is never logged.
+
+```json
+{
+  "papers": [
+    {
+      "rank": 1,
+      "title": "A related synthetic paper",
+      "year": 2021,
+      "score": 0.6312,
+      "citations": 14,
+      "venue": "Synthetic Journal",
+      "authors": ["A. Author"],
+      "id": "W123",
+      "doi": "10.1000/example",
+      "openalexId": "W123",
+      "abstract": "…"
+    }
+  ],
+  "elapsedMs": 41
+}
+```
+
+`id` and `openalexId` are the OpenAlex short ID. `doi` and `abstract` (cut at 4000 characters) are omitted when unknown. When the KG holds no paper, the answer is `{ "papers": [], "hint": "kg_empty", "elapsedMs": … }` and nothing is embedded. A failed D1 query, or a failed embedding in `semantic` mode, returns `502` with `error: "kg_error"`. In `hybrid` mode a failed embedding only drops the vector channel.
+
+Retrieval gathers up to 100 candidates per channel:
+
+- **FTS:** `paper_fts` (title + abstract) matched against the query text. An empty query means the titles and keywords joined with `; `. Text is normalised, and each token is quoted and joined with `OR`, so FTS5 operators in user text are inert. `bm25` ranks are scaled to [0, 1] with the best match at 1.
+- **Keyword:** each anchor keyword resolves to KG keywords by exact `text_normalized` or a `keyword_fts` phrase match. Papers come through `has_keyword`. The signal is Σ w(level) · (0.5 + 0.5 · relevance_score) over the anchors a paper matches, divided by Σ w(level) over all anchors. The weights are the SciAtlas keyword scores divided by the high score: high 1, middle 7/9, low 4/9.
+- **Title:** `title`-column FTS for each title anchor, then the best token Dice similarity to an anchor title times its SciAtlas confidence (high 0.95, middle 0.85, low 0.65).
+- **Vector:** used in `semantic` and `hybrid` only. The query text is embedded with `@cf/baai/bge-base-en-v1.5`, as at ingest. The 50 nearest Vectorize matches give cosine similarity clamped to [0, 1]. Matches missing from D1 are dropped.
+- **Graph:**
+  - `sharedHigh` is the share of high-level anchor keywords the paper carries.
+  - `citation` is min(1, links / 2), where links counts `cites` rows to or from an anchor paper. Anchor papers are the KG papers whose normalised title equals a title or reference anchor.
+  - `cooccur` is the best Jaccard among the 20 strongest `cooccur` neighbours of the matched high-level keywords, or of all matched keywords when none is high.
+
+Scoring lives in `src/core/labKg/search.ts`:
+
+```
+text      = Σ mode weight · channel signal
+            keyword {fts 0.4, keyword 0.6} · semantic {vector 1} · title {title 1}
+            hybrid {fts 0.2, keyword 0.3, title 0.15, vector 0.35}
+graph     = 0.5 · sharedHigh + 0.3 · citation + 0.2 · cooccur
+relevance = 0.8 · text + 0.2 · graph
+impact    = min(1, ln(1 + citations) / ln(1001))
+recency   = clamp(1 − (this year − year) / 10, 0, 1), 0 when the year is unknown
+novelty   = 0.6 · recency + 0.4 · (1 − impact)
+score     = r · relevance + i · impact + n · novelty
+            precision (0.9, 0.05, 0.05) · balanced (0.7, 0.15, 0.15)
+            discovery (0.6, 0.05, 0.35) · impact (0.55, 0.4, 0.05)
+```
+
+- Outside `hybrid`, a paper needs a non-zero text signal in its mode's own channels. In `hybrid`, graph links alone can admit a paper.
+- `after` and `before` filter on `publication_year`, the only date D1 holds, so they work by year. A paper with no year is left out when a range is set.
+- Papers matched by a title anchor are left out, because a title anchor is the paper being searched from.
+- Ties go to more citations, then the smaller ID. `score` is rounded to four decimals.
+
+### `GET /v1/kg/papers/:id`, `GET /v1/kg/keywords/:id`, `GET /v1/kg/stats` (L3)
+
+Each answers `200` JSON with a weak `ETag` and `Cache-Control: private, no-cache`. A matching `If-None-Match` gets `304`. Other methods get `405`. Shapes are `KgPaperDetailSchema`, `KgKeywordDetailSchema` and `KgStatsSchema` in `src/core/schemas/labKg.ts`.
+
+- **`papers/:id`** takes an OpenAlex work ID or a DOI, URL-encoded when it contains a slash. A malformed ID gets `400`, and a paper outside the KG gets `404`. The answer contains:
+  - `paper`: ID, DOI, title, abstract, year, citations, type and venue;
+  - `keywords`: ordered by relevance;
+  - `topics`: each with its subfield, field and domain chain;
+  - `authors`: in position order, each with the institutions recorded for this paper;
+  - `cites` and `citedBy`: limited to papers inside the KG;
+  - `contributions`: SCG contributions whose `paper_doi` equals the paper's DOI.
+- **`keywords/:id`** takes the keyword ID either raw (`/v1/kg/keywords/keywords/graph-theory`) or encoded (`keywords%2Fgraph-theory`). An unknown ID gets `404`. The answer contains `keyword` (ID, text and frequency), the 30 strongest `cooccurring` keywords with count and Jaccard, and `papersPerYear`.
+- **`stats`** returns row counts for every node table (`paper`, `keyword`, `author`, `institution`, `source`, `topic`, `subfield`, `field`, `domain` and `contribution`), every edge table, and the ingest queue counts by state.
+
+## SciAtlas as an ID source
+
+The related-papers panel ("Bài liên quan (KG của lab)", `src/shared/openkg/RelatedPapersPanel.tsx`) searches the lab KG. Its "Tìm thêm id từ SciAtlas" action sends the same anchors to `POST /v1/sciatlas/search` and reduces the answer to DOIs and OpenAlex IDs at once. It queues them with `POST /v1/kg/ingest` (`source: "sciatlas_pointer"`, `depth: 0`, so only the work itself is fetched from OpenAlex) and shows only counts. SciAtlas titles, abstracts, scores and venues are never shown or stored. The panel's status line shows the KG's paper and keyword counts and the queued jobs (`pending` + `processing`) from `GET /v1/kg/stats`.
 
 ## Ingest and storage
 

@@ -1,10 +1,14 @@
+import type { SciAtlasSearchRequest } from '@/core/openkg';
 import {
   KG_INGEST_LIMIT,
   KgIngestResultSchema,
   KgIngestStatusSchema,
+  KgSearchResponseSchema,
+  KgStatsSchema,
   kgIdentifier,
   paperId,
   type KgIngestResult,
+  type KgIngestSource,
 } from '@/core/schemas/labKg';
 import { PDF_WORKER_URL } from '@/shared/pdfStore';
 
@@ -29,11 +33,12 @@ async function request(path: string, token: string | null, init?: RequestInit): 
   if (!token) throw new LabKgError('Hãy đăng nhập bằng tài khoản lab để dùng KG.');
   let response: Response;
   try {
-    response = await fetch(`${PDF_WORKER_URL}/v1/kg/ingest${path}`, {
+    response = await fetch(`${PDF_WORKER_URL}/v1/kg${path}`, {
       ...init,
       headers: { Authorization: `Bearer ${token}`, ...init?.headers },
     });
-  } catch {
+  } catch (cause) {
+    if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
     throw new LabKgError('Không kết nối được máy chủ lab.');
   }
   const body: unknown = await response.json().catch(() => null);
@@ -47,17 +52,23 @@ async function request(path: string, token: string | null, init?: RequestInit): 
         ? 'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.'
         : response.status === 403
           ? 'Tài khoản này không được dùng KG của lab.'
-          : 'Yêu cầu tới KG của lab gặp lỗi.';
+          : response.status === 400 && path === '/search'
+            ? 'Yêu cầu chưa hợp lệ: cần ít nhất một keyword hoặc title.'
+            : 'Yêu cầu tới KG của lab gặp lỗi.';
   throw new LabKgError(message, [`HTTP ${response.status}`, code].filter(Boolean).join(' · '));
 }
 
-export async function enqueueLabKg(ids: string[], token: string | null) {
+/** Sends ids to the ingest queue. A SciAtlas pointer is queued at depth 0: only the work itself is fetched. */
+export async function enqueueLabKg(ids: string[], token: string | null, source: KgIngestSource = 'seed') {
   const result: KgIngestResult = { queued: 0, processed: 0, skipped: 0, errors: [] };
   for (let i = 0; i < ids.length; i += KG_INGEST_LIMIT) {
-    const raw = await request('', token, {
+    const raw = await request('/ingest', token, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: ids.slice(i, i + KG_INGEST_LIMIT) }),
+      body: JSON.stringify({
+        ids: ids.slice(i, i + KG_INGEST_LIMIT),
+        ...(source === 'seed' ? {} : { source, depth: 0 }),
+      }),
     });
     const parsed = KgIngestResultSchema.safeParse(raw);
     if (!parsed.success)
@@ -72,8 +83,33 @@ export async function enqueueLabKg(ids: string[], token: string | null) {
 }
 
 export async function getLabKgStatus(token: string | null, signal?: AbortSignal) {
-  const parsed = KgIngestStatusSchema.safeParse(await request('/status', token, { signal }));
+  const parsed = KgIngestStatusSchema.safeParse(await request('/ingest/status', token, { signal }));
   if (!parsed.success)
     throw new LabKgError('Không đọc được trạng thái KG của lab.', 'Invalid ingest status.');
+  return parsed.data;
+}
+
+/** Related papers from the lab KG, in the SciAtlas result shape. */
+export async function searchLabKg(
+  request_: SciAtlasSearchRequest,
+  token: string | null,
+  signal?: AbortSignal,
+) {
+  const parsed = KgSearchResponseSchema.safeParse(
+    await request('/search', token, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request_),
+      signal,
+    }),
+  );
+  if (!parsed.success)
+    throw new LabKgError('Không đọc được kết quả tìm trong KG của lab.', 'Invalid search response.');
+  return parsed.data;
+}
+
+export async function getLabKgStats(token: string | null, signal?: AbortSignal) {
+  const parsed = KgStatsSchema.safeParse(await request('/stats', token, { signal }));
+  if (!parsed.success) throw new LabKgError('Không đọc được số liệu KG của lab.', 'Invalid stats response.');
   return parsed.data;
 }
