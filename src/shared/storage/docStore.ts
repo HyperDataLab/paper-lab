@@ -162,20 +162,19 @@ export class BufferedTx implements DocTx {
     return out;
   }
   async query(collection: string, query: DocQuery = {}) {
-    // Order and limit go to the store only when no buffered write could change which rows they keep.
+    // The whole query goes to the store unless buffered writes to this collection must be merged in first.
     const buffered = [...this.writes.values()].some((write) => write.collection === collection);
-    const read: DocQuery = buffered
-      ? { where: query.where }
-      : { where: query.where, orderBy: query.orderBy, desc: query.desc, limit: query.limit };
+    const read: DocQuery = buffered ? { where: query.where } : query;
     const committed = await this.base.query(collection, read);
     this.queries.push({ collection, query: read, signature: signatureOf(committed) });
+    for (const row of committed) this.record(collection, row.id, row.version);
+    if (!buffered) return committed;
     const rows = new Map(committed.map((row) => [row.id, row]));
     for (const write of this.writes.values()) {
       if (write.collection !== collection) continue;
       if (write.removed || !matchesWhere(collection, write.doc, query.where)) rows.delete(write.id);
       else rows.set(write.id, { id: write.id, doc: write.doc, version: write.version });
     }
-    for (const row of committed) this.record(collection, row.id, row.version);
     return selectRows(collection, [...rows.values()], query);
   }
   private currentVersion(collection: string, id: string) {

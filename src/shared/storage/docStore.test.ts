@@ -97,6 +97,26 @@ describe.each(stores)('%s contract', (_name, make) => {
   });
 });
 
+it('DexieDocStore maps registry ids onto compound Dexie keys, and paper deletion removes review n-grams', async () => {
+  const db = createDb(`test-${crypto.randomUUID()}`);
+  const store = new DexieDocStore(db);
+  const repo = createRepositories(db, undefined, undefined, store);
+  const paper = await repo.papers.create({
+    schemaVersion: 1,
+    id: crypto.randomUUID(),
+    title: 'Paper',
+    createdAt: at,
+    updatedAt: at,
+    source: { kind: 'text', fileName: 'a.txt', pageCount: null, sha256: 'sha256:abc' },
+    sections: [],
+    paragraphs: [],
+  });
+  await db.reviewNgrams.add({ hash: 'h1', paperId: paper.id });
+  expect((await store.get('reviewNgrams', `${paper.id}:h1`))?.doc).toEqual({ hash: 'h1', paperId: paper.id });
+  await repo.papers.delete(paper.id);
+  expect(await db.reviewNgrams.count()).toBe(0);
+});
+
 describe('MemoryDocStore conflicts', () => {
   it('retries a unit of work once when a read document changed, then gives up', async () => {
     const store = new MemoryDocStore();
