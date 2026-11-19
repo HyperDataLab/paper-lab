@@ -10,16 +10,17 @@ import {
   type StanceRun,
 } from '@/core/schemas';
 import { carryDecisions, mergeStanceRuns } from '@/core/sectionRun';
-import type { ParagraphDb } from './db';
+import type { DocReader, DocStore } from './docStore';
+import { appendAudit, requirePaper } from './storageShared';
 
 export function createStanceRepository(
-  db: ParagraphDb,
+  store: DocStore,
   now: () => string,
   makeAudit: (id: string, action: AuditEvent['action'], actor: AuditEvent['actor']) => AuditEvent,
 ) {
-  async function get(paperId: string) {
-    const row = await db.stance.get(paperId);
-    return row ? StanceRecordSchema.parse(row) : undefined;
+  async function read(reader: DocReader, paperId: string) {
+    const row = await reader.get('stance', paperId);
+    return row ? StanceRecordSchema.parse(row.doc) : undefined;
   }
   const empty = (paperId: string): StanceRecord => ({
     schemaVersion: 1,
@@ -29,28 +30,25 @@ export function createStanceRepository(
     decisions: [],
     pending: null,
   });
-  async function requirePaper(paperId: string) {
-    if (!(await db.papers.get(paperId))) throw new Error('Paper not found');
-  }
   return {
-    get,
+    get: (paperId: string) => read(store, paperId),
     async savePending(paperId: string, pending: StancePending | null) {
-      return db.transaction('rw', [db.papers, db.stance], async () => {
-        await requirePaper(paperId);
+      return store.unitOfWork(async (tx) => {
+        await requirePaper(tx, paperId);
         const value = StanceRecordSchema.parse({
-          ...((await get(paperId)) ?? empty(paperId)),
+          ...((await read(tx, paperId)) ?? empty(paperId)),
           updatedAt: now(),
           pending,
         });
-        await db.stance.put(value);
+        await tx.put('stance', paperId, value);
         return value;
       });
     },
     async saveRun(paperId: string, input: StanceRun, pending: StancePending | null = null) {
       const run = StanceRunSchema.parse(input);
-      return db.transaction('rw', [db.papers, db.stance, db.auditEvents], async () => {
-        await requirePaper(paperId);
-        const previous = (await get(paperId)) ?? empty(paperId);
+      return store.unitOfWork(async (tx) => {
+        await requirePaper(tx, paperId);
+        const previous = (await read(tx, paperId)) ?? empty(paperId);
         const at = now();
         const value = StanceRecordSchema.parse({
           ...previous,
@@ -58,8 +56,9 @@ export function createStanceRepository(
           pending,
           runs: [...previous.runs, run],
         });
-        await db.stance.put(value);
-        await db.auditEvents.add(
+        await tx.put('stance', paperId, value);
+        await appendAudit(
+          tx,
           AuditEventSchema.parse({
             ...makeAudit(paperId, 'run_stance', 'model'),
             at,
@@ -72,9 +71,9 @@ export function createStanceRepository(
     /** Merges a run over a few sections into the latest stance run; see core/sectionRun for the rules. */
     async saveSectionRun(paperId: string, input: StanceRun, sectionIds: string[]) {
       const next = StanceRunSchema.parse(input);
-      return db.transaction('rw', [db.papers, db.stance, db.auditEvents], async () => {
-        await requirePaper(paperId);
-        const previous = (await get(paperId)) ?? empty(paperId);
+      return store.unitOfWork(async (tx) => {
+        await requirePaper(tx, paperId);
+        const previous = (await read(tx, paperId)) ?? empty(paperId);
         const latest = previous.runs.at(-1);
         const at = now();
         const merged = latest
@@ -97,8 +96,9 @@ export function createStanceRepository(
               : []),
           ],
         });
-        await db.stance.put(value);
-        await db.auditEvents.add(
+        await tx.put('stance', paperId, value);
+        await appendAudit(
+          tx,
           AuditEventSchema.parse({
             ...makeAudit(paperId, 'run_stance', 'model'),
             at,
@@ -109,9 +109,9 @@ export function createStanceRepository(
       });
     },
     async decide(paperId: string, input: Omit<StanceDecision, 'at'>) {
-      return db.transaction('rw', [db.papers, db.stance, db.auditEvents], async () => {
-        await requirePaper(paperId);
-        const previous = await get(paperId);
+      return store.unitOfWork(async (tx) => {
+        await requirePaper(tx, paperId);
+        const previous = await read(tx, paperId);
         if (!previous?.runs.some((run) => run.id === input.run_id)) throw new Error('Stance run not found');
         const at = now();
         const decision = StanceDecisionSchema.parse({ ...input, at });
@@ -120,8 +120,9 @@ export function createStanceRepository(
           updatedAt: at,
           decisions: [...previous.decisions, decision],
         });
-        await db.stance.put(value);
-        await db.auditEvents.add(
+        await tx.put('stance', paperId, value);
+        await appendAudit(
+          tx,
           AuditEventSchema.parse({
             ...makeAudit(paperId, 'review_stance', 'human'),
             at,

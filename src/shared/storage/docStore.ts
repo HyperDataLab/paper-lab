@@ -154,8 +154,13 @@ export class BufferedTx implements DocTx {
     return out;
   }
   async query(collection: string, query: DocQuery = {}) {
-    const committed = await this.base.query(collection, { where: query.where });
-    this.queries.push({ collection, query: { where: query.where }, signature: signatureOf(committed) });
+    // Order and limit go to the store only when no buffered write could change which rows they keep.
+    const buffered = [...this.writes.values()].some((write) => write.collection === collection);
+    const read: DocQuery = buffered
+      ? { where: query.where }
+      : { where: query.where, orderBy: query.orderBy, desc: query.desc, limit: query.limit };
+    const committed = await this.base.query(collection, read);
+    this.queries.push({ collection, query: read, signature: signatureOf(committed) });
     const rows = new Map(committed.map((row) => [row.id, row]));
     for (const write of this.writes.values()) {
       if (write.collection !== collection) continue;
@@ -254,8 +259,8 @@ export class MemoryDocStore implements DocStore {
       if (current !== read.version) throw new StorageConflictError(read.collection, read.id, current);
     }
     for (const read of tx.queries) {
-      if (signatureOf(this.rows(read.collection, read.query.where)) !== read.signature)
-        throw new StorageConflictError(read.collection, '', null);
+      const rows = selectRows(read.collection, this.rows(read.collection, read.query.where), read.query);
+      if (signatureOf(rows) !== read.signature) throw new StorageConflictError(read.collection, '', null);
     }
     for (const write of tx.writes.values()) this.check(write.collection, write.id, write.expectedVersion);
     for (const write of tx.writes.values()) {

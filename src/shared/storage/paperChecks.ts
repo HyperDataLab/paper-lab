@@ -1,31 +1,32 @@
 import {
   PaperChecksRecordSchema,
+  PaperSchema,
   AuditEventSchema,
+  type AuditEvent,
   type PaperChecksRecord,
   type CheckDecision,
 } from '@/core/schemas';
 import { validateLocations } from '@/core/paperChecks';
 import { reconcileCheckDecisions } from '@/core/paperChecks/reconcile';
-import type { StorageDeps } from './storageShared';
-import type { createPapersRepository } from './papers';
-import type { ParagraphDb } from './db';
-export function createPaperChecksRepository(
-  db: ParagraphDb,
-  deps: StorageDeps,
-  papers: ReturnType<typeof createPapersRepository>,
-) {
+import { appendAudit, type StorageDeps } from './storageShared';
+import type { DocReader, DocStore } from './docStore';
+
+async function read(reader: DocReader, paperId: string) {
+  const row = await reader.get('paperChecks', paperId);
+  return row ? PaperChecksRecordSchema.parse(row.doc) : undefined;
+}
+
+export function createPaperChecksRepository(store: DocStore, deps: StorageDeps) {
   const { now, makeAudit } = deps;
   const paperChecks = {
-    async get(paperId: string) {
-      const value = await db.paperChecks.get(paperId);
-      return value ? PaperChecksRecordSchema.parse(value) : undefined;
-    },
+    get: (paperId: string) => read(store, paperId),
     async save(input: PaperChecksRecord) {
-      return db.transaction('rw', db.papers, db.paperChecks, async () => {
+      return store.unitOfWork(async (tx) => {
         const parsed = PaperChecksRecordSchema.parse(input);
-        const paper = await papers.get(parsed.paperId);
-        if (!paper) throw new Error('Paper not found');
-        const current = await paperChecks.get(parsed.paperId);
+        const paperRow = await tx.get('papers', parsed.paperId);
+        if (!paperRow) throw new Error('Paper not found');
+        const paper = PaperSchema.parse(paperRow.doc);
+        const current = await read(tx, parsed.paperId);
         const reconciled = current ? reconcileCheckDecisions(paper, current, parsed.report) : null;
         const decisions = new Map(
           parsed.decisions
@@ -50,7 +51,7 @@ export function createPaperChecksRepository(
           decisions: [...decisions.values()],
           orphanedDecisions: reconciled?.orphanedDecisions ?? parsed.orphanedDecisions,
         });
-        await db.paperChecks.put(value);
+        await tx.put('paperChecks', value.paperId, value);
         return value;
       });
     },
@@ -60,16 +61,23 @@ export function createPaperChecksRepository(
       status: CheckDecision['status'] | 'candidate',
       note = '',
     ) {
-      return db.transaction('rw', db.paperChecks, db.auditEvents, async () => {
-        const current = await paperChecks.get(paperId);
+      return store.unitOfWork(async (tx) => {
+        const current = await read(tx, paperId);
         if (!current?.report.checks.some((check) => check.findings.some((f) => f.id === findingId)))
           throw new Error('Check finding not found');
         const before = current.decisions.find((d) => d.findingId === findingId);
-        const lastAudit = await db.auditEvents.orderBy('at').last();
+        const [lastAudit] = await tx.query('auditEvents', {
+          orderBy: 'at',
+          desc: true,
+          limit: 1,
+          select: 'summary',
+        });
         const at = new Date(
           Math.max(
             Date.parse(now()),
-            Date.parse(lastAudit?.at ?? '1970-01-01T00:00:00.000Z') + 1,
+            Date.parse(
+              (lastAudit?.doc as Pick<AuditEvent, 'at'> | undefined)?.at ?? '1970-01-01T00:00:00.000Z',
+            ) + 1,
             Date.parse(current.report.generatedAt) + 1,
             Date.parse(current.reviewedAt ?? current.report.generatedAt) + 1,
             ...current.decisions.map((d) => Date.parse(d.at) + 1),
@@ -78,8 +86,9 @@ export function createPaperChecksRepository(
         const decisions = current.decisions.filter((d) => d.findingId !== findingId);
         if (status !== 'candidate') decisions.push({ findingId, status, note, at });
         const value = PaperChecksRecordSchema.parse({ ...current, decisions, reviewedAt: at });
-        await db.paperChecks.put(value);
-        await db.auditEvents.add(
+        await tx.put('paperChecks', paperId, value);
+        await appendAudit(
+          tx,
           AuditEventSchema.parse({
             ...makeAudit(paperId, 'review_check', 'human'),
             issueId: findingId,

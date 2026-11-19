@@ -6,6 +6,16 @@ import {
   type AuditEvent,
 } from '@/core/schemas';
 import type { ParagraphDb } from './db';
+import type { DocReader, DocWriter } from './docStore';
+/** Appends an audit event; an event id is never reused. */
+export async function appendAudit(tx: DocWriter, event: AuditEvent) {
+  await tx.put('auditEvents', event.id, AuditEventSchema.parse(event), null);
+}
+export async function requirePaper(reader: DocReader, paperId: string) {
+  const row = await reader.get('papers', paperId);
+  if (!row) throw new Error('Paper not found');
+  return row.doc;
+}
 export class SourceImmutableError extends Error {
   override name = 'SourceImmutableError';
 }

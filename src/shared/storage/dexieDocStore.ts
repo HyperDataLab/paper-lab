@@ -71,13 +71,26 @@ export class DexieDocStore implements DocStore {
         (typeof value === 'string' || typeof value === 'number') &&
         (field === keyPath || table.schema.idxByName[field]),
     );
+    // With no filter, an indexed order and a limit are read straight from the index.
+    if (
+      !entries.length &&
+      query.orderBy &&
+      query.limit !== undefined &&
+      table.schema.idxByName[query.orderBy]
+    ) {
+      const ordered = table.orderBy(query.orderBy);
+      const docs = await (query.desc ? ordered.reverse() : ordered).limit(query.limit).toArray();
+      return selectRows(collection, this.rows(collection, docs), query);
+    }
     const source = indexed ? table.where(indexed[0]).equals(indexed[1] as string) : table.toCollection();
     const docs = await source.filter((doc) => matchesWhere(doc, query.where)).toArray();
-    const rows = docs.map((doc) => {
+    return selectRows(collection, this.rows(collection, docs), query);
+  }
+  private rows(collection: string, docs: unknown[]): QueryRow[] {
+    return docs.map((doc) => {
       const id = this.idOf(collection, doc);
       return { id, doc, version: this.versionOf(collection, id) };
     });
-    return selectRows(collection, rows, query);
   }
   private async checked(collection: string, id: string, expected: ExpectedVersion) {
     if (expected === undefined) return;

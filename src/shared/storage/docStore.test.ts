@@ -120,6 +120,20 @@ describe('MemoryDocStore conflicts', () => {
     ).rejects.toMatchObject({ collection: 'autoresearchRuns', id: 'a' });
   });
 
+  it('commits a query-only unit of work at once when nothing changed', async () => {
+    const store = new MemoryDocStore();
+    await store.put('autoresearchRuns', 'b', run('b', 'p1', at));
+    await store.put('autoresearchRuns', 'a', run('a', 'p1', at));
+    let attempts = 0;
+    await store.unitOfWork(async (tx) => {
+      attempts++;
+      await tx.query('autoresearchRuns', { where: { projectId: 'p1' } });
+      await tx.query('autoresearchRuns', { orderBy: 'createdAt', desc: true, limit: 1 });
+      await tx.put('autoresearchRuns', 'c', run('c', 'p2', at));
+    });
+    expect(attempts).toBe(1);
+  });
+
   it('treats a new document matching a query as a conflict', async () => {
     const store = new MemoryDocStore();
     let attempts = 0;
