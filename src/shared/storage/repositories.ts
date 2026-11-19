@@ -1,4 +1,8 @@
 import type { ParagraphDb } from './db';
+import type { DocStore } from './docStore';
+import { DexieDocStore } from './dexieDocStore';
+import type { Repositories } from './types';
+export type { Repositories } from './types';
 import { createStorageDeps } from './storageShared';
 export { SourceImmutableError } from './storageShared';
 export type { AnalysisPatch } from './analyses';
@@ -34,7 +38,8 @@ export function createRepositories(
   db: ParagraphDb,
   clock = () => new Date(),
   ids = () => crypto.randomUUID(),
-) {
+  store: DocStore = new DexieDocStore(db),
+): Repositories {
   const deps = createStorageDeps(clock, ids);
   const { now, makeAudit } = deps;
   const analyses = createAnalysesRepository(db, deps);
@@ -53,7 +58,7 @@ export function createRepositories(
   const measurements = createMeasurementsRepository(db, now, makeAudit);
   const stance = createStanceRepository(db, now, makeAudit);
   const paperInsights = createPaperInsightsRepository(db, now, makeAudit);
-  const extraction = createExtractionRepository(db, now, makeAudit);
+  const extraction = createExtractionRepository(store, now, makeAudit);
   const library = createLibraryRepository(db, now, ids);
   const corpusKeywords = createCorpusKeywordsRepository(db, library, now);
   const scg = createScgRepository(db, clock);
@@ -77,7 +82,7 @@ export function createRepositories(
   return {
     analyses,
     scg,
-    autoresearch: createAutoResearchRepository(db, deps),
+    autoresearch: createAutoResearchRepository(store, deps),
     audit,
     revisions,
     generations,
@@ -93,7 +98,7 @@ export function createRepositories(
     paperContext,
     paperInsights,
     extraction,
-    researchDesigns: createResearchDesignRepository(db, now),
+    researchDesigns: createResearchDesignRepository(store, now),
     corpora,
     corpusProfiles: createCorpusProfilesRepository(db),
     corpusTopics: createCorpusTopicsRepository(db),
@@ -105,4 +110,3 @@ export function createRepositories(
     transfer,
   };
 }
-export type Repositories = ReturnType<typeof createRepositories>;

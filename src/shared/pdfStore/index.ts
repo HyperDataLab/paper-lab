@@ -1,5 +1,5 @@
 import type { Paper } from '@/core/schemas';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 
 /** The lab's PDF worker. Not a secret: it refuses every request without a lab account's token. */
 export const PDF_WORKER_URL: string =

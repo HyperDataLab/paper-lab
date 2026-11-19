@@ -3,7 +3,7 @@ import { PAPER_PARSER_VERSION, segmentPaper } from '@/core/paper';
 import { guardPaperSize } from '@/shared/paper/sizeGuard';
 import { parseLatex } from '@/shared/paper/latexParser';
 import { parseMarkdown, parsePlainText } from '@/shared/paper/markdownParser';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 
 /** Reads a file in the browser and stores it as a paper. The same file imported twice is one paper. */
 export async function importPaperFile(

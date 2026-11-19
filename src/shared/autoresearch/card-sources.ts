@@ -4,7 +4,7 @@ import { normalizeDoi } from '@/core/library/doi';
 import { buildPaperModel } from '@/core/paperModel';
 import type { ExtractionProject } from '@/core/schemas';
 import { paperDoi } from '@/core/scholarlyContext';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 
 export type FullTextSource = {
   paperId: string;

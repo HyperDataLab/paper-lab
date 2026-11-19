@@ -6,7 +6,7 @@ import type { BankDoc } from '@/core/researchDesign/bank/snapshot';
 import type { ExperimentFactsView } from '@/core/researchDesign/facts/experimentFacts';
 import example from '@/core/researchDesign/facts/example.json';
 import type { Paper, PaperModelView } from '@/core/researchDesign/papers';
-import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
+import { ResearchDesignConflictError } from '@/shared/storage/errors';
 import type { Loaded } from './useEvidence';
 
 /** Synthetic data only: invented sentences, tables and titles. */

@@ -3,7 +3,7 @@ import { webcrypto } from 'node:crypto';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { emptyDraft } from '@/core/researchDesign/draft/schema';
-import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
+import { ResearchDesignConflictError } from '@/shared/storage/errors';
 import { measurementDraft, newRepo, renderSection, setup } from './testSupport';
 import { claimWord } from './words';
 

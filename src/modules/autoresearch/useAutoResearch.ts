@@ -19,7 +19,7 @@ import { useLlm } from '@/shared/llm/LlmProvider';
 import { budgetFor } from '@/shared/llm/runDefaults';
 import { createScholarClient } from '@/shared/scholar/client';
 import { getScholarEmail } from '@/shared/scholar/settings';
-import { AutoResearchConflictError } from '@/shared/storage/autoresearch';
+import { AutoResearchConflictError } from '@/shared/storage/errors';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 
 const now = () => new Date().toISOString();

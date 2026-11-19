@@ -8,7 +8,7 @@ import { checkDesign } from '@/core/researchDesign/draft/checkDesign';
 import { checkChain } from '@/core/researchDesign/draft/checkChain';
 import { checkPlan } from '@/core/researchDesign/draft/checkPlan';
 import type { ExperimentPlan } from '@/core/researchDesign/plan/schema';
-import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
+import { ResearchDesignConflictError } from '@/shared/storage/errors';
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
 import { Card } from '@/shared/ui/Card';

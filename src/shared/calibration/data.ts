@@ -6,7 +6,7 @@ import {
   precisionByType,
 } from '@/core/calibration';
 import type { CalibrationLabel, ExportPackage } from '@/core/schemas';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 export async function loadCalibration(repo: Repositories) {
   return calibrationData(await repo.transfer.exportAll('0.1.0'));
 }

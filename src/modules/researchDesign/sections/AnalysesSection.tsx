@@ -3,7 +3,7 @@ import { checkPlan } from '@/core/researchDesign/draft/checkPlan';
 import { addAnalysis, editAnalysis, removeAnalysis } from '@/core/researchDesign/draft/planOps';
 import type { Draft, DraftAnalysis } from '@/core/researchDesign/draft/schema';
 import type { DraftResult } from '@/core/researchDesign/draft/ops';
-import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
+import { ResearchDesignConflictError } from '@/shared/storage/errors';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';

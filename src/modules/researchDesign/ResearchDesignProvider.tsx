@@ -3,7 +3,8 @@ import type { ExtractionProject } from '@/core/schemas';
 import { emptyResearchDesign, type ResearchDesign } from '@/core/schemas/researchDesign';
 import type { BankDoc } from '@/core/researchDesign/bank/snapshot';
 import type { PapersDoc } from '@/core/researchDesign/papers';
-import { ResearchDesignConflictError, type FreezeForRun } from '@/shared/storage/researchDesigns';
+import { ResearchDesignConflictError } from '@/shared/storage/errors';
+import type { FreezeForRun } from '@/shared/storage/types';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { loadLocalData } from './localData';
 

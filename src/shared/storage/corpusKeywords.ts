@@ -1,27 +1,11 @@
 import { normalizeDoi } from '@/core/library';
 import type { Corpus } from '@/core/schemas/corpus';
-import {
-  CorpusKeywordsSchema,
-  DoiKeywordsSchema,
-  type CorpusKeywords,
-  type KeywordPaper,
-} from '@/core/schemas/corpusKeywords';
+import { CorpusKeywordsSchema, DoiKeywordsSchema, type CorpusKeywords } from '@/core/schemas/corpusKeywords';
 import { LibraryItemSchema, type LibraryItem, type PaperKeyword } from '@/core/schemas/library';
 import type { ParagraphDb } from './db';
 import type { createLibraryRepository } from './library';
-
-/** A member whose keywords have not been fetched yet; `libraryId` is where they will be saved, if it has a record. */
-export interface KeywordTarget {
-  memberId: string;
-  doi: string;
-  libraryId: string | null;
-}
-export interface MemberKeywords {
-  papers: KeywordPaper[];
-  missing: KeywordTarget[];
-  /** Members with no keywords and no DOI to look them up by. */
-  withoutDoi: number;
-}
+import type { KeywordTarget, MemberKeywords } from './types';
+export type { KeywordTarget, MemberKeywords } from './types';
 
 export function createCorpusKeywordsRepository(
   db: ParagraphDb,

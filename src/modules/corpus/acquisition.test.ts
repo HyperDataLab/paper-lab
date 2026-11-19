@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { exampleCorpus } from '@/core/corpus/contract';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 import { acquireMember } from './acquisition';
 
 const mocks = vi.hoisted(() => ({ lookup: vi.fn(), download: vi.fn(), importFile: vi.fn() }));

@@ -1,0 +1,278 @@
+import { COLLECTIONS, type CollectionDef } from '@/core/storage/collections';
+import { StorageConflictError } from './errors';
+
+/**
+ * The storage port every repository is written against. Documents are plain JSON-like values; repositories parse
+ * them with the collection's schema. `version` counts writes to one document and guards against lost updates.
+ */
+export interface Versioned {
+  doc: unknown;
+  version: number;
+}
+export interface QueryRow extends Versioned {
+  id: string;
+}
+export interface DocQuery {
+  /** Equality on indexed fields (dotted paths allowed). An array field matches when it contains the value. */
+  where?: Record<string, unknown>;
+  orderBy?: string;
+  desc?: boolean;
+  limit?: number;
+  /** `summary` returns only the collection's summary fields. */
+  select?: 'full' | 'summary';
+}
+/** `undefined`: write whatever is there. `null`: the document must not exist yet. A number: it must be at that version. */
+export type ExpectedVersion = number | null | undefined;
+
+export interface DocReader {
+  get(collection: string, id: string): Promise<Versioned | null>;
+  getMany(collection: string, ids: readonly string[]): Promise<(Versioned | null)[]>;
+  query(collection: string, query?: DocQuery): Promise<QueryRow[]>;
+}
+export interface DocWriter {
+  /** Writes a document and returns its new version. */
+  put(collection: string, id: string, doc: unknown, expectedVersion?: ExpectedVersion): Promise<number>;
+  remove(collection: string, id: string, expectedVersion?: ExpectedVersion): Promise<void>;
+}
+export type DocTx = DocReader & DocWriter;
+export interface DocStore extends DocTx {
+  /**
+   * Runs `fn` with tracked reads and buffered writes, then commits every write at once. A read document that
+   * changed in the meantime is a conflict: `fn` runs once more, and a second conflict throws StorageConflictError.
+   */
+  unitOfWork<R>(fn: (tx: DocTx) => Promise<R>): Promise<R>;
+}
+
+export function collectionDef(name: string): CollectionDef | undefined {
+  return (COLLECTIONS as Record<string, CollectionDef>)[name];
+}
+
+export function pathValue(doc: unknown, path: string): unknown {
+  let value: unknown = doc;
+  for (const part of path.split('.')) {
+    if (value === null || typeof value !== 'object') return undefined;
+    value = (value as Record<string, unknown>)[part];
+  }
+  return value;
+}
+
+/** The document's id in its collection, from the registry's key (a compound key is a JSON array). */
+export function docId(collection: string, doc: unknown) {
+  const key = collectionDef(collection)?.key ?? 'id';
+  if (Array.isArray(key)) return JSON.stringify(key.map((part) => pathValue(doc, part)));
+  return String(pathValue(doc, key));
+}
+
+export function matchesWhere(doc: unknown, where: DocQuery['where']) {
+  if (!where) return true;
+  return Object.entries(where).every(([field, expected]) => {
+    const value = pathValue(doc, field);
+    return Array.isArray(value) ? value.includes(expected) : value === expected;
+  });
+}
+
+function compare(a: unknown, b: unknown) {
+  if (a === b) return 0;
+  if (a === undefined || a === null) return -1;
+  if (b === undefined || b === null) return 1;
+  return (a as string | number) < (b as string | number) ? -1 : 1;
+}
+
+/** Orders rows by `orderBy`, then by id, as an IndexedDB index does; `desc` reverses the whole order. */
+export function orderRows<T extends QueryRow>(rows: T[], query: DocQuery = {}) {
+  const sorted = [...rows].sort(
+    (a, b) =>
+      (query.orderBy ? compare(pathValue(a.doc, query.orderBy), pathValue(b.doc, query.orderBy)) : 0) ||
+      compare(a.id, b.id),
+  );
+  if (query.desc) sorted.reverse();
+  return query.limit === undefined ? sorted : sorted.slice(0, query.limit);
+}
+
+export function summarize(collection: string, doc: unknown) {
+  const fields = collectionDef(collection)?.summary;
+  if (!fields) return doc;
+  const out: Record<string, unknown> = {};
+  for (const field of fields) {
+    const value = pathValue(doc, field);
+    if (value === undefined) continue;
+    const parts = field.split('.');
+    let target = out;
+    for (const part of parts.slice(0, -1)) target = (target[part] ??= {}) as Record<string, unknown>;
+    target[parts.at(-1)!] = value;
+  }
+  return out;
+}
+
+export function selectRows(collection: string, rows: QueryRow[], query: DocQuery = {}) {
+  const ordered = orderRows(rows, query);
+  return query.select === 'summary'
+    ? ordered.map((row) => ({ ...row, doc: summarize(collection, row.doc) }))
+    : ordered;
+}
+
+const keyOf = (collection: string, id: string) => `${collection}\u0000${id}`;
+
+type BufferedWrite = {
+  collection: string;
+  id: string;
+  doc: unknown;
+  removed: boolean;
+  expectedVersion: ExpectedVersion;
+  version: number;
+};
+type QueryRead = { collection: string; query: DocQuery; signature: string };
+
+const signatureOf = (rows: QueryRow[]) => rows.map((row) => `${row.id}@${row.version}`).join('|');
+
+/** A unit of work over a committed store: reads are recorded, writes wait in a buffer until commit. */
+export class BufferedTx implements DocTx {
+  readonly reads = new Map<string, { collection: string; id: string; version: number | null }>();
+  readonly queries: QueryRead[] = [];
+  readonly writes = new Map<string, BufferedWrite>();
+  constructor(private readonly base: DocReader) {}
+
+  private record(collection: string, id: string, version: number | null) {
+    const key = keyOf(collection, id);
+    if (!this.reads.has(key) && !this.writes.has(key)) this.reads.set(key, { collection, id, version });
+  }
+  private buffered(collection: string, id: string): Versioned | null | undefined {
+    const write = this.writes.get(keyOf(collection, id));
+    if (!write) return undefined;
+    return write.removed ? null : { doc: write.doc, version: write.version };
+  }
+  async get(collection: string, id: string) {
+    const buffered = this.buffered(collection, id);
+    if (buffered !== undefined) return buffered;
+    const row = await this.base.get(collection, id);
+    this.record(collection, id, row?.version ?? null);
+    return row;
+  }
+  async getMany(collection: string, ids: readonly string[]) {
+    const out: (Versioned | null)[] = [];
+    for (const id of ids) out.push(await this.get(collection, id));
+    return out;
+  }
+  async query(collection: string, query: DocQuery = {}) {
+    const committed = await this.base.query(collection, { where: query.where });
+    this.queries.push({ collection, query: { where: query.where }, signature: signatureOf(committed) });
+    const rows = new Map(committed.map((row) => [row.id, row]));
+    for (const write of this.writes.values()) {
+      if (write.collection !== collection) continue;
+      if (write.removed || !matchesWhere(write.doc, query.where)) rows.delete(write.id);
+      else rows.set(write.id, { id: write.id, doc: write.doc, version: write.version });
+    }
+    for (const row of committed) this.record(collection, row.id, row.version);
+    return selectRows(collection, [...rows.values()], query);
+  }
+  private currentVersion(collection: string, id: string) {
+    const key = keyOf(collection, id);
+    const write = this.writes.get(key);
+    if (write) return write.removed ? 0 : write.version;
+    return this.reads.get(key)?.version ?? 0;
+  }
+  put(collection: string, id: string, doc: unknown, expectedVersion?: ExpectedVersion) {
+    const version = this.currentVersion(collection, id) + 1;
+    this.buffer({ collection, id, doc, removed: false, expectedVersion, version });
+    return Promise.resolve(version);
+  }
+  remove(collection: string, id: string, expectedVersion?: ExpectedVersion) {
+    this.buffer({ collection, id, doc: undefined, removed: true, expectedVersion, version: 0 });
+    return Promise.resolve();
+  }
+  private buffer(write: BufferedWrite) {
+    const key = keyOf(write.collection, write.id);
+    const previous = this.writes.get(key);
+    // Only the first write's guard refers to the stored document; later writes build on the buffer.
+    this.writes.set(key, previous ? { ...write, expectedVersion: previous.expectedVersion } : write);
+  }
+}
+
+export function versionMismatch(expected: ExpectedVersion, current: number | null) {
+  if (expected === undefined) return false;
+  return expected === null ? current !== null : current !== expected;
+}
+
+/** In-memory store for tests, with the same conflict rules as the lab server. */
+export class MemoryDocStore implements DocStore {
+  private readonly data = new Map<string, Map<string, Versioned>>();
+
+  private table(collection: string) {
+    let table = this.data.get(collection);
+    if (!table) this.data.set(collection, (table = new Map()));
+    return table;
+  }
+  private copy<T>(value: T): T {
+    return structuredClone(value);
+  }
+  get(collection: string, id: string) {
+    const row = this.table(collection).get(id);
+    return Promise.resolve(row ? { doc: this.copy(row.doc), version: row.version } : null);
+  }
+  async getMany(collection: string, ids: readonly string[]) {
+    return Promise.all(ids.map((id) => this.get(collection, id)));
+  }
+  private rows(collection: string, where: DocQuery['where']) {
+    return [...this.table(collection)]
+      .filter(([, row]) => matchesWhere(row.doc, where))
+      .map(([id, row]) => ({ id, doc: this.copy(row.doc), version: row.version }));
+  }
+  query(collection: string, query: DocQuery = {}) {
+    return Promise.resolve(selectRows(collection, this.rows(collection, query.where), query));
+  }
+  private check(collection: string, id: string, expected: ExpectedVersion) {
+    const current = this.table(collection).get(id)?.version ?? null;
+    if (versionMismatch(expected, current)) throw new StorageConflictError(collection, id, current);
+  }
+  put(collection: string, id: string, doc: unknown, expectedVersion?: ExpectedVersion) {
+    try {
+      this.check(collection, id, expectedVersion);
+    } catch (error) {
+      return Promise.reject(error as Error);
+    }
+    return Promise.resolve(this.write(collection, id, doc));
+  }
+  remove(collection: string, id: string, expectedVersion?: ExpectedVersion) {
+    try {
+      this.check(collection, id, expectedVersion);
+    } catch (error) {
+      return Promise.reject(error as Error);
+    }
+    this.table(collection).delete(id);
+    return Promise.resolve();
+  }
+  private write(collection: string, id: string, doc: unknown) {
+    const table = this.table(collection);
+    const version = (table.get(id)?.version ?? 0) + 1;
+    table.set(id, { doc: this.copy(doc), version });
+    return version;
+  }
+  /** Checks the read set and every guard, then applies all writes; nothing is applied on a conflict. */
+  private commit(tx: BufferedTx) {
+    for (const read of tx.reads.values()) {
+      const current = this.table(read.collection).get(read.id)?.version ?? null;
+      if (current !== read.version) throw new StorageConflictError(read.collection, read.id, current);
+    }
+    for (const read of tx.queries) {
+      if (signatureOf(this.rows(read.collection, read.query.where)) !== read.signature)
+        throw new StorageConflictError(read.collection, '', null);
+    }
+    for (const write of tx.writes.values()) this.check(write.collection, write.id, write.expectedVersion);
+    for (const write of tx.writes.values()) {
+      if (write.removed) this.table(write.collection).delete(write.id);
+      else this.write(write.collection, write.id, write.doc);
+    }
+  }
+  async unitOfWork<R>(fn: (tx: DocTx) => Promise<R>): Promise<R> {
+    for (let attempt = 0; ; attempt++) {
+      const tx = new BufferedTx(this);
+      const result = await fn(tx);
+      try {
+        this.commit(tx);
+        return result;
+      } catch (error) {
+        if (!(error instanceof StorageConflictError) || attempt > 0) throw error;
+      }
+    }
+  }
+}

@@ -8,7 +8,7 @@ import { snapshot } from '@/core/researchDesign/bank/testSupport';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
-import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
+import { ResearchDesignConflictError } from '@/shared/storage/errors';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { ResearchDesignProvider } from '../ResearchDesignProvider';
 import BankSection from '../sections/BankSection';
