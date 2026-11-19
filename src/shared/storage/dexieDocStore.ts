@@ -1,8 +1,9 @@
-import type { Table } from 'dexie';
+import type { IndexableType, Table } from 'dexie';
 import type { ParagraphDb } from './db';
 import {
   BufferedTx,
   matchesWhere,
+  pathValue,
   selectRows,
   versionMismatch,
   type DocQuery,
@@ -18,20 +19,30 @@ import { StorageConflictError } from './errors';
  * The DocStore port over this browser's Dexie tables, kept until the lab server takes over (slice C2).
  * IndexedDB keeps no versions, so they are counted in memory for this tab: a stored document starts at 1.
  * A unit of work runs inside one read-write Dexie transaction, so it cannot conflict with another tab.
+ * A compound key is addressed by the JSON array of its parts, e.g. `["hash","paperId"]`.
  */
 export class DexieDocStore implements DocStore {
   private readonly versions = new Map<string, number>();
   constructor(private readonly db: ParagraphDb) {}
 
-  private table(collection: string): Table<unknown, unknown> {
+  private table(collection: string): Table<unknown, IndexableType> {
     const table = this.db.tables.find((item) => item.name === collection);
     if (!table) throw new Error(`Unknown collection ${collection}`);
-    return table as Table<unknown, unknown>;
+    return table as Table<unknown, IndexableType>;
   }
   private keyPath(collection: string) {
     const keyPath = this.table(collection).schema.primKey.keyPath;
-    if (typeof keyPath !== 'string') throw new Error(`${collection} has a compound key`);
+    if (!keyPath) throw new Error(`${collection} has no inbound key`);
     return keyPath;
+  }
+  private key(collection: string, id: string): IndexableType {
+    return Array.isArray(this.keyPath(collection)) ? (JSON.parse(id) as string[]) : id;
+  }
+  private idOf(collection: string, doc: unknown) {
+    const keyPath = this.keyPath(collection);
+    return Array.isArray(keyPath)
+      ? JSON.stringify(keyPath.map((part) => pathValue(doc, part)))
+      : String(pathValue(doc, keyPath));
   }
   private versionOf(collection: string, id: string) {
     return this.versions.get(`${collection}\u0000${id}`) ?? 1;
@@ -42,11 +53,11 @@ export class DexieDocStore implements DocStore {
     return version;
   }
   async get(collection: string, id: string): Promise<Versioned | null> {
-    const doc = await this.table(collection).get(id);
+    const doc = await this.table(collection).get(this.key(collection, id));
     return doc === undefined ? null : { doc, version: this.versionOf(collection, id) };
   }
   async getMany(collection: string, ids: readonly string[]) {
-    const docs = await this.table(collection).bulkGet([...ids]);
+    const docs = await this.table(collection).bulkGet(ids.map((id) => this.key(collection, id)));
     return docs.map((doc, index) =>
       doc === undefined ? null : { doc, version: this.versionOf(collection, ids[index]!) },
     );
@@ -63,20 +74,20 @@ export class DexieDocStore implements DocStore {
     const source = indexed ? table.where(indexed[0]).equals(indexed[1] as string) : table.toCollection();
     const docs = await source.filter((doc) => matchesWhere(doc, query.where)).toArray();
     const rows = docs.map((doc) => {
-      const id = String((doc as Record<string, unknown>)[keyPath]);
+      const id = this.idOf(collection, doc);
       return { id, doc, version: this.versionOf(collection, id) };
     });
     return selectRows(collection, rows, query);
   }
   private async checked(collection: string, id: string, expected: ExpectedVersion) {
     if (expected === undefined) return;
-    const current =
-      (await this.table(collection).get(id)) === undefined ? null : this.versionOf(collection, id);
+    const stored = await this.table(collection).get(this.key(collection, id));
+    const current = stored === undefined ? null : this.versionOf(collection, id);
     if (versionMismatch(expected, current)) throw new StorageConflictError(collection, id, current);
   }
   private assertKey(collection: string, id: string, doc: unknown) {
-    const key = (doc as Record<string, unknown> | null)?.[this.keyPath(collection)];
-    if (key !== id) throw new Error(`${collection}: document key ${String(key)} is not ${id}`);
+    const key = this.idOf(collection, doc);
+    if (key !== id) throw new Error(`${collection}: document key ${key} is not ${id}`);
   }
   async put(collection: string, id: string, doc: unknown, expectedVersion?: ExpectedVersion) {
     this.assertKey(collection, id, doc);
@@ -93,30 +104,30 @@ export class DexieDocStore implements DocStore {
     const table = this.table(collection);
     await this.db.transaction('rw', table, async () => {
       await this.checked(collection, id, expectedVersion);
-      await table.delete(id);
+      await table.delete(this.key(collection, id));
     });
     this.versions.delete(`${collection}\u0000${id}`);
   }
   async unitOfWork<R>(fn: (tx: DocTx) => Promise<R>): Promise<R> {
-    const touched: string[][] = [];
+    const touched: { collection: string; id: string; removed: boolean }[] = [];
     const result = await this.db.transaction('rw', this.db.tables, async () => {
       const tx = new BufferedTx(this);
       const value = await fn(tx);
       for (const write of tx.writes.values()) {
         await this.checked(write.collection, write.id, write.expectedVersion);
         const table = this.table(write.collection);
-        if (write.removed) await table.delete(write.id);
+        if (write.removed) await table.delete(this.key(write.collection, write.id));
         else {
           this.assertKey(write.collection, write.id, write.doc);
           await table.put(write.doc);
         }
-        touched.push([write.collection, write.id, write.removed ? 'removed' : 'put']);
+        touched.push({ collection: write.collection, id: write.id, removed: write.removed });
       }
       return value;
     });
-    for (const [collection, id, kind] of touched) {
-      if (kind === 'removed') this.versions.delete(`${collection!}\u0000${id!}`);
-      else this.bump(collection!, id!);
+    for (const { collection, id, removed } of touched) {
+      if (removed) this.versions.delete(`${collection}\u0000${id}`);
+      else this.bump(collection, id);
     }
     return result;
   }

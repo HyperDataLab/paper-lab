@@ -1,13 +1,29 @@
 import { PaperSchema, SectionSchema, AuditEventSchema, type Paper } from '@/core/schemas';
 import type { StorageDeps } from './storageShared';
-import type { ParagraphDb } from './db';
-export function createPapersRepository(db: ParagraphDb, deps: StorageDeps) {
+import type { DocStore } from './docStore';
+
+/** Records keyed by the paper id, removed with the paper. */
+const PER_PAPER = [
+  'scgRuns',
+  'paperOverviews',
+  'paperChecks',
+  'paperReviews',
+  'paperProbes',
+  'measurements',
+  'stance',
+  'paperContext',
+  'paperInsights',
+  'grobid',
+] as const;
+
+export function createPapersRepository(store: DocStore, deps: StorageDeps) {
   const { now, makeAudit } = deps;
   const papers = {
     async editRole(id: string, sectionId: string, role: Paper['sections'][number]['role']) {
       const validatedRole = SectionSchema.shape.role.parse(role);
-      return db.transaction('rw', db.papers, db.auditEvents, async () => {
-        const current = await papers.get(id);
+      return store.unitOfWork(async (tx) => {
+        const row = await tx.get('papers', id);
+        const current = row ? PaperSchema.parse(row.doc) : undefined;
         if (!current) throw new Error('Paper not found');
         const section = current.sections.find((item) => item.id === sectionId);
         if (!section) throw new Error('Section not found');
@@ -19,77 +35,57 @@ export function createPapersRepository(db: ParagraphDb, deps: StorageDeps) {
             item.id === sectionId ? { ...item, role: validatedRole } : item,
           ),
         });
-        await db.papers.put(value);
-        await db.auditEvents.add(
-          AuditEventSchema.parse({
-            ...makeAudit(id, 'edit_label', 'human'),
-            before: { sectionId, role: section.role },
-            after: { sectionId, role: validatedRole },
-          }),
-        );
+        await tx.put('papers', id, value);
+        const audit = AuditEventSchema.parse({
+          ...makeAudit(id, 'edit_label', 'human'),
+          before: { sectionId, role: section.role },
+          after: { sectionId, role: validatedRole },
+        });
+        await tx.put('auditEvents', audit.id, audit, null);
         return value;
       });
     },
     async create(input: Paper) {
       const value = PaperSchema.parse(input);
-      await db.transaction('rw', db.papers, db.auditEvents, async () => {
-        await db.papers.add(value);
-        await db.auditEvents.add(makeAudit(value.id, 'import_paper', 'human'));
+      await store.unitOfWork(async (tx) => {
+        await tx.put('papers', value.id, value, null);
+        const audit = makeAudit(value.id, 'import_paper', 'human');
+        await tx.put('auditEvents', audit.id, audit, null);
       });
       return value;
     },
     async get(id: string) {
-      const value = await db.papers.get(id);
-      return value ? PaperSchema.parse(value) : undefined;
+      const row = await store.get('papers', id);
+      return row ? PaperSchema.parse(row.doc) : undefined;
+    },
+    /** The paper imported from the file with this SHA-256 (`sha256:<hex>`), if any. */
+    async findBySourceHash(sha256: string) {
+      const [row] = await store.query('papers', { where: { 'source.sha256': sha256 }, limit: 1 });
+      return row ? PaperSchema.parse(row.doc) : undefined;
     },
     async list() {
-      return (await db.papers.toArray())
-        .map((value) => PaperSchema.parse(value))
+      return (await store.query('papers'))
+        .map((row) => PaperSchema.parse(row.doc))
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     },
     async delete(id: string) {
-      await db.transaction(
-        'rw',
-        [
-          db.papers,
-          db.scgRuns,
-          db.paperOverviews,
-          db.paperChecks,
-          db.paperRuns,
-          db.paperReviews,
-          db.paperProbes,
-          db.measurements,
-          db.library,
-          db.stance,
-          db.paperContext,
-          db.paperInsights,
-          db.grobid,
-          db.reviewNgrams,
-          db.auditEvents,
-        ],
-        async () => {
-          if (await db.papers.get(id)) {
-            await db.papers.delete(id);
-            await db.scgRuns.delete(id);
-            await db.paperOverviews.delete(id);
-            await db.paperChecks.delete(id);
-            await db.paperReviews.delete(id);
-            await db.paperProbes.delete(id);
-            await db.measurements.delete(id);
-            await db.stance.delete(id);
-            await db.paperContext.delete(id);
-            await db.paperInsights.delete(id);
-            await db.grobid.delete(id);
-            await db.library
-              .where('paper_id')
-              .equals(id)
-              .modify({ paper_id: null, file_matches_title: null });
-            await db.reviewNgrams.where('paperId').equals(id).delete();
-            await db.paperRuns.where('paperId').equals(id).delete();
-            await db.auditEvents.add(makeAudit(id, 'delete_paper', 'human'));
-          }
-        },
-      );
+      await store.unitOfWork(async (tx) => {
+        if (!(await tx.get('papers', id))) return;
+        await tx.remove('papers', id);
+        for (const collection of PER_PAPER) await tx.remove(collection, id);
+        for (const row of await tx.query('library', { where: { paper_id: id } }))
+          await tx.put('library', row.id, {
+            ...(row.doc as object),
+            paper_id: null,
+            file_matches_title: null,
+          });
+        for (const row of await tx.query('reviewNgrams', { where: { paperId: id } }))
+          await tx.remove('reviewNgrams', row.id);
+        for (const row of await tx.query('paperRuns', { where: { paperId: id }, select: 'summary' }))
+          await tx.remove('paperRuns', row.id);
+        const audit = makeAudit(id, 'delete_paper', 'human');
+        await tx.put('auditEvents', audit.id, audit, null);
+      });
     },
   };
   return papers;

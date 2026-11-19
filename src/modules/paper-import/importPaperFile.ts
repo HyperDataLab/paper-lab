@@ -23,7 +23,7 @@ export async function importPaperFile(
   if (ext === 'pdf')
     await repo.pdfFiles.put(sha256.slice('sha256:'.length), new Blob([data], { type: 'application/pdf' }));
   if (options.reuseExisting) {
-    const existing = (await repo.papers.list()).find((paper) => paper.source.sha256 === sha256);
+    const existing = await repo.papers.findBySourceHash(sha256);
     if (existing) return existing;
   }
   let parsed: Awaited<ReturnType<typeof segmentPaper>>;

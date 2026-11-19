@@ -45,11 +45,11 @@ export function createRepositories(
   const analyses = createAnalysesRepository(db, deps);
   const audit = createAuditRepository(db);
   const generations = createGenerationsRepository(db, deps);
-  const papers = createPapersRepository(db, deps);
-  const paperRuns = createPaperRunsRepository(db, deps);
+  const papers = createPapersRepository(store, deps);
+  const paperRuns = createPaperRunsRepository(store, deps);
   const paperOverviews = createPaperOverviewsRepository(db, deps, analyses, papers);
   const paperChecks = createPaperChecksRepository(db, deps, papers);
-  const paperContext = createPaperContextRepository(db);
+  const paperContext = createPaperContextRepository(store);
   const calibrationLabels = createCalibrationLabelsRepository(db, deps);
   const corpora = createCorporaRepository(db);
   const revisions = createRevisionsRepository(db, deps, analyses);
@@ -61,7 +61,7 @@ export function createRepositories(
   const extraction = createExtractionRepository(store, now, makeAudit);
   const library = createLibraryRepository(db, now, ids);
   const corpusKeywords = createCorpusKeywordsRepository(db, library, now);
-  const scg = createScgRepository(db, clock);
+  const scg = createScgRepository(store, clock);
   const pdfFiles = createPdfFilesRepository(db, now);
   const transfer = createTransferRepository(db, clock, deps, {
     analyses,
@@ -100,12 +100,12 @@ export function createRepositories(
     extraction,
     researchDesigns: createResearchDesignRepository(store, now),
     corpora,
-    corpusProfiles: createCorpusProfilesRepository(db),
+    corpusProfiles: createCorpusProfilesRepository(store),
     corpusTopics: createCorpusTopicsRepository(db),
     corpusKeywords,
     corpusOpenKg: createCorpusOpenKgRepository(db, corpusKeywords, scg),
     pdfFiles,
-    grobid: createGrobidRepository(db),
+    grobid: createGrobidRepository(store),
     calibrationLabels,
     transfer,
   };

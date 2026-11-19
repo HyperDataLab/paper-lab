@@ -1,15 +1,15 @@
 import { StoredCorpusProfileSchema, type StoredCorpusProfile } from '@/core/schemas/corpusProfile';
-import type { ParagraphDb } from './db';
+import type { DocStore } from './docStore';
 
-export function createCorpusProfilesRepository(db: ParagraphDb) {
+export function createCorpusProfilesRepository(store: DocStore) {
   return {
     async get(id: string) {
-      const row = await db.corpusProfiles.get(id);
-      return row ? StoredCorpusProfileSchema.parse(row) : undefined;
+      const row = await store.get('corpusProfiles', id);
+      return row ? StoredCorpusProfileSchema.parse(row.doc) : undefined;
     },
     async save(record: StoredCorpusProfile) {
       const value = StoredCorpusProfileSchema.parse(record);
-      await db.corpusProfiles.put(value);
+      await store.put('corpusProfiles', value.corpusId, value);
       return value;
     },
   };

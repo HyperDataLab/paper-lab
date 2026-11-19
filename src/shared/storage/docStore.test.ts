@@ -170,6 +170,49 @@ describe.each(repositories)('project repositories over %s', (_name, make) => {
     expect(await repo.extraction.get(value.id)).toBeUndefined();
   });
 
+  it('finds a paper by its file hash and deletes it with its runs', async () => {
+    const repo = make();
+    const paper = await repo.papers.create({
+      schemaVersion: 1,
+      id: crypto.randomUUID(),
+      title: 'Paper',
+      createdAt: at,
+      updatedAt: at,
+      source: { kind: 'text', fileName: 'a.txt', pageCount: null, sha256: 'sha256:abc' },
+      sections: [],
+      paragraphs: [],
+    });
+    expect((await repo.papers.findBySourceHash('sha256:abc'))?.id).toBe(paper.id);
+    expect(await repo.papers.findBySourceHash('sha256:other')).toBeUndefined();
+    const run = await repo.paperRuns.create({
+      schemaVersion: 1,
+      id: crypto.randomUUID(),
+      paperId: paper.id,
+      createdAt: at,
+      updatedAt: at,
+      status: 'idle',
+      plan: {
+        sectionIds: [],
+        steps: [],
+        budget: 0,
+        paragraphs: [],
+        skipped: [],
+        calls: { syntax: 0, judge: 0, structure: 0, score: 0 },
+        total: 0,
+        withinBudget: true,
+      },
+      budget: 0,
+      callsUsed: 0,
+      promptVersions: {},
+      model: 'm',
+      items: [],
+    });
+    expect(await repo.paperRuns.listByPaper(paper.id)).toHaveLength(1);
+    await repo.papers.delete(paper.id);
+    expect(await repo.papers.get(paper.id)).toBeUndefined();
+    expect(await repo.paperRuns.get(run.id)).toBeUndefined();
+  });
+
   it('guards research design versions', async () => {
     const repo = make();
     const value = await project(repo);
