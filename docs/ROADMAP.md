@@ -84,6 +84,12 @@ A separate menu: one matrix per project, rows are papers, columns are fields, ev
 | X3  | Deep Research: search plan, OpenAlex discovery, screening, cross-paper synthesis             | ✅     |
 | X4  | Citation grounding: each synthesis citation shows the verified passage, links into the paper | ✅     |
 
+## Journal corpus setup
+
+The journal form searches Writing Bank's live journal registry and reads article types from the release snapshot.
+Protocol versions record the stable registry ID, its writing profile when available and the release of any selected
+article types. Manual entry and the built-in ESWA values remain available when Writing Bank cannot be reached.
+
 ## Corpus topics
 
 The corpus topics service runs BERTopic and KeyBERT in a separate Cloudflare container, with snapshots
@@ -93,6 +99,15 @@ stored in the shared R2 bucket and cached locally. Deployment is controlled thro
 The `corpus-topics-v1` contract accepts optional nullable member fit and weak-reason fields for older
 snapshots. Weakness follows centroid fit or an unassigned topic, independently of HDBSCAN probability.
 AI topic names are candidates until accepted, individually or in bulk.
+
+## Paper OpenKG
+
+| #   | Slice                                                          | Status |
+| --- | -------------------------------------------------------------- | ------ |
+| K1  | Five-layer paper graph and Turtle, JSON-LD, and report exports | ✅     |
+| K2  | Interactive graph in paper analysis                            | ✅     |
+
+See the [paper OpenKG contract](contracts/openkg-paper.md) and [branch plan](plans/OPENKG_PAPER_BRANCH.md).
 
 ## Open decisions
 

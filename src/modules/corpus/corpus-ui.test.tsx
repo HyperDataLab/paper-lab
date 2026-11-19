@@ -109,6 +109,45 @@ it('C1c creates a topic corpus with its first protocol', async () => {
     body: { researchQuestion: 'Why?' },
   });
 });
+it('saves a changed bank link in a new protocol version', async () => {
+  const example = exampleCorpus();
+  const bank = { release: '2031.02.1', journalId: 'jr.synthetic', articleTypeIds: ['art.synthetic'] };
+  const body = {
+    venues: [{ name: 'Synthetic Journal', issn: [], openalexSourceId: 'S12345' }],
+    articleTypes: ['Synthetic article'],
+    years: [],
+    versionOfRecordOnly: true,
+    samplingRule: '',
+    sampling: { scope: 'signature' },
+    seed: '',
+    strata: [],
+    capPerIssue: null,
+    exclusions: [],
+    bank,
+  };
+  const first = { version: 1, createdAt: example.createdAt, body };
+  const corpus = CorpusSchema.parse({ ...example, kind: 'journal', members: [], protocol: [first] });
+  const { repo, mount } = setup(`/corpus/${corpus.id}`);
+  await repo.corpora.save(corpus);
+  mount();
+  const [edit] = await screen.findAllByRole('button', { name: 'Sửa giao thức' });
+  if (!edit) throw new Error('missing protocol edit button');
+  fireEvent.click(edit);
+  fireEvent.change(screen.getByLabelText('Loại bài (mỗi dòng một loại)'), {
+    target: { value: 'Manual article' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu phiên bản mới' }));
+  await screen.findByRole('heading', { name: 'Giao thức v2' });
+  await waitFor(async () => {
+    const saved = await repo.corpora.get(corpus.id);
+    expect(saved?.protocol[0]).toEqual(first);
+    expect(saved?.protocol[1]).toMatchObject({
+      version: 2,
+      body: { articleTypes: ['Manual article'], bank: { release: bank.release, journalId: bank.journalId } },
+    });
+    expect(saved?.protocol[1]?.body).not.toHaveProperty('bank.articleTypeIds');
+  });
+});
 it('C1c reports DOI intake counts', async () => {
   await detail();
   fireEvent.click(screen.getByRole('button', { name: 'Thêm bài vào corpus' }));

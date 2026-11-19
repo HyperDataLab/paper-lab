@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { Download, RefreshCw, Upload } from 'lucide-react';
 import type { BankDoc } from '@/core/researchDesign/bank/snapshot';
 import { useAuth } from '@/shared/auth/authContext';
+import { BANK_API_URL, createBankClient } from '@/shared/bank/bankApi';
 import { ActionBar, Stat, StatGrid } from '@/shared/ui/ActionBar';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
@@ -9,7 +10,6 @@ import { Card } from '@/shared/ui/Card';
 import { Dialog, DialogActions } from '@/shared/ui/Dialog';
 import { Empty } from '@/shared/ui/StateNote';
 import { useToast } from '@/shared/ui/toastContext';
-import { BANK_API_URL, createBankClient } from './bankApi';
 import {
   bankFailure,
   useBankImport,

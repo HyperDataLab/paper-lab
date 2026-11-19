@@ -1,14 +1,24 @@
 import { newCorpus } from '@/core/corpus';
 import { samplingRuleText } from '@/core/corpus/admired';
+import type { BankJournal } from '@/core/schemas/bankCatalog';
 import type { CorpusSampling } from '@/core/schemas/corpus';
 
 export const ESWA_SEED = 'paperlab-eswa-2026';
+export const ESWA_JOURNAL_NAME = 'Expert Systems with Applications';
 export function createEswaPair(
   targetId: string,
   controlId: string,
   at: string,
   sampling: CorpusSampling = { scope: 'signature' },
+  journal?: BankJournal,
 ) {
+  const venue = journal
+    ? {
+        name: journal.name,
+        issn: journal.issns,
+        ...(journal.openalexSourceId ? { openalexSourceId: journal.openalexSourceId } : {}),
+      }
+    : { name: ESWA_JOURNAL_NAME, issn: [], openalexSourceId: 'S13144211' };
   // Only the target records a scope; the control follows the target it matches.
   const common = {
     years: [2020, 2021, 2022, 2023, 2024, 2025],
@@ -32,7 +42,8 @@ export function createEswaPair(
           ...common,
           sampling,
           samplingRule: samplingRuleText(sampling),
-          venues: [{ name: 'Expert Systems with Applications', issn: [], openalexSourceId: 'S13144211' }],
+          venues: [venue],
+          ...(journal ? { bank: { journalId: journal.id, journalProfile: journal.profile } } : {}),
         },
       },
     ],

@@ -27,8 +27,8 @@ const releaseSchema = z.object({
 export type BankRelease = z.infer<typeof releaseSchema>;
 
 /** Only a bank release has an ETag on the API (`"<release>"`); a hash release of an imported file does not. */
-const bankRelease = (release: string | null) =>
-  release && /^\d{4}\.\d{2}\.[1-9]\d*$/.test(release) ? release : null;
+const releaseETag = (release: string | null) =>
+  release && /^\d{4}\.\d{2}\.[1-9]\d*$/.test(release) ? `"${release}"` : null;
 
 export function createBankClient(options: {
   baseUrl: string;
@@ -36,19 +36,22 @@ export function createBankClient(options: {
   fetch?: typeof fetch;
 }) {
   const fetcher = options.fetch ?? ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init));
-  async function get(path: string, known: string | null): Promise<Response | null> {
+  async function get(path: string, etag: string | null, signal?: AbortSignal): Promise<Response | null> {
+    signal?.throwIfAborted();
     const token = await options.getToken();
+    signal?.throwIfAborted();
     if (!token) throw new BankApiError(401, 'signed_out', 'Not signed in.');
     const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
-    const etag = bankRelease(known);
-    if (etag) headers['If-None-Match'] = `"${etag}"`;
+    if (etag) headers['If-None-Match'] = etag;
     let response: Response;
     try {
       response = await fetcher(`${options.baseUrl.replace(/\/$/, '')}/bank/v1${path}`, {
         method: 'GET',
         headers,
+        ...(signal ? { signal } : {}),
       });
     } catch {
+      signal?.throwIfAborted();
       throw new BankApiError(0, 'network', 'Network request failed.');
     }
     if (response.status === 304) return null;
@@ -69,7 +72,7 @@ export function createBankClient(options: {
   return {
     /** The newest release, or `current` when it is the one the project holds (304). */
     async getRelease(known: string | null = null) {
-      const response = await get('/release', known);
+      const response = await get('/release', releaseETag(known));
       if (!response) return { status: 'current' as const };
       let body: unknown;
       try {
@@ -82,14 +85,17 @@ export function createBankClient(options: {
       return { status: 'release' as const, release: parsed.data };
     },
     /** The raw bytes of the newest snapshot, or `current` when the project holds it (304). */
-    async getSnapshot(known: string | null = null) {
-      const response = await get(`/snapshot?collections=${SNAPSHOT_COLLECTIONS}`, known);
+    async getSnapshot(known: string | null = null, collections = SNAPSHOT_COLLECTIONS) {
+      const response = await get(`/snapshot?collections=${collections}`, releaseETag(known));
       if (!response) return { status: 'current' as const };
       try {
         return { status: 'snapshot' as const, bytes: await response.arrayBuffer() };
       } catch {
         throw new BankApiError(0, 'network', 'Network request failed.');
       }
+    },
+    getJournals(params: URLSearchParams, etag: string | null, signal?: AbortSignal) {
+      return get(`/journals?${params}`, etag, signal);
     },
   };
 }
