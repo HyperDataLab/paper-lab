@@ -14,6 +14,7 @@ import type { Draft, DraftQuestion, DraftHypothesis } from '@/core/researchDesig
 import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
+import { Badge } from '@/shared/ui/Badge';
 import { Dialog } from '@/shared/ui/Dialog';
 import { Empty, Loading } from '@/shared/ui/StateNote';
 import { useToast } from '@/shared/ui/toastContext';
@@ -24,6 +25,7 @@ import { kinds, claimLabel } from '../questions/view';
 import { ChainLine } from '../analyses/ChainLine';
 import { flagText } from '../design/flagText';
 import type { DraftResult } from '@/core/researchDesign/draft/ops';
+import { confirmCopiedHypothesis } from '@/core/autoresearch/copy';
 
 type Editor =
   | { type: 'question'; item?: DraftQuestion }
@@ -65,6 +67,23 @@ export default function QuestionsSection() {
           <p>
             {h.id} · {h.statement} · {kinds[h.kind]}
           </p>
+          {h.autoresearch?.status === 'candidate' && (
+            <>
+              <Badge tone="warning">Ứng viên từ AutoResearch</Badge>
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  void change((draft) => ({
+                    ok: true,
+                    doc: confirmCopiedHypothesis(draft, h.id),
+                  }))
+                }
+              >
+                Xác nhận hypothesis
+              </Button>
+            </>
+          )}
+          {h.autoresearch?.primary && <Badge tone="accent">Primary hypothesis</Badge>}
           <p>{claimLabel(h.claim, state.bank?.collections['claim-types'] ?? [])}</p>
           <ChainLine draft={draft} hypothesisId={h.id} />
           {flags

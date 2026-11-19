@@ -5,7 +5,7 @@ import { linkTopic, promoteProject } from '@/core/corpus/topic';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Select } from '@/shared/ui/Select';
 import { Button } from '@/shared/ui/Button';
-import { ResearchDesignArea } from '@/modules/researchDesign';
+import { ProjectResearch } from './ProjectResearch';
 import { DeepResearch } from './DeepResearch';
 import styles from './extraction.module.css';
 
@@ -88,7 +88,7 @@ export default function ProjectPage() {
         </Button>
       </section>
       {error && <p role="alert">Có lỗi xảy ra: {error}</p>}
-      {!project.paperId && <ResearchDesignArea project={project} />}
+      {!project.paperId && <ProjectResearch project={project} />}
       <DeepResearch project={project} onSave={save} />
     </div>
   );

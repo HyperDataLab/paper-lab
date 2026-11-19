@@ -32,7 +32,7 @@ import type { LlmConfig } from './config';
 import { requirePaperConsent } from './consent';
 
 const TIMEOUT_MS = 180000;
-type Options = { config: LlmConfig; signal?: AbortSignal; onRequest?: () => void };
+type Options = { config: LlmConfig; signal?: AbortSignal; onRequest?: () => void | Promise<void> };
 
 async function ask(
   client: LlmClient,
@@ -47,7 +47,7 @@ async function ask(
     signal: options.signal,
     onRequest: async () => {
       requirePaperConsent(options.config);
-      options.onRequest?.();
+      await options.onRequest?.();
     },
   });
   return result;

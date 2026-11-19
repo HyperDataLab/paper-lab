@@ -57,6 +57,15 @@ export const draftHypothesisSchema = z.strictObject({
   /** Filled on Đo lường (S8). */
   independent: z.array(variableId),
   dependent: z.array(variableId),
+  autoresearch: z
+    .strictObject({
+      runId: text,
+      artifactHash: text,
+      hypothesisId: text,
+      primary: z.boolean(),
+      status: z.enum(['candidate', 'accepted']),
+    })
+    .optional(),
 });
 
 export const draftDesignSchema = z.strictObject({

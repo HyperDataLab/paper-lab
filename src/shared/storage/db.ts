@@ -30,6 +30,7 @@ import type {
 import type { ReviewNgram } from '@/core/reviewPanel';
 import type { ResearchDesign } from '@/core/schemas/researchDesign';
 import type { BankDoc } from '@/core/researchDesign/bank/snapshot';
+import type { Run } from '@/core/autoresearch/record';
 export class ParagraphDb extends Dexie {
   analyses!: Table<Analysis, string>;
   auditEvents!: Table<AuditEvent, string>;
@@ -61,6 +62,7 @@ export class ParagraphDb extends Dexie {
   corpusKeywords!: Table<CorpusKeywords, string>;
   doiKeywords!: Table<DoiKeywords, string>;
   scgRuns!: Table<ScgPaperRun, string>;
+  autoresearchRuns!: Table<Run, string>;
   constructor(name = 'paragraph-lab') {
     super(name);
     this.version(1).stores({
@@ -100,6 +102,7 @@ export class ParagraphDb extends Dexie {
     this.version(23).stores({ researchDesigns: 'projectId', researchDesignBanks: 'projectId' });
     this.version(24).stores({ corpusKeywords: 'corpusId', doiKeywords: 'doi' });
     this.version(25).stores({ scgRuns: 'paperId' });
+    this.version(26).stores({ autoresearchRuns: 'id, projectId, updatedAt' });
   }
 }
 export function createDb(name?: string) {

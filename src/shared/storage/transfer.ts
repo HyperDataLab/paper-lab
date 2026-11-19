@@ -47,6 +47,8 @@ import { ResearchDesignSchema } from '@/core/schemas/researchDesign';
 import { bankDocSchema } from '@/core/researchDesign/bank/snapshot';
 import { snapshotRelease } from '@/core/researchDesign/bank/release';
 import { toBankDoc } from '@/core/researchDesign/bank/readSnapshot';
+import { canResume } from '@/core/autoresearch/artifacts';
+import { runSchema } from '@/core/autoresearch/record';
 export function createTransferRepository(
   db: ParagraphDb,
   clock: () => Date,
@@ -120,6 +122,7 @@ export function createTransferRepository(
           bank: bankDocSchema.parse(row.bank),
           bytes: row.bytes,
         })),
+        (await db.autoresearchRuns.toArray()).map((row) => runSchema.parse(row)),
       );
     },
     async previewImport(raw: unknown) {
@@ -154,6 +157,9 @@ export function createTransferRepository(
       );
     },
     async applyImport(plan: Extract<ImportPlan, { ok: true }>) {
+      const researchRuns = plan.autoresearchRuns.map((run) => runSchema.parse(run));
+      for (const run of researchRuns)
+        if (!(await canResume(run))) throw new Error('AutoResearch artifact hash mismatch');
       for (const row of plan.researchDesignBanks) {
         const bytes = new Uint8Array(row.bytes).buffer;
         const data: unknown = JSON.parse(new TextDecoder().decode(bytes));
@@ -214,6 +220,7 @@ export function createTransferRepository(
           db.extractionProjects,
           db.researchDesigns,
           db.researchDesignBanks,
+          db.autoresearchRuns,
           db.corpora,
           db.corpusProfiles,
           db.reviewNgrams,
@@ -398,6 +405,25 @@ export function createTransferRepository(
                 bank: bankDocSchema.parse(bank.bank),
                 bytes: bank.bytes,
               });
+          }
+          for (const run of researchRuns) {
+            if (!(await db.extractionProjects.get(run.projectId)) || (await db.autoresearchRuns.get(run.id)))
+              continue;
+            if (
+              run.status !== 'ended' &&
+              (await db.autoresearchRuns
+                .where('projectId')
+                .equals(run.projectId)
+                .filter((existing) => existing.status !== 'ended')
+                .first())
+            )
+              throw new Error('AutoResearch project already has an active run');
+            await db.autoresearchRuns.add(
+              runSchema.parse({
+                ...run,
+                status: run.status === 'running' ? 'waiting' : run.status,
+              }),
+            );
           }
           for (const record of plan.corpora) {
             const existing = await db.corpora.get(record.id);
