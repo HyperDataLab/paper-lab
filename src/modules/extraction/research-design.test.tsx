@@ -119,6 +119,7 @@ it('AR1 opens a stage deep link and copies selected hypotheses into Research des
     let run = await repo.autoresearch.create(projectId, 100);
     run = await approveCharter(run, charter, at, null);
     for (const stage of STAGES.slice(0, STAGES.indexOf('S8') + 1)) {
+      if (stage === 'S10' || stage === 'S11' || stage === 'S12') throw new Error('Unexpected stage');
       run = await beginStage(run, stage, models, at);
       run = openGate(await putArtifact(run, stage, outputs[stage], at), stage, at);
       const ids = selectable(currentArtifact(run, stage)).map((item) => item.id);

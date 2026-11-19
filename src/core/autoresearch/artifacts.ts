@@ -1,6 +1,7 @@
 import { canonicalDigest } from '../corpus';
 import { contracts, STAGES, type Inputs, type Stage, type StageContent } from './contracts';
 import type { Artifact, Run, StageState } from './record';
+import type { PlanSource } from '../researchDesign/plan/autoresearchContext';
 
 export function currentArtifact(run: Run, stage: Stage) {
   return run.artifacts.findLast((artifact) => artifact.stage === stage && artifact.status !== 'stale');
@@ -9,6 +10,26 @@ export function currentArtifact(run: Run, stage: Stage) {
 export function contentOf<K extends Stage>(stage: K, artifact: Artifact): StageContent[K] {
   const parse: { [S in Stage]: { parse: (input: unknown) => StageContent[S] } } = contracts;
   return parse[stage].parse(artifact.content);
+}
+
+export function designSource(runId: string, artifact: Artifact): PlanSource {
+  return {
+    runId,
+    designHash: artifact.hash,
+    charterHash: artifact.charterHash,
+    inputHashes: artifact.inputHashes.map(({ hash }) => hash),
+  };
+}
+
+export function matchesDesignSource(source: PlanSource, runId: string, artifact: Artifact): boolean {
+  const expected = designSource(runId, artifact);
+  return (
+    source.runId === expected.runId &&
+    source.designHash === expected.designHash &&
+    source.charterHash === expected.charterHash &&
+    source.inputHashes.length === expected.inputHashes.length &&
+    source.inputHashes.every((hash, index) => hash === expected.inputHashes[index])
+  );
 }
 
 export function selectable(artifact: Artifact | undefined): { id: string; label: string }[] {
@@ -45,6 +66,8 @@ export function reviewItemIds(artifact: Artifact | undefined): string[] {
       return contentOf('S5', artifact).decisions.map((d) => d.id);
     case 'S9':
       return contentOf('S9', artifact).claims.map((claim) => claim.id);
+    case 'S12':
+      return [...new Set(contentOf('S12', artifact).tests.map((test) => test.hypothesisId))];
     default:
       return selectable(artifact).map((item) => item.id);
   }
@@ -139,8 +162,24 @@ export async function canResume(run: Run): Promise<boolean> {
             JSON.stringify(artifact.inputHashes) === JSON.stringify(inputHashes(run, artifact.stage)) &&
             artifact.inputHashes.length === STAGES.indexOf(artifact.stage) &&
             artifact.hash === (await canonicalDigest(artifact.content)) &&
+            (artifact.stage !== 'S12' || (await validResultsInput(run, artifact))) &&
             (artifact.status !== 'accepted' || artifact.selectionHash === (await selectionDigest(artifact))),
         ),
     )
   ).every(Boolean);
+}
+
+export function currentResultsImport(run: Run) {
+  const lock = currentArtifact(run, 'S11');
+  if (lock?.status !== 'accepted') return undefined;
+  const { etag } = contentOf('S11', lock);
+  return run.resultsImports?.findLast((entry) => entry.etag === etag);
+}
+
+async function validResultsInput(run: Run, artifact: Artifact) {
+  const entry = currentResultsImport(run);
+  return (
+    entry?.hash === contentOf('S12', artifact).resultsHash &&
+    entry.hash === (await canonicalDigest(entry.log))
+  );
 }

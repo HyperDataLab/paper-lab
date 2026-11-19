@@ -3,9 +3,10 @@ import { RefreshCw } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Empty } from '@/shared/ui/StateNote';
 import { useResearchDesign } from './ResearchDesignProvider';
+import { AutoResearchCandidates } from './AutoResearchCandidates';
 
 /** Shows the selected section, or the area's load error with a way to read everything again. */
-export function SectionBody({ section: Section }: { section: ComponentType }) {
+export function SectionBody({ section: Section, sectionId }: { section: ComponentType; sectionId?: string }) {
   const state = useResearchDesign();
   if (!state.loading && state.error)
     return (
@@ -15,5 +16,10 @@ export function SectionBody({ section: Section }: { section: ComponentType }) {
         </Button>
       </Empty>
     );
-  return <Section />;
+  return (
+    <>
+      <Section />
+      {sectionId && <AutoResearchCandidates section={sectionId} />}
+    </>
+  );
 }

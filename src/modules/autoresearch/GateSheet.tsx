@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { selectable } from '@/core/autoresearch/artifacts';
+import { contentOf, selectable } from '@/core/autoresearch/artifacts';
 import type { Artifact, StageState } from '@/core/autoresearch/record';
 import { Button } from '@/shared/ui/Button';
 import { Drawer } from '@/shared/ui/Drawer';
@@ -8,6 +8,7 @@ import { Select } from '@/shared/ui/Select';
 import { TextField } from '@/shared/ui/TextField';
 import { stageLabels } from './labels';
 import { ArtifactFields } from './ArtifactFields';
+import { ResultsView } from './ResultsView';
 
 export type GateChoice = { approve: boolean; ids: string[]; primaryId: string | null; note: string | null };
 export function GateSheet({
@@ -58,6 +59,7 @@ export function GateSheet({
               !artifact ||
               !!state.error ||
               (items.length > 0 && !ids.length) ||
+              (state.stage === 'S12' && (!state.critic || !state.pi)) ||
               (state.stage === 'S8' && !primary)
             }
             onClick={() => choose(true)}
@@ -125,7 +127,11 @@ export function GateSheet({
       {artifact && !state.error && (
         <details>
           <summary>Xem kết quả</summary>
-          <ArtifactFields value={artifact.content} />
+          {state.stage === 'S12' ? (
+            <ResultsView value={contentOf('S12', artifact)} />
+          ) : (
+            <ArtifactFields value={artifact.content} />
+          )}
         </details>
       )}
     </Drawer>

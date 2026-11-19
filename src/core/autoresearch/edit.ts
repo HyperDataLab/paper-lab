@@ -15,7 +15,12 @@ export async function editArtifact(
 ): Promise<Run> {
   const original = currentArtifact(run, stage);
   const state = stageState(run, stage);
-  if (!original || stage === 'S4' || !note.trim() || (state.state !== 'accepted' && state.state !== 'gate'))
+  if (
+    !original ||
+    ['S4', 'S10', 'S11', 'S12'].includes(stage) ||
+    !note.trim() ||
+    (state.state !== 'accepted' && state.state !== 'gate')
+  )
     throw new RunTransitionError('Stage or edit note is unavailable');
   const parsed = contracts[stage].safeParse(raw);
   if (!parsed.success) throw new RunTransitionError('Edited artifact does not match the stage schema');

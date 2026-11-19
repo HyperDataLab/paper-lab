@@ -80,6 +80,7 @@ export function issueText(issue: PlanIssue, plan: ExperimentPlan): string {
 const names: Record<Missing['code'], string> = {
   no_hypotheses: 'Chưa có hypothesis nào',
   candidate_hypothesis: 'cần được xác nhận trong Research questions và hypotheses',
+  candidate_design: 'Cần xác nhận ứng viên AutoResearch',
   no_variables: 'Chưa có variable nào',
   no_metrics: 'Chưa có metric nào',
   no_datasets: 'Chưa có dataset nào',
@@ -105,6 +106,7 @@ export function missingLink(missing: Missing): string {
   const destination: Record<Missing['code'], string> = {
     no_hypotheses: 'questions',
     candidate_hypothesis: 'questions',
+    candidate_design: missing.subject ?? 'design',
     hypothesis_without_dependent: 'questions',
     no_variables: 'measurement',
     no_metrics: 'measurement',

@@ -43,7 +43,7 @@ export function ResearchDesignArea({ project }: { project: ExtractionProject }) 
         >
           <p>{selected.description}</p>
           <Suspense fallback={<Loading label="Đang tải mục…" />}>
-            <SectionBody section={Section} />
+            <SectionBody section={Section} sectionId={selected.id} />
           </Suspense>
         </div>
       </section>

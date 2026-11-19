@@ -1,12 +1,15 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { at, outputs } from '@/core/autoresearch/fixtures';
+import { designFixture } from '@/core/autoresearch/ar3-fixtures';
 import type { Artifact } from '@/core/autoresearch/record';
 import { newRun } from '@/core/autoresearch/run';
 import { AuthContext } from '@/shared/auth/authContext';
 import { downloadJson } from '@/shared/calibration/download';
 import { ArtifactViewer } from './ArtifactViewer';
 import { StageTrack } from './StageTrack';
+import { DecisionInbox } from './DecisionInbox';
+import { ResultsImport } from './ResultsImport';
 
 vi.mock('@/shared/calibration/download', () => ({ downloadJson: vi.fn() }));
 afterEach(() => vi.unstubAllGlobals());
@@ -37,6 +40,85 @@ function artifact(
   };
 }
 const run = newRun('project', 'run', 20, at);
+
+it('AR3 shows the experiment design, frozen plan and computed results', () => {
+  const records = [
+    artifact('S10', { ...designFixture(), bank: null }, 'accepted'),
+    artifact('S11', { planVersion: 1, frozenAt: at, etag: 'a'.repeat(64) }, 'accepted'),
+    artifact(
+      'S12',
+      {
+        resultsHash: `sha256:${'b'.repeat(64)}`,
+        table: [{ dataset: 'Suite', condition: 'Control', metric: 'Agreement', n: 3, mean: 2, sd: 1 }],
+        tests: [
+          {
+            hypothesisId: 'h-agree',
+            dataset: 'Suite',
+            metric: 'Agreement',
+            test: 'anova_oneway',
+            conditions: [],
+            statistic: null,
+            p: null,
+            corrected: null,
+            verdict: 'inconclusive',
+            reason: 'unsupported_test',
+          },
+        ],
+        hypotheses: [{ hypothesisId: 'h-agree', verdict: 'inconclusive' }],
+        narrative: 'Cần xem lại Statistical analysis.',
+        recommendation: 'refine',
+      },
+      'draft',
+    ),
+  ];
+  const completed = { ...run, artifacts: records };
+  const view = render(
+    <>
+      <StageTrack run={completed} stage="S12" select={vi.fn()} />
+      <ArtifactViewer run={completed} stage="S10" />
+      <ArtifactViewer run={completed} stage="S11" publishedAt={at} />
+      <ArtifactViewer run={completed} stage="S12" />
+    </>,
+  );
+  expect(screen.getByRole('button', { name: 'S10 · Experiment design' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'S11 · Đóng băng kế hoạch' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'S12 · Results và statistical analysis' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  expect(view.getByText('Compare matched synthetic review tasks.')).toBeInTheDocument();
+  expect(view.getByText('Phiên bản đã đóng băng')).toBeInTheDocument();
+  expect(view.getByText(`Đã gửi · ${at}`)).toBeInTheDocument();
+  expect(screen.getByRole('table', { name: 'Thống kê mô tả theo Dataset và điều kiện' })).toBeInTheDocument();
+  const tests = screen.getByRole('table', { name: 'Phép kiểm định theo kế hoạch' });
+  expect(within(tests).getByText('Chưa hỗ trợ phép kiểm định')).toBeInTheDocument();
+  expect(screen.getByText('Khuyến nghị · refine')).toBeInTheDocument();
+});
+
+it('AR3 pins deviations in the inbox and accepts a pasted SRD log', async () => {
+  const lock = vi.fn();
+  const save = vi.fn(async () => true);
+  render(
+    <>
+      <DecisionInbox
+        run={{ ...run, charter: outputs.S1.charter }}
+        charter={vi.fn()}
+        review={vi.fn()}
+        lock={lock}
+        deviation={{ runId: run.id, planVersion: 1, changedAt: at }}
+      />
+      <ResultsImport loaded={false} disabled={false} save={save} />
+    </>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Duyệt thay đổi so với phiên bản 1' }));
+  expect(lock).toHaveBeenCalledOnce();
+  expect(screen.getByText('Đã ghim')).toBeInTheDocument();
+  const raw = '{"runs":[{"runId":"test","condition":"Control","dataset":"Suite","metrics":{"Agreement":4}}]}';
+  fireEvent.change(screen.getByLabelText('Dán results log'), { target: { value: raw } });
+  fireEvent.click(screen.getByRole('button', { name: 'Nhập log' }));
+  await waitFor(() => expect(save).toHaveBeenCalledWith(raw, 'json'));
+  expect(await screen.findByText('Đã nhập results log.')).toBeInTheDocument();
+});
 
 it('renders S9 in the stage track and the interactive graph, exporting after approval', () => {
   const draft = artifact('S9', outputs.S9, 'draft');

@@ -2,7 +2,16 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { contentOf, currentArtifact, selectable } from '@/core/autoresearch/artifacts';
 import { STAGES, stageSchema, type Stage } from '@/core/autoresearch/contracts';
-import { approveCharter, checkObligation, decideGate, endRun, stageState } from '@/core/autoresearch/run';
+import {
+  approveCharter,
+  canContinueLegacyRun,
+  checkObligation,
+  continueLegacyRun,
+  decideGate,
+  endRun,
+  nextStage,
+  stageState,
+} from '@/core/autoresearch/run';
 import type { ExtractionProject } from '@/core/schemas';
 import { useResearchDesign } from '@/modules/researchDesign';
 import { Badge } from '@/shared/ui/Badge';
@@ -15,6 +24,8 @@ import { CharterForm } from './CharterForm';
 import { CopyHypothesesAction } from './CopyHypothesesAction';
 import { CriticPanel } from './CriticPanel';
 import { DecisionInbox } from './DecisionInbox';
+import { ExperimentStageActions } from './ExperimentStageActions';
+import { experimentStageState } from './experimentStageState';
 import { GateSheet } from './GateSheet';
 import { LaunchStageDialog } from './LaunchStageDialog';
 import { NotebookPanel } from './NotebookPanel';
@@ -28,8 +39,13 @@ import styles from './autoresearch.module.css';
 
 export function AutoResearchArea({ project }: { project: ExtractionProject }) {
   const design = useResearchDesign();
-  const auto = useAutoResearch(project, design.loading || design.error ? null : design.bank);
   const [params, setParams] = useSearchParams();
+  const researchDesign = design.loading || design.error ? null : design.design;
+  const auto = useAutoResearch(
+    project,
+    design.loading || design.error ? null : design.bank,
+    params.get('arRun') ?? undefined,
+  );
   const [editCharter, setEditCharter] = useState(false);
   const [editStage, setEditStage] = useState<Stage | null>(null);
   const [gate, setGate] = useState<Stage | null>(null);
@@ -67,12 +83,15 @@ export function AutoResearchArea({ project }: { project: ExtractionProject }) {
   const state = stageState(run, stage);
   const active = run.pipeline.find((row) => row.state === 'working');
   const artifact = currentArtifact(run, stage);
+  const experiment = experimentStageState(run, researchDesign);
   const rejection =
     stage === 'S1' && state.error === 'INVALID_GOAL' && artifact
       ? contentOf('S1', artifact).goal.rejectionReason
       : null;
   const canRun =
     run.charter &&
+    stage !== 'S11' &&
+    (stage !== 'S12' || experiment.log) &&
     run.status !== 'ended' &&
     state.state !== 'gate' &&
     (!active || active.stage === stage) &&
@@ -106,12 +125,27 @@ export function AutoResearchArea({ project }: { project: ExtractionProject }) {
       <StageTrack run={run} stage={stage} select={select} />
       <DecisionInbox
         run={run}
+        lock={experiment.pendingLock ? () => select('S11') : undefined}
+        deviation={experiment.deviation}
         charter={() => setEditCharter(true)}
         review={(next) => {
           select(next);
           setGate(next);
         }}
       />
+      {canContinueLegacyRun(run) && (
+        <Button
+          disabled={busy}
+          onClick={() => {
+            const following = nextStage(run);
+            void auto.change(continueLegacyRun).then((saved) => {
+              if (saved && following) select(following.stage);
+            });
+          }}
+        >
+          Tiếp tục run
+        </Button>
+      )}
       {error && !gate && !editStage && (
         <div role="alert">
           <p>Không thể hoàn tất thao tác AutoResearch.</p>
@@ -176,7 +210,7 @@ export function AutoResearchArea({ project }: { project: ExtractionProject }) {
             </Button>
           )}
           {artifact &&
-            stage !== 'S4' &&
+            !['S4', 'S10', 'S11', 'S12'].includes(stage) &&
             !busy &&
             run.status === 'waiting' &&
             (state.state === 'accepted' || (state.state === 'gate' && !state.error)) && (
@@ -228,8 +262,19 @@ export function AutoResearchArea({ project }: { project: ExtractionProject }) {
         {(!state.error ||
           state.error === 'TOPIC_BELOW_THRESHOLD' ||
           state.error === 'EMPTY_SHORTLIST' ||
-          state.error === 'NO_LITERATURE') && <ArtifactViewer run={run} stage={stage} />}
+          state.error === 'NO_LITERATURE') && (
+          <ArtifactViewer run={run} stage={stage} publishedAt={experiment.publishedAt} />
+        )}
         {stage === 'S8' && <CopyHypothesesAction key={run.id} run={run} />}
+        <ExperimentStageActions
+          key={`${run.id}:${stage}`}
+          run={run}
+          stage={stage}
+          state={experiment}
+          busy={busy}
+          connect={auto.connectLock}
+          save={auto.importResults}
+        />
         {state.pi && <PiPanel decision={state.pi} names={names} />}
         {state.critic && <CriticPanel report={state.critic} stage={stage} obligations={run.obligations} />}
       </section>
@@ -290,7 +335,7 @@ export function AutoResearchArea({ project }: { project: ExtractionProject }) {
                 if (!saved) return;
                 setGate(null);
                 const following = STAGES[STAGES.indexOf(gate) + 1];
-                if (choice.approve && following) select(following);
+                if (choice.approve && following && gate !== 'S10') select(following);
               });
           }}
         />

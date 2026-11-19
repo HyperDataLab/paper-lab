@@ -1,6 +1,5 @@
 import { expect, it } from 'vitest';
 import { argumentDirections, buildArgumentMap, s9Schema } from './argument-map';
-import type { StageContent } from './contracts';
 import { argumentJudgments, outputs } from './fixtures';
 import { passStage } from './validation';
 
@@ -89,7 +88,7 @@ it('S9 requires a rationale per accepted hypothesis and exactly one in-cluster j
   });
   expect(passStage('S9', unrelated, outputs)).toBeNull();
   expect(unrelated.graph.relations.some(({ from }) => from === 'evidence:card-a')).toBe(false);
-  const prior: StageContent = {
+  const prior: typeof outputs = {
     ...outputs,
     S7: {
       ...outputs.S7,
