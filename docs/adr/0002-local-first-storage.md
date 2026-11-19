@@ -1,6 +1,6 @@
 # 0002 Local-first storage, no remote database in MVP
 
-- Status: Accepted (2026-11-05)
+- Status: Superseded by ADR-0007 (central lab store, 2026-11-19); was Accepted (2026-11-05)
 
 ## Context
 
