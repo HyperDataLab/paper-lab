@@ -65,6 +65,73 @@
   vector-effect: non-scaling-stroke;
 }
 
+.heading {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.muted {
+  color: var(--text-secondary);
+}
+
+.emptyKg,
+.starts {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.steps {
+  margin: 0;
+  padding-inline-start: var(--space-6);
+  display: grid;
+  gap: var(--space-1);
+  color: var(--text-secondary);
+}
+
+.corpora {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.corpora li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.progress {
+  flex-basis: 100%;
+  color: var(--text-secondary);
+}
+
+.startGroup {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.startGroup h3 {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* The explorer's canvas is the page's main content: taller than the shared OpenKG default. */
+.canvas svg {
+  max-block-size: 80vh;
+}
+
+.canvas aside {
+  max-block-size: 80vh;
+}
+
 .nodeList ul {
   margin: 0;
   padding-inline-start: var(--space-4);

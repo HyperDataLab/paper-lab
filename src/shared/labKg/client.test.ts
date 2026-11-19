@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { enqueueLabKg, getLabKgStatus, labKgIds } from './client';
+import { KG_EDGE_TABLES, KG_NODE_TABLES } from '@/core/schemas/labKg';
+import { enqueueLabKg, getLabKgStats, getLabKgStatus, labKgIds, LabKgError } from './client';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -40,4 +41,55 @@ it('checks sign-in and validates the status response', async () => {
   await expect(getLabKgStatus('lab')).rejects.toMatchObject({ detail: 'HTTP 503 · kg_not_configured' });
   fetcher.mockResolvedValueOnce(Response.json({ counts: { pending: 1 }, logs: [] }));
   await expect(getLabKgStatus('lab')).rejects.toThrow('Không đọc được trạng thái');
+});
+
+const stats = {
+  nodes: Object.fromEntries(KG_NODE_TABLES.map((name) => [name, 0])),
+  edges: Object.fromEntries(KG_EDGE_TABLES.map((name) => [name, 0])),
+  queue: { pending: 0, processing: 0, done: 0, failed: 0 },
+};
+
+it('names the failure by status and keeps the status and code for the page', async () => {
+  const fetcher = vi.fn<typeof fetch>();
+  vi.stubGlobal('fetch', fetcher);
+  const cases: [Response | Error, string, string][] = [
+    [
+      Response.json({ error: 'kg_not_configured' }, { status: 503 }),
+      'chưa được cấu hình',
+      'HTTP 503 · kg_not_configured',
+    ],
+    [
+      Response.json({ error: 'internal' }, { status: 500 }),
+      'Máy chủ KG của lab gặp lỗi (HTTP 500).',
+      'HTTP 500 · internal',
+    ],
+    [new Response('bad gateway', { status: 502 }), 'Máy chủ KG của lab gặp lỗi (HTTP 502).', 'HTTP 502'],
+    [
+      Response.json({ error: 'not_found' }, { status: 404 }),
+      'KG của lab chưa có mục này.',
+      'HTTP 404 · not_found',
+    ],
+    [new TypeError('Failed to fetch'), 'Không kết nối được máy chủ lab', 'Network error: Failed to fetch'],
+  ];
+  for (const [answer, message, detail] of cases) {
+    if (answer instanceof Error) fetcher.mockRejectedValueOnce(answer);
+    else fetcher.mockResolvedValueOnce(answer);
+    const error = await getLabKgStats('lab').catch((cause: unknown) => cause);
+    expect(error).toBeInstanceOf(LabKgError);
+    expect((error as LabKgError).message).toContain(message);
+    expect((error as LabKgError).detail).toBe(detail);
+  }
+  fetcher.mockResolvedValueOnce(Response.json({ error: 'not_found' }, { status: 404 }));
+  await expect(getLabKgStats('lab')).rejects.toMatchObject({ status: 404, code: 'not_found' });
+});
+
+it('asks again without revalidation when a bodiless 304 reaches the client', async () => {
+  const fetcher = vi.fn<typeof fetch>();
+  vi.stubGlobal('fetch', fetcher);
+  fetcher
+    .mockResolvedValueOnce(new Response(null, { status: 304 }))
+    .mockResolvedValueOnce(Response.json(stats));
+  expect((await getLabKgStats('lab')).nodes.paper).toBe(0);
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  expect(fetcher.mock.calls[1]?.[1]).toMatchObject({ cache: 'reload' });
 });

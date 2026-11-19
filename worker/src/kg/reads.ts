@@ -5,6 +5,7 @@ import {
   KG_NODE_TABLES,
   kgIdentifier,
   type KgKeywordDetail,
+  type KgOverview,
   type KgPaperDetail,
   type KgStats,
 } from '../../../src/core/schemas/labKg';
@@ -182,22 +183,53 @@ export async function readKgKeyword(db: D1Database, id: string): Promise<KgKeywo
 }
 
 export async function readKgStats(db: D1Database): Promise<KgStats> {
+  // One row of scalar subqueries: D1 rejects a compound SELECT of more than five terms.
   const tables = [...KG_NODE_TABLES, ...KG_EDGE_TABLES];
-  const [counts] = await db.batch<{ name: string; count: number }>([
-    db.prepare(
-      tables.map((table) => `SELECT '${table}' AS name, count(*) AS count FROM ${table}`).join(' UNION ALL '),
-    ),
+  const [counts] = await db.batch<Record<string, number>>([
+    db.prepare(`SELECT ${tables.map((table) => `(SELECT count(*) FROM ${table}) AS ${table}`).join(', ')}`),
   ]);
-  const byName = new Map((counts?.results ?? []).map(({ name, count }) => [name, count]));
+  const row = counts?.results[0] ?? {};
   const pick = <T extends string>(names: readonly T[]) =>
-    Object.fromEntries(names.map((name) => [name, byName.get(name) ?? 0])) as Record<T, number>;
+    Object.fromEntries(names.map((name) => [name, Number(row[name] ?? 0)])) as Record<T, number>;
   const { counts: queue } = await kgQueue(db).status();
   return { nodes: pick(KG_NODE_TABLES), edges: pick(KG_EDGE_TABLES), queue };
+}
+
+const OVERVIEW_PAPERS = 8;
+const OVERVIEW_KEYWORDS = 12;
+
+/** Starting points for the explorer: the most cited papers and the most frequent keywords. */
+export async function readKgOverview(db: D1Database): Promise<KgOverview> {
+  const [papers, keywords] = await db.batch<Row>([
+    db
+      .prepare(
+        `SELECT id, title, publication_year AS year, cited_by_count AS citations FROM paper
+      ORDER BY cited_by_count DESC, id LIMIT ?`,
+      )
+      .bind(OVERVIEW_PAPERS),
+    db
+      .prepare('SELECT id, text, frequency FROM keyword ORDER BY frequency DESC, id LIMIT ?')
+      .bind(OVERVIEW_KEYWORDS),
+  ]);
+  return {
+    papers: (papers?.results ?? []).map((row) => ({
+      id: String(row.id),
+      title: String(row.title),
+      year: num(row.year),
+      citations: num(row.citations),
+    })),
+    keywords: (keywords?.results ?? []).map((row) => ({
+      id: String(row.id),
+      text: String(row.text),
+      frequency: Number(row.frequency),
+    })),
+  };
 }
 
 export async function handleKgRead(db: D1Database, request: Request, path: string, headers: Headers) {
   if (request.method !== 'GET') return publishedError(405, 'bad_request', 'Use GET.', headers);
   if (path === '/v1/kg/stats') return withEtag(request, await readKgStats(db), headers);
+  if (path === '/v1/kg/overview') return withEtag(request, await readKgOverview(db), headers);
   const paper = /^\/v1\/kg\/papers\/(.+)$/u.exec(path)?.[1];
   if (paper !== undefined) {
     let key: string | null | undefined;
