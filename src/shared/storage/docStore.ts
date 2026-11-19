@@ -1,9 +1,16 @@
-import { COLLECTIONS, type CollectionDef } from '@/core/storage/collections';
+import {
+  COLLECTIONS,
+  docSummary,
+  type CollectionDef,
+  type DocIndex,
+  type DocIndexField,
+} from '@/core/storage/collections';
 import { StorageConflictError } from './errors';
 
 /**
  * The storage port every repository is written against. Documents are plain JSON-like values; repositories parse
  * them with the collection's schema. `version` counts writes to one document and guards against lost updates.
+ * Collections, ids, index fields and summaries come from the central store's registry (core/storage/collections).
  */
 export interface Versioned {
   doc: unknown;
@@ -13,12 +20,13 @@ export interface QueryRow extends Versioned {
   id: string;
 }
 export interface DocQuery {
-  /** Equality on indexed fields (dotted paths allowed). An array field matches when it contains the value. */
-  where?: Record<string, unknown>;
+  /** Equality on the collection's index projection (`COLLECTIONS[col].index`), as the lab server filters. */
+  where?: Partial<Record<DocIndexField, string | null>>;
+  /** A field of the body to order by; rows with equal values keep id order. */
   orderBy?: string;
   desc?: boolean;
   limit?: number;
-  /** `summary` returns only the collection's summary fields. */
+  /** `summary` returns the registry's summary (small top-level scalars plus the collection's extras). */
   select?: 'full' | 'summary';
 }
 /** `undefined`: write whatever is there. `null`: the document must not exist yet. A number: it must be at that version. */
@@ -44,8 +52,11 @@ export interface DocStore extends DocTx {
 }
 
 export function collectionDef(name: string): CollectionDef | undefined {
-  return (COLLECTIONS as Record<string, CollectionDef>)[name];
+  return Object.hasOwn(COLLECTIONS, name) ? (COLLECTIONS as Record<string, CollectionDef>)[name] : undefined;
 }
+
+/** Keys of the browser-only tables the central store leaves out (pdfFiles, corpusSync). */
+const LOCAL_KEYS: Record<string, string> = { pdfFiles: 'sha256', corpusSync: 'id' };
 
 export function pathValue(doc: unknown, path: string): unknown {
   let value: unknown = doc;
@@ -56,19 +67,26 @@ export function pathValue(doc: unknown, path: string): unknown {
   return value;
 }
 
-/** The document's id in its collection, from the registry's key (a compound key is a JSON array). */
+/** The document's id in its collection, from the registry's `key`. */
 export function docId(collection: string, doc: unknown) {
-  const key = collectionDef(collection)?.key ?? 'id';
-  if (Array.isArray(key)) return JSON.stringify(key.map((part) => pathValue(doc, part)));
-  return String(pathValue(doc, key));
+  const def = collectionDef(collection);
+  return def ? def.key(doc) : String(pathValue(doc, LOCAL_KEYS[collection] ?? 'id'));
 }
 
-export function matchesWhere(doc: unknown, where: DocQuery['where']) {
+export function docIndex(collection: string, doc: unknown): DocIndex {
+  try {
+    return collectionDef(collection)?.index(doc) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+export function matchesWhere(collection: string, doc: unknown, where: DocQuery['where']) {
   if (!where) return true;
-  return Object.entries(where).every(([field, expected]) => {
-    const value = pathValue(doc, field);
-    return Array.isArray(value) ? value.includes(expected) : value === expected;
-  });
+  const index = docIndex(collection, doc);
+  return Object.entries(where).every(
+    ([field, expected]) => (index[field as DocIndexField] ?? null) === expected,
+  );
 }
 
 function compare(a: unknown, b: unknown) {
@@ -90,18 +108,8 @@ export function orderRows<T extends QueryRow>(rows: T[], query: DocQuery = {}) {
 }
 
 export function summarize(collection: string, doc: unknown) {
-  const fields = collectionDef(collection)?.summary;
-  if (!fields) return doc;
-  const out: Record<string, unknown> = {};
-  for (const field of fields) {
-    const value = pathValue(doc, field);
-    if (value === undefined) continue;
-    const parts = field.split('.');
-    let target = out;
-    for (const part of parts.slice(0, -1)) target = (target[part] ??= {}) as Record<string, unknown>;
-    target[parts.at(-1)!] = value;
-  }
-  return out;
+  const def = collectionDef(collection);
+  return def ? docSummary(def, doc) : doc;
 }
 
 export function selectRows(collection: string, rows: QueryRow[], query: DocQuery = {}) {
@@ -164,7 +172,7 @@ export class BufferedTx implements DocTx {
     const rows = new Map(committed.map((row) => [row.id, row]));
     for (const write of this.writes.values()) {
       if (write.collection !== collection) continue;
-      if (write.removed || !matchesWhere(write.doc, query.where)) rows.delete(write.id);
+      if (write.removed || !matchesWhere(collection, write.doc, query.where)) rows.delete(write.id);
       else rows.set(write.id, { id: write.id, doc: write.doc, version: write.version });
     }
     for (const row of committed) this.record(collection, row.id, row.version);
@@ -219,7 +227,7 @@ export class MemoryDocStore implements DocStore {
   }
   private rows(collection: string, where: DocQuery['where']) {
     return [...this.table(collection)]
-      .filter(([, row]) => matchesWhere(row.doc, where))
+      .filter(([, row]) => matchesWhere(collection, row.doc, where))
       .map(([id, row]) => ({ id, doc: this.copy(row.doc), version: row.version }));
   }
   query(collection: string, query: DocQuery = {}) {
@@ -249,12 +257,6 @@ export class MemoryDocStore implements DocStore {
   private write(collection: string, id: string, doc: unknown) {
     const table = this.table(collection);
     if (docId(collection, doc) !== id) throw new Error(`${collection}: document key is not ${id}`);
-    for (const field of collectionDef(collection)?.unique ?? []) {
-      const value = pathValue(doc, field);
-      for (const [other, row] of table)
-        if (other !== id && pathValue(row.doc, field) === value)
-          throw new Error(`${collection}: ${field} ${String(value)} already exists`);
-    }
     const version = (table.get(id)?.version ?? 0) + 1;
     table.set(id, { doc: this.copy(doc), version });
     return version;

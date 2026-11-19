@@ -20,18 +20,23 @@ export function createCorpusTopicsRepository(store: DocStore) {
       return value;
     },
     async list(corpusId: string) {
-      return (await store.query('corpusTopics', { where: { corpusIds: corpusId } }))
-        .map((row) => CorpusTopicsSchema.parse(row.doc))
+      // The registry carries each snapshot's corpus ids in its summary, not in an index.
+      const summaries = await store.query('corpusTopics', { select: 'summary' });
+      const ids = summaries
+        .filter((row) => ((row.doc as { corpusIds?: string[] }).corpusIds ?? []).includes(corpusId))
+        .map((row) => row.id);
+      return (await store.getMany('corpusTopics', ids))
+        .flatMap((row) => (row ? [CorpusTopicsSchema.parse(row.doc)] : []))
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     },
     async names(snapshotId: string) {
-      return (await store.query('topicNames', { where: { snapshotId }, orderBy: 'topicId' })).map((row) =>
-        TopicNameSchema.parse(row.doc),
+      return (await store.query('topicNames', { where: { refId: snapshotId }, orderBy: 'topicId' })).map(
+        (row) => TopicNameSchema.parse(row.doc),
       );
     },
     async saveName(record: TopicName) {
       const value = TopicNameSchema.parse(record);
-      await store.put('topicNames', JSON.stringify([value.snapshotId, value.topicId]), value);
+      await store.put('topicNames', `${value.snapshotId}:${value.topicId}`, value);
       return value;
     },
   };

@@ -60,7 +60,7 @@ export function createPapersRepository(store: DocStore, deps: StorageDeps) {
     },
     /** The paper imported from the file with this SHA-256 (`sha256:<hex>`), if any. */
     async findBySourceHash(sha256: string) {
-      const [row] = await store.query('papers', { where: { 'source.sha256': sha256 }, limit: 1 });
+      const [row] = await store.query('papers', { where: { sourceSha256: sha256 }, limit: 1 });
       return row ? PaperSchema.parse(row.doc) : undefined;
     },
     async list() {
@@ -73,7 +73,7 @@ export function createPapersRepository(store: DocStore, deps: StorageDeps) {
         if (!(await tx.get('papers', id))) return;
         await tx.remove('papers', id);
         for (const collection of PER_PAPER) await tx.remove(collection, id);
-        for (const row of await tx.query('library', { where: { paper_id: id } }))
+        for (const row of await tx.query('library', { where: { paperId: id } }))
           await tx.put('library', row.id, {
             ...(row.doc as object),
             paper_id: null,

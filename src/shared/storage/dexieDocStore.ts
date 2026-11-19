@@ -1,9 +1,10 @@
 import type { IndexableType, Table } from 'dexie';
+import type { DocIndexField } from '@/core/storage/collections';
 import type { ParagraphDb } from './db';
 import {
   BufferedTx,
+  docId,
   matchesWhere,
-  pathValue,
   selectRows,
   versionMismatch,
   type DocQuery,
@@ -15,11 +16,24 @@ import {
 } from './docStore';
 import { StorageConflictError } from './errors';
 
+/** Registry index fields that a Dexie index already answers, per collection. Others are filtered in memory. */
+const NATIVE_INDEXES: Record<string, Partial<Record<DocIndexField, string>>> = {
+  analyses: { sourceSha256: 'text.sourceHash' },
+  auditEvents: { refId: 'analysisId' },
+  revisions: { refId: 'sourceAnalysisId' },
+  paperRuns: { paperId: 'paperId' },
+  library: { doi: 'doi', paperId: 'paper_id' },
+  corpora: { kind: 'kind' },
+  reviewNgrams: { paperId: 'paperId' },
+  topicNames: { refId: 'snapshotId' },
+  autoresearchRuns: { projectId: 'projectId' },
+};
+
 /**
  * The DocStore port over this browser's Dexie tables, kept until the lab server takes over (slice C2).
  * IndexedDB keeps no versions, so they are counted in memory for this tab: a stored document starts at 1.
  * A unit of work runs inside one read-write Dexie transaction, so it cannot conflict with another tab.
- * A compound key is addressed by the JSON array of its parts, e.g. `["hash","paperId"]`.
+ * Ids are the registry's `key`; the two compound Dexie keys are mapped from them.
  */
 export class DexieDocStore implements DocStore {
   private readonly versions = new Map<string, number>();
@@ -30,19 +44,18 @@ export class DexieDocStore implements DocStore {
     if (!table) throw new Error(`Unknown collection ${collection}`);
     return table as Table<unknown, IndexableType>;
   }
-  private keyPath(collection: string) {
-    const keyPath = this.table(collection).schema.primKey.keyPath;
-    if (!keyPath) throw new Error(`${collection} has no inbound key`);
-    return keyPath;
-  }
+  /** The Dexie primary key for a registry id; compound keys are `paperId:hash` and `snapshotId:topicId`. */
   private key(collection: string, id: string): IndexableType {
-    return Array.isArray(this.keyPath(collection)) ? (JSON.parse(id) as string[]) : id;
+    const at = id.indexOf(':');
+    if (collection === 'reviewNgrams') return [id.slice(at + 1), id.slice(0, at)];
+    if (collection === 'topicNames') {
+      const last = id.lastIndexOf(':');
+      return [id.slice(0, last), Number(id.slice(last + 1))];
+    }
+    return id;
   }
   private idOf(collection: string, doc: unknown) {
-    const keyPath = this.keyPath(collection);
-    return Array.isArray(keyPath)
-      ? JSON.stringify(keyPath.map((part) => pathValue(doc, part)))
-      : String(pathValue(doc, keyPath));
+    return docId(collection, doc);
   }
   private versionOf(collection: string, id: string) {
     return this.versions.get(`${collection}\u0000${id}`) ?? 1;
@@ -64,12 +77,10 @@ export class DexieDocStore implements DocStore {
   }
   async query(collection: string, query: DocQuery = {}): Promise<QueryRow[]> {
     const table = this.table(collection);
-    const keyPath = this.keyPath(collection);
     const entries = Object.entries(query.where ?? {});
+    const native = NATIVE_INDEXES[collection] ?? {};
     const indexed = entries.find(
-      ([field, value]) =>
-        (typeof value === 'string' || typeof value === 'number') &&
-        (field === keyPath || table.schema.idxByName[field]),
+      ([field, value]) => typeof value === 'string' && native[field as DocIndexField],
     );
     // With no filter, an indexed order and a limit are read straight from the index.
     if (
@@ -82,8 +93,12 @@ export class DexieDocStore implements DocStore {
       const docs = await (query.desc ? ordered.reverse() : ordered).limit(query.limit).toArray();
       return selectRows(collection, this.rows(collection, docs), query);
     }
-    const source = indexed ? table.where(indexed[0]).equals(indexed[1] as string) : table.toCollection();
-    const docs = await source.filter((doc) => matchesWhere(doc, query.where)).toArray();
+    // The native index already holds the equality it was looked up by (DOIs are stored normalised).
+    const source = indexed
+      ? table.where(native[indexed[0] as DocIndexField]!).equals(indexed[1] as string)
+      : table.toCollection();
+    const rest = Object.fromEntries(entries.filter((entry) => entry !== indexed));
+    const docs = await source.filter((doc) => matchesWhere(collection, doc, rest)).toArray();
     return selectRows(collection, this.rows(collection, docs), query);
   }
   private rows(collection: string, docs: unknown[]): QueryRow[] {
