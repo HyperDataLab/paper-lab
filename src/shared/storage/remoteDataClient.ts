@@ -121,7 +121,8 @@ export class RemoteDataClient {
     });
     if (result.status === 304) return undefined;
     if (result.status === 404) return null;
-    const tag = /^"v([1-9]\d*)"$/u.exec(result.headers.get('ETag') ?? '');
+    // Cloudflare weakens the ETag (W/"v1") when it compresses the response.
+    const tag = /^(?:W\/)?"v([1-9]\d*)"$/u.exec(result.headers.get('ETag') ?? '');
     return { doc: (await result.json()) as unknown, version: version.parse(Number(tag?.[1])) };
   }
 
