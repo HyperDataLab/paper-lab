@@ -2,6 +2,12 @@
 
 Writing Bank vendors the draft JSON Schema (`schemas/corpus-profile-v2.draft.schema.json`), the feature registry v2 (`schemas/feature-registry-v2.json`) and the example (`schemas/examples/corpus-profile-v2.draft.example.json`) for its journal profile mapping (writing-bank doc 39). `schemaVersion` distinguishes it from v1, and `draft` is always true while the shape may still change. The example is built by PaperLab code from synthetic papers and contains no real paper text. `npm run schema:corpus-profile` regenerates all three files.
 
+## PDF acquisition
+
+When `VITE_FETCH_HUB_URL` is configured, send the remaining DOIs from the corpus build card and choose
+**Cập nhật từ Hub** to import finished PDFs. Build the paper models once their members show **Đã lấy**.
+See the [Hub acquisition workflow](../datasets/FL_JOURNAL_CORPORA.md#acquire-pdfs-through-paper-fetch-hub).
+
 ## Registry v2 (slice P2)
 
 Every v1 feature is kept with its id and definition and forms the pre-declared `core` FDR family, so its comparisons equal the v1 profile. The P2 features are tested with the same statistics, Benjamini–Hochberg within their own family:

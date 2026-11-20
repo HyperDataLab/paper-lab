@@ -32,7 +32,7 @@ import { ProtocolForm } from './ProtocolForm';
 import { TopicSearch } from './TopicSearch';
 import styles from './corpus.module.css';
 
-type SaveOptions = { checkpoint?: boolean };
+type SaveOptions = { checkpoint?: boolean; expectedVersion?: number };
 
 export default function DetailPage() {
   const { id } = useParams();
@@ -74,7 +74,7 @@ export default function DetailPage() {
       setRecord(
         options.checkpoint
           ? { doc: await repo.corpora.checkpoint(value), version: null }
-          : await repo.corpora.saveVersioned(value),
+          : await repo.corpora.saveVersioned(value, options.expectedVersion),
       );
     } catch (e) {
       if (e instanceof CorpusConflict) setConflict(true);
@@ -205,7 +205,7 @@ export default function DetailPage() {
       {corpus.kind === 'topic' && <TopicSearch corpus={corpus} save={save} />}
       {corpus.kind === 'topic' && <PrismaPanel corpus={corpus} />}
       {corpus.kind === 'topic' && <AppraisalPanel corpus={corpus} save={save} />}
-      <CorpusBuild corpus={corpus} save={save} />
+      <CorpusBuild key={JSON.stringify([corpus.id, user?.uid])} corpus={corpus} save={save} />
       <CorpusLabels corpus={corpus} save={save} />
       {corpus.kind === 'journal' && <CorpusProfileCard corpus={corpus} />}
       <CorpusTopics corpus={corpus} onData={receiveTopics} />

@@ -5,16 +5,20 @@ import { useRepositories } from '@/shared/storage/StorageProvider';
 import { useAuth } from '@/shared/auth/authContext';
 import { useGrobidQueue } from '@/shared/pdfStore/useGrobidQueue';
 import { GrobidQueueStatus, GrobidQueueSummary } from '@/shared/pdfStore/GrobidQueueStatus';
+import { FetchHubError } from '@/shared/fetchHub/client';
+import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { acquireMember } from './acquisition';
 import { modelInputs } from './modelInputs';
+import { useCorpusHub, type SaveAcquisition } from './useCorpusHub';
 
-export function CorpusBuild({ corpus, save }: { corpus: Corpus; save: (value: Corpus) => Promise<void> }) {
+export function CorpusBuild({ corpus, save }: { corpus: Corpus; save: SaveAcquisition }) {
   const repo = useRepositories();
   const { user, getIdToken } = useAuth();
   const grobid = useGrobidQueue();
   const [busy, setBusy] = useState(false);
+  const hub = useCorpusHub({ corpus, save, disabled: busy, onImported: grobid.enqueue });
   const [error, setError] = useState('');
   const [stale, setStale] = useState<string[]>([]);
   const control = useRef<'run' | 'pause' | 'cancel'>('run');
@@ -138,17 +142,29 @@ export function CorpusBuild({ corpus, save }: { corpus: Corpus; save: (value: Co
             </p>
           ),
       )}
-      <Button disabled={busy} onClick={() => void fetchPdfs()}>
+      <Button disabled={busy || hub.working} onClick={() => void fetchPdfs()}>
         Lấy PDF
       </Button>{' '}
+      {hub.configured && (
+        <>
+          <Button disabled={busy || hub.working || !hub.hasEligible} onClick={() => void hub.send()}>
+            Gửi DOI sang Paper Fetch Hub
+          </Button>{' '}
+          <Button disabled={busy || hub.working || !hub.hasEligible} onClick={() => void hub.refresh(false)}>
+            Cập nhật từ Hub
+          </Button>{' '}
+        </>
+      )}
       <Button disabled={busy} onClick={download}>
-        Gửi DOI sang Paper Fetch Hub
+        {hub.configured ? 'Xuất danh sách DOI (.txt)' : 'Gửi DOI sang Paper Fetch Hub'}
       </Button>{' '}
-      <Button disabled={busy} onClick={() => void run(false)}>
+      <Button disabled={busy || hub.working} onClick={() => void run(false)}>
         Dựng paper model
       </Button>{' '}
       {queue && queue.pending.length > 0 && queue.status !== 'cancelled' && !busy && (
-        <Button onClick={() => void run(true)}>Tiếp tục</Button>
+        <Button disabled={hub.working} onClick={() => void run(true)}>
+          Tiếp tục
+        </Button>
       )}
       {busy && (
         <>
@@ -170,6 +186,44 @@ export function CorpusBuild({ corpus, save }: { corpus: Corpus; save: (value: Co
           </Button>
         </>
       )}
+      {hub.working && <p role="status">Đang xử lý yêu cầu Paper Fetch Hub…</p>}
+      {hub.counts && (
+        <p role="status">
+          Đã tạo {hub.counts.created} · Đã tham gia {hub.counts.joined} · DOI không hợp lệ{' '}
+          {hub.counts.invalid}
+        </p>
+      )}
+      {hub.error && (
+        <>
+          <p role="alert">{hub.error.message}</p>
+          {hub.error instanceof FetchHubError && hub.error.detail && (
+            <details>
+              <summary>Chi tiết kỹ thuật</summary>
+              <p>{hub.error.detail}</p>
+            </details>
+          )}
+        </>
+      )}
+      {corpus.members.map((member) => {
+        const last = hub.statuses[member.memberId];
+        if (!last || last.doi !== member.identifiers.doi) return null;
+        const { status, reason, importError } = last;
+        const [label, tone] =
+          status === 'done'
+            ? (['Hub đã có PDF', 'success'] as const)
+            : status === 'needs_human'
+              ? (['Cần người xử lý', 'warning'] as const)
+              : status === 'failed' || status === 'cancelled'
+                ? (['Hub không lấy được', 'danger'] as const)
+                : (['Hub đang lấy', 'neutral'] as const);
+        return (
+          <p key={member.memberId}>
+            {member.title ?? last.doi} <Badge tone={tone}>{label}</Badge>
+            {status === 'needs_human' && reason && ` · ${reason}`}
+            {importError && ` · Không nhập được PDF. ${importError}`}
+          </p>
+        );
+      })}
       <p>
         Đã dựng: {built} · Thất bại: {queue?.failed.length ?? 0} · Còn lại: {queue?.pending.length ?? 0} · Tỷ
         lệ phân tích: {retrieved ? `${Math.round((built / retrieved) * 100)}%` : '—'}

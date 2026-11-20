@@ -6,6 +6,22 @@ import { getScholarEmail } from '@/shared/scholar/settings';
 import type { Repositories } from '@/shared/storage/types';
 import { importPaperFile } from '@/modules/paper-import';
 
+export const doiPdfName = (doi: string) => `${doi.replace(/[^a-z0-9.-]+/giu, '_')}.pdf`;
+
+export function retrievedMember(member: CorpusMember, paper: Paper): CorpusMember {
+  return {
+    ...member,
+    retrieval: 'retrieved',
+    retrievalReason: undefined,
+    textRead: 'FULL_TEXT',
+    identifiers: {
+      ...member.identifiers,
+      paperIds: [...new Set([...member.identifiers.paperIds, paper.id])],
+      sha256: [...new Set([...member.identifiers.sha256, paper.source.sha256])],
+    },
+  };
+}
+
 export async function acquireMember(
   member: CorpusMember,
   repo: Repositories,
@@ -21,7 +37,7 @@ export async function acquireMember(
     if (!result.found) throw new Error('Không tìm thấy bản mở');
     const { patch } = result;
     let file: File | undefined;
-    const name = `${doi.replace(/[^a-z0-9.-]+/giu, '_')}.pdf`;
+    const name = doiPdfName(doi);
     let failure = 'Không tìm thấy PDF mở';
     if (patch.arxiv_id) {
       try {
@@ -57,17 +73,7 @@ export async function acquireMember(
     } catch {
       // Background processing must not change the outcome of importing the PDF.
     }
-    return {
-      ...member,
-      retrieval: 'retrieved',
-      retrievalReason: undefined,
-      textRead: 'FULL_TEXT',
-      identifiers: {
-        ...member.identifiers,
-        paperIds: [...new Set([...member.identifiers.paperIds, paper.id])],
-        sha256: [...new Set([...member.identifiers.sha256, paper.source.sha256])],
-      },
-    };
+    return retrievedMember(member, paper);
   } catch (cause) {
     if (signal?.aborted) throw cause;
     return { ...member, retrieval: 'not_retrieved', retrievalReason: String(cause) };

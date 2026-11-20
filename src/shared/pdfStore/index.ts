@@ -32,8 +32,12 @@ const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
 /** Reads and writes the lab's copy. Every call needs a lab account's ID token. */
 export const pdfRemote = {
-  async download(sha: string, token: string): Promise<Blob | null> {
-    const response = await fetch(url(sha), { headers: auth(token), cache: 'no-store' });
+  async download(sha: string, token: string, signal?: AbortSignal): Promise<Blob | null> {
+    const response = await fetch(url(sha), {
+      headers: auth(token),
+      cache: 'no-store',
+      ...(signal && { signal }),
+    });
     if (response.status === 404) return null;
     if (!response.ok) throw new PdfRemoteError(response.status);
     return response.blob();
