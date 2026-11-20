@@ -1,25 +1,12 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useRef, useState, type ChangeEvent } from 'react';
 import { useRepositories } from '@/shared/storage/StorageProvider';
-import { getStorageStatus, requestPersistentStorage } from '@/shared/storage/persistence';
-import { Download, HardDrive, Upload } from 'lucide-react';
-import { Badge } from '@/shared/ui/Badge';
+import { Download, Upload } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Card } from '@/shared/ui/Card';
 import { useToast } from '@/shared/ui/toastContext';
 import type { ImportPlan } from '@/core/transfer/planImport';
 import styles from './page.module.css';
-function formatSize(value: number | null | undefined) {
-  if (value == null) return 'không rõ';
-  const units = ['KB', 'MB', 'GB'];
-  let amount = value / 1024;
-  let unit = 0;
-  while (amount >= 1024 && unit < units.length - 1) {
-    amount /= 1024;
-    unit++;
-  }
-  return `${new Intl.NumberFormat('vi', { maximumFractionDigits: 1 }).format(amount)} ${units[unit]}`;
-}
 export default function Page() {
   const toast = useToast();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -28,10 +15,6 @@ export default function Page() {
   const [plan, setPlan] = useState<ImportPlan | null>(null);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
-  const [storage, setStorage] = useState<Awaited<ReturnType<typeof requestPersistentStorage>> | null>(null);
-  useEffect(() => {
-    void getStorageStatus().then(setStorage);
-  }, []);
   async function download() {
     try {
       const date = new Date();
@@ -82,7 +65,7 @@ export default function Page() {
             <h2>
               <Download size={18} aria-hidden="true" /> Xuất
             </h2>
-            <p>Tải dữ liệu có thể xuất từ phiên làm việc này.</p>
+            <p>Tải toàn bộ dữ liệu của bạn từ kho dữ liệu lab.</p>
             <Button variant="primary" onClick={() => void download()}>
               Xuất toàn bộ (JSON)
             </Button>
@@ -163,39 +146,6 @@ export default function Page() {
           </div>
         </Card>
       </div>
-      <Card>
-        <div className={styles.section}>
-          <h2>
-            <HardDrive size={18} aria-hidden="true" /> Lưu trữ
-          </h2>
-          {storage?.usage != null && storage.quota ? (
-            <progress
-              className={styles.meter}
-              value={storage.usage}
-              max={storage.quota}
-              aria-label="Dung lượng đã dùng"
-            />
-          ) : null}
-          <div className={styles.statusRow}>
-            <span>
-              Đã dùng: {formatSize(storage?.usage)} / {formatSize(storage?.quota)}
-            </span>
-            <Badge tone={storage?.persisted ? 'success' : 'neutral'}>
-              Lưu trữ bền vững:{' '}
-              {storage?.persisted == null ? 'không rõ' : storage.persisted ? 'đã cấp' : 'chưa cấp'}
-            </Badge>
-          </div>
-          <p>
-            Khi chưa được cấp lưu trữ bền vững, trình duyệt có thể tự xoá dữ liệu lúc máy thiếu dung lượng.
-          </p>
-          <Button
-            disabled={storage?.persisted === true}
-            onClick={() => void requestPersistentStorage().then(setStorage)}
-          >
-            Yêu cầu lưu trữ bền vững
-          </Button>
-        </div>
-      </Card>
     </div>
   );
 }

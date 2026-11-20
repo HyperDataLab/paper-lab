@@ -1,13 +1,9 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { newProject } from '@/core/extraction';
 import { newRun } from '@/core/autoresearch/run';
-import { CompositeDocStore } from './compositeDocStore';
-import { createDb } from './db';
-import { DexieDocStore } from './dexieDocStore';
 import type { DocTx } from './docStore';
-import { MixedStorageError, StorageConflictError } from './errors';
+import { DataNotConfiguredError, StorageConflictError } from './errors';
 import { RemoteDocStore } from './remoteDocStore';
 import { testId, testWorkerData } from './remoteTestSupport';
 
@@ -186,28 +182,22 @@ it('retains an unsaved checkpoint after a failed PUT and retries it on the next 
   expect((await store.get(collection, projectId))?.doc).toEqual(project);
 });
 
-it('keeps browser and lab units of work separate and uses Dexie for an unconfigured worker', async () => {
-  const db = createDb(`c2-${crypto.randomUUID()}`);
-  const local = new DexieDocStore(db);
-  const online = new CompositeDocStore(local, testWorkerData().connect());
-  await expect(
-    online.unitOfWork(
-      async (tx) => {
-        await tx.put(collection, projectId, project, null);
-        await tx.get('pdfFiles', 'anything');
-      },
-      [collection],
-    ),
-  ).rejects.toBeInstanceOf(MixedStorageError);
-  expect(await online.get(collection, projectId)).toBeNull();
-  expect(await local.get(collection, projectId)).toBeNull();
+it('reports an unconfigured worker as an error, every time, with no fallback', async () => {
   const worker = testWorkerData(false);
-  const composite = new CompositeDocStore(local, worker.connect());
-  await composite.put(collection, projectId, project, null);
-  expect(composite.isFallback()).toBe(true);
-  expect((await local.get(collection, projectId))?.doc).toEqual(project);
-  expect((await composite.get(collection, projectId))?.doc).toEqual(project);
-  expect(worker.requests).toHaveLength(1);
+  const messages: (string | null)[] = [];
+  const store = new RemoteDocStore({
+    baseUrl: 'https://worker.test',
+    fetch: worker.dispatch,
+    getToken: async () => 'lab-test',
+    onConfigurationError: (message) => messages.push(message),
+  });
+  await expect(store.put(collection, projectId, project, null)).rejects.toBeInstanceOf(
+    DataNotConfiguredError,
+  );
+  await expect(store.get(collection, projectId)).rejects.toBeInstanceOf(DataNotConfiguredError);
+  expect(worker.requests).toHaveLength(2);
+  expect(messages).toHaveLength(2);
+  expect(messages.every((message) => typeof message === 'string' && message.length > 0)).toBe(true);
 });
 
 it('orders audit and topic rows by body fields and batches index membership with cursor paging', async () => {

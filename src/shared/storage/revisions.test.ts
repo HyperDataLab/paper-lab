@@ -1,12 +1,9 @@
-import 'fake-indexeddb/auto';
-import Dexie from 'dexie';
 import { webcrypto } from 'node:crypto';
 import { beforeAll, expect, it, vi } from 'vitest';
 import { buildRevision } from '@/core/revision';
 import { analyzeText } from '@/core/text';
 import type { Issue } from '@/core/schemas';
-import { createDb } from './db';
-import { createRepositories } from './repositories';
+import { testRepositories } from './testRepositories';
 
 beforeAll(() => vi.stubGlobal('crypto', webcrypto));
 const constraints = {
@@ -17,8 +14,7 @@ const constraints = {
 } as const;
 
 it('AC-08 AC-12 applies a revision to a new analysis and audits without changing the source', async () => {
-  const db = createDb(`revision-${crypto.randomUUID()}`);
-  const repo = createRepositories(db);
+  const repo = testRepositories();
   const issue: Issue = {
     id: 'i',
     type: 'WEAK_MODIFIER',
@@ -77,31 +73,10 @@ it('AC-08 AC-12 applies a revision to a new analysis and audits without changing
   await expect(
     repo.revisions.create({ ...revision, id: crypto.randomUUID(), revisedText: 'tampered' }),
   ).rejects.toThrow('Revision hash mismatch');
-  await db.delete();
-});
-
-it('AC-12 migrates a version 1 database without changing existing data', async () => {
-  const name = `migration-${crypto.randomUUID()}`;
-  const old = new Dexie(name);
-  old
-    .version(1)
-    .stores({ analyses: 'id, createdAt, updatedAt, text.sourceHash', auditEvents: 'id, analysisId, at' });
-  const original = {
-    id: crypto.randomUUID(),
-    createdAt: 'old',
-    updatedAt: 'old',
-    text: { sourceHash: 'hash' },
-  };
-  await old.table('analyses').add(original);
-  old.close();
-  const db = createDb(name);
-  expect(await db.analyses.get(original.id)).toEqual(original);
-  expect(await db.revisions.count()).toBe(0);
-  await db.delete();
 });
 
 it('R1 exports and imports revisions and audit events, while accepting legacy exports', async () => {
-  const src = createRepositories(createDb(`export-${crypto.randomUUID()}`));
+  const src = testRepositories();
   const source = await src.analyses.create({ text: await analyzeText('A result.') });
   const revision = await buildRevision(
     source,
@@ -114,7 +89,7 @@ it('R1 exports and imports revisions and audit events, while accepting legacy ex
   await src.revisions.applyRevision(source.id, revision.id);
   const exported = await src.transfer.exportAll('1');
   expect(exported.revisions).toEqual([revision]);
-  const dst = createRepositories(createDb(`import-${crypto.randomUUID()}`));
+  const dst = testRepositories();
   const plan = await dst.transfer.previewImport(exported);
   if (!plan.ok) throw new Error(plan.error);
   expect(plan.revisionsToInsert).toEqual([revision]);
@@ -125,7 +100,7 @@ it('R1 exports and imports revisions and audit events, while accepting legacy ex
   );
   const legacy: Record<string, unknown> = { ...exported };
   delete legacy.revisions;
-  const oldDest = createRepositories(createDb(`legacy-${crypto.randomUUID()}`));
+  const oldDest = testRepositories();
   const oldPlan = await oldDest.transfer.previewImport(legacy);
   expect(oldPlan.ok && oldPlan.revisionsToInsert).toEqual([]);
   if (oldPlan.ok) await oldDest.transfer.applyImport(oldPlan);

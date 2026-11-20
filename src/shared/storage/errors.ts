@@ -29,13 +29,6 @@ export class DataNotConfiguredError extends RemoteStorageError {
   }
 }
 
-export class MixedStorageError extends Error {
-  override name = 'MixedStorageError';
-  constructor() {
-    super('A unit of work cannot span the browser and lab stores.');
-  }
-}
-
 export class ResearchDesignConflictError extends StorageConflictError {
   override name = 'ResearchDesignConflictError';
   constructor(message = 'Research design changed', id = '', serverVersion: number | null = null) {

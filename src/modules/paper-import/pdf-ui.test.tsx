@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -9,12 +8,12 @@ import type { Paper } from '@/core/schemas';
 import { chooseSelectOption } from '@/test/selectOption';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { sha256Hex } from '@/shared/pdfStore';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories, type Repositories } from '@/shared/storage/repositories';
+import { clearSessionPdfs, sha256Hex } from '@/shared/pdfStore';
+import type { Repositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { PaperPdf } from './PaperPdf';
 import PaperMapPage from './PaperMapPage';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 // jsdom has no canvas or pdf.js worker: the viewer is replaced by a stand-in that shows what it was given.
 vi.mock('./PdfViewer', () => ({
@@ -97,9 +96,23 @@ function wrap(repo: Repositories, auth: AuthValue, children: ReactNode, path = '
   );
 }
 
-const newRepo = () => createRepositories(createDb(`pdf-${crypto.randomUUID()}`));
+const newRepo = () => testRepositories();
+
+/** The lab's PDF worker: GET returns the PDF (or 404 when it has none), PUT stores it. */
+function stubLab(has = true) {
+  const fetchMock = vi.fn(async (_url: string, init?: RequestInit) =>
+    init?.method === 'PUT'
+      ? new Response(null, { status: 201 })
+      : has
+        ? new Response(bytes.slice(), { status: 200, headers: { 'Content-Type': 'application/pdf' } })
+        : new Response(null, { status: 404 }),
+  );
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}
 
 beforeEach(async () => {
+  clearSessionPdfs();
   vi.stubGlobal('crypto', webcrypto);
   vi.stubGlobal(
     'matchMedia',
@@ -111,52 +124,47 @@ beforeEach(async () => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-it('R8 a PDF kept on this machine is shown and sent to the lab storage once a lab account is signed in', async () => {
+it('R8 the PDF is read from the lab storage with the lab account token', async () => {
   const repo = newRepo();
-  await repo.pdfFiles.put(sha, new Blob([bytes], { type: 'application/pdf' }));
-  const fetchMock = vi.fn(async () => new Response(null, { status: 201 }));
-  vi.stubGlobal('fetch', fetchMock);
+  const fetchMock = stubLab();
   render(wrap(repo, signedIn(), <PaperPdf paper={paperFor(sha)} target={null} />));
-  expect(await screen.findByTestId('pdf-viewer')).toBeInTheDocument();
-  expect(await screen.findByText('Đã lưu trong kho lab')).toBeInTheDocument();
+  expect(await screen.findByTestId('pdf-viewer')).toHaveTextContent(`${bytes.length} bytes`);
+  expect(screen.getByText('Đã lưu trong kho lab')).toBeInTheDocument();
   expect(fetchMock).toHaveBeenCalledTimes(1);
   const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
   expect(url).toMatch(new RegExp(`/pdfs/${sha}$`));
-  expect(init.method).toBe('PUT');
+  expect(init.method ?? 'GET').toBe('GET');
   expect((init.headers as Record<string, string>).Authorization).toBe('Bearer token');
-  expect((await repo.pdfFiles.get(sha))?.uploaded).toBe(true);
 });
 
-it('R8 without a lab account the PDF stays on this machine and nothing is sent', async () => {
+it('R8 without a lab account nothing is fetched and the reader is asked to sign in', async () => {
   const repo = newRepo();
-  await repo.pdfFiles.put(sha, new Blob([bytes], { type: 'application/pdf' }));
   const fetchMock = vi.fn();
   vi.stubGlobal('fetch', fetchMock);
   render(wrap(repo, signedOut(), <PaperPdf paper={paperFor(sha)} target={null} />));
-  expect(await screen.findByTestId('pdf-viewer')).toBeInTheDocument();
-  expect(screen.getByText('Chỉ trên máy này')).toBeInTheDocument();
+  expect(await screen.findByText(/Đăng nhập lab để mở PDF/)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Đăng nhập lab' })).toBeInTheDocument();
+  expect(screen.queryByTestId('pdf-viewer')).toBeNull();
   expect(fetchMock).not.toHaveBeenCalled();
-  expect(await repo.pdfFiles.pending()).toHaveLength(1);
 });
 
-it('R8 a member on another machine opens the lab copy, which is then kept locally', async () => {
+it('R8 a PDF read once is kept in memory for the session, not in the browser database', async () => {
   const repo = newRepo();
-  const fetchMock = vi.fn(
-    async () => new Response(bytes.slice(), { status: 200, headers: { 'Content-Type': 'application/pdf' } }),
-  );
-  vi.stubGlobal('fetch', fetchMock);
-  // Blobs do not survive fake-indexeddb on every Node version, so the cache write is observed, not read back.
-  const put = vi.spyOn(repo.pdfFiles, 'put');
+  const fetchMock = stubLab();
+  render(wrap(repo, signedIn(), <PaperPdf paper={paperFor(sha)} target={null} />));
+  expect(await screen.findByTestId('pdf-viewer')).toBeInTheDocument();
+  cleanup();
   render(wrap(repo, signedIn(), <PaperPdf paper={paperFor(sha)} target={null} />));
   expect(await screen.findByTestId('pdf-viewer')).toBeInTheDocument();
   expect(fetchMock).toHaveBeenCalledTimes(1);
-  expect(put).toHaveBeenCalledWith(sha, expect.anything(), true);
 });
 
-it('R8 attaching the PDF again refuses a different file and accepts the original one', async () => {
+it('R8 attaching the PDF again refuses a different file and sends the original one to the lab', async () => {
   const repo = newRepo();
-  render(wrap(repo, signedOut(), <PaperPdf paper={paperFor(sha)} target={null} />));
+  const fetchMock = stubLab(false);
+  render(wrap(repo, signedIn(), <PaperPdf paper={paperFor(sha)} target={null} />));
   const input = await screen.findByLabelText('Chọn PDF gốc');
+  expect(screen.getByText('Kho của lab chưa có PDF của bài này.')).toBeInTheDocument();
   fireEvent.change(input, {
     target: { files: [new File([new TextEncoder().encode('%PDF-1.7 another')], 'other.pdf')] },
   });
@@ -164,7 +172,8 @@ it('R8 attaching the PDF again refuses a different file and accepts the original
   expect(screen.queryByTestId('pdf-viewer')).not.toBeInTheDocument();
   fireEvent.change(input, { target: { files: [new File([bytes], 'paper.pdf')] } });
   expect(await screen.findByTestId('pdf-viewer')).toBeInTheDocument();
-  expect(await repo.pdfFiles.get(sha)).toBeTruthy();
+  const put = fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === 'PUT');
+  expect(put?.[0]).toMatch(new RegExp(`/pdfs/${sha}$`));
 });
 
 it('R8 a paper that did not come from a PDF says so instead of offering a file', () => {
@@ -181,12 +190,11 @@ it('R12 a PDF paper is read as its PDF only, and its parsed text shows only whil
   const repo = newRepo();
   const paper = paperFor(sha);
   await repo.papers.create(paper);
-  await repo.pdfFiles.put(sha, new Blob([bytes], { type: 'application/pdf' }));
-  vi.stubGlobal('fetch', vi.fn());
+  stubLab();
   render(
     wrap(
       repo,
-      signedOut(),
+      signedIn(),
       <Routes>
         <Route path="/papers/:id" element={<PaperMapPage />} />
       </Routes>,
@@ -243,18 +251,17 @@ it('R8 opening a finding in a PDF paper turns the PDF to the page of its passage
     ],
   };
   await repo.papers.create(paper);
-  await repo.pdfFiles.put(sha, new Blob([bytes], { type: 'application/pdf' }));
   await repo.paperChecks.save({
     schemaVersion: 1,
     paperId: paper.id,
     report: runPaperChecks(paper),
     decisions: [],
   });
-  vi.stubGlobal('fetch', vi.fn());
+  stubLab();
   render(
     wrap(
       repo,
-      signedOut(),
+      signedIn(),
       <Routes>
         <Route path="/papers/:id" element={<PaperMapPage />} />
       </Routes>,
@@ -286,18 +293,17 @@ it('R9 findings are drawn on the PDF and open the finding when pressed', async (
     ],
   };
   await repo.papers.create(paper);
-  await repo.pdfFiles.put(sha, new Blob([bytes], { type: 'application/pdf' }));
   await repo.paperChecks.save({
     schemaVersion: 1,
     paperId: paper.id,
     report: runPaperChecks(paper),
     decisions: [],
   });
-  vi.stubGlobal('fetch', vi.fn());
+  stubLab();
   render(
     wrap(
       repo,
-      signedOut(),
+      signedIn(),
       <Routes>
         <Route path="/papers/:id" element={<PaperMapPage />} />
       </Routes>,
@@ -311,12 +317,11 @@ it('R9 findings are drawn on the PDF and open the finding when pressed', async (
 async function openPaper(paper: Paper, path = `/papers/${paper.id}`) {
   const repo = newRepo();
   await repo.papers.create(paper);
-  await repo.pdfFiles.put(sha, new Blob([bytes], { type: 'application/pdf' }));
-  vi.stubGlobal('fetch', vi.fn());
+  stubLab();
   render(
     wrap(
       repo,
-      signedOut(),
+      signedIn(),
       <Routes>
         <Route path="/papers/:id" element={<PaperMapPage />} />
       </Routes>,
@@ -413,7 +418,7 @@ it('R14 a page link in Summary opens the PDF with a way back to Summary', async 
   render(
     wrap(
       repo,
-      signedOut(),
+      signedIn(),
       <Routes>
         <Route path="/papers/:id" element={<PaperMapPage />} />
       </Routes>,

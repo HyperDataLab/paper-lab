@@ -1,6 +1,4 @@
-import type { ParagraphDb } from './db';
 import type { DocStore } from './docStore';
-import { DexieDocStore } from './dexieDocStore';
 import type { Repositories } from './types';
 export type { Repositories } from './types';
 import { createStorageDeps } from './storageShared';
@@ -28,7 +26,6 @@ import { createLibraryRepository } from './library';
 import { createStanceRepository } from './stance';
 import { createPaperInsightsRepository } from './paperInsights';
 import { createExtractionRepository } from './extractionProjects';
-import { createPdfFilesRepository } from './pdfFiles';
 import { createGrobidRepository } from './grobid';
 import { createTransferRepository } from './transfer';
 import { createResearchDesignRepository } from './researchDesigns';
@@ -36,23 +33,17 @@ import { createScgRepository } from './scg';
 import { createAutoResearchRepository } from './autoresearch';
 import { withChangeEvents } from './changeEvents';
 import { paperStoreReads } from './paperStoreReads';
-import { CompositeDocStore } from './compositeDocStore';
-import type { RemoteDocStore } from './remoteDocStore';
 export function createRepositories(
-  db: ParagraphDb,
+  base: DocStore,
   clock = () => new Date(),
   ids = () => crypto.randomUUID(),
-  base: DocStore = new DexieDocStore(db),
-  remote?: RemoteDocStore,
 ): Repositories {
-  const { store: batched, checkpointStore } = paperStoreReads(base, remote);
+  const { store: batched, checkpointStore } = paperStoreReads(base);
   // Remote stores have no live queries; readers such as the corpus graph refresh on these write events.
   const { store, subscribe: changes } = withChangeEvents(batched);
   const deps = createStorageDeps(clock, ids);
   const { now, makeAudit } = deps;
-  const audit = createAuditRepository(store, () =>
-    base === remote || (base instanceof CompositeDocStore && base.isFallback()) ? undefined : remote,
-  );
+  const audit = createAuditRepository(store);
   const calibrationLabels = createCalibrationLabelsRepository(store, deps);
   const analyses = createAnalysesRepository(
     store,
@@ -65,7 +56,7 @@ export function createRepositories(
   const paperRecords = createPapersRepository(store, deps);
   const papers: typeof paperRecords = {
     ...paperRecords,
-    // Papers and the library may sit in different stores, so library links are cleared in a commit of their own.
+    // Library links are cleared separately to keep the paper deletion commit bounded.
     async delete(id: string) {
       await paperRecords.delete(id);
       await library.detachPaper(id);
@@ -85,8 +76,7 @@ export function createRepositories(
   const extraction = createExtractionRepository(store, now, makeAudit);
   const corpusKeywords = createCorpusKeywordsRepository(store, library, now);
   const scg = createScgRepository(store, clock);
-  const pdfFiles = createPdfFilesRepository(db, now);
-  const transfer = createTransferRepository(db, store, clock, deps, {
+  const transfer = createTransferRepository(store, clock, deps, {
     audit,
     generations,
     papers,
@@ -121,7 +111,6 @@ export function createRepositories(
     corpusTopics: createCorpusTopicsRepository(store),
     corpusKeywords,
     corpusOpenKg: createCorpusOpenKgRepository(store, changes, corpusKeywords, scg),
-    pdfFiles,
     grobid: createGrobidRepository(store),
     calibrationLabels,
     transfer,

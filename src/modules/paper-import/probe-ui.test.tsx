@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -13,11 +12,11 @@ import { analyzeText } from '@/core/text';
 import { ScoresView } from '@/modules/evaluate';
 import type { LlmClient } from '@/shared/llm/client';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories, type Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { PaperOverview } from './PaperOverview';
 import { PaperProbe } from './PaperProbe';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 const MODEL = 'cx/gpt-6-luna';
 const AT = '2026-01-01T00:00:00.000Z';
@@ -44,7 +43,7 @@ const rawScores = (rubric: 0 | 1 | 2 | 3 | 4) => ({
 });
 
 async function setup(scored = 3) {
-  const repo = createRepositories(createDb(`probe-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const paragraphs = await Promise.all(
     ORIGINALS.map(async (text, i) => ({
       id: `s${i}_p01`,

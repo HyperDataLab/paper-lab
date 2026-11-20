@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -12,11 +11,10 @@ import type { LlmClient } from '@/shared/llm/client';
 import { getConfig } from '@/shared/llm/config';
 import { acceptConsent } from '@/shared/llm/consent';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { chooseSelectOption } from '@/test/selectOption';
 import { CorpusScgRoadmap } from './CorpusScgRoadmap';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 const at = '2026-01-01T00:00:00.000Z';
 const uuid = (n: number) => `00000000-0000-4000-8000-00000000010${n}`;
@@ -81,7 +79,7 @@ it('S3 shows coverage, the most built-upon list, a chain with evidence links, fi
   vi.stubGlobal('crypto', webcrypto);
   localStorage.clear();
   acceptConsent(getConfig(), true);
-  const repo = createRepositories(createDb(`roadmap-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const papers = [
     paper(1, 'We release the Alpha corpus.'),
     paper(2, 'Our Beta parser is trained on the Alpha corpus.'),

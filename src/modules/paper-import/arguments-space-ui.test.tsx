@@ -1,15 +1,13 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { fixturePaper, fixtureRun, PAPER_ID } from '@/core/measurement/testFixture';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { PaperAtomics } from './PaperAtomics';
 import PaperMapPage from './PaperMapPage';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 beforeEach(() => {
   vi.stubGlobal('crypto', webcrypto);
@@ -24,7 +22,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 /** A stored measurement with one atomic sentence in Methods and one in Results. */
 async function seeded() {
-  const repo = createRepositories(createDb(`args-space-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.papers.create(fixturePaper);
   const run = fixtureRun();
   const evidence = run.profile.evidence[0]!;

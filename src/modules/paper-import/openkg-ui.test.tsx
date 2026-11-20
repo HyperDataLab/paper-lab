@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -8,10 +7,10 @@ import { DEFINITION, fixturePaper, PAPER_ID } from '@/core/measurement/testFixtu
 import { sentenceIndex } from '@/core/paperModel';
 import { downloadText } from '@/shared/calibration/download';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories, type Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import PaperMapPage from './PaperMapPage';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 vi.mock('@/shared/calibration/download', { spy: true });
 
@@ -117,7 +116,7 @@ async function seed(repo: Repositories) {
 }
 
 async function openPaper(populated: boolean) {
-  const repo = createRepositories(createDb(`openkg-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.papers.create(paper);
   if (populated) await seed(repo);
   render(

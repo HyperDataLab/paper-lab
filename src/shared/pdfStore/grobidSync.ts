@@ -3,7 +3,7 @@ import { runPaperChecks } from '@/core/paperChecks';
 import { GROBID_VERSION, type GrobidRecord, type GrobidResult, type Paper } from '@/core/schemas';
 import type { Repositories } from '@/shared/storage/types';
 import { fetchGrobidTei } from './grobid';
-import { paperSha, pdfRemote, PdfRemoteError } from './index';
+import { paperSha, PdfRemoteError } from './index';
 
 /** Why GROBID cannot be used for a paper before anything is sent, or null when it can be asked. */
 export function grobidBlocker(paper: Pick<Paper, 'source'>, signedIn: boolean): string | null {
@@ -32,8 +32,7 @@ async function refreshChecks(repo: Repositories, paperId: string, grobid: Grobid
 }
 
 /**
- * Asks the lab's GROBID for the paper's structure and stores the result, or the reason it failed. The PDF is
- * sent to the lab's storage first when only this browser has it, since the worker reads it from there.
+ * Asks the lab's GROBID to read the PDF from R2 and stores the result or the reason it failed.
  */
 export async function requestGrobid(
   repo: Repositories,
@@ -62,11 +61,6 @@ export async function requestGrobid(
   try {
     const token = await getIdToken();
     if (!token) throw new PdfRemoteError(401);
-    const local = await repo.pdfFiles.get(sha);
-    if (local && !local.uploaded) {
-      await pdfRemote.upload(sha, local.blob, token);
-      await repo.pdfFiles.markUploaded(sha);
-    }
     const result = parseGrobidTei(await fetchGrobidTei(sha, token, signal));
     if (good && !replace) {
       const old = good.result;

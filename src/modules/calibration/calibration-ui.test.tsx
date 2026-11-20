@@ -1,16 +1,14 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { analyzeText } from '@/core/text';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import Page from './Page';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 it('P7 previews matched and unmatched labels, imports, downloads a template and deletes', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`calibration-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const text = await analyzeText('Very clear.');
   await repo.analyses.create({
     text,

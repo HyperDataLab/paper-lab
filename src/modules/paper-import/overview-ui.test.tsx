@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -7,8 +6,7 @@ import { transitionFindings, transitionPairs, validateTransitions } from '@/core
 import { analyzeText } from '@/core/text';
 import type { Issue, Paper, SentenceAnnotation } from '@/core/schemas';
 import type { Scores } from '@/core/schemas/scores';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
+import { testRepositories } from '@/shared/storage/testRepositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import type { LlmClient } from '@/shared/llm/client';
@@ -18,10 +16,7 @@ beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 const at = '2026-01-01T00:00:00.000Z';
 async function setup(modelConfirmed = false) {
   let time = Date.parse(at);
-  const repo = createRepositories(
-    createDb(`overview-ui-${crypto.randomUUID()}`),
-    () => new Date((time += 1000)),
-  );
+  const repo = testRepositories({ clock: () => new Date((time += 1000)) });
   const paper: Paper = {
     schemaVersion: 1,
     id: crypto.randomUUID(),

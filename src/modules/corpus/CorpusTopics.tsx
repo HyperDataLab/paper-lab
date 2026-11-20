@@ -4,7 +4,7 @@ import { PROMPT_VERSIONS } from '@/core/prompts';
 import type { Corpus } from '@/core/schemas/corpus';
 import type { CorpusTopics as Snapshot, TopicName } from '@/core/schemas/corpusTopics';
 import { useAuth } from '@/shared/auth/authContext';
-import { corpusTopicsStatus, pullCorpusTopics, startCorpusTopics } from '@/shared/corpusSync';
+import { corpusTopicsStatus, pullCorpusTopics, startCorpusTopics } from '@/shared/corpusTopics';
 import { useLlm } from '@/shared/llm/LlmProvider';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';

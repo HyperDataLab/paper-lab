@@ -17,9 +17,8 @@ export function LabAccountCard() {
         <header>
           <h2>Tài khoản lab</h2>
           <p>
-            Đăng nhập bằng tài khoản Google @{LAB_DOMAIN} để dùng PDF gốc, dự án trích xuất, thiết kế nghiên
-            cứu và lượt chạy AutoResearch trong kho chung của lab. Khi đăng xuất, ứng dụng dùng dữ liệu trên
-            thiết bị này.
+            Đăng nhập bằng tài khoản Google @{LAB_DOMAIN} để dùng dữ liệu PaperLab trong kho chung của lab.
+            Khi đăng xuất, các màn hình dữ liệu cần đăng nhập lại; Cài đặt và Playground vẫn dùng được.
           </p>
         </header>
         <div className={styles.fields}>

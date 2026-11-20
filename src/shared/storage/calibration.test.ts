@@ -1,25 +1,11 @@
-import 'fake-indexeddb/auto';
-import Dexie from 'dexie';
 import { webcrypto } from 'node:crypto';
 import { expect, it, vi } from 'vitest';
-import { createDb } from './db';
-import { createRepositories } from './repositories';
+import { testRepositories } from './testRepositories';
 
-it('P7 migrates existing databases and round trips imported labels and audit in backups', async () => {
+it('P7 round trips imported labels and their audit in backups', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const name = `calibration-${crypto.randomUUID()}`;
-  const old = new Dexie(name);
-  old.version(9).stores({
-    analyses: 'id, createdAt, updatedAt, text.sourceHash',
-    auditEvents: 'id, analysisId, at',
-    paperProbes: 'paperId',
-  });
-  await old.open();
-  old.close();
-  const db = createDb(name);
-  const repo = createRepositories(db);
+  const repo = testRepositories();
   expect(await repo.calibrationLabels.list()).toEqual([]);
-  expect(db.verno).toBe(27);
   const data = {
     format: 'paragraph-lab-labels',
     version: 1,
@@ -31,8 +17,7 @@ it('P7 migrates existing databases and round trips imported labels and audit in 
   expect((await repo.audit.listByAnalysis(imported.id)).items[0]?.action).toBe('import_labels');
   await expect(repo.calibrationLabels.import('bad.json', {})).rejects.toThrow();
   const backup = await repo.transfer.exportAll('test');
-  const second = createDb(`calibration-${crypto.randomUUID()}`);
-  const restored = createRepositories(second);
+  const restored = testRepositories();
   const plan = await restored.transfer.previewImport(backup);
   if (!plan.ok) throw new Error(plan.error);
   await restored.transfer.applyImport(plan);
@@ -40,6 +25,4 @@ it('P7 migrates existing databases and round trips imported labels and audit in 
   expect((await restored.audit.listByAnalysis(imported.id)).items[0]?.action).toBe('import_labels');
   await restored.calibrationLabels.delete(imported.id);
   expect(await restored.calibrationLabels.list()).toEqual([]);
-  db.close();
-  second.close();
 });

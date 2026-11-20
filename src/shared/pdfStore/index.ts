@@ -1,5 +1,4 @@
 import type { Paper } from '@/core/schemas';
-import type { Repositories } from '@/shared/storage/types';
 
 /** The lab's PDF worker. Not a secret: it refuses every request without a lab account's token. */
 export const PDF_WORKER_URL: string =
@@ -34,7 +33,7 @@ const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 /** Reads and writes the lab's copy. Every call needs a lab account's ID token. */
 export const pdfRemote = {
   async download(sha: string, token: string): Promise<Blob | null> {
-    const response = await fetch(url(sha), { headers: auth(token) });
+    const response = await fetch(url(sha), { headers: auth(token), cache: 'no-store' });
     if (response.status === 404) return null;
     if (!response.ok) throw new PdfRemoteError(response.status);
     return response.blob();
@@ -46,22 +45,32 @@ export const pdfRemote = {
       body: blob,
     });
     if (!response.ok) throw new PdfRemoteError(response.status);
+    rememberPdf(sha, blob);
   },
 };
 
-/** Sends every PDF kept here that the lab's storage does not have yet. Failures are left for next time. */
-export async function syncPendingPdfs(repo: Repositories, getIdToken: () => Promise<string | null>) {
-  const token = await getIdToken();
-  if (!token) return 0;
-  let sent = 0;
-  for (const record of await repo.pdfFiles.pending()) {
-    try {
-      await pdfRemote.upload(record.sha256, record.blob, token);
-      await repo.pdfFiles.markUploaded(record.sha256);
-      sent += 1;
-    } catch {
-      /* kept locally; tried again on the next sync */
-    }
+/** PDFs read from or sent to the lab in this tab, newest last. Nothing is kept once the tab closes. */
+const SESSION_PDFS = 8;
+const sessionPdfs = new Map<string, Blob>();
+function rememberPdf(sha: string, blob: Blob) {
+  sessionPdfs.delete(sha);
+  sessionPdfs.set(sha, blob);
+  for (const oldest of sessionPdfs.keys()) {
+    if (sessionPdfs.size <= SESSION_PDFS) break;
+    sessionPdfs.delete(oldest);
   }
-  return sent;
+}
+
+/** The paper's PDF from this tab's memory, else from the lab's storage; null when the lab has no copy. */
+export async function loadPdf(sha: string, token: string): Promise<Blob | null> {
+  const cached = sessionPdfs.get(sha);
+  if (cached) return cached;
+  const blob = await pdfRemote.download(sha, token);
+  if (blob) rememberPdf(sha, blob);
+  return blob;
+}
+
+/** Test hook: forgets the PDFs held for this tab. */
+export function clearSessionPdfs() {
+  sessionPdfs.clear();
 }

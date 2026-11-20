@@ -1,16 +1,13 @@
-import 'fake-indexeddb/auto';
 import { expect, it } from 'vitest';
 import { exampleCorpus } from '@/core/corpus/contract';
 import { addFromDois, addFromLibrary } from '@/core/corpus/intake';
 import { buildCorpusKeywords } from '@/core/corpusKeywords';
-import { createDb } from './db';
-import { createRepositories } from './repositories';
+import { testRepositories } from './testRepositories';
 
 const kw = (slug: string, score: number) => ({ id: `keywords/${slug}`, name: slug, score });
 
 it('stores a corpus keyword collection and reads it back', async () => {
-  const db = createDb(`keywords-${crypto.randomUUID()}`);
-  const repo = createRepositories(db);
+  const repo = testRepositories();
   expect(await repo.corpusKeywords.get('c')).toBeUndefined();
   const collection = buildCorpusKeywords({
     corpusId: 'c',
@@ -24,12 +21,10 @@ it('stores a corpus keyword collection and reads it back', async () => {
   await repo.corpusKeywords.save(collection);
   expect(await repo.corpusKeywords.get('c')).toEqual(collection);
   await expect(repo.corpusKeywords.save({ ...collection, memberCount: -1 })).rejects.toThrow();
-  await db.delete();
 });
 
 it('resolves member keywords from the library, by DOI, and from DOI-only fetches', async () => {
-  const db = createDb(`keywords-members-${crypto.randomUUID()}`);
-  const repo = createRepositories(db);
+  const repo = testRepositories();
   const { added } = await repo.library.addDois(['10.1000/linked', '10.1000/bydoi']);
   const [linked, byDoi] = added;
   if (!linked || !byDoi) throw new Error('missing items');
@@ -53,5 +48,4 @@ it('resolves member keywords from the library, by DOI, and from DOI-only fetches
   expect(second.papers).toHaveLength(4);
   expect((await repo.library.get(byDoi.id))?.keywords).toEqual([kw('beta', 0.3)]);
   expect(await repo.library.list()).toHaveLength(2);
-  await db.delete();
 });

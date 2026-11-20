@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -7,18 +6,17 @@ import { fixturePaper, fixtureRun } from '@/core/measurement/testFixture';
 import { ResearchDesignSchema } from '@/core/schemas/researchDesign';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { ToastProvider } from '@/shared/ui/ToastProvider';
 import { ResearchDesignProvider } from '../ResearchDesignProvider';
 import EvidenceSection from '../sections/EvidenceSection';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 const id = '00000000-0000-4000-8000-000000000001';
 const at = '2026-01-01T00:00:00.000Z';
 
 it('M6 stores a decision on a local fact through the provider, and it reads back after a reload', async () => {
-  const repo = createRepositories(createDb(`evidence-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const project = await repo.extraction.save({
     schemaVersion: 1,
     id,

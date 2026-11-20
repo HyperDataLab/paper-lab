@@ -4,6 +4,7 @@ import { authorsShort, paperIdentity, type PaperIdentity } from '@/core/paperIde
 import type { PaperSummary } from '@/core/schemas/paper';
 import { PaperSizeError } from '@/shared/paper/sizeGuard';
 import { useRepositories } from '@/shared/storage/StorageProvider';
+import { useAuth } from '@/shared/auth/authContext';
 import { Button } from '@/shared/ui/Button';
 import { Dropzone } from '@/shared/ui/Dropzone';
 import { PageHeader } from '@/shared/ui/PageHeader';
@@ -24,6 +25,7 @@ const SOURCE_NOTE: Partial<Record<PaperIdentity['titleSource'], string>> = {
 
 export default function Page() {
   const repo = useRepositories();
+  const { user, getIdToken } = useAuth();
   const navigate = useNavigate();
   const [papers, setPapers] = useState<PaperSummary[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -70,7 +72,10 @@ export default function Page() {
     setDetail('');
     setProgress('');
     try {
-      const paper = await importPaperFile(file, repo, { onProgress: setProgress });
+      const paper = await importPaperFile(file, repo, {
+        onProgress: setProgress,
+        getIdToken: () => getIdToken(user?.uid),
+      });
       navigate(`/papers/${paper.id}`);
     } catch (cause) {
       setError(

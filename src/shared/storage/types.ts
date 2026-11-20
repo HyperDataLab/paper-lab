@@ -21,7 +21,6 @@ import type { createPaperProbesRepository } from './paperProbes';
 import type { createPaperReviewsRepository } from './paperReviews';
 import type { createPaperRunsRepository } from './paperRuns';
 import type { createPapersRepository } from './papers';
-import type { createPdfFilesRepository } from './pdfFiles';
 import type { createResearchDesignRepository } from './researchDesigns';
 import type { createRevisionsRepository } from './revisions';
 import type { createScgRepository } from './scg';
@@ -54,7 +53,6 @@ export interface Repositories {
   corpusTopics: ReturnType<typeof createCorpusTopicsRepository>;
   corpusKeywords: ReturnType<typeof createCorpusKeywordsRepository>;
   corpusOpenKg: ReturnType<typeof createCorpusOpenKgRepository>;
-  pdfFiles: ReturnType<typeof createPdfFilesRepository>;
   grobid: ReturnType<typeof createGrobidRepository>;
   calibrationLabels: ReturnType<typeof createCalibrationLabelsRepository>;
   transfer: ReturnType<typeof createTransferRepository>;

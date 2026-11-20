@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -7,8 +6,6 @@ import { newProject } from '@/core/extraction';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import type { LlmClient } from '@/shared/llm/client';
 import { revokeConsent } from '@/shared/llm/consent';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider, StorageStatus } from '@/shared/storage/StorageProvider';
 import { AuthContext } from '@/shared/auth/authContext';
 import { testWorkerData } from '@/shared/storage/remoteTestSupport';
@@ -18,6 +15,7 @@ import { currentArtifact, selectable } from '@/core/autoresearch/artifacts';
 import { STAGES } from '@/core/autoresearch/contracts';
 import { at, charter, outputs } from '@/core/autoresearch/fixtures';
 import { approveCharter, beginStage, decideGate, openGate, putArtifact } from '@/core/autoresearch/run';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 function Location() {
   const location = useLocation();
@@ -75,7 +73,7 @@ it('creates an extraction project and edits its research design through the sign
   }
 });
 
-it('shows the browser-storage notice when the signed-in worker has no data binding', async () => {
+it('shows an error, not a browser fallback, when the signed-in worker has no data binding', async () => {
   const worker = testWorkerData(false);
   vi.stubGlobal('fetch', worker.dispatch);
   try {
@@ -90,7 +88,7 @@ it('shows the browser-storage notice when the signed-in worker has no data bindi
       </AuthContext.Provider>,
     );
     expect(await screen.findByText(/Kho dữ liệu lab chưa được cấu hình/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Project mới' })).toBeInTheDocument();
+    expect(screen.queryByText(/thiết bị này/)).toBeNull();
   } finally {
     vi.unstubAllGlobals();
   }
@@ -99,11 +97,11 @@ it('shows the browser-storage notice when the signed-in worker has no data bindi
 async function mountProject(
   paperId: string | null,
   search = '',
-  seed?: (repo: ReturnType<typeof createRepositories>, projectId: string) => Promise<void>,
+  seed?: (repo: ReturnType<typeof testRepositories>, projectId: string) => Promise<void>,
   innerClient: LlmClient = { completeJson: vi.fn() },
 ) {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`design-shell-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const project = await repo.extraction.save({
     ...newProject({
       id: crypto.randomUUID(),

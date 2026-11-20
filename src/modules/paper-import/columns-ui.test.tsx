@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -7,12 +6,11 @@ import { runPaperChecks } from '@/core/paperChecks';
 import type { PaperFinding } from '@/core/paperFindings';
 import type { Paper } from '@/core/schemas';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { FindingsList } from './FindingsList';
 import PaperMapPage from './PaperMapPage';
 import { ScopeWarning } from './RunSetup';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 const at = '2026-01-01T00:00:00.000Z';
 const paper: Paper = {
@@ -99,7 +97,7 @@ it('shows the related sentence on a claim-strength card', () => {
 });
 
 it('R15 the page switch keeps every space reachable and the split label follows its state', async () => {
-  const repo = createRepositories(createDb(`columns-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.papers.create(paper);
   await repo.paperChecks.save({
     schemaVersion: 1,
@@ -267,7 +265,7 @@ it('R7 issues are grouped by type of problem, the most severe first, with reject
 });
 
 it('R11 each space lists the issues of its own criteria, accepted until rejected', async () => {
-  const repo = createRepositories(createDb(`columns-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.papers.create(paper);
   await repo.paperChecks.save({
     schemaVersion: 1,

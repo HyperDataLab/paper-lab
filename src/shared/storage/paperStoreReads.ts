@@ -1,7 +1,5 @@
 import type { DocQuery, DocStore, DocTx, ExpectedVersion, Versioned } from './docStore';
 
-import { CompositeDocStore } from './compositeDocStore';
-import { DataNotConfiguredError } from './errors';
 import { PAPER_COLLECTIONS } from './remote/paperCollections';
 import type { DocRef } from './remoteDataClient';
 import { RemoteDocStore } from './remoteDocStore';
@@ -16,14 +14,9 @@ function batchPaperReads(store: DocStore, remote?: RemoteDocStore) {
     pending = [];
     try {
       if (reads.length > 1 && remote) {
-        try {
-          const rows = await remote.getBatch(reads.map(({ collection, id }) => ({ collection, id })));
-          reads.forEach(({ resolve }, i) => resolve(rows[i] ?? null));
-          return;
-        } catch (error) {
-          if (!(error instanceof DataNotConfiguredError)) throw error;
-          // Let the CompositeDocStore record the 503 and select its session fallback.
-        }
+        const rows = await remote.getBatch(reads.map(({ collection, id }) => ({ collection, id })));
+        reads.forEach(({ resolve }, i) => resolve(rows[i] ?? null));
+        return;
       }
       await Promise.all(
         reads.map(async ({ collection, id, resolve }) => resolve(await store.get(collection, id))),
@@ -33,12 +26,7 @@ function batchPaperReads(store: DocStore, remote?: RemoteDocStore) {
     }
   }
   return (collection: string, id: string) => {
-    if (
-      !remote ||
-      !paperCollections.has(collection) ||
-      (store instanceof CompositeDocStore && store.isFallback())
-    )
-      return store.get(collection, id);
+    if (!remote || !paperCollections.has(collection)) return store.get(collection, id);
     return new Promise<Versioned | null>((resolve, reject) => {
       if (!pending.length) queueMicrotask(() => void drain());
       pending.push({ collection, id, resolve, reject });
@@ -50,17 +38,12 @@ function batchPaperReads(store: DocStore, remote?: RemoteDocStore) {
  * Batches single-document paper reads into one lab request and exposes what checkpointing repositories need.
  * Write events for readers such as the corpus graph come from `withChangeEvents`, which wraps this store.
  */
-export function paperStoreReads(
-  store: DocStore,
-  remote = store instanceof RemoteDocStore ? store : undefined,
-) {
-  const online = () => Boolean(remote && !(store instanceof CompositeDocStore && store.isFallback()));
+export function paperStoreReads(store: DocStore) {
+  const remote = store instanceof RemoteDocStore ? store : undefined;
   const checkpointStore = {
-    queued: online,
+    queued: () => Boolean(remote),
     readSaved: (collection: string, id: string) =>
-      Promise.resolve(
-        (online() ? remote?.cachedVersion(collection, id) : undefined) ?? store.get(collection, id),
-      ),
+      Promise.resolve(remote?.cachedVersion(collection, id) ?? store.get(collection, id)),
   };
   const batched: DocStore = {
     get: batchPaperReads(store, remote),

@@ -1,12 +1,10 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { Paper } from '@/core/schemas';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { PaperReferences } from './PaperReferences';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 const at = '2026-01-01T00:00:00.000Z';
 const paper: Paper = {
@@ -35,7 +33,7 @@ beforeEach(() => {
 });
 
 it('RA-13 retraction check retains a saved reference audit', async () => {
-  const repo = createRepositories(createDb(`refs-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const audit = { schemaVersion: 1 as const, auditedAt: at, items: [], reviewed: ['hash'] };
   await repo.paperContext.save({
     schemaVersion: 1,
@@ -65,7 +63,7 @@ it('RA-13 retraction check retains a saved reference audit', async () => {
 });
 
 it('the reference list shows every entry on its own line, and each opens its place', async () => {
-  const repo = createRepositories(createDb(`refs-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.papers.create(paper);
   const onLocation = vi.fn();
   render(

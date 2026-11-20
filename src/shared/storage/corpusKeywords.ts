@@ -32,7 +32,7 @@ export function createCorpusKeywordsRepository(
       const dois = [...new Set(corpus.members.flatMap((member) => doiOf(member.identifiers.doi) ?? []))];
       const byId = new Map<string, LibraryItem>();
       const byDoi = new Map<string, LibraryItem>();
-      // Start every read together: Dexie's liveQuery only tracks reads issued before its context is lost.
+      // Start every read together, so the lab store answers them in parallel.
       const [linkedRows, byDoiItems, fetchedRows] = await Promise.all([
         store.getMany('library', libraryIds),
         libraryByDois(store, dois),

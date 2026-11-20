@@ -1,14 +1,13 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthContext } from '@/shared/auth/authContext';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories, type Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { chooseSelectOption } from '@/test/selectOption';
 import { LibraryPanel } from './LibraryPanel';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 const works: Record<string, unknown> = {
@@ -54,7 +53,7 @@ beforeEach(() => {
   );
 });
 async function setup() {
-  const repo: Repositories = createRepositories(createDb(`library-ui-${crypto.randomUUID()}`));
+  const repo: Repositories = testRepositories();
   render(
     <MemoryRouter>
       <StorageProvider repositories={repo}>
@@ -175,7 +174,7 @@ it('F2 offers arXiv for preprints instead of an outside link', async () => {
 });
 
 it('F1 resumes unfinished lookups after a reload', async () => {
-  const repo: Repositories = createRepositories(createDb(`library-ui-${crypto.randomUUID()}`));
+  const repo: Repositories = testRepositories();
   await repo.library.addDois(['10.1000/open']);
   render(
     <MemoryRouter>
@@ -189,7 +188,7 @@ it('F1 resumes unfinished lookups after a reload', async () => {
 });
 
 it('queues selected Library papers and shows the lab KG status', async () => {
-  const repo = createRepositories(createDb(`library-kg-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.library.addDois(['10.1000/open', '10.1000/closed']);
   const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     if (String(input).endsWith('/kg/ingest')) {

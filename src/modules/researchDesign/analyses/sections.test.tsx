@@ -1,18 +1,16 @@
-import 'fake-indexeddb/auto';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { expect, it, vi } from 'vitest';
 import { emptyResearchDesign } from '@/core/schemas/researchDesign';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { ResearchDesignProvider } from '../ResearchDesignProvider';
 import AnalysesSection from '../sections/AnalysesSection';
 import RunsSection from '../sections/RunsSection';
+import { testRepositories } from '@/shared/storage/testRepositories';
 vi.mock('../evidence/SectionSuggest', () => ({ SectionSuggest: () => null }));
 
 async function setup(section: 'analyses' | 'runs') {
-  const repo = createRepositories(createDb(`sections-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const id = crypto.randomUUID();
   const at = '2026-01-01T00:00:00.000Z';
   const project = await repo.extraction.save({

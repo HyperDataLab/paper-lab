@@ -1,14 +1,12 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { expect, it, vi } from 'vitest';
 import type { Paper } from '@/core/schemas';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { chooseSelectOption } from '@/test/selectOption';
 import Page from './Page';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 const at = '2026-01-01T00:00:00.000Z';
 function paper(file: string, firstLine: string, createdAt: string): Paper {
@@ -28,7 +26,7 @@ function paper(file: string, firstLine: string, createdAt: string): Paper {
 
 it('the library lists papers by title, authors and year, and can be searched and sorted', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`library-table-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const looked = paper('2605.03202v2', 'Stop Automating Peer Review', at);
   const detected = paper('scan-01', 'Edge Offloading at Scale', '2026-02-01T00:00:00.000Z');
   const unnamed = paper('notes', 'v1', '2026-03-01T00:00:00.000Z');

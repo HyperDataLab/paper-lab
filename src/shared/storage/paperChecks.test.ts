@@ -1,16 +1,13 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
-import Dexie from 'dexie';
 import { expect, it, vi } from 'vitest';
 import { runPaperChecks } from '@/core/paperChecks';
 import type { Paper } from '@/core/schemas';
-import { createDb } from './db';
-import { createRepositories } from './repositories';
 import { grobidPaper, grobidResult } from '@/test/grobidFixtures';
+import { testRepositories } from './testRepositories';
 
 it('retains reviewed GROBID findings and lists unmatched decisions through repeated saves', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`checks-grobid-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.papers.create(grobidPaper);
   const report = runPaperChecks(grobidPaper, new Date(), grobidResult);
   const findings = report.checks.flatMap((check) => check.findings);
@@ -37,14 +34,8 @@ it('retains reviewed GROBID findings and lists unmatched decisions through repea
 
 it('P4 imports unseen review_check audit history when the local rerun is newer and removed the finding', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const source = createRepositories(
-    createDb(`checks-source-${crypto.randomUUID()}`),
-    () => new Date('2026-02-01T00:00:00.000Z'),
-  );
-  const dest = createRepositories(
-    createDb(`checks-dest-${crypto.randomUUID()}`),
-    () => new Date('2030-01-01T00:00:00.000Z'),
-  );
+  const source = testRepositories({ clock: () => new Date('2026-02-01T00:00:00.000Z') });
+  const dest = testRepositories({ clock: () => new Date('2030-01-01T00:00:00.000Z') });
   const at = '2026-01-01T00:00:00.000Z';
   const paper: Paper = {
     schemaVersion: 1,
@@ -93,23 +84,9 @@ it('P4 imports unseen review_check audit history when the local rerun is newer a
   expect(reviews[0]).toMatchObject({ issueId: finding.id, note: 'Reviewed' });
 });
 
-it('P4 migrates, preserves decisions across runs, exports, resolves newer changes and deletes', async () => {
+it('P4 preserves decisions across runs, exports, resolves newer changes and deletes', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const name = `checks-${crypto.randomUUID()}`;
-  const old = new Dexie(name);
-  old.version(6).stores({
-    papers: 'id, updatedAt, title',
-    paperOverviews: 'paperId',
-    analyses: 'id, createdAt, updatedAt, text.sourceHash',
-    auditEvents: 'id, analysisId, at',
-    revisions: 'id, sourceAnalysisId, createdAt',
-    generations: 'id, createdAt',
-    paperRuns: 'id, paperId, updatedAt',
-  });
-  await old.open();
-  old.close();
-  const db = createDb(name),
-    repo = createRepositories(db);
+  const repo = testRepositories();
   const at = '2026-01-01T00:00:00.000Z';
   const paper: Paper = {
     schemaVersion: 1,
@@ -140,7 +117,7 @@ it('P4 migrates, preserves decisions across runs, exports, resolves newer change
   await repo.paperChecks.review(paper.id, finding.id, 'confirmed_by_human', 'Checked');
   expect((await repo.paperChecks.save(record)).decisions[0]?.status).toBe('confirmed_by_human');
   const data = await repo.transfer.exportAll('1');
-  const dest = createRepositories(createDb(`checks-${crypto.randomUUID()}`));
+  const dest = testRepositories();
   const plan = await dest.transfer.previewImport(data);
   if (!plan.ok) throw new Error(plan.error);
   await dest.transfer.applyImport(plan);

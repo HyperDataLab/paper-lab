@@ -1,11 +1,9 @@
-import 'fake-indexeddb/auto';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { exampleCorpus } from '@/core/corpus/contract';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { CorpusTopics } from './CorpusTopics';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 const mocks = vi.hoisted(() => ({
   consent: vi.fn(),
@@ -32,7 +30,7 @@ it('starts a server job and shows its progress', async () => {
     }
     return new Response(null, { status: 404 });
   });
-  const repo = createRepositories(createDb(`topics-run-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const view = render(
     <StorageProvider repositories={repo}>
       <CorpusTopics corpus={exampleCorpus()} onData={() => {}} />
@@ -53,7 +51,7 @@ it('starts a server job and shows its progress', async () => {
 
 it('shows an empty state and reviews a stored snapshot and AI candidate', async () => {
   const corpus = exampleCorpus();
-  const repo = createRepositories(createDb(`topics-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const mount = () =>
     render(
       <StorageProvider repositories={repo}>

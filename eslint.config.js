@@ -14,6 +14,8 @@ const moduleBoundaryAllowlist = [
   'revise/revise-ui.test.tsx -> evaluate/Page',
   'revise/revise-ui.test.tsx -> history/Page',
 ];
+// Lab data lives on the central store (ADR-0007); the browser database is no longer used.
+const noBrowserDatabase = ['dexie', 'dexie/*', 'fake-indexeddb', 'fake-indexeddb/*'];
 export default tseslint.config(
   { ignores: ['dist', 'coverage', 'node_modules'] },
   {
@@ -31,6 +33,7 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      'no-restricted-imports': ['error', { patterns: noBrowserDatabase }],
     },
   },
   {
@@ -57,8 +60,7 @@ export default tseslint.config(
             'react/*',
             'react-dom',
             'react-dom/*',
-            'dexie',
-            'dexie/*',
+            ...noBrowserDatabase,
             'zustand',
             'zustand/*',
             '@/shared',
@@ -80,7 +82,17 @@ export default tseslint.config(
     rules: {
       'no-restricted-imports': [
         'error',
-        { patterns: ['@/modules', '@/modules/*', '@/app', '@/app/*', '**/modules/**', '**/app/**'] },
+        {
+          patterns: [
+            ...noBrowserDatabase,
+            '@/modules',
+            '@/modules/*',
+            '@/app',
+            '@/app/*',
+            '**/modules/**',
+            '**/app/**',
+          ],
+        },
       ],
     },
   },

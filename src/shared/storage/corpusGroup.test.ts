@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { exampleCorpus } from '@/core/corpus/contract';
@@ -6,14 +5,12 @@ import { addFromDois } from '@/core/corpus/intake';
 import { buildCorpusKeywords } from '@/core/corpusKeywords';
 import { fixturePaper, PAPER_ID } from '@/core/measurement/testFixture';
 import type { CorpusKg } from '@/core/openkg';
-import { CompositeDocStore } from './compositeDocStore';
-import { createDb } from './db';
-import { DexieDocStore } from './dexieDocStore';
-import { MemoryDocStore, type DocStore } from './docStore';
-import { CorpusConflict, DuplicateDoiError, UniqueConflictError } from './errors';
+import { type DocStore } from './docStore';
+import { CorpusConflict, DataNotConfiguredError, DuplicateDoiError, UniqueConflictError } from './errors';
 import { CORPUS_COLLECTIONS } from './remote/corpusCollections';
 import { testId, testWorkerData } from './remoteTestSupport';
 import { createRepositories } from './repositories';
+import { testRepositories } from './testRepositories';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 afterEach(() => vi.unstubAllGlobals());
@@ -38,31 +35,15 @@ const snapshot = (snapshotId: string, createdAt: string) => ({
   members: [],
 });
 
-/** Repositories whose corpus collections go to the in-process lab worker, the rest to this browser. */
+/** Repositories over the in-process lab worker. */
 function online(worker = testWorkerData()) {
-  const db = createDb(`c3-${crypto.randomUUID()}`);
-  const composite = new CompositeDocStore(new DexieDocStore(db), worker.connect());
-  return { db, worker, composite, repo: createRepositories(db, undefined, undefined, composite) };
+  const remote = worker.connect();
+  return { worker, remote, repo: createRepositories(remote) };
 }
 
 const stores: [string, () => { repo: ReturnType<typeof createRepositories>; remote: boolean }][] = [
-  [
-    'MemoryDocStore',
-    () => ({
-      repo: createRepositories(
-        createDb(`c3-${crypto.randomUUID()}`),
-        undefined,
-        undefined,
-        new MemoryDocStore(),
-      ),
-      remote: false,
-    }),
-  ],
-  [
-    'DexieDocStore',
-    () => ({ repo: createRepositories(createDb(`c3-${crypto.randomUUID()}`)), remote: false }),
-  ],
-  ['CompositeDocStore (lab)', () => ({ repo: online().repo, remote: true })],
+  ['MemoryDocStore', () => ({ repo: testRepositories(), remote: false })],
+  ['RemoteDocStore (lab)', () => ({ repo: online().repo, remote: true })],
 ];
 
 describe.each(stores)('C3 corpus repositories over %s', (_name, make) => {
@@ -169,14 +150,15 @@ const labels = {
 };
 
 describe('C3 corpus group on the lab store', () => {
-  it('routes every corpus collection to the lab, not to this browser', async () => {
-    const { db, repo, worker } = online();
+  it('routes every corpus collection to the lab', async () => {
+    const { repo, worker } = online();
     await repo.corpora.save(exampleCorpus());
     await repo.library.addDois(['10.1000/a']);
     await repo.calibrationLabels.import('a.json', labels);
-    expect(await db.corpora.count()).toBe(0);
-    expect(await db.library.count()).toBe(0);
-    expect(await db.calibrationLabels.count()).toBe(0);
+    const other = worker.connect();
+    expect(await other.query('corpora')).toHaveLength(1);
+    expect(await other.query('library')).toHaveLength(1);
+    expect(await other.query('calibrationLabels')).toHaveLength(1);
     // The label's audit event went in the same commit as the label.
     const commits = worker.requests.filter((request) => request.url.endsWith('/commit'));
     const bodies = (await Promise.all(commits.map((request) => request.json()))) as {
@@ -210,7 +192,7 @@ describe('C3 corpus group on the lab store', () => {
 
   it('discards a checkpoint that received a 409, then reloads and saves normally', async () => {
     const worker = testWorkerData();
-    const { repo, composite } = online(worker);
+    const { repo, remote: composite } = online(worker);
     const other = worker.connect();
     const corpus = exampleCorpus();
     await repo.corpora.save(corpus);
@@ -280,20 +262,16 @@ describe('C3 corpus group on the lab store', () => {
       remove: () => Promise.resolve(),
       unitOfWork: () => Promise.reject(new UniqueConflictError()),
     };
-    const repo = createRepositories(createDb(`c3-${crypto.randomUUID()}`), undefined, undefined, failing);
+    const repo = testRepositories({ store: failing });
     await expect(repo.library.addDois(['10.5555/same'])).rejects.toBeInstanceOf(DuplicateDoiError);
     await expect(repo.library.addDois(['10.5555/same'])).rejects.toThrow('DOI này đã có trong Library.');
   });
 
-  it('falls back to this browser when the lab store is not configured', async () => {
-    const { db, repo, composite } = online(testWorkerData(false));
-    const corpus = exampleCorpus();
-    await repo.corpora.save(corpus);
-    await repo.library.addDois(['10.1000/local']);
-    expect(composite.isFallback()).toBe(true);
-    expect(await db.corpora.get(corpus.id)).toEqual(corpus);
-    expect(await db.library.count()).toBe(1);
-    expect(await repo.corpora.list()).toEqual([corpus]);
+  it('reports an unconfigured lab store as an error and keeps nothing in the browser', async () => {
+    const { repo } = online(testWorkerData(false));
+    await expect(repo.corpora.save(exampleCorpus())).rejects.toBeInstanceOf(DataNotConfiguredError);
+    await expect(repo.library.addDois(['10.1000/local'])).rejects.toBeInstanceOf(DataNotConfiguredError);
+    await expect(repo.corpora.list()).rejects.toBeInstanceOf(DataNotConfiguredError);
   });
 
   it('rebuilds the corpus graph after a write, without live queries', async () => {

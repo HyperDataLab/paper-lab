@@ -11,7 +11,7 @@ import { StorageProvider, StorageStatus } from '@/shared/storage/StorageProvider
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { AuthProvider } from '@/shared/auth/AuthProvider';
 import { AccountButton } from './AccountButton';
-import { PdfSync } from './PdfSync';
+import { LabDataGate } from './LabDataGate';
 import { CommandPalette } from './CommandPalette';
 import { modules } from './modules';
 import { Sidebar } from './Sidebar';
@@ -121,19 +121,65 @@ export function App() {
             >
               <StorageProvider>
                 <StorageStatus className={styles.storageStatus} />
-                <PdfSync />
                 <LlmProvider>
                   <Suspense fallback={<Skeleton />}>
                     <PageEnter key={location.pathname}>
                       <Routes>
                         {modules.map((item) => (
-                          <Route key={item.id} path={item.path} element={<item.page />} />
+                          <Route
+                            key={item.id}
+                            path={item.path}
+                            element={
+                              item.id === 'settings' || item.id === 'playground' ? (
+                                <item.page />
+                              ) : (
+                                <LabDataGate>
+                                  <item.page />
+                                </LabDataGate>
+                              )
+                            }
+                          />
                         ))}
-                        <Route path="/report/:id" element={<ReportPage />} />
-                        <Route path="/compare" element={<ComparePage />} />
-                        <Route path="/papers/:id" element={<PaperMapPage />} />
-                        <Route path="/extraction/:id" element={<ExtractionProjectPage />} />
-                        <Route path="/corpus/:id" element={<CorpusDetail />} />
+                        <Route
+                          path="/report/:id"
+                          element={
+                            <LabDataGate>
+                              <ReportPage />
+                            </LabDataGate>
+                          }
+                        />
+                        <Route
+                          path="/compare"
+                          element={
+                            <LabDataGate>
+                              <ComparePage />
+                            </LabDataGate>
+                          }
+                        />
+                        <Route
+                          path="/papers/:id"
+                          element={
+                            <LabDataGate>
+                              <PaperMapPage />
+                            </LabDataGate>
+                          }
+                        />
+                        <Route
+                          path="/extraction/:id"
+                          element={
+                            <LabDataGate>
+                              <ExtractionProjectPage />
+                            </LabDataGate>
+                          }
+                        />
+                        <Route
+                          path="/corpus/:id"
+                          element={
+                            <LabDataGate>
+                              <CorpusDetail />
+                            </LabDataGate>
+                          }
+                        />
                         <Route
                           path="*"
                           element={

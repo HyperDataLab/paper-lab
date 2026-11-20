@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { checkpoint, doiExport, isStale, startQueue } from '@/core/corpus/queue';
 import type { Corpus } from '@/core/schemas/corpus';
 import { useRepositories } from '@/shared/storage/StorageProvider';
+import { useAuth } from '@/shared/auth/authContext';
 import { useGrobidQueue } from '@/shared/pdfStore/useGrobidQueue';
 import { GrobidQueueStatus, GrobidQueueSummary } from '@/shared/pdfStore/GrobidQueueStatus';
 import { Button } from '@/shared/ui/Button';
@@ -11,18 +12,15 @@ import { modelInputs } from './modelInputs';
 
 export function CorpusBuild({ corpus, save }: { corpus: Corpus; save: (value: Corpus) => Promise<void> }) {
   const repo = useRepositories();
+  const { user, getIdToken } = useAuth();
   const grobid = useGrobidQueue();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [usage, setUsage] = useState<StorageEstimate>();
   const [stale, setStale] = useState<string[]>([]);
   const control = useRef<'run' | 'pause' | 'cancel'>('run');
   const abort = useRef<AbortController | null>(null);
   useEffect(() => {
     let active = true;
-    void navigator.storage?.estimate?.().then((value) => {
-      if (active) setUsage(value);
-    });
     void Promise.all(
       corpus.members
         .filter((m) => m.inputs)
@@ -53,12 +51,15 @@ export function CorpusBuild({ corpus, save }: { corpus: Corpus; save: (value: Co
     const controller = new AbortController();
     abort.current = controller;
     try {
-      await navigator.storage?.persist?.().catch(() => false);
       let current = corpus;
       for (const member of current.members.filter((m) => m.retrieval === 'sought')) {
         if (controller.signal.aborted) break;
-        const updated = await acquireMember(member, repo, controller.signal, (paper) =>
-          grobid.enqueue(member.memberId, paper),
+        const updated = await acquireMember(
+          member,
+          repo,
+          () => getIdToken(user?.uid),
+          controller.signal,
+          (paper) => grobid.enqueue(member.memberId, paper),
         );
         current = {
           ...current,
@@ -67,7 +68,6 @@ export function CorpusBuild({ corpus, save }: { corpus: Corpus; save: (value: Co
         };
         await save(current);
       }
-      setUsage(await navigator.storage?.estimate?.());
     } catch (cause) {
       if (!controller.signal.aborted) setError(String(cause));
     } finally {
@@ -173,10 +173,6 @@ export function CorpusBuild({ corpus, save }: { corpus: Corpus; save: (value: Co
       <p>
         Đã dựng: {built} · Thất bại: {queue?.failed.length ?? 0} · Còn lại: {queue?.pending.length ?? 0} · Tỷ
         lệ phân tích: {retrieved ? `${Math.round((built / retrieved) * 100)}%` : '—'}
-      </p>
-      <p>
-        Bộ nhớ: {usage?.usage != null ? `${(usage.usage / 1024 / 1024).toFixed(1)} MB` : 'không có thông tin'}{' '}
-        / {usage?.quota != null ? `${(usage.quota / 1024 / 1024).toFixed(1)} MB` : '—'}
       </p>
       {stale.length > 0 && (
         <p>

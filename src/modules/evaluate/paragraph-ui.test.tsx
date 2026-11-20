@@ -1,14 +1,13 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { LlmClient } from '@/shared/llm';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories, type Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import Evaluate from './Page';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 beforeEach(() => {
   vi.stubGlobal('crypto', webcrypto);
@@ -96,7 +95,7 @@ function fakeCompleteJson() {
 }
 
 it('EV-07 EV-08 AC-05 analyzes after syntax, shows the chain, and reopens without a call', async () => {
-  const repo = createRepositories(createDb(`paragraph-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const completeJson = fakeCompleteJson();
   const client = { completeJson } as unknown as LlmClient;
   const view = mount(repo, client);
@@ -173,7 +172,7 @@ it('EV-07 EV-08 AC-05 analyzes after syntax, shows the chain, and reopens withou
 });
 
 it('EV-08 removes decisions for vanished flow issues before saving', async () => {
-  const repo = createRepositories(createDb(`paragraph-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const original = fakeCompleteJson();
   let structureCalls = 0;
   const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => {
@@ -209,7 +208,7 @@ it('EV-08 removes decisions for vanished flow issues before saving', async () =>
 });
 
 it('EV-07 editing the text or re-running sentence syntax clears the structure result', async () => {
-  const repo = createRepositories(createDb(`paragraph-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const completeJson = fakeCompleteJson();
   mount(repo, { completeJson } as unknown as LlmClient);
   fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), {

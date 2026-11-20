@@ -1,22 +1,18 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { CompositeDocStore } from '@/shared/storage/compositeDocStore';
-import { DexieDocStore } from '@/shared/storage/dexieDocStore';
 import { testWorkerData } from '@/shared/storage/remoteTestSupport';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import Evaluate from '@/modules/evaluate/Page';
 import Page from './Page';
 import PaperMapPage from './PaperMapPage';
 import type { LlmClient } from '@/shared/llm/client';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
-function setup(repo = createRepositories(createDb(`paper-ui-${crypto.randomUUID()}`))) {
+function setup(repo = testRepositories()) {
   render(
     <MemoryRouter initialEntries={['/papers']}>
       <StorageProvider repositories={repo}>
@@ -62,10 +58,8 @@ it('imports a paper, persists and audits role edits, then prefills Evaluate', as
 });
 it('C3 imports and opens a paper from the worker and lists it by summary', async () => {
   const worker = testWorkerData();
-  const db = createDb(`paper-ui-remote-${crypto.randomUUID()}`);
-  const local = new DexieDocStore(db);
   const remote = worker.connect();
-  const repo = createRepositories(db, undefined, undefined, new CompositeDocStore(local, remote), remote);
+  const repo = testRepositories({ store: worker.connect() });
   setup(repo);
   await importPaper();
   fireEvent.click(screen.getByRole('link', { name: 'Bài báo đã nhập' }));
@@ -73,7 +67,6 @@ it('C3 imports and opens a paper from the worker and lists it by summary', async
   const summary = (await repo.papers.listSummaries())[0];
   if (!summary) throw new Error('Remote paper missing');
   expect(summary.paragraphCount).toBe(2);
-  expect(await local.get('papers', summary.id)).toBeNull();
   expect(await remote.get('papers', summary.id)).not.toBeNull();
   const queries = worker.requests.filter((request) => request.url.endsWith('/query'));
   expect(await Promise.all(queries.map((request) => request.json()))).toContainEqual(
@@ -106,7 +99,7 @@ it('shows the size guard error before reading an oversized file', async () => {
 
 it('P2 estimates selected calls, asks manuscript consent and opens a completed analysis', async () => {
   localStorage.clear();
-  const repo = createRepositories(createDb(`batch-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => ({
     data: options.schema.parse({ sentences: [] }),
     meta: { model: 'fake', promptVersion: options.promptVersion, latencyMs: 1, repaired: false },
@@ -166,7 +159,7 @@ it('P2 estimates selected calls, asks manuscript consent and opens a completed a
 
 it('P2 retries a failed paragraph and restores an interrupted run as paused', async () => {
   localStorage.clear();
-  const repo = createRepositories(createDb(`batch-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   let fail = true;
   const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => {
     if (fail) throw Object.assign(new Error('HTTP 400'), { status: 400 });
@@ -231,7 +224,7 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
 
 it('P2 increases a budget on the same run when resuming', async () => {
   localStorage.clear();
-  const repo = createRepositories(createDb(`batch-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const view = render(
     <MemoryRouter initialEntries={['/papers']}>
       <StorageProvider repositories={repo}>
@@ -313,7 +306,7 @@ it('P2 increases a budget on the same run when resuming', async () => {
 
 it('P2 pauses after the current call and resumes the remaining step', async () => {
   localStorage.clear();
-  const repo = createRepositories(createDb(`batch-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   let release: (() => void) | undefined;
   const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => {
     if (options.schemaName === 'sentence_syntax')
@@ -362,7 +355,7 @@ it('P2 pauses after the current call and resumes the remaining step', async () =
 });
 it('P2 a run keeps going when the reader opens another tab, and the view is kept in the address', async () => {
   localStorage.clear();
-  const repo = createRepositories(createDb(`keep-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   // Never answers: the run stays in flight for the whole test.
   const completeJson = vi.fn(() => new Promise(() => {})) as unknown as LlmClient['completeJson'];
   let search = '';

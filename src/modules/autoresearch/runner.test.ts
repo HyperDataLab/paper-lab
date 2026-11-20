@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import {
@@ -28,8 +27,7 @@ import type { LlmClient } from '@/shared/llm/client';
 import { acceptConsent } from '@/shared/llm/consent';
 import { LlmHttpError, LlmTimeoutError, InvalidModelOutputError } from '@/shared/llm/errors';
 import { createScholarClient } from '@/shared/scholar/client';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 afterEach(() => {
@@ -64,8 +62,7 @@ const answerFor = {
 };
 
 it('AR3 walks S1–S12 through storage, supervisors and human gates, then records a deviation', async () => {
-  const db = createDb(crypto.randomUUID());
-  const repo = createRepositories(db, () => new Date(at));
+  const repo = testRepositories({ clock: () => new Date(at) });
   const project = await repo.extraction.save(
     newProject({
       id: crypto.randomUUID(),
@@ -286,8 +283,7 @@ it('AR3 walks S1–S12 through storage, supervisors and human gates, then record
   const artifact = currentArtifact(run, 'S8');
   expect(artifact && selectedContent('S8', artifact).hypotheses.map((h) => h.id)).toEqual(['h-agree']);
   const backup = await repo.transfer.exportAll('synthetic');
-  const importedDb = createDb(crypto.randomUUID());
-  const imported = createRepositories(importedDb);
+  const imported = testRepositories();
   const preview = await imported.transfer.previewImport(backup);
   expect(preview.ok).toBe(true);
   if (preview.ok) await imported.transfer.applyImport(preview);
@@ -317,8 +313,6 @@ it('AR3 walks S1–S12 through storage, supervisors and human gates, then record
   expect(run.artifacts.find((a) => a.stage === 'S12')?.status).toBe('stale');
   expect(currentResultsImport(run)).toBeUndefined();
   expect(await canResume(run)).toBe(true);
-  importedDb.close();
-  db.close();
 });
 
 it('maps provider failures to AR1 codes', () => {

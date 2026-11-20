@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { at, outputs } from '@/core/autoresearch/fixtures';
@@ -7,8 +6,7 @@ import { passStage } from '@/core/autoresearch/validation';
 import { newProject } from '@/core/extraction';
 import { buildPaperModel } from '@/core/paperModel';
 import type { Paper } from '@/core/schemas';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
+import { testRepositories } from '@/shared/storage/testRepositories';
 import { cardInputs, loadProjectFullTexts } from './card-sources';
 import { extractCards } from './knowledge-cards';
 
@@ -50,9 +48,8 @@ const local: Paper = {
 };
 
 it('S6 uses DOI-matched PaperLab sections and resolves sentence keys while using Abstract for other works', async () => {
-  const db = createDb(crypto.randomUUID());
-  try {
-    const repo = createRepositories(db);
+  {
+    const repo = testRepositories();
     await repo.papers.create(local);
     const project = newProject({ id: 'project', title: 'Synthetic', researchQuestion: 'Q?', now: at });
     const fullTexts = (dois: string[]) => loadProjectFullTexts(repo, project, dois);
@@ -124,7 +121,5 @@ it('S6 uses DOI-matched PaperLab sections and resolves sentence keys while using
       ),
     ).toBeNull();
     expect(ask).not.toHaveBeenCalled();
-  } finally {
-    db.close();
   }
 });

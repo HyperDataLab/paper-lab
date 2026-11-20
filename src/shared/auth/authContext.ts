@@ -24,6 +24,6 @@ const signedOut: AuthValue = {
   signOut: async () => {},
   getIdToken: async () => null,
 };
-/** Without a provider (pages rendered on their own, tests) nobody is signed in and nothing leaves the machine. */
+/** Screens rendered on their own have no lab session. */
 export const AuthContext = createContext<AuthValue>(signedOut);
 export const useAuth = () => useContext(AuthContext);

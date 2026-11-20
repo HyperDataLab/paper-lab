@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -8,20 +7,17 @@ import { addMember } from '@/core/corpus/intake';
 import { CorpusSchema } from '@/core/schemas/corpus';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
-import { CompositeDocStore } from '@/shared/storage/compositeDocStore';
-import { DexieDocStore } from '@/shared/storage/dexieDocStore';
 import { testWorkerData } from '@/shared/storage/remoteTestSupport';
 import Page from './Page';
 import DetailPage from './DetailPage';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 // The labelling card needs a model client; no test here lets it reach the network.
 const client = { completeJson: vi.fn(() => Promise.reject(new Error('no network in tests'))) };
 function setup(path: string, auth?: AuthValue) {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`corpus-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const mount = () => {
     const page = (
       <MemoryRouter initialEntries={[path]}>
@@ -289,23 +285,10 @@ it('C3 lists and opens a corpus on the lab store, then shows a conflict with rel
   vi.stubGlobal('crypto', webcrypto);
   const corpus = exampleCorpus();
   const worker = testWorkerData();
-  const db = createDb(`corpus-remote-${crypto.randomUUID()}`);
-  const repo = createRepositories(
-    db,
-    undefined,
-    undefined,
-    new CompositeDocStore(new DexieDocStore(db), worker.connect()),
-  );
-  const other = createRepositories(
-    createDb(`corpus-other-${crypto.randomUUID()}`),
-    undefined,
-    undefined,
-    worker.connect(),
-  );
+  const repo = testRepositories({ store: worker.connect() });
+  const other = testRepositories({ store: worker.connect() });
   try {
     await repo.corpora.save(corpus);
-    // The corpus is on the lab store, not in this browser.
-    expect(await db.corpora.count()).toBe(0);
     render(
       <MemoryRouter initialEntries={['/corpus']}>
         <StorageProvider repositories={repo}>

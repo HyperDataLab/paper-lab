@@ -1,12 +1,10 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { fixturePaper, PAPER_ID } from '@/core/measurement/testFixture';
-import { createDb } from './db';
-import { createRepositories } from './repositories';
+import { testRepositories } from './testRepositories';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
-const repos = () => createRepositories(createDb(`library-${crypto.randomUUID()}`));
+const repos = () => testRepositories();
 
 it('F1 adds new DOIs and counts the ones already present', async () => {
   const repo = repos();

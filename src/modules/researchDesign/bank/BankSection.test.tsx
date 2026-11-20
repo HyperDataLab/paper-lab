@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -6,12 +5,11 @@ import type { ExtractionProject } from '@/core/schemas';
 import { contentHash } from '@/core/researchDesign/bank/release';
 import { snapshot } from '@/core/researchDesign/bank/testSupport';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { ResearchDesignConflictError } from '@/shared/storage/errors';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { ResearchDesignProvider } from '../ResearchDesignProvider';
 import BankSection from '../sections/BankSection';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 afterEach(() => vi.unstubAllGlobals());
@@ -46,7 +44,7 @@ async function cut(extra: Record<string, unknown> = {}) {
 }
 
 async function setup({ token = 'token' as string | null, bank = null as unknown, referenced = false } = {}) {
-  const repo = createRepositories(createDb(`bank-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.extraction.save(project);
   if (bank) {
     await repo.researchDesigns.importBank(id, 0, bytes(JSON.stringify(bank)), 'tester@example.org');

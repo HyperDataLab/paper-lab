@@ -57,7 +57,6 @@ export interface DocStore extends DocTx {
   /**
    * Runs `fn` with tracked reads and buffered writes, then commits every write at once. A read document that
    * changed in the meantime is a conflict: `fn` runs once more, and a second conflict throws StorageConflictError.
-   * Declare the collections for transactions routed to the lab. Other transactions default to the browser.
    */
   unitOfWork<R>(fn: (tx: DocTx) => Promise<R>, collections?: readonly string[]): Promise<R>;
 }
@@ -65,9 +64,6 @@ export interface DocStore extends DocTx {
 export function collectionDef(name: string): CollectionDef | undefined {
   return Object.hasOwn(COLLECTIONS, name) ? (COLLECTIONS as Record<string, CollectionDef>)[name] : undefined;
 }
-
-/** Keys of the browser-only tables the central store leaves out (pdfFiles, corpusSync). */
-const LOCAL_KEYS: Record<string, string> = { pdfFiles: 'sha256', corpusSync: 'id' };
 
 export function pathValue(doc: unknown, path: string): unknown {
   let value: unknown = doc;
@@ -81,7 +77,7 @@ export function pathValue(doc: unknown, path: string): unknown {
 /** The document's id in its collection, from the registry's `key`. */
 export function docId(collection: string, doc: unknown) {
   const def = collectionDef(collection);
-  return def ? def.key(doc) : String(pathValue(doc, LOCAL_KEYS[collection] ?? 'id'));
+  return def ? def.key(doc) : String(pathValue(doc, 'id'));
 }
 
 export function docIndex(collection: string, doc: unknown): DocIndex {
@@ -116,7 +112,7 @@ function compare(a: unknown, b: unknown) {
   return (a as string | number) < (b as string | number) ? -1 : 1;
 }
 
-/** Orders rows by `orderBy`, then by id, as an IndexedDB index does; `desc` reverses the whole order. */
+/** Orders rows by `orderBy`, then by id; `desc` reverses the whole order. */
 export function orderRows<T extends QueryRow>(rows: T[], query: DocQuery = {}) {
   const sorted = [...rows].sort(
     (a, b) =>

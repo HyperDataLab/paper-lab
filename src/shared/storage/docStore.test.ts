@@ -1,16 +1,11 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { newProject } from '@/core/extraction';
 import { newRun } from '@/core/autoresearch/run';
 import { emptyResearchDesign } from '@/core/schemas/researchDesign';
-import { createDb } from './db';
-import { DexieDocStore } from './dexieDocStore';
 import { MemoryDocStore, type DocStore } from './docStore';
 import { AutoResearchConflictError, ResearchDesignConflictError, StorageConflictError } from './errors';
-import { createRepositories } from './repositories';
 import { testRepositories } from './testRepositories';
-import { CompositeDocStore } from './compositeDocStore';
 import { testId, testWorkerData } from './remoteTestSupport';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
@@ -25,7 +20,6 @@ const run = (id: string, projectId: string, createdAt: string, status = 'running
 
 const stores: [string, () => DocStore][] = [
   ['MemoryDocStore', () => new MemoryDocStore()],
-  ['DexieDocStore', () => new DexieDocStore(createDb(`test-${crypto.randomUUID()}`))],
   ['RemoteDocStore', () => testWorkerData().connect()],
 ];
 
@@ -100,10 +94,9 @@ describe.each(stores)('%s contract', (_name, make) => {
   });
 });
 
-it('DexieDocStore maps registry ids onto compound Dexie keys, and paper deletion removes review n-grams', async () => {
-  const db = createDb(`test-${crypto.randomUUID()}`);
-  const store = new DexieDocStore(db);
-  const repo = createRepositories(db, undefined, undefined, store);
+it('paper deletion removes review n-grams stored under their registry ids', async () => {
+  const store = new MemoryDocStore();
+  const repo = testRepositories({ store });
   const paper = await repo.papers.create({
     schemaVersion: 1,
     id: crypto.randomUUID(),
@@ -114,10 +107,10 @@ it('DexieDocStore maps registry ids onto compound Dexie keys, and paper deletion
     sections: [],
     paragraphs: [],
   });
-  await db.reviewNgrams.add({ hash: 'h1', paperId: paper.id });
+  await store.put('reviewNgrams', `${paper.id}:h1`, { hash: 'h1', paperId: paper.id });
   expect((await store.get('reviewNgrams', `${paper.id}:h1`))?.doc).toEqual({ hash: 'h1', paperId: paper.id });
   await repo.papers.delete(paper.id);
-  expect(await db.reviewNgrams.count()).toBe(0);
+  expect(await store.query('reviewNgrams')).toHaveLength(0);
 });
 
 describe('MemoryDocStore conflicts', () => {
@@ -169,21 +162,9 @@ describe('MemoryDocStore conflicts', () => {
   });
 });
 
-const repositories: [string, () => ReturnType<typeof createRepositories>][] = [
+const repositories: [string, () => ReturnType<typeof testRepositories>][] = [
   ['MemoryDocStore', () => testRepositories()],
-  ['DexieDocStore', () => createRepositories(createDb(`test-${crypto.randomUUID()}`))],
-  [
-    'CompositeDocStore',
-    () => {
-      const db = createDb(`test-${crypto.randomUUID()}`);
-      return createRepositories(
-        db,
-        undefined,
-        undefined,
-        new CompositeDocStore(new DexieDocStore(db), testWorkerData().connect()),
-      );
-    },
-  ],
+  ['RemoteDocStore', () => testRepositories({ store: testWorkerData().connect() })],
 ];
 
 describe.each(repositories)('project repositories over %s', (_name, make) => {

@@ -1,14 +1,12 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, expect, it, vi } from 'vitest';
 import { fixturePaper, PAPER_ID } from '@/core/measurement/testFixture';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import PaperMapPage from './PaperMapPage';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 afterEach(() => vi.unstubAllGlobals());
 it('R17b the Trích xuất tab opens on this paper with template columns and offers exports', async () => {
@@ -19,7 +17,7 @@ it('R17b the Trích xuất tab opens on this paper with template columns and off
   );
   Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() });
   localStorage.clear();
-  const repo = createRepositories(createDb(`r17b-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.papers.create(fixturePaper);
   render(
     <MemoryRouter initialEntries={[`/papers/${PAPER_ID}`]}>
