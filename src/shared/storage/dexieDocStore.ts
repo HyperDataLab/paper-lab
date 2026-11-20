@@ -85,6 +85,7 @@ export class DexieDocStore implements DocStore {
     // With no filter, an indexed order and a limit are read straight from the index.
     if (
       !entries.length &&
+      !query.whereIn &&
       query.orderBy &&
       query.limit !== undefined &&
       table.schema.idxByName[query.orderBy]
@@ -94,11 +95,19 @@ export class DexieDocStore implements DocStore {
       return selectRows(collection, this.rows(collection, docs), query);
     }
     // The native index already holds the equality it was looked up by (DOIs are stored normalised).
-    const source = indexed
-      ? table.where(native[indexed[0] as DocIndexField]!).equals(indexed[1] as string)
-      : table.toCollection();
+    const inIndex = query.whereIn && native[query.whereIn.field];
+    const source =
+      inIndex && query.whereIn
+        ? table.where(inIndex).anyOf([...query.whereIn.values])
+        : indexed
+          ? table.where(native[indexed[0] as DocIndexField]!).equals(indexed[1] as string)
+          : table.toCollection();
+    if (inIndex && query.whereIn) {
+      const docs = await source.filter((doc) => matchesWhere(collection, doc, query.where)).toArray();
+      return selectRows(collection, this.rows(collection, docs), query);
+    }
     const rest = Object.fromEntries(entries.filter((entry) => entry !== indexed));
-    const docs = await source.filter((doc) => matchesWhere(collection, doc, rest)).toArray();
+    const docs = await source.filter((doc) => matchesWhere(collection, doc, rest, query.whereIn)).toArray();
     return selectRows(collection, this.rows(collection, docs), query);
   }
   private rows(collection: string, docs: unknown[]): QueryRow[] {

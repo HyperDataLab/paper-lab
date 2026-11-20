@@ -3,9 +3,10 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { newProject } from '@/core/extraction';
 import { paperIdentity } from '@/core/paperIdentity';
-import type { ExtractionProject, Paper } from '@/core/schemas';
+import type { Paper } from '@/core/schemas';
 import { useAuth } from '@/shared/auth/authContext';
 import { useRepositories } from '@/shared/storage/StorageProvider';
+import type { ExtractionProjectSummary } from '@/shared/storage/extractionProjects';
 import { Button } from '@/shared/ui/Button';
 import { Loading } from '@/shared/ui/StateNote';
 import { TextField } from '@/shared/ui/TextField';
@@ -57,14 +58,14 @@ export default function Page() {
   const { user } = useAuth();
   const [question, setQuestion] = useState('');
   const [papers, setPapers] = useState<Paper[] | null>(null);
-  const [projects, setProjects] = useState<ExtractionProject[] | null>(null);
+  const [projects, setProjects] = useState<ExtractionProjectSummary[] | null>(null);
   const [counts, setCounts] = useState<{ papers: number; projects: number; corpora: number } | null>(null);
   const [error, setError] = useState('');
   const [starting, setStarting] = useState(false);
   useEffect(() => {
     void Promise.all([
       repo.papers.list(),
-      repo.extraction.list(),
+      repo.extraction.listSummaries(),
       repo.paperContext.list(),
       repo.corpora.list().catch(() => []),
     ])
@@ -115,9 +116,7 @@ export default function Page() {
             {greeting()}
             {firstName ? `, ${firstName}` : ''}
           </h1>
-          <p className={styles.muted}>
-            Đọc bài, trích xuất dữ liệu và kiểm tra paragraph. Mọi thứ lưu trên máy này.
-          </p>
+          <p className={styles.muted}>Đọc bài, trích xuất dữ liệu và kiểm tra paragraph.</p>
         </div>
         <div className={styles.heroActions}>
           <Link to="/extraction" className={styles.secondaryLink}>
@@ -273,9 +272,7 @@ export default function Page() {
                       <span className={styles.paperText}>
                         <strong>{project.title}</strong>
                         <small>
-                          {project.papers.length} bài,{' '}
-                          {project.fields.filter((field) => !field.hidden).length} cột, sửa{' '}
-                          {date(project.updatedAt)}
+                          {project.papers} bài, {project.visibleFields} cột, sửa {date(project.updatedAt)}
                         </small>
                       </span>
                     </Link>

@@ -22,6 +22,7 @@ export interface QueryRow extends Versioned {
 export interface DocQuery {
   /** Equality on the collection's index projection (`COLLECTIONS[col].index`), as the lab server filters. */
   where?: Partial<Record<DocIndexField, string | null>>;
+  whereIn?: { field: DocIndexField; values: readonly string[] };
   /** A field of the body to order by; rows with equal values keep id order. */
   orderBy?: string;
   desc?: boolean;
@@ -29,7 +30,7 @@ export interface DocQuery {
   /** `summary` returns the registry's summary (small top-level scalars plus the collection's extras). */
   select?: 'full' | 'summary';
 }
-/** `undefined`: write whatever is there. `null`: the document must not exist yet. A number: it must be at that version. */
+/** `undefined`: let the store resolve the version. `null`: create only. A number: require that version. */
 export type ExpectedVersion = number | null | undefined;
 
 export interface DocReader {
@@ -42,13 +43,21 @@ export interface DocWriter {
   put(collection: string, id: string, doc: unknown, expectedVersion?: ExpectedVersion): Promise<number>;
   remove(collection: string, id: string, expectedVersion?: ExpectedVersion): Promise<void>;
 }
-export type DocTx = DocReader & DocWriter;
+export type DocTx = DocReader &
+  DocWriter & {
+    /** Audit attached to the transaction's owning collection. */
+    appendAudit?: (id: string, doc: unknown) => Promise<void>;
+  };
 export interface DocStore extends DocTx {
+  /** Accepts a hot checkpoint in memory. Use flush to await persistence. */
+  checkpoint?<T>(collection: string, id: string, update: (current: unknown) => T): Promise<T>;
+  flush?(collection?: string, id?: string): Promise<void>;
   /**
    * Runs `fn` with tracked reads and buffered writes, then commits every write at once. A read document that
    * changed in the meantime is a conflict: `fn` runs once more, and a second conflict throws StorageConflictError.
+   * Declare the collections for transactions routed to the lab. Other transactions default to the browser.
    */
-  unitOfWork<R>(fn: (tx: DocTx) => Promise<R>): Promise<R>;
+  unitOfWork<R>(fn: (tx: DocTx) => Promise<R>, collections?: readonly string[]): Promise<R>;
 }
 
 export function collectionDef(name: string): CollectionDef | undefined {
@@ -81,11 +90,20 @@ export function docIndex(collection: string, doc: unknown): DocIndex {
   }
 }
 
-export function matchesWhere(collection: string, doc: unknown, where: DocQuery['where']) {
-  if (!where) return true;
+export function matchesWhere(
+  collection: string,
+  doc: unknown,
+  where: DocQuery['where'],
+  whereIn?: DocQuery['whereIn'],
+) {
+  if (!where && !whereIn) return true;
   const index = docIndex(collection, doc);
-  return Object.entries(where).every(
-    ([field, expected]) => (index[field as DocIndexField] ?? null) === expected,
+  const value = whereIn && index[whereIn.field];
+  return (
+    (!whereIn || (typeof value === 'string' && whereIn.values.includes(value))) &&
+    Object.entries(where ?? {}).every(
+      ([field, expected]) => (index[field as DocIndexField] ?? null) === expected,
+    )
   );
 }
 
@@ -119,7 +137,7 @@ export function selectRows(collection: string, rows: QueryRow[], query: DocQuery
     : ordered;
 }
 
-const keyOf = (collection: string, id: string) => `${collection}\u0000${id}`;
+export const keyOf = (collection: string, id: string) => `${collection}\u0000${id}`;
 
 type BufferedWrite = {
   collection: string;
@@ -129,9 +147,10 @@ type BufferedWrite = {
   expectedVersion: ExpectedVersion;
   version: number;
 };
-type QueryRead = { collection: string; query: DocQuery; signature: string };
+type QueryRead = { collection: string; query: DocQuery; rows: { id: string; version: number }[] };
 
-const signatureOf = (rows: QueryRow[]) => rows.map((row) => `${row.id}@${row.version}`).join('|');
+const signatureOf = (rows: Pick<QueryRow, 'id' | 'version'>[]) =>
+  JSON.stringify(rows.map(({ id, version }) => [id, version]));
 
 /** A unit of work over a committed store: reads are recorded, writes wait in a buffer until commit. */
 export class BufferedTx implements DocTx {
@@ -157,22 +176,34 @@ export class BufferedTx implements DocTx {
     return row;
   }
   async getMany(collection: string, ids: readonly string[]) {
-    const out: (Versioned | null)[] = [];
-    for (const id of ids) out.push(await this.get(collection, id));
-    return out;
+    const missing = ids.filter((id) => this.buffered(collection, id) === undefined);
+    const rows = await this.base.getMany(collection, missing);
+    const byId = new Map(missing.map((id, index) => [id, rows[index] ?? null]));
+    return ids.map((id) => {
+      const buffered = this.buffered(collection, id);
+      if (buffered !== undefined) return buffered;
+      const row = byId.get(id) ?? null;
+      this.record(collection, id, row?.version ?? null);
+      return row;
+    });
   }
   async query(collection: string, query: DocQuery = {}) {
     // The whole query goes to the store unless buffered writes to this collection must be merged in first.
     const buffered = [...this.writes.values()].some((write) => write.collection === collection);
-    const read: DocQuery = buffered ? { where: query.where } : query;
+    const read: DocQuery = buffered ? { where: query.where, whereIn: query.whereIn } : query;
     const committed = await this.base.query(collection, read);
-    this.queries.push({ collection, query: read, signature: signatureOf(committed) });
+    this.queries.push({
+      collection,
+      query: read,
+      rows: committed.map(({ id, version }) => ({ id, version })),
+    });
     for (const row of committed) this.record(collection, row.id, row.version);
     if (!buffered) return committed;
     const rows = new Map(committed.map((row) => [row.id, row]));
     for (const write of this.writes.values()) {
       if (write.collection !== collection) continue;
-      if (write.removed || !matchesWhere(collection, write.doc, query.where)) rows.delete(write.id);
+      if (write.removed || !matchesWhere(collection, write.doc, query.where, query.whereIn))
+        rows.delete(write.id);
       else rows.set(write.id, { id: write.id, doc: write.doc, version: write.version });
     }
     return selectRows(collection, [...rows.values()], query);
@@ -224,13 +255,13 @@ export class MemoryDocStore implements DocStore {
   async getMany(collection: string, ids: readonly string[]) {
     return Promise.all(ids.map((id) => this.get(collection, id)));
   }
-  private rows(collection: string, where: DocQuery['where']) {
+  private rows(collection: string, { where, whereIn }: DocQuery) {
     return [...this.table(collection)]
-      .filter(([, row]) => matchesWhere(collection, row.doc, where))
+      .filter(([, row]) => matchesWhere(collection, row.doc, where, whereIn))
       .map(([id, row]) => ({ id, doc: this.copy(row.doc), version: row.version }));
   }
   query(collection: string, query: DocQuery = {}) {
-    return Promise.resolve(selectRows(collection, this.rows(collection, query.where), query));
+    return Promise.resolve(selectRows(collection, this.rows(collection, query), query));
   }
   private check(collection: string, id: string, expected: ExpectedVersion) {
     const current = this.table(collection).get(id)?.version ?? null;
@@ -267,8 +298,9 @@ export class MemoryDocStore implements DocStore {
       if (current !== read.version) throw new StorageConflictError(read.collection, read.id, current);
     }
     for (const read of tx.queries) {
-      const rows = selectRows(read.collection, this.rows(read.collection, read.query.where), read.query);
-      if (signatureOf(rows) !== read.signature) throw new StorageConflictError(read.collection, '', null);
+      const rows = selectRows(read.collection, this.rows(read.collection, read.query), read.query);
+      if (signatureOf(rows) !== signatureOf(read.rows))
+        throw new StorageConflictError(read.collection, '', null);
     }
     for (const write of tx.writes.values()) this.check(write.collection, write.id, write.expectedVersion);
     const touched = new Set([...tx.writes.values()].map((write) => write.collection));

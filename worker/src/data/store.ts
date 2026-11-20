@@ -6,8 +6,10 @@ import {
   type DocIndex,
   type DocIndexField,
 } from '../../../src/core/storage/collections';
-import type { Bucket } from '../app';
+import type { Bucket } from '../deps';
 import type { D1Database, D1Statement, SqlValue } from '../kg/bindings';
+import { INDEX_COLUMN } from './indexColumns';
+import { queryPlan, type QueryGuard } from './queryPlan';
 
 /** Every row is stamped with the lab so permissions (C5) can filter on it later. */
 export const LAB_ID = 'hyperdatalab';
@@ -42,17 +44,6 @@ export interface DocRow {
   summary_json: string;
 }
 
-export const INDEX_COLUMN = {
-  projectId: 'project_id',
-  corpusId: 'corpus_id',
-  paperId: 'paper_id',
-  refId: 'ref_id',
-  doi: 'doi',
-  title: 'title',
-  kind: 'kind',
-  status: 'status',
-  sourceSha256: 'source_sha256',
-} as const satisfies Record<DocIndexField, keyof DocRow>;
 const INDEX_FIELDS = Object.keys(INDEX_COLUMN) as DocIndexField[];
 
 export const etagOf = (version: number) => `"v${version}"`;
@@ -238,6 +229,7 @@ export async function commit(
   ops: CommitOp[],
   guards: CommitGuard[] = [],
   appends: CommitAppend[] = [],
+  queryGuards: QueryGuard[] = [],
 ): Promise<CommitResult> {
   const seen = new Set<string>();
   for (const ref of [...ops, ...guards, ...appends]) {
@@ -352,6 +344,20 @@ export async function commit(
     statements.push(guardStatement(db, write.op.collection, write.op.id, write.prior));
   for (const guard of guards)
     statements.push(guardStatement(db, guard.collection, guard.id, rows.get(refKey(guard))));
+  for (const guard of queryGuards) {
+    const { conditions, values, ordering } = queryPlan(guard);
+    // Compare inside the committing batch, including rows inserted after the client's query.
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO version_guard (ok)
+        SELECT 0 WHERE (SELECT json_group_array(json_array(id, version)) FROM
+          (SELECT id, version FROM doc WHERE ${conditions.join(' AND ')} ORDER BY ${ordering} LIMIT ?))
+          <> json(?)`,
+        )
+        .bind(...values, guard.limit ?? -1, JSON.stringify(guard.rows)),
+    );
+  }
   for (const write of writes) {
     if (!write.values) {
       statements.push(
@@ -435,7 +441,15 @@ export async function commit(
             expectedVersion: ref.expectedVersion,
             serverVersion: liveVersion(now.get(refKey(ref))),
           }))
-          .filter((conflict) => conflict.serverVersion !== conflict.expectedVersion),
+          .filter((conflict) => conflict.serverVersion !== conflict.expectedVersion)
+          .concat(
+            queryGuards.map(({ collection }) => ({
+              collection,
+              id: '',
+              expectedVersion: null,
+              serverVersion: null,
+            })),
+          ),
       };
     }
     if (/UNIQUE constraint failed/u.test(message)) {

@@ -28,7 +28,7 @@ import {
   LlmHttpError,
   LlmTimeoutError,
 } from '@/shared/llm/errors';
-import { AutoResearchConflictError } from '@/shared/storage/errors';
+import { RemoteStorageError, StorageConflictError } from '@/shared/storage/errors';
 import { executeEngine, StageFailure, stagePrompts, type Ask } from './engines';
 import { supervise } from './supervisors';
 import type { Screen } from './screening';
@@ -42,6 +42,8 @@ type RunnerDeps = Pick<EngineDeps, 'collect' | 'search' | 'loadFullTexts' | 'ban
     requireConsent: () => void;
     researchDesign?: ResearchDesign;
     save: (run: Run) => Promise<Run>;
+    checkpoint?: (run: Run) => Promise<Run>;
+    flush?: (id: string) => Promise<void>;
     screen: (options: {
       completed: StageState['screeningProgress'];
       checkpoint: (decisions: StageState['screeningProgress']) => Promise<void>;
@@ -70,6 +72,14 @@ export function modelsFor(stage: Stage, lead: string, critic: string) {
 }
 
 export async function runStage(initial: Run, stage: Stage, deps: RunnerDeps): Promise<Run> {
+  try {
+    return await executeStage(initial, stage, deps);
+  } finally {
+    await deps.flush?.(initial.id);
+  }
+}
+
+async function executeStage(initial: Run, stage: Stage, deps: RunnerDeps): Promise<Run> {
   if (stage === 'S11') throw new RunTransitionError('S11 is a pinned person action');
   const { now, signal, requireConsent, lead, critic } = deps;
   signal?.throwIfAborted();
@@ -88,7 +98,7 @@ export async function runStage(initial: Run, stage: Stage, deps: RunnerDeps): Pr
   const charter = run.charter;
   if (!charter) throw new StageFailure('MISSING_INPUT');
   const save = async (value: Run) => {
-    run = await deps.save(value);
+    run = await (deps.checkpoint ?? deps.save)(value);
   };
   const saveCheckpoint = async (record: Run, patch: Partial<StageState>) => {
     const next = patchStage(record, stage, patch);
@@ -121,8 +131,10 @@ export async function runStage(initial: Run, stage: Stage, deps: RunnerDeps): Pr
       if (!parsed.success) throw new StageFailure('LLM_OUTPUT_INVALID');
       return parsed.data;
     };
+  const storageFailure = (error: unknown) =>
+    error instanceof StorageConflictError || error instanceof RemoteStorageError;
   const abortOrConflict = (error: unknown) =>
-    signal?.aborted || error instanceof AutoResearchConflictError || error instanceof ConsentRequiredError;
+    signal?.aborted || storageFailure(error) || error instanceof ConsentRequiredError;
   try {
     if (!currentArtifact(run, stage) && !state.error) {
       const inputs = acceptedInputs(run, stage);
@@ -190,7 +202,8 @@ export async function runStage(initial: Run, stage: Stage, deps: RunnerDeps): Pr
     signal?.throwIfAborted();
     await save(openGate(run, stage, now()));
   } catch (error) {
-    if (!(error instanceof AutoResearchConflictError)) await save({ ...run, status: 'waiting' });
+    if (storageFailure(error)) throw error;
+    await save({ ...run, status: 'waiting' });
     if (!signal?.aborted) throw error;
   }
   return run;

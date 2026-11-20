@@ -12,7 +12,7 @@ import styles from './extraction.module.css';
 export default function ProjectPage() {
   const { id } = useParams();
   const repo = useRepositories();
-  const [project, setProject] = useState<ExtractionProject | null>(null);
+  const [project, setProject] = useState<ExtractionProject | null>();
   const [error, setError] = useState('');
   const [corpora, setCorpora] = useState<Corpus[]>([]);
   const [corpusId, setCorpusId] = useState('');
@@ -29,7 +29,10 @@ export default function ProjectPage() {
       .then(setCorpora)
       .catch((cause: unknown) => setError(String(cause)));
   }, [repo]);
-  if (!project) return <p>{error ? 'Không tải được project.' : 'Đang tải…'}</p>;
+  if (!project) {
+    if (error) return <p>Không tải được project.</p>;
+    return <p>{project === null ? 'Không tìm thấy project.' : 'Đang tải…'}</p>;
+  }
   const save = async (next: ExtractionProject, event?: Parameters<typeof repo.extraction.save>[1]) => {
     try {
       setProject(await repo.extraction.save(next, event));
@@ -89,7 +92,19 @@ export default function ProjectPage() {
       </section>
       {error && <p role="alert">Có lỗi xảy ra: {error}</p>}
       {!project.paperId && <ProjectResearch project={project} />}
-      <DeepResearch project={project} onSave={save} />
+      <DeepResearch
+        project={project}
+        onSave={save}
+        screeningStorage={{
+          checkpoint: async (next) => {
+            setProject(await repo.extraction.checkpoint(next));
+          },
+          finish: async (events) => {
+            await repo.extraction.flush(project.id);
+            await repo.extraction.recordEvents(project.id, events);
+          },
+        }}
+      />
     </div>
   );
 }

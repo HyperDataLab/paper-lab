@@ -39,19 +39,22 @@ export function useExtractionRun(
         config: llm.config,
         signal: abort.signal,
         onProgress: (finished, total) => setProgress(`${finished}/${total} bài`),
-        save: async (next) => setProject(await repo.extraction.save(next)),
+        save: async (next) => setProject(await repo.extraction.checkpoint(next)),
       });
       const last = done.runs.at(-1);
-      setProject(
-        await repo.extraction.save(done, {
-          action: 'run_extraction',
-          after: { runId: last?.id, status: last?.status },
-        }),
-      );
+      await repo.extraction.flush(done.id);
+      await repo.extraction.recordEvents(done.id, [
+        { action: 'run_extraction', after: { runId: last?.id, status: last?.status } },
+      ]);
       if (last?.status === 'PARTIAL') setError('Một số ô chưa chạy xong hoặc bị lỗi; xem trạng thái từng ô.');
     } catch (cause) {
       setError(describeLlmError(cause) ?? String(cause));
     } finally {
+      try {
+        await repo.extraction.flush(project.id);
+      } catch (cause) {
+        setError(String(cause));
+      }
       setRunning(false);
       setProgress('');
       controller.current = null;

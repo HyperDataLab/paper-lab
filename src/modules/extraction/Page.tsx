@@ -3,7 +3,7 @@ import { ItemCard, ItemGrid } from '@/shared/ui/ItemCard';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { newProject } from '@/core/extraction';
-import type { ExtractionProject } from '@/core/schemas';
+import type { ExtractionProjectSummary } from '@/shared/storage/extractionProjects';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { Dialog, DialogActions } from '@/shared/ui/Dialog';
@@ -15,28 +15,30 @@ import { Empty, Loading } from '@/shared/ui/StateNote';
 export default function Page() {
   const repo = useRepositories();
   const navigate = useNavigate();
-  const [projects, setProjects] = useState<ExtractionProject[] | null>(null);
+  const [projects, setProjects] = useState<ExtractionProjectSummary[] | null>(null);
   const [title, setTitle] = useState('');
   const [question, setQuestion] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
-  const [removing, setRemoving] = useState<ExtractionProject | null>(null);
+  const [removing, setRemoving] = useState<ExtractionProjectSummary | null>(null);
   useEffect(() => {
     void repo.extraction
-      .list()
+      .listSummaries()
       .then(setProjects)
       .catch((cause: unknown) => setError(String(cause)));
   }, [repo]);
   /** A copy keeps the question, columns, papers and extracted cells under a new name. */
-  async function duplicate(project: ExtractionProject) {
+  async function duplicate(id: string) {
     try {
+      const project = await repo.extraction.get(id);
+      if (!project) throw new Error('Không tìm thấy project.');
       await repo.extraction.save({
         ...project,
         id: crypto.randomUUID(),
         title: `${project.title} (bản sao)`,
         createdAt: new Date().toISOString(),
       });
-      setProjects(await repo.extraction.list());
+      setProjects(await repo.extraction.listSummaries());
     } catch (cause) {
       setError(String(cause));
     }
@@ -80,9 +82,8 @@ export default function Page() {
       ) : (
         <ItemGrid label="Các project">
           {projects.map((project) => {
-            const columns = project.fields.filter((field) => !field.hidden).length;
-            const verified = project.cells.filter((cell) => cell.status === 'VERIFIED').length;
-            const total = project.papers.length * columns;
+            const { visibleFields: columns, verified } = project;
+            const total = project.papers * columns;
             return (
               <li key={project.id}>
                 <ItemCard
@@ -91,7 +92,7 @@ export default function Page() {
                   title={project.title}
                   description={project.researchQuestion}
                   stats={[
-                    { label: 'Bài', value: project.papers.length },
+                    { label: 'Bài', value: project.papers },
                     { label: 'Cột', value: columns },
                     { label: 'Đã xác nhận', value: verified },
                   ]}
@@ -103,7 +104,7 @@ export default function Page() {
                   footer={<span>Cập nhật {new Date(project.updatedAt).toLocaleDateString('vi-VN')}</span>}
                   actions={[
                     { label: 'Mở', onSelect: () => navigate(`/extraction/${project.id}`) },
-                    { label: 'Nhân bản', onSelect: () => void duplicate(project) },
+                    { label: 'Nhân bản', onSelect: () => void duplicate(project.id) },
                     { label: 'Xoá', danger: true, onSelect: () => setRemoving(project) },
                   ]}
                 />
@@ -155,7 +156,7 @@ export default function Page() {
       {removing && (
         <Dialog
           title="Xoá project này?"
-          description={`Project “${removing.title}” cùng các cột và ô đã trích sẽ bị xoá khỏi máy này. Bài báo không bị xoá.`}
+          description={`Project “${removing.title}” cùng các cột và ô đã trích sẽ bị xoá. Bài báo không bị xoá.`}
           onClose={() => setRemoving(null)}
         >
           <DialogActions>
@@ -169,7 +170,7 @@ export default function Page() {
                 setRemoving(null);
                 void repo.extraction
                   .remove(target.id)
-                  .then(() => repo.extraction.list())
+                  .then(() => repo.extraction.listSummaries())
                   .then(setProjects)
                   .catch((cause: unknown) => setError(String(cause)));
               }}

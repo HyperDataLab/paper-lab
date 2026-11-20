@@ -186,7 +186,12 @@ export const COLLECTIONS = {
   extractionProjects: define(ExtractionProjectSchema, {
     key: (body) => body.id,
     index: (body) => ({ title: body.title, paperId: body.paperId, corpusId: body.corpusId ?? null }),
-    summary: (body) => ({ papers: body.papers.length, fields: body.fields.length }),
+    summary: (body) => ({
+      papers: body.papers.length,
+      fields: body.fields.length,
+      visibleFields: body.fields.filter((field) => !field.hidden).length,
+      verified: body.cells.filter((cell) => cell.status === 'VERIFIED').length,
+    }),
   }),
   reviewNgrams: define(ReviewNgramSchema, {
     key: (body) => `${body.paperId}:${body.hash}`,

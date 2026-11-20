@@ -1,4 +1,4 @@
-import type { Bucket } from '../app';
+import type { Bucket } from '../deps';
 import type { D1Database } from '../kg/bindings';
 import { DATA_PREFIX, parseBodyKey, readRows, refKey } from './store';
 

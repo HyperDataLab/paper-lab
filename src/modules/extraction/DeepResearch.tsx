@@ -96,9 +96,14 @@ export function DeepResearch({
   project,
   onSave,
   onOpenMatrix,
+  screeningStorage,
 }: {
   project: ExtractionProject;
   onSave: Save;
+  screeningStorage?: {
+    checkpoint: (project: ExtractionProject) => Promise<void>;
+    finish: (events: ExtractionEvent[]) => Promise<void>;
+  };
   /** Shows the papers once they are in the project, where a view of them exists. */
   onOpenMatrix?: () => void;
 }) {
@@ -248,27 +253,36 @@ export function DeepResearch({
   const screen = () =>
     task('Đang chấm điểm sàng lọc…', async (signal) => {
       if (!(plan || question.trim()) || !(await ai(signal))) return;
-      await llmTriage(
-        llm.client,
-        question.trim(),
-        plan ?? { inclusion: [], exclusion: [] },
-        deep.candidates,
-        {
-          config: llm.config,
-          signal,
-          // A checkpoint per batch: a stop or a failure keeps every batch already graded.
-          onBatch: async ({ apply, index, total }) => {
-            const base = current.current;
-            const next = withDeep({ candidates: apply(base.deep?.candidates ?? []) }, base);
-            current.current = next;
-            setBusy(`Đang chấm điểm sàng lọc… lô ${index + 1}/${total}`);
-            await onSave(next, {
-              action: 'run_extraction',
-              after: { step: 'screening_triage', batch: index + 1, of: total },
-            });
+      const events: ExtractionEvent[] = [];
+      try {
+        await llmTriage(
+          llm.client,
+          question.trim(),
+          plan ?? { inclusion: [], exclusion: [] },
+          deep.candidates,
+          {
+            config: llm.config,
+            signal,
+            // A checkpoint per batch: a stop or a failure keeps every batch already graded.
+            onBatch: async ({ apply, index, total }) => {
+              const base = current.current;
+              const next = withDeep({ candidates: apply(base.deep?.candidates ?? []) }, base);
+              current.current = next;
+              setBusy(`Đang chấm điểm sàng lọc… lô ${index + 1}/${total}`);
+              const event: ExtractionEvent = {
+                action: 'run_extraction',
+                after: { step: 'screening_triage', batch: index + 1, of: total },
+              };
+              if (screeningStorage) {
+                await screeningStorage.checkpoint(next);
+                events.push(event);
+              } else await onSave(next, event);
+            },
           },
-        },
-      );
+        );
+      } finally {
+        await screeningStorage?.finish(events);
+      }
     });
   const decide = (candidate: Candidate, status: ScreeningStatus) =>
     void onSave(
@@ -701,3 +715,4 @@ export function DeepResearch({
     </div>
   );
 }
+import type { ExtractionEvent } from '@/shared/storage/extractionProjects';

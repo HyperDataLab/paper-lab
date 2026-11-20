@@ -8,12 +8,22 @@ import { snapshot } from '@/core/researchDesign/bank/testSupport';
 import { loadLocalData } from '@/modules/researchDesign/localData';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
+import { CompositeDocStore } from '@/shared/storage/compositeDocStore';
+import { DexieDocStore } from '@/shared/storage/dexieDocStore';
+import { testWorkerData } from '@/shared/storage/remoteTestSupport';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 const id = '00000000-0000-4000-8000-000000000001';
 const at = '2026-01-01T00:00:00.000Z';
-async function setup() {
-  const repo = createRepositories(createDb(`research-design-${crypto.randomUUID()}`));
+async function setup(backend = 'Dexie') {
+  const db = createDb(`research-design-${crypto.randomUUID()}`);
+  const remote = backend === 'remote' ? testWorkerData().connect() : null;
+  const repo = createRepositories(
+    db,
+    undefined,
+    undefined,
+    new CompositeDocStore(new DexieDocStore(db), remote),
+  );
   const project = await repo.extraction.save({
     schemaVersion: 1,
     id,
@@ -91,8 +101,17 @@ it('M2 verifies snapshot bytes again on import', async () => {
   await expect(target.transfer.applyImport(invalid)).rejects.toThrow('Invalid research design bank snapshot');
 });
 
-it('M2 freezes once, rejects edits to frozen plans, and requires a changed draft for the next version', async () => {
-  const { repo } = await setup();
+it('C2 imports a bank and its research design version together on the worker', async () => {
+  const { repo } = await setup('remote');
+  const bytes = new TextEncoder().encode(JSON.stringify(snapshot)).buffer;
+  const saved = await repo.researchDesigns.importBank(id, 0, bytes, 'lab');
+  expect(saved.version).toBe(1);
+  expect(await repo.researchDesigns.get(id)).toEqual(saved);
+  expect(await repo.researchDesigns.getBank(id)).toMatchObject({ release: saved.bankRelease });
+});
+
+it.each(['Dexie', 'remote'])('M2 freezes and protects versions over %s', async (backend) => {
+  const { repo } = await setup(backend);
   const design = emptyResearchDesign(id);
   design.draft.hypotheses = [
     {

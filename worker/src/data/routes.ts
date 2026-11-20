@@ -1,17 +1,11 @@
 import { z } from 'zod';
-import {
-  COLLECTIONS,
-  DOC_INDEX_FIELDS,
-  isCollectionName,
-  type CollectionName,
-} from '../../../src/core/storage/collections';
-import type { Deps } from '../app';
-import { publishedError } from '../published';
+import { COLLECTIONS, isCollectionName } from '../../../src/core/storage/collections';
+import type { Deps } from '../deps';
+import { collectionSchema, filterSchema, queryGuardSchema, queryPlan } from './queryPlan';
 import {
   commit,
   docMeta,
   etagOf,
-  INDEX_COLUMN,
   parseEtag,
   readBody,
   readRows,
@@ -47,16 +41,11 @@ const idSchema = z
   .min(1)
   .max(300)
   .regex(/^\P{Cc}+$/u);
-const collectionSchema = z
-  .string()
-  .refine(isCollectionName, 'Unknown collection.') as unknown as z.ZodType<CollectionName>;
 const versionSchema = z.number().int().positive().nullable();
 
 const QuerySchema = z.strictObject({
   collection: collectionSchema,
-  where: z.partialRecord(z.enum(DOC_INDEX_FIELDS), z.string().nullable()).default({}),
-  orderBy: z.enum(['updatedAt', 'createdAt', 'title', 'id']).default('updatedAt'),
-  desc: z.boolean().default(false),
+  ...filterSchema,
   limit: z.number().int().positive().max(MAX_QUERY_LIMIT).default(100),
   cursor: z.string().max(2000).nullable().optional(),
   include: z.enum(['summary', 'body']).default('summary'),
@@ -83,18 +72,12 @@ const CommitSchema = z.strictObject({
     .array(z.strictObject({ collection: collectionSchema, id: idSchema, expectedVersion: versionSchema }))
     .max(MAX_COMMIT_OPS)
     .default([]),
+  queryGuards: z.array(queryGuardSchema).max(MAX_COMMIT_OPS).default([]),
   audit: z
     .array(z.strictObject({ collection: collectionSchema, id: idSchema, body: z.unknown() }))
     .max(MAX_COMMIT_APPENDS)
     .default([]),
 });
-
-const ORDER_COLUMN = {
-  updatedAt: 'updated_at',
-  createdAt: 'created_at',
-  title: "COALESCE(title, '')",
-  id: 'id',
-} as const;
 
 /**
  * The central lab store (ADR-0007): conditional reads and writes of one record, index queries over the
@@ -109,7 +92,7 @@ export async function handleData(
   headers: Headers,
 ) {
   const db = deps.data;
-  if (!db) return publishedError(503, 'data_not_configured', 'The lab data store is unavailable.', headers);
+  if (!db) return fail(503, 'data_not_configured', 'The lab data store is unavailable.', headers);
   const env: StoreEnv = { db, bucket: deps.bucket, now: deps.now, email };
 
   if (path === '/v1/data/query' || path === '/v1/data/batch-get' || path === '/v1/data/commit') {
@@ -210,8 +193,9 @@ async function commitRoute(env: StoreEnv, value: unknown, headers: Headers) {
   const parsed = CommitSchema.safeParse(value);
   if (!parsed.success)
     return fail(400, 'bad_request', `Invalid commit: ${parsed.error.issues[0]?.message ?? ''}`, headers);
-  const { ops, guards, audit } = parsed.data;
-  if (!ops.length && !audit.length) return fail(400, 'bad_request', 'Nothing to commit.', headers);
+  const { ops, guards, audit, queryGuards } = parsed.data;
+  if (!ops.length && !audit.length && !guards.length && !queryGuards.length)
+    return fail(400, 'bad_request', 'Nothing to commit.', headers);
   for (const op of ops)
     if (op.op === 'put' && op.body === undefined)
       return fail(400, 'bad_request', `The put of ${op.collection}/${op.id} has no body.`, headers);
@@ -226,6 +210,7 @@ async function commitRoute(env: StoreEnv, value: unknown, headers: Headers) {
     })),
     guards,
     audit.map((entry) => ({ collection: entry.collection, id: entry.id, text: JSON.stringify(entry.body) })),
+    queryGuards,
   );
   if (!result.ok) return failure(result, headers);
   return ok(200, { results: result.results, appended: result.appended }, headers);
@@ -275,31 +260,17 @@ async function query(env: StoreEnv, value: unknown, headers: Headers) {
     return fail(400, 'bad_request', `Invalid query: ${parsed.error.issues[0]?.message ?? ''}`, headers);
   const request = parsed.data;
   const limit = request.include === 'body' ? Math.min(request.limit, MAX_BODY_ROWS) : request.limit;
-  const order = ORDER_COLUMN[request.orderBy];
-  const conditions = ['collection = ?'];
-  const values: (string | number | null)[] = [request.collection];
-  if (!request.includeDeleted) conditions.push('deleted_at IS NULL');
-  for (const [field, expected] of Object.entries(request.where) as [
-    keyof typeof INDEX_COLUMN,
-    string | null,
-  ][]) {
-    if (expected === null) conditions.push(`${INDEX_COLUMN[field]} IS NULL`);
-    else {
-      conditions.push(`${INDEX_COLUMN[field]} = ?`);
-      values.push(expected);
-    }
-  }
+  const { conditions, values, order, ordering } = queryPlan(request, request.includeDeleted);
   if (request.cursor) {
     const cursor = decodeCursor(request.cursor);
     if (!cursor) return fail(400, 'bad_request', 'Invalid cursor.', headers);
     conditions.push(`(${order}, id) ${request.desc ? '<' : '>'} (?, ?)`);
     values.push(...cursor);
   }
-  const direction = request.desc ? 'DESC' : 'ASC';
   const [result] = await env.db.batch<DocRow & { sort_key: string | number }>([
     env.db
       .prepare(
-        `SELECT *, ${order} AS sort_key FROM doc WHERE ${conditions.join(' AND ')} ORDER BY ${order} ${direction}, id ${direction} LIMIT ?`,
+        `SELECT *, ${order} AS sort_key FROM doc WHERE ${conditions.join(' AND ')} ORDER BY ${ordering} LIMIT ?`,
       )
       .bind(...values, limit + 1),
   ]);

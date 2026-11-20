@@ -1,4 +1,4 @@
-import type { Bucket } from '../app';
+import type { Bucket } from '../deps';
 
 interface StoredObject {
   bytes: Uint8Array;

@@ -10,8 +10,8 @@ import { freezeGate, nextVersion } from '@/core/researchDesign/draft/freezeGate'
 import type { PapersDoc } from '@/core/researchDesign/papers';
 import { checkLockPlan } from '@/core/autoresearch/lock';
 import { runSchema, type Run } from '@/core/autoresearch/record';
-import type { DocReader, DocStore } from './docStore';
-import { ResearchDesignConflictError } from './errors';
+import type { DocReader, DocStore, DocTx } from './docStore';
+import { ResearchDesignConflictError, StorageConflictError } from './errors';
 import type { FreezeForRun } from './types';
 
 export type { FreezeForRun } from './types';
@@ -24,11 +24,24 @@ async function readDesign(reader: DocReader, projectId: string) {
 
 export function createResearchDesignRepository(store: DocStore, now: () => string) {
   const get = (projectId: string) => readDesign(store, projectId);
+  const change = async (
+    projectId: string,
+    collections: readonly string[],
+    fn: (tx: DocTx) => Promise<ResearchDesign>,
+  ) => {
+    try {
+      return await store.unitOfWork(fn, collections);
+    } catch (error) {
+      if (!(error instanceof StorageConflictError) || error instanceof ResearchDesignConflictError)
+        throw error;
+      throw new ResearchDesignConflictError(error.message, projectId);
+    }
+  };
   return {
     get,
     async save(input: ResearchDesign, expectedVersion: number) {
       const parsed = ResearchDesignSchema.parse(input);
-      return store.unitOfWork(async (tx) => {
+      return change(parsed.projectId, ['extractionProjects', 'researchDesigns'], async (tx) => {
         if (!(await tx.get('extractionProjects', parsed.projectId))) throw new Error('Project not found');
         const current = (await readDesign(tx, parsed.projectId)) ?? emptyResearchDesign(parsed.projectId);
         if (current.version !== expectedVersion || parsed.version !== expectedVersion)
@@ -63,7 +76,7 @@ export function createResearchDesignRepository(store: DocStore, now: () => strin
       appVersion: string,
       lock?: FreezeForRun,
     ) {
-      return store.unitOfWork(async (tx) => {
+      return change(projectId, ['extractionProjects', 'researchDesigns', 'autoresearchRuns'], async (tx) => {
         const projectRow = await tx.get('extractionProjects', projectId);
         if (!projectRow) throw new Error('Project not found');
         const project = projectRow.doc as { title: string };
@@ -144,24 +157,28 @@ export function createResearchDesignRepository(store: DocStore, now: () => strin
       const result = await snapshotRelease(data, bytes);
       if (!result.ok) throw new Error(`Invalid bank snapshot: ${result.reason}`);
       const bank = toBankDoc(result.file, result.release, who, now());
-      return store.unitOfWork(async (tx) => {
-        if (!(await tx.get('extractionProjects', projectId))) throw new Error('Project not found');
-        const current = (await readDesign(tx, projectId)) ?? emptyResearchDesign(projectId);
-        if (current.version !== expectedVersion)
-          throw new ResearchDesignConflictError('Research design changed', projectId, current.version);
-        const value = ResearchDesignSchema.parse({
-          ...current,
-          version: current.version + 1,
-          bankRelease: bank.release,
-        });
-        await tx.put('researchDesignBanks', projectId, {
-          projectId,
-          bank: bankDocSchema.parse(bank),
-          bytes: Array.from(new Uint8Array(bytes)),
-        });
-        await tx.put('researchDesigns', projectId, value);
-        return value;
-      });
+      return change(
+        projectId,
+        ['extractionProjects', 'researchDesigns', 'researchDesignBanks'],
+        async (tx) => {
+          if (!(await tx.get('extractionProjects', projectId))) throw new Error('Project not found');
+          const current = (await readDesign(tx, projectId)) ?? emptyResearchDesign(projectId);
+          if (current.version !== expectedVersion)
+            throw new ResearchDesignConflictError('Research design changed', projectId, current.version);
+          const value = ResearchDesignSchema.parse({
+            ...current,
+            version: current.version + 1,
+            bankRelease: bank.release,
+          });
+          await tx.put('researchDesignBanks', projectId, {
+            projectId,
+            bank: bankDocSchema.parse(bank),
+            bytes: Array.from(new Uint8Array(bytes)),
+          });
+          await tx.put('researchDesigns', projectId, value);
+          return value;
+        },
+      );
     },
   };
 }

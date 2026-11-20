@@ -3,12 +3,14 @@ import { expect, it, vi } from 'vitest';
 import { addFields, customField, FIELD_CATALOG, newProject } from '@/core/extraction';
 import { useExtractionRun } from './useExtractionRun';
 
-const mocks = vi.hoisted(() => ({ extract: vi.fn(), save: vi.fn() }));
+const mocks = vi.hoisted(() => ({ extract: vi.fn(), save: vi.fn(), flush: vi.fn() }));
 vi.mock('@/shared/llm/LlmProvider', () => ({
   useLlm: () => ({ ensureConsent: async () => true, client: {}, config: {} }),
 }));
 vi.mock('@/shared/storage/StorageProvider', () => ({
-  useRepositories: () => ({ extraction: { save: mocks.save } }),
+  useRepositories: () => ({
+    extraction: { recordEvents: vi.fn(), checkpoint: mocks.save, flush: mocks.flush },
+  }),
 }));
 vi.mock('@/shared/llm/llmExtraction', () => ({ llmExtraction: mocks.extract }));
 
@@ -41,4 +43,5 @@ it('adds missing catalog columns before running while preserving existing column
     ...FIELD_CATALOG.map((field) => field.key),
   ]);
   expect(mocks.extract.mock.calls[0]?.[3]).toEqual(expect.objectContaining({ fieldKeys, mode: 'STANDARD' }));
+  expect(mocks.flush).toHaveBeenCalledWith(project.id);
 });
