@@ -1,0 +1,7103 @@
+{
+  "format": "paperlab-semantic-concepts",
+  "version": 2,
+  "concepts": [
+    {
+      "id": "paper",
+      "name": "Paper",
+      "labelVi": "Bài báo",
+      "description": "Một bài báo đã nạp vào PaperLab (từ PDF hoặc văn bản), đã chia thành Section và Paragraph. Tệp PDF gốc nằm riêng trong R2, theo sha256.",
+      "synonyms": [
+        "bài báo",
+        "bài",
+        "paper",
+        "article",
+        "manuscript",
+        "bản thảo",
+        "tài liệu"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "papers"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã bài báo trong PaperLab."
+        },
+        {
+          "name": "title",
+          "description": "Tiêu đề (Title) người dùng đặt hoặc đọc từ tệp."
+        },
+        {
+          "name": "source.kind",
+          "description": "Định dạng nguồn: pdf, latex, markdown hoặc text."
+        },
+        {
+          "name": "source.sha256",
+          "description": "Mã băm của tệp gốc, cũng là khoá của PDF trong R2."
+        },
+        {
+          "name": "source.pageCount",
+          "description": "Số trang của PDF."
+        },
+        {
+          "name": "sections",
+          "description": "Danh sách Section theo thứ tự trong bài."
+        },
+        {
+          "name": "paragraphs",
+          "description": "Danh sách Paragraph, mỗi đoạn gắn với một Section."
+        },
+        {
+          "name": "createdAt",
+          "description": "Thời điểm nạp."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper-section",
+          "kind": "has-many",
+          "via": "sections"
+        },
+        {
+          "to": "paragraph",
+          "kind": "has-many",
+          "via": "paragraphs"
+        },
+        {
+          "to": "original-pdf",
+          "kind": "refers-to",
+          "via": "source.sha256"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/paper.ts",
+        "export": "PaperSchema"
+      }
+    },
+    {
+      "id": "paper-section",
+      "name": "Section",
+      "labelVi": "Mục của bài báo",
+      "description": "Một mục (Section) của bài báo như Abstract, Introduction, Methods, Results, Discussion; `role` là vai trò chuẩn hoá của tiêu đề mục.",
+      "synonyms": [
+        "section",
+        "mục",
+        "phần",
+        "chương mục",
+        "heading",
+        "tiêu đề mục",
+        "IMRaD"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "paper",
+        "path": "sections[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã mục, duy nhất trong bài."
+        },
+        {
+          "name": "heading",
+          "description": "Tiêu đề mục như trong bài."
+        },
+        {
+          "name": "role",
+          "description": "Vai trò chuẩn hoá: Abstract, Introduction, Methods, Results, Discussion…"
+        },
+        {
+          "name": "level",
+          "description": "Cấp tiêu đề."
+        },
+        {
+          "name": "pageStart",
+          "description": "Trang bắt đầu."
+        },
+        {
+          "name": "combined",
+          "description": "Các vai trò khi một tiêu đề gộp nhiều phần (\"Results and discussion\")."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/schemas/paper.ts",
+        "export": "SectionSchema"
+      }
+    },
+    {
+      "id": "paragraph",
+      "name": "Paragraph",
+      "labelVi": "Đoạn văn",
+      "description": "Một Paragraph trong bài báo, thuộc một Section. Có thể là đoạn văn thường, chú thích bảng hay công thức (`kind`).",
+      "synonyms": [
+        "đoạn văn",
+        "đoạn",
+        "paragraph",
+        "para",
+        "khối văn bản"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "paper",
+        "path": "paragraphs[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã đoạn, duy nhất trong bài."
+        },
+        {
+          "name": "sectionId",
+          "description": "Mục chứa đoạn."
+        },
+        {
+          "name": "order",
+          "description": "Thứ tự trong bài."
+        },
+        {
+          "name": "text",
+          "description": "Văn bản gốc, không bị chỉnh sửa."
+        },
+        {
+          "name": "kind",
+          "description": "Loại khối: body, caption, equation, list, reference, heading_like, footnote hoặc table."
+        },
+        {
+          "name": "textHash",
+          "description": "Mã băm văn bản, đổi khi văn bản đổi."
+        },
+        {
+          "name": "pageStart",
+          "description": "Trang bắt đầu."
+        },
+        {
+          "name": "table",
+          "description": "Nội dung bảng khi khối là bảng."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper-section",
+          "kind": "belongs-to",
+          "via": "sectionId"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/paper.ts",
+        "export": "PaperParagraphSchema"
+      }
+    },
+    {
+      "id": "analysis",
+      "name": "Paragraph analysis",
+      "labelVi": "Kết quả đánh giá đoạn",
+      "description": "Kết quả đánh giá một đoạn theo Schimel: tách câu, Topic / Action / Stress, liên kết giữa các câu, điểm theo rubric và các vấn đề (issue). Đoạn có thể đến từ bài báo, bản sửa hoặc bản sinh.",
+      "synonyms": [
+        "analysis",
+        "evaluation",
+        "đánh giá",
+        "phân tích",
+        "chấm điểm đoạn",
+        "evaluate"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "analyses"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã kết quả."
+        },
+        {
+          "name": "title",
+          "description": "Tên do người dùng đặt."
+        },
+        {
+          "name": "text",
+          "description": "Văn bản nguồn, câu và token với offset tính bằng code."
+        },
+        {
+          "name": "text.sourceHash",
+          "description": "Mã băm văn bản nguồn."
+        },
+        {
+          "name": "sentenceAnnotations",
+          "description": "Chú thích từng câu: Topic, Action, Stress, vai trò, giọng."
+        },
+        {
+          "name": "paragraph",
+          "description": "Loại đoạn, central point và tính thống nhất."
+        },
+        {
+          "name": "flowLinks",
+          "description": "Liên kết giữa các câu liền nhau (continuity, discourse relation)."
+        },
+        {
+          "name": "scores",
+          "description": "Điểm theo rubric, kèm coverage, confidence và rubric version."
+        },
+        {
+          "name": "issues",
+          "description": "Các vấn đề phát hiện được."
+        },
+        {
+          "name": "origin",
+          "description": "Nguồn của đoạn: paper, generation hoặc revision."
+        },
+        {
+          "name": "origin.paperId",
+          "description": "Bài báo chứa đoạn, khi đoạn lấy từ bài báo."
+        },
+        {
+          "name": "origin.paragraphId",
+          "description": "Đoạn trong bài báo."
+        },
+        {
+          "name": "parentAnalysisId",
+          "description": "Kết quả trước khi đánh giá lại."
+        },
+        {
+          "name": "versions",
+          "description": "Phiên bản prompt, model, rubric, detector đã dùng."
+        }
+      ],
+      "relations": [
+        {
+          "to": "sentence",
+          "kind": "has-many",
+          "via": "text.sentences"
+        },
+        {
+          "to": "sentence-annotation",
+          "kind": "has-many",
+          "via": "sentenceAnnotations"
+        },
+        {
+          "to": "issue",
+          "kind": "has-many",
+          "via": "issues"
+        },
+        {
+          "to": "paper",
+          "kind": "refers-to",
+          "via": "origin.paperId"
+        },
+        {
+          "to": "paragraph",
+          "kind": "refers-to",
+          "via": "origin.paragraphId"
+        },
+        {
+          "to": "generation",
+          "kind": "refers-to",
+          "via": "origin.generationId"
+        },
+        {
+          "to": "revision",
+          "kind": "refers-to",
+          "via": "origin.revisionId"
+        },
+        {
+          "to": "analysis",
+          "kind": "refers-to",
+          "via": "parentAnalysisId"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/analysis.ts",
+        "export": "AnalysisSchema"
+      }
+    },
+    {
+      "id": "sentence",
+      "name": "Sentence",
+      "labelVi": "Câu",
+      "description": "Một câu của đoạn đã đánh giá, với offset bắt đầu / kết thúc do code tính. Câu nằm trong kết quả đánh giá, không nằm trực tiếp trong Paper.",
+      "synonyms": [
+        "câu",
+        "sentence",
+        "câu văn"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "analysis",
+        "path": "text.sentences[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã câu trong đoạn."
+        },
+        {
+          "name": "start",
+          "description": "Offset bắt đầu (code point)."
+        },
+        {
+          "name": "end",
+          "description": "Offset kết thúc, không bao gồm."
+        },
+        {
+          "name": "tokenStart",
+          "description": "Token đầu tiên."
+        },
+        {
+          "name": "tokenEnd",
+          "description": "Token cuối, không bao gồm."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/schemas/text.ts",
+        "export": "SentenceSchema"
+      }
+    },
+    {
+      "id": "sentence-annotation",
+      "name": "Sentence annotation",
+      "labelVi": "Chú thích câu",
+      "description": "Phân tích cấu trúc một câu: Topic, Action, Stress, chủ ngữ và động từ, khoảng cách chủ ngữ – động từ, giọng chủ động / bị động.",
+      "synonyms": [
+        "topic",
+        "action",
+        "stress",
+        "topic position",
+        "stress position",
+        "chủ ngữ",
+        "động từ",
+        "bị động",
+        "passive voice"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "analysis",
+        "path": "sentenceAnnotations[]"
+      },
+      "fields": [
+        {
+          "name": "sentenceId",
+          "description": "Câu được chú thích."
+        },
+        {
+          "name": "topicSpan",
+          "description": "Vị trí Topic."
+        },
+        {
+          "name": "actionSpan",
+          "description": "Vị trí Action."
+        },
+        {
+          "name": "stressSpan",
+          "description": "Vị trí Stress."
+        },
+        {
+          "name": "role",
+          "description": "Vai trò của câu trong đoạn."
+        },
+        {
+          "name": "subjectVerbDistanceTokens",
+          "description": "Khoảng cách chủ ngữ – động từ, null khi không chắc."
+        },
+        {
+          "name": "voice",
+          "description": "Chủ động hay bị động."
+        }
+      ],
+      "relations": [
+        {
+          "to": "sentence",
+          "kind": "refers-to",
+          "via": "sentenceId"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/analysis.ts",
+        "export": "SentenceAnnotationSchema"
+      }
+    },
+    {
+      "id": "issue",
+      "name": "Issue",
+      "labelVi": "Vấn đề viết",
+      "description": "Một vấn đề trong đoạn: ứng viên cần xem lại, gợi ý văn phong hoặc vi phạm đã xác nhận. Trạng thái đi từ candidate đến quyết định của người.",
+      "synonyms": [
+        "issue",
+        "vấn đề",
+        "lỗi",
+        "finding",
+        "phát hiện",
+        "review candidate",
+        "ứng viên cần xem lại"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "analysis",
+        "path": "issues[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã vấn đề."
+        },
+        {
+          "name": "type",
+          "description": "Loại vấn đề."
+        },
+        {
+          "name": "category",
+          "description": "Nhóm vấn đề."
+        },
+        {
+          "name": "status",
+          "description": "candidate, confirmed_by_model, confirmed_by_human hoặc dismissed_by_human."
+        },
+        {
+          "name": "severity",
+          "description": "Mức độ."
+        },
+        {
+          "name": "spans",
+          "description": "Vị trí trong văn bản."
+        },
+        {
+          "name": "why",
+          "description": "Giải thích."
+        },
+        {
+          "name": "suggestedFix",
+          "description": "Gợi ý sửa."
+        },
+        {
+          "name": "confidence",
+          "description": "Độ tin cậy."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/schemas/issue.ts",
+        "export": "IssueSchema"
+      }
+    },
+    {
+      "id": "audit-event",
+      "name": "Audit event",
+      "labelVi": "Nhật ký quyết định",
+      "description": "Một quyết định của người hoặc hệ thống về một issue, ghi lại trước và sau khi đổi.",
+      "synonyms": [
+        "audit",
+        "audit log",
+        "nhật ký",
+        "lịch sử quyết định",
+        "decision log"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "auditEvents"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã sự kiện."
+        },
+        {
+          "name": "analysisId",
+          "description": "Kết quả đánh giá chứa issue."
+        },
+        {
+          "name": "issueId",
+          "description": "Issue được quyết định."
+        },
+        {
+          "name": "actor",
+          "description": "Ai thực hiện."
+        },
+        {
+          "name": "action",
+          "description": "Hành động."
+        },
+        {
+          "name": "before",
+          "description": "Giá trị trước."
+        },
+        {
+          "name": "after",
+          "description": "Giá trị sau."
+        },
+        {
+          "name": "at",
+          "description": "Thời điểm."
+        }
+      ],
+      "relations": [
+        {
+          "to": "analysis",
+          "kind": "belongs-to",
+          "via": "analysisId"
+        },
+        {
+          "to": "issue",
+          "kind": "refers-to",
+          "via": "issueId"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/audit.ts",
+        "export": "AuditEventSchema"
+      }
+    },
+    {
+      "id": "revision",
+      "name": "Revision",
+      "labelVi": "Bản sửa",
+      "description": "Bản sửa của một đoạn đã đánh giá cho các issue được chọn, kèm diff và kiểm tra giữ nghĩa. Không thêm dữ kiện, số hay tài liệu.",
+      "synonyms": [
+        "revision",
+        "revise",
+        "bản sửa",
+        "sửa đoạn",
+        "rewrite",
+        "viết lại"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "revisions"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã bản sửa."
+        },
+        {
+          "name": "sourceAnalysisId",
+          "description": "Kết quả đánh giá của đoạn gốc."
+        },
+        {
+          "name": "revisedText",
+          "description": "Văn bản đã sửa."
+        },
+        {
+          "name": "hunks",
+          "description": "Các khối thay đổi của diff."
+        },
+        {
+          "name": "changes",
+          "description": "Thay đổi và issue mà nó giải quyết."
+        },
+        {
+          "name": "needsEvidence",
+          "description": "Chỗ cần thêm Evidence, không được tự bịa."
+        },
+        {
+          "name": "checks",
+          "description": "Kiểm tra giữ nghĩa (hedging, phủ định, số liệu…)."
+        },
+        {
+          "name": "appliedIssueIds",
+          "description": "Các issue đã áp dụng."
+        },
+        {
+          "name": "model",
+          "description": "Model đã dùng."
+        }
+      ],
+      "relations": [
+        {
+          "to": "analysis",
+          "kind": "belongs-to",
+          "via": "sourceAnalysisId"
+        },
+        {
+          "to": "issue",
+          "kind": "refers-to",
+          "via": "appliedIssueIds"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/revision.ts",
+        "export": "RevisionSchema"
+      }
+    },
+    {
+      "id": "generation",
+      "name": "Paragraph generation",
+      "labelVi": "Đoạn sinh từ Claim",
+      "description": "Một đoạn do AI soạn từ Claim chính và Evidence người dùng cung cấp, kèm vai trò từng câu và kiểm tra neo vào Evidence.",
+      "synonyms": [
+        "generation",
+        "generate",
+        "sinh đoạn",
+        "soạn đoạn",
+        "draft",
+        "bản nháp"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "generations"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã bản sinh."
+        },
+        {
+          "name": "input.mainClaim",
+          "description": "Claim chính."
+        },
+        {
+          "name": "input.evidence",
+          "description": "Evidence người dùng đưa vào."
+        },
+        {
+          "name": "paragraph",
+          "description": "Đoạn đã sinh."
+        },
+        {
+          "name": "sentences",
+          "description": "Câu và Evidence mỗi câu dùng."
+        },
+        {
+          "name": "needsEvidence",
+          "description": "Chỗ còn thiếu Evidence."
+        },
+        {
+          "name": "checks",
+          "description": "Kiểm tra neo và Evidence chưa dùng."
+        },
+        {
+          "name": "model",
+          "description": "Model đã dùng."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/schemas/generation.ts",
+        "export": "GenerationSchema"
+      }
+    },
+    {
+      "id": "original-pdf",
+      "name": "Original PDF",
+      "labelVi": "Tệp PDF gốc",
+      "description": "Tệp PDF gốc của bài báo, lưu nguyên vẹn trong R2 với khoá là sha256 của tệp.",
+      "synonyms": [
+        "pdf",
+        "tệp pdf",
+        "file gốc",
+        "original pdf",
+        "bản pdf"
+      ],
+      "store": {
+        "kind": "r2",
+        "prefix": "paperlab/pdfs/"
+      },
+      "fields": [],
+      "relations": [],
+      "schema": null
+    },
+    {
+      "id": "paper-run",
+      "name": "Paper run",
+      "labelVi": "Lượt chạy theo bài",
+      "description": "Một lượt đánh giá hàng loạt các đoạn của một bài báo, có kế hoạch, ngân sách lượt gọi AI và tiến độ từng đoạn. Bản lớn được chia thành các phần checkpoint.",
+      "synonyms": [
+        "paper run",
+        "batch",
+        "chạy hàng loạt",
+        "lượt chạy",
+        "tiến độ"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "paperRuns"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã lượt chạy."
+        },
+        {
+          "name": "paperId",
+          "description": "Bài báo."
+        },
+        {
+          "name": "status",
+          "description": "Trạng thái."
+        },
+        {
+          "name": "plan",
+          "description": "Kế hoạch: mục, bước, đoạn và đoạn bỏ qua."
+        },
+        {
+          "name": "budget",
+          "description": "Ngân sách lượt gọi AI."
+        },
+        {
+          "name": "callsUsed",
+          "description": "Số lượt gọi đã dùng."
+        },
+        {
+          "name": "items",
+          "description": "Tiến độ từng đoạn."
+        },
+        {
+          "name": "parts",
+          "description": "Các phần checkpoint của bản manifest."
+        },
+        {
+          "name": "model",
+          "description": "Model đã dùng."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper",
+          "kind": "belongs-to",
+          "via": "paperId"
+        },
+        {
+          "to": "paper-checkpoint-part",
+          "kind": "has-many",
+          "via": "parts"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/paperRun.ts",
+        "export": "PaperRunSchema"
+      }
+    },
+    {
+      "id": "paper-checkpoint-part",
+      "name": "Paper run checkpoint part",
+      "labelVi": "Phần checkpoint của lượt chạy",
+      "description": "Một phần của checkpoint lượt chạy theo bài, tách ra để mỗi lần ghi vừa giới hạn kích thước. Dữ liệu bên trong là chuỗi đã mã hoá.",
+      "synonyms": [
+        "checkpoint",
+        "chunk",
+        "phần lưu tạm"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "paperCheckpointParts"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã phần."
+        },
+        {
+          "name": "paperId",
+          "description": "Bài báo."
+        },
+        {
+          "name": "kind",
+          "description": "chunk hoặc measurement."
+        },
+        {
+          "name": "refId",
+          "description": "Mã chunk."
+        },
+        {
+          "name": "data",
+          "description": "Dữ liệu đã mã hoá."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper",
+          "kind": "belongs-to",
+          "via": "paperId"
+        }
+      ],
+      "schema": {
+        "file": "src/core/storage/paperCheckpoints.ts",
+        "export": "PaperCheckpointPartSchema"
+      }
+    },
+    {
+      "id": "paper-overview",
+      "name": "Paper overview",
+      "labelVi": "Tổng quan bài báo",
+      "description": "Tổng hợp kết quả đánh giá các đoạn của một bài báo theo mục: độ phủ, issue lặp lại, phân bố điểm, và đánh giá chuyển tiếp giữa các đoạn.",
+      "synonyms": [
+        "overview",
+        "tổng quan",
+        "tóm tắt kết quả",
+        "transitions",
+        "chuyển đoạn"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "paperOverviews"
+      },
+      "fields": [
+        {
+          "name": "paperId",
+          "description": "Bài báo."
+        },
+        {
+          "name": "overview",
+          "description": "Số liệu tổng hợp theo bài và theo mục."
+        },
+        {
+          "name": "overview.recurringIssues",
+          "description": "Các issue lặp lại ở nhiều đoạn."
+        },
+        {
+          "name": "transitions",
+          "description": "Đánh giá chuyển tiếp giữa các cặp đoạn."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper",
+          "kind": "belongs-to",
+          "via": "paperId"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/paperOverview.ts",
+        "export": "PaperOverviewRecordSchema"
+      }
+    },
+    {
+      "id": "paper-checks",
+      "name": "Paper checks",
+      "labelVi": "Kiểm tra toàn bài",
+      "description": "Các kiểm tra trên toàn bài: số liệu nhất quán, Claim không có chỗ dựa, hình và bảng, viết tắt, độ mạnh Claim, trích dẫn. Kèm quyết định của người.",
+      "synonyms": [
+        "paper checks",
+        "kiểm tra",
+        "consistency",
+        "acronyms",
+        "viết tắt",
+        "figures tables"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "paperChecks"
+      },
+      "fields": [
+        {
+          "name": "paperId",
+          "description": "Bài báo."
+        },
+        {
+          "name": "report",
+          "description": "Báo cáo kiểm tra."
+        },
+        {
+          "name": "report.checks",
+          "description": "Kết quả từng kiểm tra."
+        },
+        {
+          "name": "decisions",
+          "description": "Quyết định của người với từng finding."
+        },
+        {
+          "name": "reviewedAt",
+          "description": "Lần xem gần nhất."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper",
+          "kind": "belongs-to",
+          "via": "paperId"
+        },
+        {
+          "to": "paper-check",
+          "kind": "has-many",
+          "via": "report.checks"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/paperChecks.ts",
+        "export": "PaperChecksRecordSchema"
+      }
+    },
+    {
+      "id": "paper-check",
+      "name": "Paper check result",
+      "labelVi": "Kết quả một kiểm tra",
+      "description": "Kết quả một kiểm tra toàn bài (ví dụ numbers_consistency) với trạng thái và các finding.",
+      "synonyms": [
+        "check",
+        "check result",
+        "kết quả kiểm tra"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "paper-checks",
+        "path": "report.checks[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Loại kiểm tra."
+        },
+        {
+          "name": "label",
+          "description": "Tên hiển thị."
+        },
+        {
+          "name": "status",
+          "description": "pass, warn, fail hoặc not_applicable."
+        },
+        {
+          "name": "summary",
+          "description": "Tóm tắt."
+        },
+        {
+          "name": "findings",
+          "description": "Các finding cùng vị trí."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/schemas/paperChecks.ts",
+        "export": "CheckResultSchema"
+      }
+    },
+    {
+      "id": "paper-review",
+      "name": "AI review panel",
+      "labelVi": "Phản biện AI",
+      "description": "Các lượt phản biện AI theo nhiều lens (góc nhìn), các ý đã gộp và neo vào văn bản, ghi chú của người viết trước khi xem, và quyết định với từng ý.",
+      "synonyms": [
+        "review",
+        "peer review",
+        "phản biện",
+        "reviewer",
+        "review panel",
+        "lens"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "paperReviews"
+      },
+      "fields": [
+        {
+          "name": "paperId",
+          "description": "Bài báo."
+        },
+        {
+          "name": "runs",
+          "description": "Các lượt phản biện."
+        },
+        {
+          "name": "humanNotes",
+          "description": "Ghi chú của người, viết trước khi xem phản biện AI."
+        },
+        {
+          "name": "decisions",
+          "description": "Quyết định với từng ý."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper",
+          "kind": "belongs-to",
+          "via": "paperId"
+        },
+        {
+          "to": "review-point",
+          "kind": "has-many",
+          "via": "runs.merged"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/paperReview.ts",
+        "export": "PaperReviewsRecordSchema"
+      }
+    },
+    {
+      "id": "review-point",
+      "name": "Review point",
+      "labelVi": "Ý phản biện",
+      "description": "Một ý phản biện đã gộp từ các lens, neo vào một vị trí trong bài, có mức độ nghiêm trọng.",
+      "synonyms": [
+        "review point",
+        "ý phản biện",
+        "comment",
+        "nhận xét"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "paper-review",
+        "path": "runs[].merged[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã ý."
+        },
+        {
+          "name": "lenses",
+          "description": "Các lens nêu ý này."
+        },
+        {
+          "name": "anchor",
+          "description": "Vị trí neo trong văn bản."
+        },
+        {
+          "name": "severity",
+          "description": "minor, moderate hoặc major."
+        },
+        {
+          "name": "wordings",
+          "description": "Cách diễn đạt của từng lens."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/schemas/paperReview.ts",
+        "export": "MergedReviewPointSchema"
+      }
+    },
+    {
+      "id": "review-ngram",
+      "name": "Review n-gram",
+      "labelVi": "N-gram của phản biện",
+      "description": "Mã băm các n-gram trong văn bản phản biện AI của một bài, dùng để phát hiện câu chữ rập khuôn lặp lại giữa các bài. Nhiều mã có thể gộp vào một bucket.",
+      "synonyms": [
+        "ngram",
+        "n-gram",
+        "template phrases",
+        "câu rập khuôn"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "reviewNgrams"
+      },
+      "fields": [
+        {
+          "name": "hash",
+          "description": "Mã băm n-gram, hoặc mã bucket."
+        },
+        {
+          "name": "hashes",
+          "description": "Các mã băm trong bucket."
+        },
+        {
+          "name": "paperId",
+          "description": "Bài báo."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper",
+          "kind": "belongs-to",
+          "via": "paperId"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/paperReview.ts",
+        "export": "ReviewNgramSchema"
+      }
+    },
+    {
+      "id": "style-probe",
+      "name": "Style probe",
+      "labelVi": "Thử độ nhạy văn phong",
+      "description": "Các lượt viết lại vài đoạn chỉ đổi văn phong rồi chấm lại, để xem điểm có đổi vì văn phong hay không (insufficient, style_sensitive, stable).",
+      "synonyms": [
+        "probe",
+        "style probe",
+        "thử nghiệm",
+        "độ ổn định điểm",
+        "style sensitivity"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "paperProbes"
+      },
+      "fields": [
+        {
+          "name": "paperId",
+          "description": "Bài báo."
+        },
+        {
+          "name": "runs",
+          "description": "Các lượt thử."
+        },
+        {
+          "name": "updatedAt",
+          "description": "Lần cập nhật."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper",
+          "kind": "belongs-to",
+          "via": "paperId"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/paperProbe.ts",
+        "export": "PaperProbesRecordSchema"
+      }
+    },
+    {
+      "id": "stance",
+      "name": "Stance markers",
+      "labelVi": "Dấu hiệu lập trường",
+      "description": "Các dấu hiệu lập trường (stance) và engagement trong bài, (hedges, boosters, attitude_markers, self_mention; reader_pronouns, directives, questions…), kèm số từ đã đọc theo mục làm mẫu số.",
+      "synonyms": [
+        "stance",
+        "hedging",
+        "booster",
+        "lập trường",
+        "engagement",
+        "rào đón"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "stance"
+      },
+      "fields": [
+        {
+          "name": "paperId",
+          "description": "Bài báo."
+        },
+        {
+          "name": "runs",
+          "description": "Các lượt gán nhãn."
+        },
+        {
+          "name": "decisions",
+          "description": "Quyết định của người với từng nhãn."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper",
+          "kind": "belongs-to",
+          "via": "paperId"
+        },
+        {
+          "to": "stance-marker",
+          "kind": "has-many",
+          "via": "runs.annotations"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/stance.ts",
+        "export": "StanceRecordSchema"
+      }
+    },
+    {
+      "id": "stance-marker",
+      "name": "Stance marker",
+      "labelVi": "Một dấu hiệu lập trường",
+      "description": "Một dấu hiệu lập trường trong một đoạn, với vị trí do code tìm và lý do.",
+      "synonyms": [
+        "marker",
+        "hedge",
+        "dấu hiệu"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "stance",
+        "path": "runs[].annotations[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã nhãn."
+        },
+        {
+          "name": "paragraphId",
+          "description": "Đoạn chứa."
+        },
+        {
+          "name": "sectionId",
+          "description": "Mục chứa."
+        },
+        {
+          "name": "category",
+          "description": "Loại dấu hiệu."
+        },
+        {
+          "name": "marker",
+          "description": "Từ hoặc cụm đánh dấu."
+        },
+        {
+          "name": "excerpt",
+          "description": "Trích đoạn."
+        },
+        {
+          "name": "rationale",
+          "description": "Lý do."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paragraph",
+          "kind": "refers-to",
+          "via": "paragraphId"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/stance.ts",
+        "export": "StanceAnnotationSchema"
+      }
+    },
+    {
+      "id": "paper-context",
+      "name": "Paper context",
+      "labelVi": "Bối cảnh học thuật của bài",
+      "description": "Metadata của bài từ OpenAlex, kiểm tra retraction của bài và các tài liệu được trích, và kiểm tra danh mục References.",
+      "synonyms": [
+        "context",
+        "metadata",
+        "retraction",
+        "rút bài",
+        "reference audit",
+        "kiểm tra trích dẫn"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "paperContext"
+      },
+      "fields": [
+        {
+          "name": "paperId",
+          "description": "Bài báo."
+        },
+        {
+          "name": "paperDoi",
+          "description": "DOI của bài."
+        },
+        {
+          "name": "retracted",
+          "description": "Các tài liệu đã bị rút."
+        },
+        {
+          "name": "metadata",
+          "description": "Metadata (tác giả, venue, năm, keywords…)."
+        },
+        {
+          "name": "referenceAudit",
+          "description": "Kết quả kiểm tra từng tài liệu tham khảo."
+        },
+        {
+          "name": "checkedAt",
+          "description": "Thời điểm kiểm tra."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper",
+          "kind": "belongs-to",
+          "via": "paperId"
+        },
+        {
+          "to": "kg-paper",
+          "kind": "refers-to",
+          "via": "paperDoi"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/paperContext.ts",
+        "export": "PaperContextRecordSchema"
+      }
+    },
+    {
+      "id": "paper-insights",
+      "name": "Paper insights",
+      "labelVi": "Đọc hiểu bài báo",
+      "description": "Các lượt đọc hiểu bài bằng AI: rhetoric (Move), Argument theo Toulmin, snapshot các trường chính, digest cho người đọc và contribution sentence (OpenKG).",
+      "synonyms": [
+        "insights",
+        "đọc hiểu",
+        "rhetoric",
+        "digest",
+        "snapshot",
+        "tóm tắt cho người đọc"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "paperInsights"
+      },
+      "fields": [
+        {
+          "name": "paperId",
+          "description": "Bài báo."
+        },
+        {
+          "name": "rhetoricRuns",
+          "description": "Các lượt gán nhãn rhetoric."
+        },
+        {
+          "name": "argumentRuns",
+          "description": "Các lượt dựng Argument."
+        },
+        {
+          "name": "snapshotRuns",
+          "description": "Các lượt trích trường chính."
+        },
+        {
+          "name": "digestRuns",
+          "description": "Các bản digest."
+        },
+        {
+          "name": "contributionRuns",
+          "description": "Các lượt trích contribution sentence."
+        },
+        {
+          "name": "decisions",
+          "description": "Quyết định của người."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper",
+          "kind": "belongs-to",
+          "via": "paperId"
+        },
+        {
+          "to": "argument",
+          "kind": "has-many",
+          "via": "argumentRuns.arguments"
+        },
+        {
+          "to": "rhetoric-item",
+          "kind": "has-many",
+          "via": "rhetoricRuns.items"
+        },
+        {
+          "to": "contribution-sentence",
+          "kind": "has-many",
+          "via": "contributionRuns.sentences"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/paperInsights.ts",
+        "export": "PaperInsightsRecordSchema"
+      }
+    },
+    {
+      "id": "rhetoric-item",
+      "name": "Rhetorical move",
+      "labelVi": "Move tu từ",
+      "description": "Một đoạn trích được gán nhãn rhetoric (Move / Step), ví dụ nêu Research gap hay nêu Contribution.",
+      "synonyms": [
+        "move",
+        "step",
+        "rhetoric",
+        "tu từ",
+        "rhetorical move"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "paper-insights",
+        "path": "rhetoricRuns[].items[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã nhãn."
+        },
+        {
+          "name": "paragraphId",
+          "description": "Đoạn chứa."
+        },
+        {
+          "name": "sectionId",
+          "description": "Mục chứa."
+        },
+        {
+          "name": "category",
+          "description": "Loại Move."
+        },
+        {
+          "name": "excerpt",
+          "description": "Trích đoạn."
+        },
+        {
+          "name": "rationale",
+          "description": "Lý do."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paragraph",
+          "kind": "refers-to",
+          "via": "paragraphId"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/paperInsights.ts",
+        "export": "RhetoricItemSchema"
+      }
+    },
+    {
+      "id": "argument",
+      "name": "Argument",
+      "labelVi": "Argument (Toulmin)",
+      "description": "Một Argument dựng theo Toulmin: Claim, Data (Evidence), Warrant tác giả nêu hoặc do người phân tích suy ra, Backing, Qualifier, Rebuttal và mức Evidence.",
+      "synonyms": [
+        "argument",
+        "toulmin",
+        "lập luận",
+        "warrant",
+        "qualifier",
+        "rebuttal",
+        "backing",
+        "luận cứ"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "paper-insights",
+        "path": "argumentRuns[].arguments[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã Argument."
+        },
+        {
+          "name": "importance",
+          "description": "Mức quan trọng."
+        },
+        {
+          "name": "claim",
+          "description": "Claim, có trích dẫn trong bài."
+        },
+        {
+          "name": "claimType",
+          "description": "Loại Claim."
+        },
+        {
+          "name": "data",
+          "description": "Data / Evidence dẫn ra."
+        },
+        {
+          "name": "statedWarrant",
+          "description": "Warrant tác giả nêu."
+        },
+        {
+          "name": "inferredWarrant",
+          "description": "Warrant người phân tích suy ra, không phải của tác giả."
+        },
+        {
+          "name": "backing",
+          "description": "Backing."
+        },
+        {
+          "name": "qualifier",
+          "description": "Qualifier."
+        },
+        {
+          "name": "rebuttals",
+          "description": "Rebuttal."
+        },
+        {
+          "name": "evidenceLevel",
+          "description": "Loại chỗ dựa mà văn bản báo cáo."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/schemas/paperInsights.ts",
+        "export": "ArgumentSchema"
+      }
+    },
+    {
+      "id": "contribution-sentence",
+      "name": "Contribution sentence (OpenKG)",
+      "labelVi": "Câu đóng góp (OpenKG)",
+      "description": "Một câu nêu Contribution của bài, gán đơn vị thông tin kiểu NCG và các cụm từ, bộ ba (triple) để đưa vào đồ thị tri thức OpenKG.",
+      "synonyms": [
+        "openkg",
+        "ncg",
+        "triple",
+        "bộ ba",
+        "contribution sentence",
+        "câu đóng góp",
+        "knowledge graph"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "paper-insights",
+        "path": "contributionRuns[].sentences[]"
+      },
+      "fields": [
+        {
+          "name": "sentenceId",
+          "description": "Câu trong bài."
+        },
+        {
+          "name": "unit",
+          "description": "Đơn vị thông tin."
+        },
+        {
+          "name": "phrases",
+          "description": "Các cụm từ khoa học."
+        },
+        {
+          "name": "triples",
+          "description": "Các bộ ba chủ thể – quan hệ – đối tượng."
+        }
+      ],
+      "relations": [],
+      "schema": null
+    },
+    {
+      "id": "grobid",
+      "name": "GROBID result",
+      "labelVi": "Kết quả GROBID",
+      "description": "Kết quả GROBID cho tệp PDF của bài: header, danh mục References và các trích dẫn trong văn bản. Giữ riêng, không đổi Paper.",
+      "synonyms": [
+        "grobid",
+        "header",
+        "tei",
+        "trích dẫn trong bài",
+        "in-text citation"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "grobid"
+      },
+      "fields": [
+        {
+          "name": "paperId",
+          "description": "Bài báo."
+        },
+        {
+          "name": "sha256",
+          "description": "Mã băm tệp PDF đã xử lý."
+        },
+        {
+          "name": "status",
+          "description": "Trạng thái."
+        },
+        {
+          "name": "result.header",
+          "description": "Tiêu đề, tác giả, DOI đọc từ PDF."
+        },
+        {
+          "name": "result.references",
+          "description": "Danh mục References."
+        },
+        {
+          "name": "result.citations",
+          "description": "Các trích dẫn trong văn bản."
+        },
+        {
+          "name": "fetchedAt",
+          "description": "Thời điểm xử lý."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper",
+          "kind": "belongs-to",
+          "via": "paperId"
+        },
+        {
+          "to": "reference",
+          "kind": "has-many",
+          "via": "result.references"
+        },
+        {
+          "to": "original-pdf",
+          "kind": "refers-to",
+          "via": "sha256"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/grobid.ts",
+        "export": "GrobidRecordSchema"
+      }
+    },
+    {
+      "id": "reference",
+      "name": "Reference",
+      "labelVi": "Tài liệu tham khảo",
+      "description": "Một mục trong References của bài, do GROBID tách ra: tác giả, tiêu đề, venue, năm, DOI.",
+      "synonyms": [
+        "reference",
+        "references",
+        "tài liệu tham khảo",
+        "bibliography",
+        "trích dẫn",
+        "citation"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "grobid",
+        "path": "result.references[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã trong GROBID."
+        },
+        {
+          "name": "authors",
+          "description": "Tác giả."
+        },
+        {
+          "name": "title",
+          "description": "Tiêu đề."
+        },
+        {
+          "name": "venue",
+          "description": "Venue."
+        },
+        {
+          "name": "year",
+          "description": "Năm."
+        },
+        {
+          "name": "doi",
+          "description": "DOI."
+        },
+        {
+          "name": "rawText",
+          "description": "Văn bản gốc của mục."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-paper",
+          "kind": "refers-to",
+          "via": "doi"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "scg-run",
+      "name": "Scientific Contribution Graph run",
+      "labelVi": "Lượt trích SCG",
+      "description": "Một lượt trích Contribution của bài theo Scientific Contribution Graph (SCG): các Contribution, Prerequisite và liên kết tới tài liệu được trích.",
+      "synonyms": [
+        "scg",
+        "scientific contribution graph",
+        "đồ thị đóng góp"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "scgRuns"
+      },
+      "fields": [
+        {
+          "name": "paperId",
+          "description": "Bài báo."
+        },
+        {
+          "name": "doi",
+          "description": "DOI."
+        },
+        {
+          "name": "s2CorpusId",
+          "description": "Mã Semantic Scholar."
+        },
+        {
+          "name": "status",
+          "description": "Trạng thái."
+        },
+        {
+          "name": "contributions",
+          "description": "Các Contribution."
+        },
+        {
+          "name": "model",
+          "description": "Model đã dùng."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper",
+          "kind": "belongs-to",
+          "via": "paperId"
+        },
+        {
+          "to": "scg-contribution",
+          "kind": "has-many",
+          "via": "contributions"
+        },
+        {
+          "to": "kg-paper",
+          "kind": "refers-to",
+          "via": "doi"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/scg.ts",
+        "export": "ScgPaperRunSchema"
+      }
+    },
+    {
+      "id": "scg-contribution",
+      "name": "Contribution",
+      "labelVi": "Đóng góp (Contribution)",
+      "description": "Một Contribution của bài theo SCG, gán một hoặc nhiều trong 17 loại đóng góp, có câu nguồn và trạng thái review (candidate / accepted).",
+      "synonyms": [
+        "contribution",
+        "đóng góp",
+        "claim",
+        "novelty",
+        "tính mới",
+        "đóng góp khoa học"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "scg-run",
+        "path": "contributions[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã `<paperKey>.c<n>`."
+        },
+        {
+          "name": "name",
+          "description": "Tên ngắn."
+        },
+        {
+          "name": "description",
+          "description": "Mô tả."
+        },
+        {
+          "name": "types",
+          "description": "Loại đóng góp SCG và giải thích."
+        },
+        {
+          "name": "sections",
+          "description": "Mục nêu đóng góp."
+        },
+        {
+          "name": "prerequisites",
+          "description": "Các Prerequisite."
+        },
+        {
+          "name": "sourceSentenceKeys",
+          "description": "Câu nguồn."
+        },
+        {
+          "name": "review",
+          "description": "candidate hoặc accepted."
+        }
+      ],
+      "relations": [
+        {
+          "to": "scg-prerequisite",
+          "kind": "has-many",
+          "via": "prerequisites"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/scg.ts",
+        "export": "ScgContributionSchema"
+      }
+    },
+    {
+      "id": "scg-prerequisite",
+      "name": "Prerequisite",
+      "labelVi": "Tiền đề của đóng góp",
+      "description": "Một tiền đề mà Contribution dựa vào (phương pháp, dữ liệu, công cụ), liên kết tới tài liệu được trích.",
+      "synonyms": [
+        "prerequisite",
+        "tiền đề",
+        "builds on",
+        "dựa trên"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "scg-contribution",
+        "path": "prerequisites[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã."
+        },
+        {
+          "name": "name",
+          "description": "Tên."
+        },
+        {
+          "name": "description",
+          "description": "Mô tả."
+        },
+        {
+          "name": "coreOrPeripheral",
+          "description": "Cốt lõi hay phụ."
+        },
+        {
+          "name": "references",
+          "description": "Tài liệu được trích."
+        },
+        {
+          "name": "matches",
+          "description": "Khớp với Contribution của bài khác."
+        },
+        {
+          "name": "review",
+          "description": "candidate hoặc accepted."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/schemas/scg.ts",
+        "export": "ScgPrerequisiteSchema"
+      }
+    },
+    {
+      "id": "measurement",
+      "name": "Measurement",
+      "labelVi": "Đo lường (Measurement)",
+      "description": "Các lượt trích hồ sơ Measurement của bài: construct, metric, experiment, kết quả báo cáo và Claim, kèm quyết định của người.",
+      "synonyms": [
+        "measurement",
+        "đo lường",
+        "đo",
+        "metrics",
+        "phép đo"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "measurements"
+      },
+      "fields": [
+        {
+          "name": "paperId",
+          "description": "Bài báo."
+        },
+        {
+          "name": "runs",
+          "description": "Các lượt trích."
+        },
+        {
+          "name": "decisions",
+          "description": "Quyết định của người với từng mục."
+        },
+        {
+          "name": "pending",
+          "description": "Lượt đang chạy dở."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper",
+          "kind": "belongs-to",
+          "via": "paperId"
+        },
+        {
+          "to": "measurement-profile",
+          "kind": "has-many",
+          "via": "runs.profile"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/measurement.ts",
+        "export": "MeasurementsRecordSchema"
+      }
+    },
+    {
+      "id": "measurement-profile",
+      "name": "Measurement profile",
+      "labelVi": "Hồ sơ đo lường của bài",
+      "description": "Hồ sơ đã kiểm chứng của một lượt: loại bài, construct, metric, experiment, kết quả, Claim và finding.",
+      "synonyms": [
+        "paper profile",
+        "hồ sơ bài",
+        "measurement profile",
+        "paper type"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "measurement",
+        "path": "runs[].profile"
+      },
+      "fields": [
+        {
+          "name": "paper_type",
+          "description": "Loại bài."
+        },
+        {
+          "name": "status",
+          "description": "Trạng thái."
+        },
+        {
+          "name": "constructs",
+          "description": "Các construct."
+        },
+        {
+          "name": "metrics",
+          "description": "Các metric được dùng."
+        },
+        {
+          "name": "experiments",
+          "description": "Các experiment."
+        },
+        {
+          "name": "results",
+          "description": "Kết quả báo cáo."
+        },
+        {
+          "name": "claims",
+          "description": "Các Claim."
+        },
+        {
+          "name": "findings",
+          "description": "Nhận xét về cách đo."
+        }
+      ],
+      "relations": [
+        {
+          "to": "construct",
+          "kind": "has-many",
+          "via": "constructs"
+        },
+        {
+          "to": "metric-usage",
+          "kind": "has-many",
+          "via": "metrics"
+        },
+        {
+          "to": "experiment",
+          "kind": "has-many",
+          "via": "experiments"
+        },
+        {
+          "to": "reported-result",
+          "kind": "has-many",
+          "via": "results"
+        },
+        {
+          "to": "research-claim",
+          "kind": "has-many",
+          "via": "claims"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/measurement.ts",
+        "export": "MeasurementProfileSchema"
+      }
+    },
+    {
+      "id": "construct",
+      "name": "Construct",
+      "labelVi": "Khái niệm đo (Construct)",
+      "description": "Một khái niệm mà bài muốn đo, ví dụ \"độ chính xác\" hay \"khả năng tổng quát\".",
+      "synonyms": [
+        "construct",
+        "khái niệm",
+        "đại lượng"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "measurement-profile",
+        "path": "constructs[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã."
+        },
+        {
+          "name": "name",
+          "description": "Tên."
+        },
+        {
+          "name": "description",
+          "description": "Mô tả."
+        },
+        {
+          "name": "source_type",
+          "description": "author_statement, ai_interpretation hoặc ai_concern."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/schemas/measurement.ts",
+        "export": "ConstructSchema"
+      }
+    },
+    {
+      "id": "metric-usage",
+      "name": "Metric usage",
+      "labelVi": "Metric trong bài",
+      "description": "Một Metric bài dùng, tên báo cáo, nhãn chuẩn hoá, định nghĩa, công thức và đơn vị.",
+      "synonyms": [
+        "metric",
+        "chỉ số",
+        "thước đo",
+        "độ đo"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "measurement-profile",
+        "path": "metrics[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã."
+        },
+        {
+          "name": "reported_name",
+          "description": "Tên như trong bài."
+        },
+        {
+          "name": "normalized_label",
+          "description": "Nhãn chuẩn hoá."
+        },
+        {
+          "name": "construct_ids",
+          "description": "Construct được đo."
+        },
+        {
+          "name": "definition",
+          "description": "Định nghĩa."
+        },
+        {
+          "name": "formula_text",
+          "description": "Công thức."
+        },
+        {
+          "name": "unit",
+          "description": "Đơn vị."
+        }
+      ],
+      "relations": [
+        {
+          "to": "construct",
+          "kind": "refers-to",
+          "via": "construct_ids"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/measurement.ts",
+        "export": "MetricUsageSchema"
+      }
+    },
+    {
+      "id": "experiment",
+      "name": "Experiment",
+      "labelVi": "Thí nghiệm",
+      "description": "Một experiment trong bài, với giao thức đo.",
+      "synonyms": [
+        "experiment",
+        "thí nghiệm",
+        "thực nghiệm"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "measurement-profile",
+        "path": "experiments[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã."
+        },
+        {
+          "name": "name",
+          "description": "Tên."
+        },
+        {
+          "name": "protocol",
+          "description": "Giao thức (input, quy trình, nguồn dữ liệu, aggregation)."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/schemas/measurement.ts",
+        "export": "ExperimentSchema"
+      }
+    },
+    {
+      "id": "reported-result",
+      "name": "Reported result",
+      "labelVi": "Kết quả báo cáo",
+      "description": "Một giá trị kết quả trong Results, gắn experiment, metric, hệ thống hay Baseline và độ bất định.",
+      "synonyms": [
+        "result",
+        "results",
+        "kết quả",
+        "số liệu",
+        "giá trị"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "measurement-profile",
+        "path": "results[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã."
+        },
+        {
+          "name": "experiment_id",
+          "description": "Experiment."
+        },
+        {
+          "name": "metric_usage_id",
+          "description": "Metric."
+        },
+        {
+          "name": "system_or_baseline",
+          "description": "Hệ thống hoặc Baseline."
+        },
+        {
+          "name": "value",
+          "description": "Giá trị."
+        },
+        {
+          "name": "unit",
+          "description": "Đơn vị."
+        },
+        {
+          "name": "uncertainty",
+          "description": "Độ bất định."
+        },
+        {
+          "name": "status",
+          "description": "Trạng thái kiểm chứng."
+        }
+      ],
+      "relations": [
+        {
+          "to": "experiment",
+          "kind": "refers-to",
+          "via": "experiment_id"
+        },
+        {
+          "to": "metric-usage",
+          "kind": "refers-to",
+          "via": "metric_usage_id"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/measurement.ts",
+        "export": "ReportedResultSchema"
+      }
+    },
+    {
+      "id": "research-claim",
+      "name": "Claim",
+      "labelVi": "Claim của bài",
+      "description": "Một Claim trong bài và các kết quả, metric đỡ cho nó. Phạm vi Evidence là cách AI đọc, không phải bằng chứng Claim đúng.",
+      "synonyms": [
+        "claim",
+        "luận điểm",
+        "khẳng định",
+        "tuyên bố",
+        "research claim"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "measurement-profile",
+        "path": "claims[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã."
+        },
+        {
+          "name": "text",
+          "description": "Câu Claim."
+        },
+        {
+          "name": "status",
+          "description": "Trạng thái."
+        },
+        {
+          "name": "evidence_scope",
+          "description": "Phạm vi mà kết quả liên kết thực sự bao phủ."
+        },
+        {
+          "name": "linked_result_ids",
+          "description": "Kết quả liên kết."
+        },
+        {
+          "name": "linked_metric_ids",
+          "description": "Metric liên kết."
+        }
+      ],
+      "relations": [
+        {
+          "to": "reported-result",
+          "kind": "refers-to",
+          "via": "linked_result_ids"
+        },
+        {
+          "to": "metric-usage",
+          "kind": "refers-to",
+          "via": "linked_metric_ids"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/measurement.ts",
+        "export": "ResearchClaimSchema"
+      }
+    },
+    {
+      "id": "library-item",
+      "name": "Library item",
+      "labelVi": "Mục thư viện",
+      "description": "Một bài trong thư viện của lab, theo DOI: metadata OpenAlex, nguồn open access, taxonomy, keywords và tác giả. Có thể liên kết với Paper đã nạp.",
+      "synonyms": [
+        "library",
+        "thư viện",
+        "doi",
+        "mục thư viện",
+        "open access",
+        "reading list"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "library"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã mục."
+        },
+        {
+          "name": "doi",
+          "description": "DOI."
+        },
+        {
+          "name": "title",
+          "description": "Tiêu đề."
+        },
+        {
+          "name": "authors",
+          "description": "Tác giả."
+        },
+        {
+          "name": "year",
+          "description": "Năm."
+        },
+        {
+          "name": "venue",
+          "description": "Venue."
+        },
+        {
+          "name": "access",
+          "description": "Tình trạng truy cập."
+        },
+        {
+          "name": "oa_sources",
+          "description": "Các nguồn open access."
+        },
+        {
+          "name": "taxonomy",
+          "description": "Domain, field, subfield, topic của OpenAlex."
+        },
+        {
+          "name": "keywords",
+          "description": "Keywords của OpenAlex."
+        },
+        {
+          "name": "openalex_id",
+          "description": "Mã OpenAlex."
+        },
+        {
+          "name": "paper_id",
+          "description": "Paper đã nạp, nếu có."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper",
+          "kind": "refers-to",
+          "via": "paper_id"
+        },
+        {
+          "to": "kg-paper",
+          "kind": "refers-to",
+          "via": "openalex_id"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/library.ts",
+        "export": "LibraryItemSchema"
+      }
+    },
+    {
+      "id": "corpus",
+      "name": "Corpus",
+      "labelVi": "Corpus",
+      "description": "Một tập bài báo có Protocol: corpus theo tạp chí (journal), corpus đối chứng (control) hoặc corpus theo chủ đề (topic, kiểu systematic review với PRISMA).",
+      "synonyms": [
+        "corpus",
+        "corpora",
+        "tập bài",
+        "bộ sưu tập",
+        "systematic review",
+        "literature review",
+        "tổng quan tài liệu"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "corpora"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã corpus."
+        },
+        {
+          "name": "title",
+          "description": "Tên."
+        },
+        {
+          "name": "kind",
+          "description": "journal, control hoặc topic."
+        },
+        {
+          "name": "protocol",
+          "description": "Các phiên bản Protocol."
+        },
+        {
+          "name": "searches",
+          "description": "Các lượt tìm kiếm và nhập."
+        },
+        {
+          "name": "members",
+          "description": "Các bài thành viên."
+        },
+        {
+          "name": "releases",
+          "description": "Các bản phát hành cố định."
+        },
+        {
+          "name": "deep",
+          "description": "Deep research: kế hoạch tìm, ứng viên, tổng hợp."
+        },
+        {
+          "name": "labelQueue",
+          "description": "Lượt gán nhãn toàn corpus đang chạy."
+        }
+      ],
+      "relations": [
+        {
+          "to": "corpus-member",
+          "kind": "has-many",
+          "via": "members"
+        },
+        {
+          "to": "corpus-protocol",
+          "kind": "has-many",
+          "via": "protocol"
+        },
+        {
+          "to": "search-record",
+          "kind": "has-many",
+          "via": "searches"
+        },
+        {
+          "to": "corpus-release",
+          "kind": "has-many",
+          "via": "releases"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/corpus.ts",
+        "export": "CorpusSchema"
+      }
+    },
+    {
+      "id": "corpus-member",
+      "name": "Corpus member",
+      "labelVi": "Bài trong corpus",
+      "description": "Một bài thuộc corpus, với định danh (DOI, OpenAlex, sha256), trạng thái lấy toàn văn, các quyết định sàng lọc và đánh giá chất lượng.",
+      "synonyms": [
+        "member",
+        "thành viên",
+        "bài trong corpus",
+        "record",
+        "included study"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "corpus",
+        "path": "members[]"
+      },
+      "fields": [
+        {
+          "name": "memberId",
+          "description": "Mã thành viên."
+        },
+        {
+          "name": "title",
+          "description": "Tiêu đề."
+        },
+        {
+          "name": "identifiers.doi",
+          "description": "DOI."
+        },
+        {
+          "name": "identifiers.openalexId",
+          "description": "Mã OpenAlex."
+        },
+        {
+          "name": "identifiers.paperIds",
+          "description": "Các Paper đã nạp."
+        },
+        {
+          "name": "identifiers.libraryIds",
+          "description": "Các mục thư viện."
+        },
+        {
+          "name": "role",
+          "description": "build hoặc held_out."
+        },
+        {
+          "name": "retrieval",
+          "description": "Đã tìm, đã lấy hay không lấy được toàn văn."
+        },
+        {
+          "name": "textRead",
+          "description": "Đọc toàn văn, chỉ Abstract hay chỉ metadata."
+        },
+        {
+          "name": "decisions",
+          "description": "Các quyết định sàng lọc."
+        },
+        {
+          "name": "suggestions",
+          "description": "Gợi ý sàng lọc của AI, không được tính vào PRISMA."
+        },
+        {
+          "name": "appraisal",
+          "description": "Đánh giá chất lượng."
+        },
+        {
+          "name": "citedByCount",
+          "description": "Số trích dẫn khi nhập."
+        }
+      ],
+      "relations": [
+        {
+          "to": "screening-decision",
+          "kind": "has-many",
+          "via": "decisions"
+        },
+        {
+          "to": "kg-paper",
+          "kind": "refers-to",
+          "via": "identifiers.doi"
+        },
+        {
+          "to": "paper",
+          "kind": "refers-to",
+          "via": "identifiers.paperIds"
+        },
+        {
+          "to": "library-item",
+          "kind": "refers-to",
+          "via": "identifiers.libraryIds"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/corpus.ts",
+        "export": "CorpusMemberSchema"
+      }
+    },
+    {
+      "id": "screening-decision",
+      "name": "Screening decision",
+      "labelVi": "Quyết định sàng lọc",
+      "description": "Quyết định của người ở một vòng sàng lọc (title-abstract hoặc full-text): include, exclude hay uncertain, kèm lý do. Chỉ quyết định của người mới thay đổi số liệu PRISMA.",
+      "synonyms": [
+        "sàng lọc",
+        "screening",
+        "screen",
+        "include",
+        "exclude",
+        "loại",
+        "chọn bài",
+        "prisma"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "corpus-member",
+        "path": "decisions[]"
+      },
+      "fields": [
+        {
+          "name": "stage",
+          "description": "Vòng sàng lọc."
+        },
+        {
+          "name": "decision",
+          "description": "include, exclude hoặc uncertain."
+        },
+        {
+          "name": "reasonCode",
+          "description": "Mã lý do."
+        },
+        {
+          "name": "reasonText",
+          "description": "Lý do."
+        },
+        {
+          "name": "decider",
+          "description": "Người quyết định."
+        },
+        {
+          "name": "acceptedSuggestion",
+          "description": "Gợi ý AI mà người đã chấp nhận."
+        },
+        {
+          "name": "at",
+          "description": "Thời điểm."
+        }
+      ],
+      "relations": [],
+      "schema": null
+    },
+    {
+      "id": "corpus-protocol",
+      "name": "Protocol",
+      "labelVi": "Protocol của corpus",
+      "description": "Một phiên bản Protocol: với corpus tạp chí là venue, năm, loại bài và cách lấy mẫu; với corpus chủ đề là Research question và tiêu chí include / exclude.",
+      "synonyms": [
+        "protocol",
+        "tiêu chí",
+        "inclusion criteria",
+        "exclusion criteria",
+        "sampling",
+        "lấy mẫu"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "corpus",
+        "path": "protocol[]"
+      },
+      "fields": [
+        {
+          "name": "version",
+          "description": "Số phiên bản."
+        },
+        {
+          "name": "createdAt",
+          "description": "Thời điểm tạo."
+        },
+        {
+          "name": "body.venues",
+          "description": "Các venue (corpus tạp chí)."
+        },
+        {
+          "name": "body.years",
+          "description": "Các năm."
+        },
+        {
+          "name": "body.sampling",
+          "description": "Cách lấy mẫu: signature hay admired."
+        },
+        {
+          "name": "body.bank",
+          "description": "Liên kết với catalog của Writing Bank."
+        },
+        {
+          "name": "body.researchQuestion",
+          "description": "Research question (corpus chủ đề)."
+        },
+        {
+          "name": "body.inclusion",
+          "description": "Tiêu chí include."
+        },
+        {
+          "name": "body.exclusion",
+          "description": "Tiêu chí exclude."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/schemas/corpus.ts",
+        "export": "CorpusProtocolVersionSchema"
+      }
+    },
+    {
+      "id": "search-record",
+      "name": "Search record",
+      "labelVi": "Lượt tìm kiếm",
+      "description": "Một lượt tìm kiếm trên nguồn (ví dụ OpenAlex), một lượt citation searching (snowballing) hoặc một lần nhập tệp RIS / CSV, với số liệu cho PRISMA.",
+      "synonyms": [
+        "search",
+        "tìm kiếm",
+        "search strategy",
+        "snowballing",
+        "truy vấn",
+        "nhập ris"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "corpus",
+        "path": "searches[]"
+      },
+      "fields": [
+        {
+          "name": "source",
+          "description": "Nguồn tìm."
+        },
+        {
+          "name": "requestUrl",
+          "description": "Yêu cầu đã gửi."
+        },
+        {
+          "name": "params",
+          "description": "Tham số."
+        },
+        {
+          "name": "runAt",
+          "description": "Thời điểm."
+        },
+        {
+          "name": "totalReported",
+          "description": "Số nguồn báo có."
+        },
+        {
+          "name": "retrieved",
+          "description": "Số đã lấy."
+        },
+        {
+          "name": "duplicates",
+          "description": "Số trùng."
+        },
+        {
+          "name": "added",
+          "description": "Số thêm vào."
+        },
+        {
+          "name": "seeds",
+          "description": "Bài gốc khi snowballing."
+        },
+        {
+          "name": "fileName",
+          "description": "Tệp đã nhập."
+        }
+      ],
+      "relations": [],
+      "schema": null
+    },
+    {
+      "id": "corpus-release",
+      "name": "Corpus release",
+      "labelVi": "Bản phát hành corpus",
+      "description": "Một bản chụp cố định của corpus theo một phiên bản Protocol, có digest để tham chiếu lại.",
+      "synonyms": [
+        "release",
+        "phát hành",
+        "snapshot",
+        "phiên bản corpus"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "corpus",
+        "path": "releases[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã."
+        },
+        {
+          "name": "protocolVersion",
+          "description": "Phiên bản Protocol."
+        },
+        {
+          "name": "digest",
+          "description": "Digest."
+        },
+        {
+          "name": "memberCount",
+          "description": "Số thành viên."
+        }
+      ],
+      "relations": [],
+      "schema": null
+    },
+    {
+      "id": "corpus-profile",
+      "name": "Journal profile",
+      "labelVi": "Hồ sơ văn phong tạp chí",
+      "description": "Hồ sơ văn phong của một corpus tạp chí so với corpus đối chứng: các đặc trưng, effect size, kiểm định và holdout. Bản v1 được lưu; bản v2 cho Writing Bank được dựng khi xuất, không lưu.",
+      "synonyms": [
+        "journal profile",
+        "corpus profile",
+        "hồ sơ tạp chí",
+        "văn phong tạp chí",
+        "đặc trưng",
+        "features"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "corpusProfiles"
+      },
+      "fields": [
+        {
+          "name": "corpusId",
+          "description": "Corpus đích."
+        },
+        {
+          "name": "savedAt",
+          "description": "Thời điểm lưu."
+        },
+        {
+          "name": "profile.target",
+          "description": "Tóm tắt corpus đích."
+        },
+        {
+          "name": "profile.control",
+          "description": "Tóm tắt corpus đối chứng."
+        },
+        {
+          "name": "profile.features",
+          "description": "Các đặc trưng và so sánh."
+        },
+        {
+          "name": "profile.distinctiveFeatureIds",
+          "description": "Các đặc trưng khác biệt."
+        },
+        {
+          "name": "profile.holdout",
+          "description": "Kiểm tra holdout."
+        }
+      ],
+      "relations": [
+        {
+          "to": "corpus",
+          "kind": "belongs-to",
+          "via": "corpusId"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/corpusProfile.ts",
+        "export": "StoredCorpusProfileSchema"
+      }
+    },
+    {
+      "id": "corpus-topics",
+      "name": "Topic model snapshot",
+      "labelVi": "Bản chụp chủ đề corpus",
+      "description": "Kết quả mô hình chủ đề trên một hoặc nhiều corpus: pipeline, chất lượng so với subfield OpenAlex, các chủ đề và chủ đề của từng thành viên.",
+      "synonyms": [
+        "topic model",
+        "topics",
+        "chủ đề",
+        "bertopic",
+        "cụm chủ đề",
+        "clustering"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "corpusTopics"
+      },
+      "fields": [
+        {
+          "name": "snapshotId",
+          "description": "Mã bản chụp."
+        },
+        {
+          "name": "corpora",
+          "description": "Các corpus đầu vào."
+        },
+        {
+          "name": "pipeline",
+          "description": "Mô hình embedding và tham số."
+        },
+        {
+          "name": "quality",
+          "description": "Chất lượng (NMI, outlier, độ ổn định)."
+        },
+        {
+          "name": "topics",
+          "description": "Các chủ đề."
+        },
+        {
+          "name": "members",
+          "description": "Chủ đề của từng thành viên."
+        }
+      ],
+      "relations": [
+        {
+          "to": "corpus-topic",
+          "kind": "has-many",
+          "via": "topics"
+        },
+        {
+          "to": "corpus",
+          "kind": "refers-to",
+          "via": "corpora.corpusId"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/corpusTopics.ts",
+        "export": "CorpusTopicsSchema"
+      }
+    },
+    {
+      "id": "corpus-topic",
+      "name": "Corpus topic",
+      "labelVi": "Một chủ đề của corpus",
+      "description": "Một chủ đề trong bản chụp: kích thước, từ đặc trưng, thành viên tiêu biểu và subfield OpenAlex.",
+      "synonyms": [
+        "topic",
+        "chủ đề",
+        "cluster"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "corpus-topics",
+        "path": "topics[]"
+      },
+      "fields": [
+        {
+          "name": "topicId",
+          "description": "Mã chủ đề."
+        },
+        {
+          "name": "size",
+          "description": "Số bài."
+        },
+        {
+          "name": "words",
+          "description": "Từ đặc trưng."
+        },
+        {
+          "name": "representativeMemberIds",
+          "description": "Thành viên tiêu biểu."
+        },
+        {
+          "name": "openalexSubfields",
+          "description": "Subfield OpenAlex."
+        }
+      ],
+      "relations": [],
+      "schema": null
+    },
+    {
+      "id": "topic-name",
+      "name": "Topic name",
+      "labelVi": "Tên chủ đề",
+      "description": "Tên và mô tả của một chủ đề trong bản chụp: tên AI đề xuất và tên người chốt.",
+      "synonyms": [
+        "topic name",
+        "tên chủ đề",
+        "nhãn chủ đề"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "topicNames"
+      },
+      "fields": [
+        {
+          "name": "snapshotId",
+          "description": "Bản chụp."
+        },
+        {
+          "name": "topicId",
+          "description": "Chủ đề."
+        },
+        {
+          "name": "candidateName",
+          "description": "Tên AI đề xuất."
+        },
+        {
+          "name": "name",
+          "description": "Tên đã chốt."
+        },
+        {
+          "name": "description",
+          "description": "Mô tả."
+        }
+      ],
+      "relations": [
+        {
+          "to": "corpus-topics",
+          "kind": "belongs-to",
+          "via": "snapshotId"
+        },
+        {
+          "to": "corpus-topic",
+          "kind": "refers-to",
+          "via": "topicId"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/corpusTopics.ts",
+        "export": "TopicNameSchema"
+      }
+    },
+    {
+      "id": "corpus-keywords",
+      "name": "Corpus keywords",
+      "labelVi": "Keywords của corpus",
+      "description": "Keywords OpenAlex tổng hợp trên một corpus: tần suất, theo năm và các cặp đi cùng nhau.",
+      "synonyms": [
+        "keywords",
+        "từ khoá",
+        "co-occurrence",
+        "đồng xuất hiện"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "corpusKeywords"
+      },
+      "fields": [
+        {
+          "name": "corpusId",
+          "description": "Corpus."
+        },
+        {
+          "name": "memberCount",
+          "description": "Số thành viên."
+        },
+        {
+          "name": "papers",
+          "description": "Keywords của từng thành viên."
+        },
+        {
+          "name": "keywords",
+          "description": "Keywords và tần suất."
+        },
+        {
+          "name": "pairs",
+          "description": "Các cặp keyword đi cùng."
+        }
+      ],
+      "relations": [
+        {
+          "to": "corpus",
+          "kind": "belongs-to",
+          "via": "corpusId"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/corpusKeywords.ts",
+        "export": "CorpusKeywordsSchema"
+      }
+    },
+    {
+      "id": "doi-keywords",
+      "name": "DOI keywords",
+      "labelVi": "Keywords theo DOI",
+      "description": "Keywords OpenAlex của một DOI, lưu tạm để không phải hỏi lại.",
+      "synonyms": [
+        "doi keywords",
+        "keywords cache"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "doiKeywords"
+      },
+      "fields": [
+        {
+          "name": "doi",
+          "description": "DOI."
+        },
+        {
+          "name": "keywords",
+          "description": "Keywords và điểm."
+        },
+        {
+          "name": "fetchedAt",
+          "description": "Thời điểm lấy."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-paper",
+          "kind": "refers-to",
+          "via": "doi"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/corpusKeywords.ts",
+        "export": "DoiKeywordsSchema"
+      }
+    },
+    {
+      "id": "extraction-project",
+      "name": "Extraction project",
+      "labelVi": "Bảng trích dữ liệu",
+      "description": "Một bảng trích dữ liệu (data extraction) trên nhiều bài: các trường, các ô có Evidence, các lượt chạy AI và kiểm chứng.",
+      "synonyms": [
+        "extraction",
+        "data extraction",
+        "trích dữ liệu",
+        "bảng trích",
+        "matrix",
+        "evidence table"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "extractionProjects"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã."
+        },
+        {
+          "name": "title",
+          "description": "Tên."
+        },
+        {
+          "name": "researchQuestion",
+          "description": "Research question."
+        },
+        {
+          "name": "paperId",
+          "description": "Paper chính, nếu có."
+        },
+        {
+          "name": "corpusId",
+          "description": "Corpus, nếu có."
+        },
+        {
+          "name": "papers",
+          "description": "Các bài."
+        },
+        {
+          "name": "fields",
+          "description": "Các trường."
+        },
+        {
+          "name": "cells",
+          "description": "Các ô."
+        },
+        {
+          "name": "runs",
+          "description": "Các lượt chạy."
+        }
+      ],
+      "relations": [
+        {
+          "to": "extraction-paper",
+          "kind": "has-many",
+          "via": "papers"
+        },
+        {
+          "to": "extraction-field",
+          "kind": "has-many",
+          "via": "fields"
+        },
+        {
+          "to": "extraction-cell",
+          "kind": "has-many",
+          "via": "cells"
+        },
+        {
+          "to": "corpus",
+          "kind": "belongs-to",
+          "via": "corpusId"
+        },
+        {
+          "to": "paper",
+          "kind": "refers-to",
+          "via": "paperId"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/extraction.ts",
+        "export": "ExtractionProjectSchema"
+      }
+    },
+    {
+      "id": "extraction-paper",
+      "name": "Extraction paper",
+      "labelVi": "Bài trong bảng trích",
+      "description": "Một hàng của bảng trích: bài lấy từ Paper, thư viện hoặc ứng viên deep research.",
+      "synonyms": [
+        "row",
+        "hàng",
+        "study"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "extraction-project",
+        "path": "papers[]"
+      },
+      "fields": [
+        {
+          "name": "key",
+          "description": "Khoá hàng."
+        },
+        {
+          "name": "source",
+          "description": "Nguồn: paper, library hoặc candidate."
+        },
+        {
+          "name": "title",
+          "description": "Tiêu đề."
+        },
+        {
+          "name": "doi",
+          "description": "DOI."
+        },
+        {
+          "name": "access",
+          "description": "Toàn văn hay chỉ Abstract."
+        },
+        {
+          "name": "revision",
+          "description": "Phiên bản văn bản."
+        },
+        {
+          "name": "screening",
+          "description": "Trạng thái sàng lọc của hàng."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/schemas/extraction.ts",
+        "export": "ProjectPaperSchema"
+      }
+    },
+    {
+      "id": "extraction-field",
+      "name": "Extraction field",
+      "labelVi": "Trường trích",
+      "description": "Một cột của bảng trích, có hướng dẫn cho AI; đổi hướng dẫn tạo phiên bản mới và làm ô cũ thành lỗi thời.",
+      "synonyms": [
+        "field",
+        "trường",
+        "cột",
+        "column"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "extraction-project",
+        "path": "fields[]"
+      },
+      "fields": [
+        {
+          "name": "key",
+          "description": "Khoá."
+        },
+        {
+          "name": "label",
+          "description": "Nhãn."
+        },
+        {
+          "name": "group",
+          "description": "Nhóm."
+        },
+        {
+          "name": "description",
+          "description": "Mô tả."
+        },
+        {
+          "name": "instruction",
+          "description": "Hướng dẫn cho AI."
+        },
+        {
+          "name": "dataType",
+          "description": "Kiểu dữ liệu."
+        },
+        {
+          "name": "version",
+          "description": "Phiên bản."
+        },
+        {
+          "name": "hidden",
+          "description": "Ẩn hay hiện."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/schemas/extraction.ts",
+        "export": "ProjectFieldSchema"
+      }
+    },
+    {
+      "id": "extraction-cell",
+      "name": "Extraction cell",
+      "labelVi": "Ô dữ liệu",
+      "description": "Giá trị của một trường cho một bài, kèm Evidence trích từ văn bản, trạng thái kiểm chứng và lịch sử sửa.",
+      "synonyms": [
+        "cell",
+        "ô",
+        "giá trị",
+        "value"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "extraction-project",
+        "path": "cells[]"
+      },
+      "fields": [
+        {
+          "name": "paperKey",
+          "description": "Hàng."
+        },
+        {
+          "name": "fieldKey",
+          "description": "Cột."
+        },
+        {
+          "name": "fieldVersion",
+          "description": "Phiên bản trường."
+        },
+        {
+          "name": "status",
+          "description": "Trạng thái."
+        },
+        {
+          "name": "value",
+          "description": "Giá trị hiển thị."
+        },
+        {
+          "name": "aiValue",
+          "description": "Giá trị AI đưa ra."
+        },
+        {
+          "name": "evidence",
+          "description": "Trích dẫn đỡ hoặc mâu thuẫn."
+        },
+        {
+          "name": "verification",
+          "description": "Kiểm chứng."
+        },
+        {
+          "name": "history",
+          "description": "Lịch sử sửa."
+        }
+      ],
+      "relations": [
+        {
+          "to": "extraction-paper",
+          "kind": "refers-to",
+          "via": "paperKey"
+        },
+        {
+          "to": "extraction-field",
+          "kind": "refers-to",
+          "via": "fieldKey"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/extraction.ts",
+        "export": "ExtractionCellSchema"
+      }
+    },
+    {
+      "id": "calibration-label-set",
+      "name": "Calibration label set",
+      "labelVi": "Bộ nhãn hiệu chỉnh",
+      "description": "Một bộ nhãn người chấm (đúng / sai, hoặc điểm) cho issue, kiểm tra hay ý phản biện, nhập từ tệp để hiệu chỉnh độ tin cậy của các detector.",
+      "synonyms": [
+        "calibration",
+        "hiệu chỉnh",
+        "labels",
+        "nhãn",
+        "gold labels"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "calibrationLabels"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã."
+        },
+        {
+          "name": "sourceFileName",
+          "description": "Tệp nguồn."
+        },
+        {
+          "name": "importedAt",
+          "description": "Thời điểm nhập."
+        },
+        {
+          "name": "data.labels",
+          "description": "Các nhãn của người chấm."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/schemas/calibration.ts",
+        "export": "CalibrationLabelSetSchema"
+      }
+    },
+    {
+      "id": "research-design",
+      "name": "Research design",
+      "labelVi": "Thiết kế nghiên cứu",
+      "description": "Thiết kế nghiên cứu của một project: bản nháp (Research question, Hypothesis, Variable, Metric, Dataset, phân tích), các plan đã đóng băng và kiểm tra chủ đề.",
+      "synonyms": [
+        "research design",
+        "thiết kế nghiên cứu",
+        "project",
+        "dự án",
+        "plan",
+        "kế hoạch nghiên cứu",
+        "srd"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "researchDesigns"
+      },
+      "fields": [
+        {
+          "name": "projectId",
+          "description": "Mã project."
+        },
+        {
+          "name": "version",
+          "description": "Phiên bản."
+        },
+        {
+          "name": "draft",
+          "description": "Bản nháp đang sửa."
+        },
+        {
+          "name": "frozenPlans",
+          "description": "Các plan đã đóng băng."
+        },
+        {
+          "name": "topicCheck",
+          "description": "Kiểm tra chủ đề và Research gap."
+        },
+        {
+          "name": "facts",
+          "description": "Dữ kiện lấy từ các bài."
+        },
+        {
+          "name": "bankRelease",
+          "description": "Bản Bank đang dùng."
+        }
+      ],
+      "relations": [
+        {
+          "to": "research-question",
+          "kind": "has-many",
+          "via": "draft.questions"
+        },
+        {
+          "to": "hypothesis",
+          "kind": "has-many",
+          "via": "draft.hypotheses"
+        },
+        {
+          "to": "variable",
+          "kind": "has-many",
+          "via": "draft.variables"
+        },
+        {
+          "to": "design-metric",
+          "kind": "has-many",
+          "via": "draft.metrics"
+        },
+        {
+          "to": "dataset",
+          "kind": "has-many",
+          "via": "draft.datasets"
+        },
+        {
+          "to": "condition",
+          "kind": "has-many",
+          "via": "draft.conditions"
+        },
+        {
+          "to": "statistical-analysis",
+          "kind": "has-many",
+          "via": "draft.analyses"
+        },
+        {
+          "to": "threat-to-validity",
+          "kind": "has-many",
+          "via": "draft.threats"
+        },
+        {
+          "to": "frozen-plan",
+          "kind": "has-many",
+          "via": "frozenPlans"
+        }
+      ],
+      "schema": {
+        "file": "src/core/schemas/researchDesign.ts",
+        "export": "ResearchDesignSchema"
+      }
+    },
+    {
+      "id": "research-question",
+      "name": "Research question",
+      "labelVi": "Câu hỏi nghiên cứu",
+      "description": "Một Research question trong bản nháp thiết kế, kèm Research gap mà nó lấp và các bài làm căn cứ cho gap đó.",
+      "synonyms": [
+        "research question",
+        "câu hỏi nghiên cứu",
+        "rq",
+        "research gap",
+        "khoảng trống nghiên cứu",
+        "gap"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "research-design",
+        "path": "draft.questions[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã."
+        },
+        {
+          "name": "text",
+          "description": "Câu hỏi."
+        },
+        {
+          "name": "gap",
+          "description": "Research gap mà câu hỏi lấp."
+        },
+        {
+          "name": "papers",
+          "description": "Các bài làm căn cứ cho gap."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/researchDesign/draft/schema.ts",
+        "export": "draftQuestionSchema"
+      }
+    },
+    {
+      "id": "hypothesis",
+      "name": "Hypothesis",
+      "labelVi": "Giả thuyết",
+      "description": "Một Hypothesis trả lời một Research question, nêu biến độc lập và biến phụ thuộc.",
+      "synonyms": [
+        "hypothesis",
+        "giả thuyết",
+        "h1",
+        "giả định"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "research-design",
+        "path": "draft.hypotheses[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã."
+        },
+        {
+          "name": "statement",
+          "description": "Phát biểu."
+        },
+        {
+          "name": "kind",
+          "description": "Loại Hypothesis."
+        },
+        {
+          "name": "question",
+          "description": "Research question."
+        },
+        {
+          "name": "claim",
+          "description": "Claim liên quan."
+        },
+        {
+          "name": "independent",
+          "description": "Biến độc lập."
+        },
+        {
+          "name": "dependent",
+          "description": "Biến phụ thuộc."
+        }
+      ],
+      "relations": [
+        {
+          "to": "research-question",
+          "kind": "refers-to",
+          "via": "question"
+        },
+        {
+          "to": "variable",
+          "kind": "refers-to",
+          "via": "independent"
+        },
+        {
+          "to": "variable",
+          "kind": "refers-to",
+          "via": "dependent"
+        }
+      ],
+      "schema": {
+        "file": "src/core/researchDesign/draft/schema.ts",
+        "export": "draftHypothesisSchema"
+      }
+    },
+    {
+      "id": "design-type",
+      "name": "Design type",
+      "labelVi": "Kiểu thiết kế",
+      "description": "Kiểu Research design của nghiên cứu (ví dụ thực nghiệm có đối chứng) và cách phân nhóm.",
+      "synonyms": [
+        "design type",
+        "kiểu thiết kế",
+        "experimental design",
+        "assignment"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "research-design",
+        "path": "draft.design"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "description": "Tên kiểu thiết kế."
+        },
+        {
+          "name": "assignment",
+          "description": "Cách phân nhóm."
+        },
+        {
+          "name": "bank",
+          "description": "Mục tương ứng trong Bank."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/researchDesign/draft/schema.ts",
+        "export": "draftDesignSchema"
+      }
+    },
+    {
+      "id": "threat-to-validity",
+      "name": "Threat to validity",
+      "labelVi": "Mối đe doạ tính hợp lệ",
+      "description": "Một Threats to validity của thiết kế và cách giảm thiểu.",
+      "synonyms": [
+        "threats to validity",
+        "threat",
+        "đe doạ",
+        "validity",
+        "tính hợp lệ",
+        "bias",
+        "thiên lệch"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "research-design",
+        "path": "draft.threats[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã."
+        },
+        {
+          "name": "name",
+          "description": "Tên."
+        },
+        {
+          "name": "mitigation",
+          "description": "Cách giảm thiểu."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/researchDesign/draft/schema.ts",
+        "export": "draftThreatSchema"
+      }
+    },
+    {
+      "id": "variable",
+      "name": "Variable",
+      "labelVi": "Biến",
+      "description": "Một Variable của thiết kế: vai trò (độc lập, phụ thuộc, kiểm soát), construct, metric và các mức.",
+      "synonyms": [
+        "variable",
+        "biến",
+        "biến độc lập",
+        "biến phụ thuộc",
+        "independent variable",
+        "dependent variable"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "research-design",
+        "path": "draft.variables[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã."
+        },
+        {
+          "name": "name",
+          "description": "Tên."
+        },
+        {
+          "name": "role",
+          "description": "independent, dependent, control hoặc covariate."
+        },
+        {
+          "name": "construct",
+          "description": "Construct."
+        },
+        {
+          "name": "metric",
+          "description": "Metric đo biến."
+        },
+        {
+          "name": "levels",
+          "description": "Các mức."
+        }
+      ],
+      "relations": [
+        {
+          "to": "design-metric",
+          "kind": "refers-to",
+          "via": "metric"
+        }
+      ],
+      "schema": {
+        "file": "src/core/researchDesign/draft/schema.ts",
+        "export": "draftVariableSchema"
+      }
+    },
+    {
+      "id": "design-metric",
+      "name": "Design metric",
+      "labelVi": "Metric của thiết kế",
+      "description": "Một Metric dự định dùng: đơn vị, chiều tốt hơn, cách gộp và Protocol đo.",
+      "synonyms": [
+        "metric",
+        "chỉ số",
+        "thước đo",
+        "đo lường"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "research-design",
+        "path": "draft.metrics[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã."
+        },
+        {
+          "name": "name",
+          "description": "Tên."
+        },
+        {
+          "name": "key",
+          "description": "Khoá trong kết quả chạy."
+        },
+        {
+          "name": "unit",
+          "description": "Đơn vị."
+        },
+        {
+          "name": "goal",
+          "description": "Lớn hơn hay nhỏ hơn là tốt."
+        },
+        {
+          "name": "aggregation",
+          "description": "Cách gộp."
+        },
+        {
+          "name": "protocol",
+          "description": "Protocol đo."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/researchDesign/draft/schema.ts",
+        "export": "draftMetricSchema"
+      }
+    },
+    {
+      "id": "dataset",
+      "name": "Dataset",
+      "labelVi": "Bộ dữ liệu",
+      "description": "Một Dataset dùng trong thiết kế, với nguồn, phiên bản, split và mã băm.",
+      "synonyms": [
+        "dataset",
+        "bộ dữ liệu",
+        "dữ liệu",
+        "benchmark",
+        "data"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "research-design",
+        "path": "draft.datasets[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã."
+        },
+        {
+          "name": "name",
+          "description": "Tên."
+        },
+        {
+          "name": "source",
+          "description": "Nguồn."
+        },
+        {
+          "name": "version",
+          "description": "Phiên bản."
+        },
+        {
+          "name": "split",
+          "description": "Split."
+        },
+        {
+          "name": "sha256",
+          "description": "Mã băm."
+        },
+        {
+          "name": "benchmark",
+          "description": "Benchmark tương ứng."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/researchDesign/draft/schema.ts",
+        "export": "draftDatasetSchema"
+      }
+    },
+    {
+      "id": "condition",
+      "name": "Condition",
+      "labelVi": "Điều kiện thí nghiệm",
+      "description": "Một điều kiện chạy (phương pháp đề xuất, Baseline, Ablation) với tham số.",
+      "synonyms": [
+        "condition",
+        "điều kiện",
+        "baseline",
+        "ablation",
+        "arm",
+        "nhóm đối chứng"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "research-design",
+        "path": "draft.conditions[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã."
+        },
+        {
+          "name": "name",
+          "description": "Tên."
+        },
+        {
+          "name": "baseline",
+          "description": "Có phải Baseline."
+        },
+        {
+          "name": "params",
+          "description": "Tham số."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/researchDesign/draft/schema.ts",
+        "export": "draftConditionSchema"
+      }
+    },
+    {
+      "id": "statistical-analysis",
+      "name": "Statistical analysis",
+      "labelVi": "Phân tích thống kê",
+      "description": "Kế hoạch Statistical analysis cho một Hypothesis: phương pháp, biến, điều kiện, alpha và hiệu chỉnh.",
+      "synonyms": [
+        "statistical analysis",
+        "phân tích thống kê",
+        "kiểm định",
+        "statistical test",
+        "alpha",
+        "p-value"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "research-design",
+        "path": "draft.analyses[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã."
+        },
+        {
+          "name": "hypothesis",
+          "description": "Hypothesis được kiểm định."
+        },
+        {
+          "name": "method",
+          "description": "Phương pháp."
+        },
+        {
+          "name": "variables",
+          "description": "Các biến."
+        },
+        {
+          "name": "conditions",
+          "description": "Các điều kiện."
+        },
+        {
+          "name": "alpha",
+          "description": "Mức alpha."
+        },
+        {
+          "name": "correction",
+          "description": "Hiệu chỉnh so sánh bội."
+        },
+        {
+          "name": "missingPolicy",
+          "description": "Xử lý dữ liệu thiếu."
+        }
+      ],
+      "relations": [
+        {
+          "to": "hypothesis",
+          "kind": "refers-to",
+          "via": "hypothesis"
+        },
+        {
+          "to": "variable",
+          "kind": "refers-to",
+          "via": "variables"
+        },
+        {
+          "to": "condition",
+          "kind": "refers-to",
+          "via": "conditions"
+        }
+      ],
+      "schema": {
+        "file": "src/core/researchDesign/draft/schema.ts",
+        "export": "draftAnalysisSchema"
+      }
+    },
+    {
+      "id": "run-matrix",
+      "name": "Run matrix",
+      "labelVi": "Ma trận lượt chạy",
+      "description": "Các tổ hợp điều kiện × Dataset × seed sẽ chạy, cùng lý do chọn cỡ mẫu.",
+      "synonyms": [
+        "run matrix",
+        "ma trận chạy",
+        "seeds",
+        "sample size",
+        "cỡ mẫu"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "research-design",
+        "path": "draft.runMatrix"
+      },
+      "fields": [
+        {
+          "name": "mlflowExperiment",
+          "description": "Experiment trong MLflow."
+        },
+        {
+          "name": "conditions",
+          "description": "Các điều kiện."
+        },
+        {
+          "name": "datasets",
+          "description": "Các Dataset."
+        },
+        {
+          "name": "seeds",
+          "description": "Các seed."
+        },
+        {
+          "name": "sampleSizeJustification",
+          "description": "Lý do chọn cỡ mẫu."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/researchDesign/draft/schema.ts",
+        "export": "draftRunMatrixSchema"
+      }
+    },
+    {
+      "id": "frozen-plan",
+      "name": "Frozen plan",
+      "labelVi": "Plan đã đóng băng",
+      "description": "Một phiên bản plan đã đóng băng (preregistration) trước khi chạy; mọi thay đổi sau đó được ghi là deviation.",
+      "synonyms": [
+        "frozen plan",
+        "preregistration",
+        "đăng ký trước",
+        "đóng băng",
+        "deviation"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "research-design",
+        "path": "frozenPlans[]"
+      },
+      "fields": [
+        {
+          "name": "planId",
+          "description": "Mã plan."
+        },
+        {
+          "name": "planVersion",
+          "description": "Phiên bản."
+        },
+        {
+          "name": "title",
+          "description": "Tên."
+        },
+        {
+          "name": "frozenAt",
+          "description": "Thời điểm đóng băng."
+        },
+        {
+          "name": "frozenBy",
+          "description": "Người đóng băng."
+        },
+        {
+          "name": "deviation",
+          "description": "Ghi chú deviation."
+        },
+        {
+          "name": "hypotheses",
+          "description": "Các Hypothesis."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/researchDesign/plan/schema.ts",
+        "export": "planSchema"
+      }
+    },
+    {
+      "id": "topic-check",
+      "name": "Topic and gap check",
+      "labelVi": "Kiểm tra chủ đề và gap",
+      "description": "Kiểm tra một ý tưởng nghiên cứu trước khi làm: các bài lân cận, tranh luận còn sống hay không, PICO và quyết định có theo đuổi không.",
+      "synonyms": [
+        "topic check",
+        "gap check",
+        "kiểm tra chủ đề",
+        "novelty check",
+        "pico",
+        "ý tưởng nghiên cứu"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "research-design",
+        "path": "topicCheck"
+      },
+      "fields": [
+        {
+          "name": "track",
+          "description": "Hướng kiểm tra."
+        },
+        {
+          "name": "statement",
+          "description": "Phát biểu ý tưởng."
+        },
+        {
+          "name": "searchQuery",
+          "description": "Truy vấn tìm."
+        },
+        {
+          "name": "neighbours",
+          "description": "Các bài lân cận và khác biệt."
+        },
+        {
+          "name": "debate",
+          "description": "Tranh luận trong lĩnh vực."
+        },
+        {
+          "name": "convergence",
+          "description": "Mức quan tâm, tính khả thi."
+        },
+        {
+          "name": "pico",
+          "description": "Population, Exposure, Comparison, Outcome."
+        },
+        {
+          "name": "decision",
+          "description": "Quyết định."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/schemas/topicCheck.ts",
+        "export": "TopicCheckSchema"
+      }
+    },
+    {
+      "id": "research-design-bank",
+      "name": "Research design bank",
+      "labelVi": "Bank thiết kế nghiên cứu",
+      "description": "Bản Bank nhập cho một project: các mẫu design, threat, loại Claim, metric, Protocol và benchmark, kèm tệp zip gốc.",
+      "synonyms": [
+        "bank",
+        "design bank",
+        "catalog",
+        "mẫu thiết kế"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "researchDesignBanks"
+      },
+      "fields": [
+        {
+          "name": "projectId",
+          "description": "Project."
+        },
+        {
+          "name": "bank.release",
+          "description": "Phiên bản Bank."
+        },
+        {
+          "name": "bank.collections",
+          "description": "Các bộ mẫu."
+        },
+        {
+          "name": "bytes",
+          "description": "Tệp zip gốc."
+        }
+      ],
+      "relations": [
+        {
+          "to": "research-design",
+          "kind": "belongs-to",
+          "via": "projectId"
+        }
+      ],
+      "schema": {
+        "file": "src/core/storage/collections.ts",
+        "export": "ResearchDesignBankSchema"
+      }
+    },
+    {
+      "id": "autoresearch-run",
+      "name": "AutoResearch run",
+      "labelVi": "Lượt AutoResearch",
+      "description": "Một lượt AutoResearch đi qua các stage S1–S12 với PI và Critic: Charter, artifact từng stage, obligation, quyết định và ngân sách.",
+      "synonyms": [
+        "autoresearch",
+        "auto research",
+        "nghiên cứu tự động",
+        "agent run",
+        "pi",
+        "critic"
+      ],
+      "store": {
+        "kind": "central",
+        "collection": "autoresearchRuns"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã."
+        },
+        {
+          "name": "projectId",
+          "description": "Project."
+        },
+        {
+          "name": "status",
+          "description": "Trạng thái."
+        },
+        {
+          "name": "endReason",
+          "description": "Lý do kết thúc."
+        },
+        {
+          "name": "charter",
+          "description": "Charter."
+        },
+        {
+          "name": "pipeline",
+          "description": "Tiến độ các stage."
+        },
+        {
+          "name": "artifacts",
+          "description": "Artifact từng stage."
+        },
+        {
+          "name": "obligations",
+          "description": "Các obligation."
+        },
+        {
+          "name": "decisions",
+          "description": "Quyết định của người."
+        },
+        {
+          "name": "budget",
+          "description": "Ngân sách lượt gọi."
+        },
+        {
+          "name": "notebook",
+          "description": "Sổ ghi chép."
+        }
+      ],
+      "relations": [
+        {
+          "to": "research-design",
+          "kind": "refers-to",
+          "via": "projectId"
+        },
+        {
+          "to": "autoresearch-stage",
+          "kind": "has-many",
+          "via": "pipeline"
+        },
+        {
+          "to": "stage-artifact",
+          "kind": "has-many",
+          "via": "artifacts"
+        },
+        {
+          "to": "obligation",
+          "kind": "has-many",
+          "via": "obligations"
+        }
+      ],
+      "schema": {
+        "file": "src/core/autoresearch/record.ts",
+        "export": "runSchema"
+      }
+    },
+    {
+      "id": "charter",
+      "name": "Charter",
+      "labelVi": "Charter của lượt",
+      "description": "Phạm vi một lượt AutoResearch: câu hỏi, mục tiêu, trong và ngoài phạm vi, tiêu chí thành công, tiêu chí dừng và thái độ rủi ro.",
+      "synonyms": [
+        "charter",
+        "phạm vi",
+        "scope",
+        "mục tiêu",
+        "success criteria",
+        "kill criteria"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "autoresearch-run",
+        "path": "charter"
+      },
+      "fields": [
+        {
+          "name": "question",
+          "description": "Câu hỏi."
+        },
+        {
+          "name": "objectives",
+          "description": "Mục tiêu."
+        },
+        {
+          "name": "scope_in",
+          "description": "Trong phạm vi."
+        },
+        {
+          "name": "scope_out",
+          "description": "Ngoài phạm vi."
+        },
+        {
+          "name": "success_criteria",
+          "description": "Tiêu chí thành công."
+        },
+        {
+          "name": "kill_criteria",
+          "description": "Tiêu chí dừng."
+        },
+        {
+          "name": "constraints",
+          "description": "Ràng buộc."
+        },
+        {
+          "name": "risk_posture",
+          "description": "exploratory hoặc confirmatory."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/autoresearch/contracts.ts",
+        "export": "charterSchema"
+      }
+    },
+    {
+      "id": "autoresearch-stage",
+      "name": "Stage",
+      "labelVi": "Stage của AutoResearch",
+      "description": "Trạng thái một stage (S1–S12) ở một lần thử: model đã dùng, đánh giá của Critic và quyết định của PI.",
+      "synonyms": [
+        "stage",
+        "bước",
+        "giai đoạn",
+        "attempt"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "autoresearch-run",
+        "path": "pipeline[]"
+      },
+      "fields": [
+        {
+          "name": "stage",
+          "description": "S1–S12."
+        },
+        {
+          "name": "attempt",
+          "description": "Lần thử."
+        },
+        {
+          "name": "state",
+          "description": "Trạng thái."
+        },
+        {
+          "name": "error",
+          "description": "Lỗi."
+        },
+        {
+          "name": "models",
+          "description": "Model của lead và Critic."
+        },
+        {
+          "name": "critic",
+          "description": "Báo cáo của Critic."
+        },
+        {
+          "name": "pi",
+          "description": "Quyết định của PI."
+        }
+      ],
+      "relations": [],
+      "schema": null
+    },
+    {
+      "id": "stage-artifact",
+      "name": "Stage artifact",
+      "labelVi": "Artifact của stage",
+      "description": "Đầu ra đã khoá của một stage, có mã băm và các đầu vào để kiểm tra lỗi thời.",
+      "synonyms": [
+        "artifact",
+        "đầu ra",
+        "output"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "autoresearch-run",
+        "path": "artifacts[]"
+      },
+      "fields": [
+        {
+          "name": "stage",
+          "description": "Stage."
+        },
+        {
+          "name": "attempt",
+          "description": "Lần thử."
+        },
+        {
+          "name": "hash",
+          "description": "Mã băm nội dung."
+        },
+        {
+          "name": "inputHashes",
+          "description": "Mã băm các đầu vào."
+        },
+        {
+          "name": "status",
+          "description": "Trạng thái."
+        },
+        {
+          "name": "author",
+          "description": "Ai viết."
+        },
+        {
+          "name": "model",
+          "description": "Model."
+        }
+      ],
+      "relations": [],
+      "schema": {
+        "file": "src/core/autoresearch/record.ts",
+        "export": "artifactSchema"
+      }
+    },
+    {
+      "id": "obligation",
+      "name": "Obligation",
+      "labelVi": "Việc phải xử lý",
+      "description": "Một việc mà stage trước giao cho stage sau (ví dụ từ một finding của Critic), theo dõi đến khi xử lý xong.",
+      "synonyms": [
+        "obligation",
+        "nghĩa vụ",
+        "việc cần làm",
+        "todo",
+        "follow-up"
+      ],
+      "store": {
+        "kind": "nested",
+        "parent": "autoresearch-run",
+        "path": "obligations[]"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã."
+        },
+        {
+          "name": "sourceStage",
+          "description": "Stage giao việc."
+        },
+        {
+          "name": "findingId",
+          "description": "Finding gốc."
+        },
+        {
+          "name": "text",
+          "description": "Nội dung."
+        },
+        {
+          "name": "targetStage",
+          "description": "Stage phải xử lý."
+        },
+        {
+          "name": "status",
+          "description": "open, controlled hoặc unresolved."
+        },
+        {
+          "name": "locator",
+          "description": "Vị trí xử lý."
+        }
+      ],
+      "relations": [
+        {
+          "to": "autoresearch-stage",
+          "kind": "refers-to",
+          "via": "targetStage"
+        }
+      ],
+      "schema": {
+        "file": "src/core/autoresearch/reviews.ts",
+        "export": "obligationSchema"
+      }
+    },
+    {
+      "id": "kg-paper",
+      "name": "KG paper",
+      "labelVi": "Bài báo trong KG",
+      "description": "Một bài trong đồ thị tri thức của lab, lấy từ OpenAlex (id dạng W…): DOI, tiêu đề, Abstract, năm và số trích dẫn.",
+      "synonyms": [
+        "kg paper",
+        "work",
+        "openalex work",
+        "bài trong đồ thị",
+        "publication",
+        "ấn phẩm"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "paper"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã OpenAlex."
+        },
+        {
+          "name": "doi",
+          "description": "DOI."
+        },
+        {
+          "name": "title",
+          "description": "Tiêu đề."
+        },
+        {
+          "name": "abstract",
+          "description": "Abstract."
+        },
+        {
+          "name": "publication_year",
+          "description": "Năm xuất bản."
+        },
+        {
+          "name": "cited_by_count",
+          "description": "Số lần được trích."
+        },
+        {
+          "name": "type",
+          "description": "Loại ấn phẩm."
+        },
+        {
+          "name": "source_id",
+          "description": "Venue."
+        },
+        {
+          "name": "subfield_id",
+          "description": "Subfield chính."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-source",
+          "kind": "belongs-to",
+          "via": "source_id"
+        },
+        {
+          "to": "kg-subfield",
+          "kind": "belongs-to",
+          "via": "subfield_id"
+        },
+        {
+          "to": "kg-author",
+          "kind": "has-many",
+          "via": "authored"
+        },
+        {
+          "to": "kg-keyword",
+          "kind": "has-many",
+          "via": "has_keyword"
+        },
+        {
+          "to": "kg-topic",
+          "kind": "has-many",
+          "via": "has_topic"
+        },
+        {
+          "to": "kg-paper",
+          "kind": "refers-to",
+          "via": "cites"
+        },
+        {
+          "to": "kg-paper",
+          "kind": "refers-to",
+          "via": "related_to"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-author",
+      "name": "KG author",
+      "labelVi": "Tác giả",
+      "description": "Một tác giả trong KG, có ORCID khi biết.",
+      "synonyms": [
+        "author",
+        "tác giả",
+        "researcher",
+        "nhà nghiên cứu",
+        "orcid"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "author"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã OpenAlex."
+        },
+        {
+          "name": "display_name",
+          "description": "Tên."
+        },
+        {
+          "name": "orcid",
+          "description": "ORCID."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-paper",
+          "kind": "has-many",
+          "via": "authored"
+        },
+        {
+          "to": "kg-author",
+          "kind": "refers-to",
+          "via": "coauthor"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-keyword",
+      "name": "KG keyword",
+      "labelVi": "Keyword trong KG",
+      "description": "Một keyword OpenAlex trong KG và số bài mang nó.",
+      "synonyms": [
+        "keyword",
+        "từ khoá",
+        "keywords"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "keyword"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã keyword."
+        },
+        {
+          "name": "text",
+          "description": "Nội dung."
+        },
+        {
+          "name": "text_normalized",
+          "description": "Nội dung chuẩn hoá để tìm."
+        },
+        {
+          "name": "frequency",
+          "description": "Số bài mang keyword."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-paper",
+          "kind": "has-many",
+          "via": "has_keyword"
+        },
+        {
+          "to": "kg-keyword",
+          "kind": "refers-to",
+          "via": "cooccur"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-institution",
+      "name": "KG institution",
+      "labelVi": "Cơ quan",
+      "description": "Một cơ quan (trường, viện) trong KG, có mã ROR và quốc gia.",
+      "synonyms": [
+        "institution",
+        "cơ quan",
+        "trường",
+        "viện",
+        "affiliation",
+        "ror"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "institution"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã OpenAlex."
+        },
+        {
+          "name": "display_name",
+          "description": "Tên."
+        },
+        {
+          "name": "ror",
+          "description": "Mã ROR."
+        },
+        {
+          "name": "country_code",
+          "description": "Mã quốc gia."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-author",
+          "kind": "has-many",
+          "via": "affiliated"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-source",
+      "name": "KG source",
+      "labelVi": "Venue (tạp chí, hội nghị)",
+      "description": "Một venue trong KG: tạp chí, hội nghị hay kho lưu trữ nơi bài được đăng.",
+      "synonyms": [
+        "source",
+        "venue",
+        "journal",
+        "tạp chí",
+        "hội nghị",
+        "conference"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "source"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã OpenAlex."
+        },
+        {
+          "name": "display_name",
+          "description": "Tên."
+        }
+      ],
+      "relations": [],
+      "schema": null
+    },
+    {
+      "id": "kg-topic",
+      "name": "KG topic",
+      "labelVi": "Topic OpenAlex",
+      "description": "Một topic của taxonomy OpenAlex, thuộc một subfield.",
+      "synonyms": [
+        "topic",
+        "chủ đề",
+        "openalex topic"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "topic"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã OpenAlex."
+        },
+        {
+          "name": "display_name",
+          "description": "Tên."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-subfield",
+          "kind": "belongs-to",
+          "via": "subfield_of"
+        },
+        {
+          "to": "kg-paper",
+          "kind": "has-many",
+          "via": "has_topic"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-subfield",
+      "name": "KG subfield",
+      "labelVi": "Subfield",
+      "description": "Một subfield của taxonomy OpenAlex, thuộc một field.",
+      "synonyms": [
+        "subfield",
+        "chuyên ngành hẹp",
+        "lĩnh vực con"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "subfield"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã OpenAlex."
+        },
+        {
+          "name": "display_name",
+          "description": "Tên."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-field",
+          "kind": "belongs-to",
+          "via": "field_of"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-field",
+      "name": "KG field",
+      "labelVi": "Field",
+      "description": "Một field của taxonomy OpenAlex, thuộc một domain.",
+      "synonyms": [
+        "field",
+        "lĩnh vực",
+        "ngành"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "field"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã OpenAlex."
+        },
+        {
+          "name": "display_name",
+          "description": "Tên."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-domain",
+          "kind": "belongs-to",
+          "via": "domain_of"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-domain",
+      "name": "KG domain",
+      "labelVi": "Domain",
+      "description": "Một domain, cấp cao nhất của taxonomy OpenAlex.",
+      "synonyms": [
+        "domain",
+        "khối ngành",
+        "miền"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "domain"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã OpenAlex."
+        },
+        {
+          "name": "display_name",
+          "description": "Tên."
+        }
+      ],
+      "relations": [],
+      "schema": null
+    },
+    {
+      "id": "kg-has-keyword",
+      "name": "Paper keyword edge",
+      "labelVi": "Cạnh bài – keyword",
+      "description": "Cạnh nối một bài với một keyword, kèm điểm liên quan của OpenAlex.",
+      "synonyms": [
+        "has keyword",
+        "gắn keyword"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "has_keyword"
+      },
+      "fields": [
+        {
+          "name": "paper_id",
+          "description": "Bài."
+        },
+        {
+          "name": "keyword_id",
+          "description": "Keyword."
+        },
+        {
+          "name": "relevance_score",
+          "description": "Điểm liên quan."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-paper",
+          "kind": "belongs-to",
+          "via": "paper_id"
+        },
+        {
+          "to": "kg-keyword",
+          "kind": "refers-to",
+          "via": "keyword_id"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-cites",
+      "name": "Citation edge",
+      "labelVi": "Cạnh trích dẫn",
+      "description": "Cạnh trích dẫn: bài nguồn trích bài đích. Bài đích có thể nằm ngoài KG đã nạp.",
+      "synonyms": [
+        "cites",
+        "citation",
+        "trích dẫn",
+        "được trích",
+        "citation graph",
+        "đồ thị trích dẫn"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "cites"
+      },
+      "fields": [
+        {
+          "name": "paper_id",
+          "description": "Bài trích."
+        },
+        {
+          "name": "target_id",
+          "description": "Bài được trích."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-paper",
+          "kind": "belongs-to",
+          "via": "paper_id"
+        },
+        {
+          "to": "kg-paper",
+          "kind": "refers-to",
+          "via": "target_id"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-related-to",
+      "name": "Related work edge",
+      "labelVi": "Cạnh bài liên quan",
+      "description": "Cạnh nối bài với bài liên quan do OpenAlex gợi ý. Bài đích có thể nằm ngoài KG.",
+      "synonyms": [
+        "related to",
+        "related works",
+        "bài liên quan"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "related_to"
+      },
+      "fields": [
+        {
+          "name": "paper_id",
+          "description": "Bài."
+        },
+        {
+          "name": "target_id",
+          "description": "Bài liên quan."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-paper",
+          "kind": "belongs-to",
+          "via": "paper_id"
+        },
+        {
+          "to": "kg-paper",
+          "kind": "refers-to",
+          "via": "target_id"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-authored",
+      "name": "Authorship edge",
+      "labelVi": "Cạnh tác giả – bài",
+      "description": "Cạnh nối tác giả với bài, kèm thứ tự tác giả.",
+      "synonyms": [
+        "authored",
+        "authorship",
+        "đứng tên",
+        "thứ tự tác giả"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "authored"
+      },
+      "fields": [
+        {
+          "name": "paper_id",
+          "description": "Bài."
+        },
+        {
+          "name": "author_id",
+          "description": "Tác giả."
+        },
+        {
+          "name": "position",
+          "description": "Thứ tự tác giả, từ 1."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-paper",
+          "kind": "belongs-to",
+          "via": "paper_id"
+        },
+        {
+          "to": "kg-author",
+          "kind": "refers-to",
+          "via": "author_id"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-affiliated",
+      "name": "Affiliation edge",
+      "labelVi": "Cạnh tác giả – cơ quan",
+      "description": "Cơ quan của một tác giả trong một bài cụ thể; bài khác có thể ghi cơ quan khác.",
+      "synonyms": [
+        "affiliated",
+        "affiliation",
+        "đơn vị công tác"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "affiliated"
+      },
+      "fields": [
+        {
+          "name": "paper_id",
+          "description": "Bài."
+        },
+        {
+          "name": "author_id",
+          "description": "Tác giả."
+        },
+        {
+          "name": "institution_id",
+          "description": "Cơ quan."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-paper",
+          "kind": "belongs-to",
+          "via": "paper_id"
+        },
+        {
+          "to": "kg-author",
+          "kind": "refers-to",
+          "via": "author_id"
+        },
+        {
+          "to": "kg-institution",
+          "kind": "refers-to",
+          "via": "institution_id"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-coauthor",
+      "name": "Co-author edge",
+      "labelVi": "Cạnh đồng tác giả",
+      "description": "Số bài hai tác giả cùng đứng tên, cập nhật bằng trigger khi thêm hoặc xoá cạnh tác giả.",
+      "synonyms": [
+        "coauthor",
+        "co-author",
+        "đồng tác giả",
+        "cộng tác"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "coauthor"
+      },
+      "fields": [
+        {
+          "name": "left_id",
+          "description": "Tác giả thứ nhất."
+        },
+        {
+          "name": "right_id",
+          "description": "Tác giả thứ hai."
+        },
+        {
+          "name": "count",
+          "description": "Số bài chung."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-author",
+          "kind": "refers-to",
+          "via": "left_id"
+        },
+        {
+          "to": "kg-author",
+          "kind": "refers-to",
+          "via": "right_id"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-cooccur",
+      "name": "Keyword co-occurrence edge",
+      "labelVi": "Cạnh keyword đi cùng",
+      "description": "Số bài mang cả hai keyword và hệ số Jaccard, cập nhật bằng trigger.",
+      "synonyms": [
+        "cooccur",
+        "co-occurrence",
+        "đồng xuất hiện",
+        "jaccard"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "cooccur"
+      },
+      "fields": [
+        {
+          "name": "left_id",
+          "description": "Keyword thứ nhất."
+        },
+        {
+          "name": "right_id",
+          "description": "Keyword thứ hai."
+        },
+        {
+          "name": "count",
+          "description": "Số bài chung."
+        },
+        {
+          "name": "jaccard",
+          "description": "Hệ số Jaccard."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-keyword",
+          "kind": "refers-to",
+          "via": "left_id"
+        },
+        {
+          "to": "kg-keyword",
+          "kind": "refers-to",
+          "via": "right_id"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-has-topic",
+      "name": "Paper topic edge",
+      "labelVi": "Cạnh bài – topic",
+      "description": "Cạnh nối bài với topic OpenAlex, kèm điểm.",
+      "synonyms": [
+        "has topic",
+        "gắn topic"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "has_topic"
+      },
+      "fields": [
+        {
+          "name": "paper_id",
+          "description": "Bài."
+        },
+        {
+          "name": "topic_id",
+          "description": "Topic."
+        },
+        {
+          "name": "score",
+          "description": "Điểm."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-paper",
+          "kind": "belongs-to",
+          "via": "paper_id"
+        },
+        {
+          "to": "kg-topic",
+          "kind": "refers-to",
+          "via": "topic_id"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-subfield-of",
+      "name": "Topic subfield edge",
+      "labelVi": "Cạnh topic – subfield",
+      "description": "Topic thuộc subfield nào.",
+      "synonyms": [
+        "subfield of",
+        "taxonomy"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "subfield_of"
+      },
+      "fields": [
+        {
+          "name": "topic_id",
+          "description": "Topic."
+        },
+        {
+          "name": "subfield_id",
+          "description": "Subfield."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-topic",
+          "kind": "belongs-to",
+          "via": "topic_id"
+        },
+        {
+          "to": "kg-subfield",
+          "kind": "refers-to",
+          "via": "subfield_id"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-field-of",
+      "name": "Subfield field edge",
+      "labelVi": "Cạnh subfield – field",
+      "description": "Subfield thuộc field nào.",
+      "synonyms": [
+        "field of",
+        "taxonomy"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "field_of"
+      },
+      "fields": [
+        {
+          "name": "subfield_id",
+          "description": "Subfield."
+        },
+        {
+          "name": "field_id",
+          "description": "Field."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-subfield",
+          "kind": "belongs-to",
+          "via": "subfield_id"
+        },
+        {
+          "to": "kg-field",
+          "kind": "refers-to",
+          "via": "field_id"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-domain-of",
+      "name": "Field domain edge",
+      "labelVi": "Cạnh field – domain",
+      "description": "Field thuộc domain nào.",
+      "synonyms": [
+        "domain of",
+        "taxonomy"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "domain_of"
+      },
+      "fields": [
+        {
+          "name": "field_id",
+          "description": "Field."
+        },
+        {
+          "name": "domain_id",
+          "description": "Domain."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-field",
+          "kind": "belongs-to",
+          "via": "field_id"
+        },
+        {
+          "to": "kg-domain",
+          "kind": "refers-to",
+          "via": "domain_id"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-contribution",
+      "name": "Published contribution",
+      "labelVi": "Contribution đã công bố vào KG",
+      "description": "Một Contribution SCG đã đưa vào KG từ một bài, ở trạng thái candidate hoặc accepted.",
+      "synonyms": [
+        "kg contribution",
+        "published contribution",
+        "đóng góp trong đồ thị"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "contribution"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã Contribution."
+        },
+        {
+          "name": "published_paper_id",
+          "description": "Bài đã công bố Contribution."
+        },
+        {
+          "name": "paper_doi",
+          "description": "DOI."
+        },
+        {
+          "name": "name",
+          "description": "Tên."
+        },
+        {
+          "name": "description",
+          "description": "Mô tả."
+        },
+        {
+          "name": "review",
+          "description": "candidate hoặc accepted."
+        },
+        {
+          "name": "body",
+          "description": "Toàn bộ Contribution dạng JSON."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-paper",
+          "kind": "refers-to",
+          "via": "paper_doi"
+        },
+        {
+          "to": "kg-builds-on",
+          "kind": "has-many",
+          "via": "builds_on"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-builds-on",
+      "name": "Builds-on edge",
+      "labelVi": "Cạnh dựa trên",
+      "description": "Contribution dựa trên một Prerequisite, Contribution khác, bài hay công cụ, theo quan hệ prerequisite, reference hoặc match.",
+      "synonyms": [
+        "builds on",
+        "dựa trên",
+        "prerequisite edge"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "builds_on"
+      },
+      "fields": [
+        {
+          "name": "published_paper_id",
+          "description": "Bài công bố."
+        },
+        {
+          "name": "contribution_id",
+          "description": "Contribution."
+        },
+        {
+          "name": "prerequisite_id",
+          "description": "Prerequisite."
+        },
+        {
+          "name": "target_kind",
+          "description": "prerequisite, contribution, paper hoặc tool."
+        },
+        {
+          "name": "target_id",
+          "description": "Đích."
+        },
+        {
+          "name": "relation",
+          "description": "prerequisite, reference hoặc match."
+        },
+        {
+          "name": "review",
+          "description": "candidate hoặc accepted."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-contribution",
+          "kind": "belongs-to",
+          "via": "contribution_id"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-ingest-queue",
+      "name": "KG ingest queue item",
+      "labelVi": "Hàng đợi nạp KG",
+      "description": "Một bài chờ nạp vào KG từ OpenAlex: độ sâu mở rộng, nguồn, số lần thử và bài đã nạp.",
+      "synonyms": [
+        "ingest",
+        "queue",
+        "hàng đợi",
+        "nạp dữ liệu"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "ingest_queue"
+      },
+      "fields": [
+        {
+          "name": "id",
+          "description": "Mã yêu cầu."
+        },
+        {
+          "name": "depth",
+          "description": "Độ sâu mở rộng, 0–2."
+        },
+        {
+          "name": "source",
+          "description": "seed, expansion hoặc sciatlas_pointer."
+        },
+        {
+          "name": "status",
+          "description": "pending, processing, done hoặc failed."
+        },
+        {
+          "name": "attempts",
+          "description": "Số lần thử."
+        },
+        {
+          "name": "next_at",
+          "description": "Lần thử kế tiếp."
+        },
+        {
+          "name": "resolved_paper_id",
+          "description": "Bài đã nạp."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-paper",
+          "kind": "refers-to",
+          "via": "resolved_paper_id"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "kg-ingest-log",
+      "name": "KG ingest log entry",
+      "labelVi": "Nhật ký nạp KG",
+      "description": "Một dòng nhật ký nạp KG: mã kết quả, số lần thử và thời điểm thử lại khi bị giới hạn tần suất.",
+      "synonyms": [
+        "ingest log",
+        "nhật ký nạp",
+        "rate limit"
+      ],
+      "store": {
+        "kind": "kg",
+        "table": "ingest_log"
+      },
+      "fields": [
+        {
+          "name": "sequence",
+          "description": "Số thứ tự."
+        },
+        {
+          "name": "id",
+          "description": "Mã yêu cầu."
+        },
+        {
+          "name": "code",
+          "description": "Mã kết quả."
+        },
+        {
+          "name": "attempts",
+          "description": "Số lần thử."
+        },
+        {
+          "name": "at",
+          "description": "Thời điểm."
+        },
+        {
+          "name": "retry_at",
+          "description": "Thời điểm thử lại."
+        }
+      ],
+      "relations": [
+        {
+          "to": "kg-ingest-queue",
+          "kind": "refers-to",
+          "via": "id"
+        }
+      ],
+      "schema": null
+    }
+  ],
+  "pages": [
+    {
+      "id": "home",
+      "path": "/",
+      "module": "home",
+      "titleVi": "Trang chủ",
+      "name": "Home",
+      "purpose": "Điểm bắt đầu: mở lại bài báo và project gần đây, xem số bài, project và corpus, hoặc mở project mới từ một research question.",
+      "params": [],
+      "query": [],
+      "shows": [
+        "paper",
+        "extraction-project",
+        "corpus"
+      ],
+      "reads": [
+        "paper",
+        "paper-context",
+        "extraction-project",
+        "corpus"
+      ],
+      "writes": [
+        "extraction-project"
+      ],
+      "actions": [
+        {
+          "labelVi": "Bắt đầu project",
+          "effect": "Tạo extraction project mới với research question đã nhập rồi mở project đó.",
+          "writes": [
+            "extraction-project"
+          ],
+          "ai": false
+        }
+      ],
+      "requiresSignIn": true,
+      "parent": null,
+      "tabs": []
+    },
+    {
+      "id": "evaluate",
+      "path": "/evaluate",
+      "module": "evaluate",
+      "titleVi": "Đánh giá paragraph",
+      "name": "Paragraph evaluation",
+      "purpose": "Dán một paragraph tiếng Anh và phân tích từng bước: tách câu, cấu trúc paragraph, đánh giá theo ngữ cảnh, chấm điểm. AI chỉ gợi ý; người dùng giữ hoặc bỏ từng issue.",
+      "params": [],
+      "query": [
+        {
+          "name": "id",
+          "concept": "analysis"
+        }
+      ],
+      "shows": [
+        "analysis",
+        "sentence",
+        "sentence-annotation",
+        "issue",
+        "audit-event",
+        "style-probe"
+      ],
+      "reads": [
+        "analysis",
+        "audit-event",
+        "paper",
+        "style-probe"
+      ],
+      "writes": [
+        "analysis",
+        "issue",
+        "audit-event"
+      ],
+      "actions": [
+        {
+          "labelVi": "Tách câu",
+          "effect": "Tách câu và chạy các detector trên máy, không gọi AI.",
+          "writes": [],
+          "ai": false
+        },
+        {
+          "labelVi": "Phân tích câu (AI)",
+          "effect": "Gắn nhãn cú pháp cho từng câu (thì, thể, chủ ngữ).",
+          "writes": [],
+          "ai": true
+        },
+        {
+          "labelVi": "Phân tích cấu trúc paragraph (AI)",
+          "effect": "Gán vai trò cho từng câu và mạch nối giữa các câu.",
+          "writes": [],
+          "ai": true
+        },
+        {
+          "labelVi": "Đánh giá theo ngữ cảnh (AI)",
+          "effect": "Mô hình xét lại các ứng viên issue trong ngữ cảnh của paragraph.",
+          "writes": [],
+          "ai": true
+        },
+        {
+          "labelVi": "Chấm điểm (AI)",
+          "effect": "Chấm điểm paragraph theo rubric.",
+          "writes": [],
+          "ai": true
+        },
+        {
+          "labelVi": "Lưu vào lịch sử",
+          "effect": "Lưu kết quả thành một bản phân tích cùng các quyết định về issue.",
+          "writes": [
+            "analysis",
+            "issue",
+            "audit-event"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Xác nhận / bác bỏ issue",
+          "effect": "Ghi quyết định của người dùng cho một issue, kèm audit event.",
+          "writes": [
+            "issue",
+            "audit-event"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Chỉnh sửa các gợi ý đã chọn",
+          "effect": "Mở trang Chỉnh sửa với các issue đã chọn.",
+          "writes": [],
+          "ai": false
+        }
+      ],
+      "requiresSignIn": true,
+      "parent": null,
+      "tabs": [
+        {
+          "id": "text",
+          "labelVi": "Văn bản",
+          "via": "state"
+        },
+        {
+          "id": "scores",
+          "labelVi": "Điểm",
+          "via": "state"
+        }
+      ]
+    },
+    {
+      "id": "revise",
+      "path": "/revise",
+      "module": "revise",
+      "titleVi": "Chỉnh sửa",
+      "name": "Revision",
+      "purpose": "Sửa một paragraph đã phân tích theo các gợi ý đã chọn, so sánh bản sửa với bản gốc và kiểm tra ý nghĩa trước khi áp dụng.",
+      "params": [],
+      "query": [
+        {
+          "name": "analysis",
+          "concept": "analysis"
+        },
+        {
+          "name": "revision",
+          "concept": "revision"
+        },
+        {
+          "name": "issues",
+          "concept": "issue"
+        }
+      ],
+      "shows": [
+        "analysis",
+        "issue",
+        "revision"
+      ],
+      "reads": [
+        "analysis",
+        "revision"
+      ],
+      "writes": [
+        "revision",
+        "analysis"
+      ],
+      "actions": [
+        {
+          "labelVi": "Tạo bản sửa (AI)",
+          "effect": "Mô hình viết lại paragraph theo các issue đã chọn; bản sửa được lưu như một revision.",
+          "writes": [
+            "revision"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Xác nhận áp dụng",
+          "effect": "Áp dụng revision: tạo bản phân tích mới từ văn bản đã sửa rồi mở nó.",
+          "writes": [
+            "revision",
+            "analysis"
+          ],
+          "ai": false
+        }
+      ],
+      "requiresSignIn": true,
+      "parent": "evaluate",
+      "tabs": []
+    },
+    {
+      "id": "generate",
+      "path": "/generate",
+      "module": "generate",
+      "titleVi": "Soạn paragraph",
+      "name": "Paragraph generation",
+      "purpose": "Soạn một paragraph học thuật từ main claim và evidence do người dùng nhập; người dùng xem kết quả rồi mới quyết định dùng.",
+      "params": [],
+      "query": [
+        {
+          "name": "id",
+          "concept": "generation"
+        }
+      ],
+      "shows": [
+        "generation"
+      ],
+      "reads": [
+        "generation"
+      ],
+      "writes": [
+        "generation",
+        "analysis"
+      ],
+      "actions": [
+        {
+          "labelVi": "Soạn paragraph (AI)",
+          "effect": "Mô hình soạn paragraph từ claim và evidence; lưu thành một generation.",
+          "writes": [
+            "generation"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Xác nhận dùng paragraph",
+          "effect": "Chấp nhận generation và tạo bản phân tích từ paragraph đó để đánh giá.",
+          "writes": [
+            "generation",
+            "analysis"
+          ],
+          "ai": false
+        }
+      ],
+      "requiresSignIn": true,
+      "parent": "evaluate",
+      "tabs": []
+    },
+    {
+      "id": "papers",
+      "path": "/papers",
+      "module": "paper-import",
+      "titleVi": "Bài báo",
+      "name": "Papers",
+      "purpose": "Nhập bài báo (PDF, LaTeX, Markdown, text) để tách thành section và paragraph, và quản lý Thư viện DOI.",
+      "params": [],
+      "query": [],
+      "shows": [
+        "paper",
+        "library-item"
+      ],
+      "reads": [
+        "paper",
+        "paper-context",
+        "library-item"
+      ],
+      "writes": [
+        "paper",
+        "original-pdf",
+        "library-item"
+      ],
+      "actions": [
+        {
+          "labelVi": "Nhập bài báo",
+          "effect": "Tách tệp trên máy thành paper; PDF gốc được lưu vào kho lab (R2). Bài trùng mã băm được mở lại.",
+          "writes": [
+            "paper",
+            "original-pdf"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Xoá bài báo",
+          "effect": "Xoá paper và gỡ liên kết của nó khỏi Thư viện DOI.",
+          "writes": [
+            "paper"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Thêm và tra cứu",
+          "effect": "Thêm DOI (dán hoặc từ tệp CSV) vào Thư viện và tra cứu metadata.",
+          "writes": [
+            "library-item"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Xoá khỏi thư viện",
+          "effect": "Xoá các mục đã chọn khỏi Thư viện DOI.",
+          "writes": [
+            "library-item"
+          ],
+          "ai": false
+        }
+      ],
+      "requiresSignIn": true,
+      "parent": null,
+      "tabs": [
+        {
+          "id": "papers",
+          "labelVi": "Bài đã nhập",
+          "via": "state"
+        },
+        {
+          "id": "library",
+          "labelVi": "Thư viện DOI",
+          "via": "state"
+        }
+      ]
+    },
+    {
+      "id": "paper",
+      "path": "/papers/:id",
+      "module": "paper-import",
+      "titleVi": "Bài báo",
+      "name": "Paper workspace",
+      "purpose": "Không gian đọc một bài báo: full text và PDF, Summary, Issues, Citations, và các không gian Arguments, Writing style, Trích xuất, Contribution graph, OpenKG. Mọi kết quả AI là ứng viên để người dùng duyệt.",
+      "params": [
+        {
+          "name": "id",
+          "concept": "paper"
+        }
+      ],
+      "query": [
+        {
+          "name": "p",
+          "concept": "paragraph"
+        }
+      ],
+      "shows": [
+        "paper",
+        "paper-section",
+        "paragraph",
+        "original-pdf",
+        "paper-context",
+        "grobid",
+        "reference",
+        "paper-checks",
+        "paper-check",
+        "paper-insights",
+        "rhetoric-item",
+        "argument",
+        "contribution-sentence",
+        "measurement",
+        "measurement-profile",
+        "construct",
+        "metric-usage",
+        "experiment",
+        "reported-result",
+        "research-claim",
+        "stance",
+        "stance-marker",
+        "style-probe",
+        "paper-review",
+        "review-point",
+        "paper-overview",
+        "analysis",
+        "issue",
+        "scg-run",
+        "scg-contribution",
+        "extraction-project",
+        "extraction-field",
+        "extraction-cell"
+      ],
+      "reads": [
+        "paper",
+        "original-pdf",
+        "paper-context",
+        "grobid",
+        "paper-checks",
+        "paper-insights",
+        "measurement",
+        "stance",
+        "style-probe",
+        "paper-review",
+        "paper-overview",
+        "analysis",
+        "audit-event",
+        "paper-run",
+        "paper-checkpoint-part",
+        "scg-run",
+        "library-item",
+        "extraction-project"
+      ],
+      "writes": [
+        "paper",
+        "original-pdf",
+        "paper-context",
+        "paper-checks",
+        "paper-insights",
+        "measurement",
+        "stance",
+        "style-probe",
+        "paper-review",
+        "paper-overview",
+        "analysis",
+        "paper-run",
+        "paper-checkpoint-part",
+        "scg-run",
+        "extraction-project",
+        "extraction-cell"
+      ],
+      "actions": [
+        {
+          "labelVi": "Chạy tất cả",
+          "effect": "Chạy lần lượt các phân tích AI còn thiếu của bài.",
+          "writes": [
+            "paper-insights",
+            "measurement",
+            "stance",
+            "style-probe",
+            "paper-review",
+            "analysis"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Tóm tắt",
+          "effect": "Tạo bản tóm tắt (digest) của bài.",
+          "writes": [
+            "paper-insights"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Key facts",
+          "effect": "Trích bảy thông tin cốt lõi của nghiên cứu, mỗi giá trị kèm câu trích.",
+          "writes": [
+            "paper-insights"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Research gap & contribution",
+          "effect": "Tìm các câu nêu research gap và contribution của bài.",
+          "writes": [
+            "paper-insights"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Claims & reasoning",
+          "effect": "Dựng các argument theo Toulmin và AIF, theo từng section.",
+          "writes": [
+            "paper-insights"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Validity & rhetorical moves",
+          "effect": "Gắn nhãn threats to validity, data availability và các rhetorical moves.",
+          "writes": [
+            "paper-insights"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Evidence & measurement",
+          "effect": "Trích constructs, metrics, experiments, results và claims kèm câu nguyên tử làm căn cứ.",
+          "writes": [
+            "measurement"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Coherence & sentences",
+          "effect": "Phân tích từng paragraph thân bài theo lô, có checkpoint, và mạch nối giữa các paragraph.",
+          "writes": [
+            "analysis",
+            "paper-run",
+            "paper-checkpoint-part",
+            "paper-overview"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Stance & engagement",
+          "effect": "Gắn nhãn stance và engagement markers theo section.",
+          "writes": [
+            "stance"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Chạy kiểm tra độ bền (AI)",
+          "effect": "Đo xem điểm AI có đổi khi chỉ đổi văn phong hay không.",
+          "writes": [
+            "style-probe"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "AI peer review",
+          "effect": "Lấy các góc nhìn phản biện của AI kèm câu trích; người dùng ghi chú và duyệt từng điểm.",
+          "writes": [
+            "paper-review"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Dựng contribution graph",
+          "effect": "Trích contributions và prerequisites của bài thành một SCG run; người dùng duyệt kết quả.",
+          "writes": [
+            "scg-run"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Kiểm tra tự động",
+          "effect": "Chạy các kiểm tra không dùng AI (số liệu, hình bảng, viết tắt, trích dẫn ↔ references).",
+          "writes": [
+            "paper-checks"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Chấp nhận / loại bỏ phát hiện",
+          "effect": "Ghi quyết định của người dùng cho một phát hiện vào bản ghi nguồn của nó.",
+          "writes": [
+            "paper-checks",
+            "paper-insights",
+            "measurement",
+            "stance",
+            "paper-review",
+            "analysis"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Đổi vai trò section",
+          "effect": "Sửa vai trò (role) của section đang chọn.",
+          "writes": [
+            "paper"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Thông tin xuất bản",
+          "effect": "Tra metadata (OpenAlex hoặc Thư viện DOI) và cho người dùng sửa.",
+          "writes": [
+            "paper-context"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Gắn PDF gốc",
+          "effect": "Tải PDF gốc lên kho lab cho bài chưa có PDF.",
+          "writes": [
+            "original-pdf"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Lấy lại từ GROBID",
+          "effect": "Yêu cầu GROBID phân tích lại bài; kết quả hiện ở Citations.",
+          "writes": [],
+          "ai": false
+        },
+        {
+          "labelVi": "Đối chiếu tài liệu với Crossref",
+          "effect": "Kiểm tra references với Crossref, không dùng AI.",
+          "writes": [],
+          "ai": false
+        },
+        {
+          "labelVi": "Trích xuất",
+          "effect": "Mở bảng trích xuất riêng của bài và cho mô hình điền các ô, kèm câu trích làm căn cứ.",
+          "writes": [
+            "extraction-project",
+            "extraction-cell"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Công bố paper model",
+          "effect": "Công bố mô hình bài báo và experiment facts lên kho lab.",
+          "writes": [],
+          "ai": false
+        }
+      ],
+      "requiresSignIn": true,
+      "parent": "papers",
+      "tabs": [
+        {
+          "id": "fulltext",
+          "labelVi": "Full text",
+          "via": "pane=fulltext"
+        },
+        {
+          "id": "summary",
+          "labelVi": "Summary",
+          "via": "pane=summary"
+        },
+        {
+          "id": "issues",
+          "labelVi": "Issues",
+          "via": "view=issues"
+        },
+        {
+          "id": "citations",
+          "labelVi": "Citations",
+          "via": "view=context-references"
+        },
+        {
+          "id": "info",
+          "labelVi": "Publication info",
+          "via": "view=metadata"
+        },
+        {
+          "id": "arguments",
+          "labelVi": "Arguments",
+          "via": "view=gap"
+        },
+        {
+          "id": "writing",
+          "labelVi": "Writing style",
+          "via": "view=organization"
+        },
+        {
+          "id": "extract",
+          "labelVi": "Trích xuất",
+          "via": "view=extraction"
+        },
+        {
+          "id": "data",
+          "labelVi": "Contribution graph",
+          "via": "view=data-table"
+        },
+        {
+          "id": "openkg",
+          "labelVi": "Đồ thị tri thức (OpenKG)",
+          "via": "view=openkg"
+        }
+      ]
+    },
+    {
+      "id": "extraction",
+      "path": "/extraction",
+      "module": "extraction",
+      "titleVi": "Projects",
+      "name": "Extraction projects",
+      "purpose": "Danh sách các extraction project: tạo, mở hoặc xoá một project.",
+      "params": [],
+      "query": [],
+      "shows": [
+        "extraction-project"
+      ],
+      "reads": [
+        "extraction-project"
+      ],
+      "writes": [
+        "extraction-project"
+      ],
+      "actions": [
+        {
+          "labelVi": "Tạo project",
+          "effect": "Tạo extraction project mới rồi mở nó.",
+          "writes": [
+            "extraction-project"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Xoá project",
+          "effect": "Xoá extraction project đã chọn.",
+          "writes": [
+            "extraction-project"
+          ],
+          "ai": false
+        }
+      ],
+      "requiresSignIn": true,
+      "parent": null,
+      "tabs": []
+    },
+    {
+      "id": "extraction-project",
+      "path": "/extraction/:id",
+      "module": "extraction",
+      "titleVi": "Project",
+      "name": "Extraction project",
+      "purpose": "Một project nghiên cứu: liên kết corpus chủ đề, lập Research design hoặc chạy AutoResearch, và deep research (kế hoạch tìm kiếm, tìm bài, sàng lọc, tổng hợp có trích dẫn).",
+      "params": [
+        {
+          "name": "id",
+          "concept": "extraction-project"
+        }
+      ],
+      "query": [
+        {
+          "name": "arRun",
+          "concept": "autoresearch-run"
+        }
+      ],
+      "shows": [
+        "extraction-project",
+        "extraction-paper",
+        "corpus",
+        "research-design",
+        "topic-check",
+        "research-question",
+        "hypothesis",
+        "design-type",
+        "threat-to-validity",
+        "variable",
+        "design-metric",
+        "dataset",
+        "condition",
+        "statistical-analysis",
+        "run-matrix",
+        "frozen-plan",
+        "research-design-bank",
+        "autoresearch-run",
+        "charter",
+        "autoresearch-stage",
+        "stage-artifact",
+        "obligation"
+      ],
+      "reads": [
+        "extraction-project",
+        "corpus",
+        "research-design",
+        "research-design-bank",
+        "paper",
+        "measurement",
+        "autoresearch-run"
+      ],
+      "writes": [
+        "extraction-project",
+        "extraction-paper",
+        "corpus",
+        "research-design",
+        "research-design-bank",
+        "autoresearch-run"
+      ],
+      "actions": [
+        {
+          "labelVi": "Liên kết với Extraction",
+          "effect": "Liên kết project với một corpus chủ đề đã có.",
+          "writes": [
+            "extraction-project"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Tạo corpus từ dự án",
+          "effect": "Tạo corpus chủ đề từ project rồi liên kết hai bên.",
+          "writes": [
+            "corpus",
+            "extraction-project"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Đề xuất kế hoạch (AI)",
+          "effect": "Mô hình đề xuất queries và tiêu chí chọn/loại cho research question.",
+          "writes": [
+            "extraction-project"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Duyệt kế hoạch",
+          "effect": "Người dùng sửa rồi duyệt kế hoạch tìm kiếm.",
+          "writes": [
+            "extraction-project"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Tìm theo kế hoạch",
+          "effect": "Tìm bài trên OpenAlex theo các query đã duyệt và gộp vào danh sách ứng viên.",
+          "writes": [
+            "extraction-project"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Mở rộng theo trích dẫn",
+          "effect": "Tìm bài trích dẫn và được trích bởi các bài đã chọn (OpenAlex).",
+          "writes": [
+            "extraction-project"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Gợi ý sàng lọc (AI)",
+          "effect": "Mô hình chấm điểm từng ứng viên theo lô, có checkpoint; chỉ là đề xuất.",
+          "writes": [
+            "extraction-project"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Chọn / Loại / Chưa chắc",
+          "effect": "Ghi quyết định sàng lọc của người dùng, hoặc nhận một nhóm đề xuất của AI sau khi xác nhận.",
+          "writes": [
+            "extraction-project"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Đưa bài đã chọn vào ma trận",
+          "effect": "Thêm các ứng viên đã chọn vào danh sách bài của project.",
+          "writes": [
+            "extraction-project",
+            "extraction-paper"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Tổng hợp (AI)",
+          "effect": "Tổng hợp liên bài: chủ đề chung, điểm thống nhất, khác biệt và research gap, kèm trích dẫn.",
+          "writes": [
+            "extraction-project"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Sửa Research design",
+          "effect": "Sửa topic check, research questions, hypotheses, design, measurement, analyses và ma trận chạy.",
+          "writes": [
+            "research-design"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Gợi ý dữ kiện (AI)",
+          "effect": "Mô hình gợi ý dữ kiện cho bảng so sánh; người dùng nhận hoặc bỏ.",
+          "writes": [
+            "research-design"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Nhập Writing Bank",
+          "effect": "Nhập một nguồn Writing Bank vào Research design.",
+          "writes": [
+            "research-design-bank",
+            "research-design"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Đóng băng",
+          "effect": "Đóng băng gói kế hoạch thành một phiên bản cố định.",
+          "writes": [
+            "research-design"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Tạo run",
+          "effect": "Tạo AutoResearch run cho project, bắt đầu từ charter.",
+          "writes": [
+            "autoresearch-run"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Chạy stage AutoResearch",
+          "effect": "Agent chạy một stage; kết quả dừng ở phiếu duyệt để người dùng duyệt hoặc từ chối.",
+          "writes": [
+            "autoresearch-run"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Chép vào Research design",
+          "effect": "Chép hypotheses hoặc experiment design của AutoResearch vào Research design.",
+          "writes": [
+            "research-design"
+          ],
+          "ai": false
+        }
+      ],
+      "requiresSignIn": true,
+      "parent": "extraction",
+      "tabs": [
+        {
+          "id": "topic",
+          "labelVi": "Topic và research gaps",
+          "via": "design=topic"
+        },
+        {
+          "id": "questions",
+          "labelVi": "Research questions và hypotheses",
+          "via": "design=questions"
+        },
+        {
+          "id": "design",
+          "labelVi": "Research design",
+          "via": "design=design"
+        },
+        {
+          "id": "measurement",
+          "labelVi": "Measurement",
+          "via": "design=measurement"
+        },
+        {
+          "id": "bank",
+          "labelVi": "Writing Bank",
+          "via": "design=bank"
+        },
+        {
+          "id": "analyses",
+          "labelVi": "Statistical analysis",
+          "via": "design=analyses"
+        },
+        {
+          "id": "runs",
+          "labelVi": "Ma trận chạy",
+          "via": "design=runs"
+        },
+        {
+          "id": "evidence",
+          "labelVi": "Bảng so sánh",
+          "via": "design=evidence"
+        },
+        {
+          "id": "package",
+          "labelVi": "Gói kế hoạch",
+          "via": "design=package"
+        },
+        {
+          "id": "autoresearch",
+          "labelVi": "AutoResearch",
+          "via": "ar=S1"
+        }
+      ]
+    },
+    {
+      "id": "corpus",
+      "path": "/corpus",
+      "module": "corpus",
+      "titleVi": "Corpus",
+      "name": "Corpora",
+      "purpose": "Danh sách corpus: tập bài báo có tiêu chí chọn rõ ràng. Tạo corpus chủ đề hoặc corpus tạp chí.",
+      "params": [],
+      "query": [],
+      "shows": [
+        "corpus",
+        "corpus-member",
+        "corpus-protocol",
+        "corpus-release"
+      ],
+      "reads": [
+        "corpus"
+      ],
+      "writes": [
+        "corpus",
+        "corpus-protocol"
+      ],
+      "actions": [
+        {
+          "labelVi": "Corpus mới",
+          "effect": "Tạo corpus với giao thức v1 (research question và tiêu chí, hoặc tạp chí và năm).",
+          "writes": [
+            "corpus",
+            "corpus-protocol"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Tạo cặp ESWA",
+          "effect": "Tạo sẵn một cặp corpus cho tạp chí ESWA.",
+          "writes": [
+            "corpus"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Xuất manifest",
+          "effect": "Tải manifest JSON của corpus.",
+          "writes": [],
+          "ai": false
+        },
+        {
+          "labelVi": "Xoá",
+          "effect": "Xoá corpus đã chọn.",
+          "writes": [
+            "corpus"
+          ],
+          "ai": false
+        }
+      ],
+      "requiresSignIn": true,
+      "parent": null,
+      "tabs": []
+    },
+    {
+      "id": "corpus-detail",
+      "path": "/corpus/:id",
+      "module": "corpus",
+      "titleVi": "Corpus",
+      "name": "Corpus detail",
+      "purpose": "Một corpus: thêm và sàng lọc bài, PRISMA và MMAT, thu thập PDF và dựng paper model, gắn nhãn, profile, chủ đề, keywords, lộ trình contribution, OpenKG, rồi phát hành một bản có mã băm.",
+      "params": [
+        {
+          "name": "id",
+          "concept": "corpus"
+        }
+      ],
+      "query": [],
+      "shows": [
+        "corpus",
+        "corpus-member",
+        "screening-decision",
+        "corpus-protocol",
+        "search-record",
+        "corpus-release",
+        "corpus-profile",
+        "corpus-topics",
+        "corpus-topic",
+        "topic-name",
+        "corpus-keywords",
+        "doi-keywords",
+        "scg-run",
+        "scg-contribution",
+        "scg-prerequisite",
+        "kg-paper"
+      ],
+      "reads": [
+        "corpus",
+        "paper",
+        "paper-context",
+        "paper-insights",
+        "stance",
+        "library-item",
+        "scg-run",
+        "corpus-profile",
+        "corpus-topics",
+        "topic-name",
+        "corpus-keywords",
+        "doi-keywords"
+      ],
+      "writes": [
+        "corpus",
+        "corpus-member",
+        "screening-decision",
+        "corpus-protocol",
+        "search-record",
+        "corpus-release",
+        "paper",
+        "original-pdf",
+        "paper-insights",
+        "stance",
+        "scg-run",
+        "corpus-profile",
+        "corpus-topics",
+        "topic-name",
+        "corpus-keywords",
+        "doi-keywords",
+        "kg-ingest-queue"
+      ],
+      "actions": [
+        {
+          "labelVi": "Thêm bài vào corpus",
+          "effect": "Thêm bài từ Library, từ bài đã nhập hoặc danh sách DOI; bài trùng được gộp hoặc hỏi lại.",
+          "writes": [
+            "corpus-member"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Tìm bài / Nhập kết quả tìm kiếm",
+          "effect": "Corpus chủ đề: tìm bài, nhập kết quả tìm kiếm hoặc snowball, ghi lại search record.",
+          "writes": [
+            "corpus-member",
+            "search-record"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Sàng lọc bằng AI",
+          "effect": "Mô hình chấm điểm sàng lọc từng bài theo lô; người dùng quyết định chọn hay loại.",
+          "writes": [
+            "screening-decision"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Lưu đánh giá",
+          "effect": "Lưu đánh giá chất lượng MMAT 2018 của một bài.",
+          "writes": [
+            "corpus-member"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Lấy mẫu từ OpenAlex",
+          "effect": "Corpus tạp chí: lấy mẫu bài của các tạp chí trong giao thức.",
+          "writes": [
+            "corpus-member"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Lấy PDF",
+          "effect": "Lấy PDF cho các bài đang tìm, nhập thành paper và cập nhật trạng thái thu thập.",
+          "writes": [
+            "corpus-member",
+            "paper",
+            "original-pdf"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Dựng paper model",
+          "effect": "Dựng đầu vào mô hình cho từng bài đã lấy, theo hàng đợi có thể tạm dừng.",
+          "writes": [
+            "corpus"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Bắt đầu gắn nhãn",
+          "effect": "Gắn nhãn rhetoric, argument và stance cho các bài trong corpus theo hàng đợi.",
+          "writes": [
+            "paper-insights",
+            "stance",
+            "corpus"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Tính profile",
+          "effect": "Tính profile của corpus tạp chí.",
+          "writes": [
+            "corpus-profile"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Tính chủ đề trên máy chủ",
+          "effect": "Tính topic model cho corpus trên máy chủ và lưu snapshot.",
+          "writes": [
+            "corpus-topics"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Đặt tên chủ đề (AI)",
+          "effect": "Mô hình đề xuất tên cho từng chủ đề.",
+          "writes": [
+            "topic-name"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Lấy keywords",
+          "effect": "Lấy keywords cho các bài theo DOI và tổng hợp keywords của corpus.",
+          "writes": [
+            "doi-keywords",
+            "corpus-keywords"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Lộ trình contribution",
+          "effect": "Dựng contribution graph cho các bài trong corpus và nối chúng thành lộ trình.",
+          "writes": [
+            "scg-run"
+          ],
+          "ai": true
+        },
+        {
+          "labelVi": "Đưa vào KG của lab",
+          "effect": "Gửi các bài của corpus vào hàng đợi ingest của KG lab.",
+          "writes": [
+            "kg-ingest-queue"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Sửa giao thức",
+          "effect": "Lưu giao thức thành phiên bản mới; phiên bản cũ được giữ nguyên.",
+          "writes": [
+            "corpus-protocol"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Phát hành",
+          "effect": "Chốt danh sách bài thành một release có mã băm để dẫn lại về sau.",
+          "writes": [
+            "corpus-release"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Xuất manifest",
+          "effect": "Tải manifest JSON của corpus.",
+          "writes": [],
+          "ai": false
+        }
+      ],
+      "requiresSignIn": true,
+      "parent": "corpus",
+      "tabs": []
+    },
+    {
+      "id": "lab-kg",
+      "path": "/lab-kg",
+      "module": "lab-kg",
+      "titleVi": "KG của lab",
+      "name": "Lab knowledge graph",
+      "purpose": "Xem knowledge graph chung của lab (paper, author, keyword, topic và các cạnh), tìm một nút, xem chi tiết và đưa bài còn thiếu vào KG.",
+      "params": [],
+      "query": [],
+      "shows": [
+        "kg-paper",
+        "kg-author",
+        "kg-keyword",
+        "kg-topic",
+        "kg-source",
+        "kg-institution",
+        "kg-has-keyword",
+        "kg-cites",
+        "kg-authored",
+        "kg-cooccur",
+        "kg-has-topic",
+        "kg-ingest-log"
+      ],
+      "reads": [
+        "kg-paper",
+        "kg-author",
+        "kg-keyword",
+        "kg-topic",
+        "kg-ingest-log",
+        "paper-context",
+        "corpus"
+      ],
+      "writes": [
+        "kg-ingest-queue"
+      ],
+      "actions": [
+        {
+          "labelVi": "Tìm trong KG",
+          "effect": "Tìm bài hoặc keyword trong KG của lab.",
+          "writes": [],
+          "ai": false
+        },
+        {
+          "labelVi": "Đặt làm tâm",
+          "effect": "Vẽ lại đồ thị quanh nút đã chọn.",
+          "writes": [],
+          "ai": false
+        },
+        {
+          "labelVi": "Đưa vào KG",
+          "effect": "Gửi bài còn thiếu, các bài ngoài đồ thị hoặc cả một corpus vào hàng đợi ingest.",
+          "writes": [
+            "kg-ingest-queue"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Tải RDF",
+          "effect": "Tải đồ thị đang xem dưới dạng JSON-LD hoặc Turtle.",
+          "writes": [],
+          "ai": false
+        }
+      ],
+      "requiresSignIn": true,
+      "parent": null,
+      "tabs": []
+    },
+    {
+      "id": "history",
+      "path": "/history",
+      "module": "history",
+      "titleVi": "Lịch sử",
+      "name": "History",
+      "purpose": "Các bản phân tích paragraph, bản sửa và paragraph đã soạn; mở lại, so sánh hai bản hoặc xoá.",
+      "params": [],
+      "query": [],
+      "shows": [
+        "analysis",
+        "revision",
+        "generation"
+      ],
+      "reads": [
+        "analysis",
+        "revision",
+        "generation",
+        "paper"
+      ],
+      "writes": [
+        "analysis"
+      ],
+      "actions": [
+        {
+          "labelVi": "So sánh",
+          "effect": "Mở trang so sánh cho hai bản phân tích đã chọn.",
+          "writes": [],
+          "ai": false
+        },
+        {
+          "labelVi": "Xoá bản phân tích",
+          "effect": "Xoá bản phân tích đã chọn.",
+          "writes": [
+            "analysis"
+          ],
+          "ai": false
+        }
+      ],
+      "requiresSignIn": true,
+      "parent": null,
+      "tabs": []
+    },
+    {
+      "id": "transfer",
+      "path": "/transfer",
+      "module": "transfer",
+      "titleVi": "Xuất/Nhập",
+      "name": "Export and import",
+      "purpose": "Xuất toàn bộ dữ liệu của người dùng từ kho lab thành một tệp JSON, hoặc nhập lại tệp đó sau khi xem trước thay đổi.",
+      "params": [],
+      "query": [],
+      "shows": [
+        "analysis",
+        "audit-event",
+        "revision",
+        "generation",
+        "paper",
+        "calibration-label-set"
+      ],
+      "reads": [
+        "analysis",
+        "audit-event",
+        "revision",
+        "generation",
+        "paper",
+        "paper-overview",
+        "paper-checks",
+        "paper-review",
+        "style-probe",
+        "calibration-label-set",
+        "measurement",
+        "library-item",
+        "stance",
+        "paper-insights",
+        "extraction-project",
+        "corpus",
+        "corpus-profile",
+        "research-design",
+        "research-design-bank",
+        "autoresearch-run"
+      ],
+      "writes": [
+        "analysis",
+        "audit-event",
+        "revision",
+        "generation",
+        "paper",
+        "paper-overview",
+        "paper-checks",
+        "paper-review",
+        "style-probe",
+        "calibration-label-set",
+        "measurement",
+        "library-item",
+        "stance",
+        "paper-insights",
+        "extraction-project",
+        "corpus",
+        "corpus-profile",
+        "research-design",
+        "research-design-bank",
+        "autoresearch-run"
+      ],
+      "actions": [
+        {
+          "labelVi": "Xuất toàn bộ (JSON)",
+          "effect": "Tải gói xuất chứa mọi bản ghi của người dùng.",
+          "writes": [],
+          "ai": false
+        },
+        {
+          "labelVi": "Nhập",
+          "effect": "Xem trước rồi nhập các bản ghi từ tệp đã xuất; bản ghi đã có được giữ hoặc thay theo kế hoạch nhập.",
+          "writes": [
+            "analysis",
+            "audit-event",
+            "revision",
+            "generation",
+            "paper",
+            "calibration-label-set",
+            "extraction-project",
+            "corpus",
+            "research-design",
+            "autoresearch-run"
+          ],
+          "ai": false
+        }
+      ],
+      "requiresSignIn": true,
+      "parent": null,
+      "tabs": []
+    },
+    {
+      "id": "calibration",
+      "path": "/calibration",
+      "module": "calibration",
+      "titleVi": "Hiệu chuẩn",
+      "name": "Calibration",
+      "purpose": "Nhập bộ nhãn của người đánh giá để đo độ chính xác của detector và AI, đồng thuận giữa người đánh giá và hiệu chuẩn điểm.",
+      "params": [],
+      "query": [],
+      "shows": [
+        "calibration-label-set",
+        "measurement"
+      ],
+      "reads": [
+        "calibration-label-set",
+        "paper",
+        "measurement"
+      ],
+      "writes": [
+        "calibration-label-set"
+      ],
+      "actions": [
+        {
+          "labelVi": "Tải mẫu nhãn",
+          "effect": "Tải tệp JSON mẫu cho bộ nhãn.",
+          "writes": [],
+          "ai": false
+        },
+        {
+          "labelVi": "Xác nhận nhập nhãn",
+          "effect": "Nhập bộ nhãn sau khi xem trước.",
+          "writes": [
+            "calibration-label-set"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Xoá bộ nhãn",
+          "effect": "Xoá bộ nhãn đã nhập.",
+          "writes": [
+            "calibration-label-set"
+          ],
+          "ai": false
+        }
+      ],
+      "requiresSignIn": true,
+      "parent": null,
+      "tabs": []
+    },
+    {
+      "id": "playground",
+      "path": "/playground",
+      "module": "playground",
+      "titleVi": "Playground",
+      "name": "Playground",
+      "purpose": "Thử trực tiếp các công cụ nghiên cứu của lab (lab research server): chọn công cụ, điền input và xem kết quả. Danh sách công cụ chỉ hiện khi đã đăng nhập.",
+      "params": [],
+      "query": [],
+      "shows": [],
+      "reads": [],
+      "writes": [],
+      "actions": [
+        {
+          "labelVi": "Chạy công cụ",
+          "effect": "Gọi công cụ đã chọn với input đã điền; kết quả chỉ giữ trong phiên.",
+          "writes": [],
+          "ai": false
+        }
+      ],
+      "requiresSignIn": false,
+      "parent": null,
+      "tabs": []
+    },
+    {
+      "id": "admin-requests",
+      "path": "/admin/requests",
+      "module": "admin",
+      "titleVi": "Duyệt yêu cầu",
+      "name": "Request review",
+      "purpose": "Chỉ quản trị viên: duyệt hoặc từ chối các yêu cầu công bố dữ kiện của bài báo do thành viên lab gửi.",
+      "params": [],
+      "query": [],
+      "shows": [
+        "paper"
+      ],
+      "reads": [
+        "paper"
+      ],
+      "writes": [],
+      "actions": [
+        {
+          "labelVi": "Duyệt",
+          "effect": "Chấp nhận yêu cầu công bố của một bài.",
+          "writes": [],
+          "ai": false
+        },
+        {
+          "labelVi": "Từ chối",
+          "effect": "Từ chối yêu cầu kèm lý do.",
+          "writes": [],
+          "ai": false
+        }
+      ],
+      "requiresSignIn": true,
+      "parent": null,
+      "tabs": []
+    },
+    {
+      "id": "settings",
+      "path": "/settings",
+      "module": "settings",
+      "titleVi": "Cài đặt",
+      "name": "Settings",
+      "purpose": "Kết nối AI (endpoint, model, API key), giới hạn chạy, email tra cứu bài báo, quyền riêng tư (đồng ý gửi dữ liệu cho AI) và tài khoản lab.",
+      "params": [],
+      "query": [],
+      "shows": [],
+      "reads": [],
+      "writes": [
+        "corpus"
+      ],
+      "actions": [
+        {
+          "labelVi": "Lưu",
+          "effect": "Lưu cấu hình AI, giới hạn chạy hoặc email tra cứu trên trình duyệt này.",
+          "writes": [],
+          "ai": false
+        },
+        {
+          "labelVi": "Kiểm tra kết nối",
+          "effect": "Gửi một yêu cầu thử tới AI.",
+          "writes": [],
+          "ai": true
+        },
+        {
+          "labelVi": "Thu hồi đồng ý",
+          "effect": "Thu hồi đồng ý gửi dữ liệu cho AI.",
+          "writes": [],
+          "ai": false
+        },
+        {
+          "labelVi": "Đăng nhập / Đăng xuất",
+          "effect": "Đăng nhập hoặc đăng xuất tài khoản lab (Google).",
+          "writes": [],
+          "ai": false
+        },
+        {
+          "labelVi": "Nhập corpus cũ",
+          "effect": "Chuyển các corpus cũ của tài khoản vào kho lab.",
+          "writes": [
+            "corpus"
+          ],
+          "ai": false
+        }
+      ],
+      "requiresSignIn": false,
+      "parent": null,
+      "tabs": []
+    },
+    {
+      "id": "report",
+      "path": "/report/:id",
+      "module": "report",
+      "titleVi": "Báo cáo",
+      "name": "Analysis report",
+      "purpose": "Bản in của một bản phân tích paragraph: văn bản gốc, câu, cấu trúc, số liệu, điểm, issues, bản sửa hoặc nguồn soạn, giới hạn và phiên bản.",
+      "params": [
+        {
+          "name": "id",
+          "concept": "analysis"
+        }
+      ],
+      "query": [],
+      "shows": [
+        "analysis",
+        "sentence",
+        "sentence-annotation",
+        "issue",
+        "audit-event",
+        "revision",
+        "generation"
+      ],
+      "reads": [
+        "analysis",
+        "audit-event",
+        "revision",
+        "generation"
+      ],
+      "writes": [],
+      "actions": [
+        {
+          "labelVi": "In / Lưu PDF",
+          "effect": "Mở hộp thoại in của trình duyệt.",
+          "writes": [],
+          "ai": false
+        }
+      ],
+      "requiresSignIn": true,
+      "parent": "evaluate",
+      "tabs": []
+    },
+    {
+      "id": "compare",
+      "path": "/compare",
+      "module": "report",
+      "titleVi": "So sánh",
+      "name": "Version comparison",
+      "purpose": "So sánh hai bản phân tích (thường là bản gốc và bản sửa): số liệu, điểm, issues và kiểm tra ý nghĩa.",
+      "params": [],
+      "query": [
+        {
+          "name": "a",
+          "concept": "analysis"
+        },
+        {
+          "name": "b",
+          "concept": "analysis"
+        }
+      ],
+      "shows": [
+        "analysis",
+        "issue",
+        "revision"
+      ],
+      "reads": [
+        "analysis",
+        "revision"
+      ],
+      "writes": [],
+      "actions": [],
+      "requiresSignIn": true,
+      "parent": "history",
+      "tabs": []
+    }
+  ]
+}
