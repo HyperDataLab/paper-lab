@@ -53,7 +53,7 @@ export function PaperColumn({
   return (
     <section
       ref={columnRef}
-      className={`${wide ? styles.column : ''} ${pane === 'fulltext' && paper.source.kind === 'pdf' ? styles.pdfColumn : ''}`}
+      className={`${wide ? styles.column : ''} ${pane === 'fulltext' && paper.source.kind === 'pdf' ? styles.pdfColumn : ''} ${pane === 'summary' ? styles.summaryColumn : ''}`}
       aria-label="Paper"
       hidden={nav.inSpace || (!nav.centreVisible && !keepReaderVisible)}
     >
@@ -95,7 +95,13 @@ export function PaperColumn({
                 aria-expanded={analysisOpen}
                 aria-label={`Vấn đề và trích dẫn${issueCount > 0 ? ` · ${issueCount}` : ''}`}
                 title={`Vấn đề và trích dẫn${issueCount > 0 ? ` · ${issueCount}` : ''}`}
-                leadingIcon={analysisOpen ? <PanelRightClose size={15} aria-hidden="true" /> : <PanelRightOpen size={15} aria-hidden="true" />}
+                leadingIcon={
+                  analysisOpen ? (
+                    <PanelRightClose size={15} aria-hidden="true" />
+                  ) : (
+                    <PanelRightOpen size={15} aria-hidden="true" />
+                  )
+                }
                 onClick={onToggleAnalysis}
               >
                 <span className={styles.analysisToggleText}>

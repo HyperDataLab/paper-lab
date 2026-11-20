@@ -507,7 +507,7 @@ function PaperMapPageContent() {
                   onOpenReader={openInReader}
                 />
                 <div
-                  className={`${wide && nav.showRight && !nav.inSpace && nav.centreVisible ? styles.workspace : styles.workspaceSingle} ${pdfReader ? styles.pdfWorkspace : ''}`}
+                  className={`${wide && nav.showRight && !nav.inSpace && nav.centreVisible ? styles.workspace : styles.workspaceSingle} ${pdfReader ? styles.pdfWorkspace : ''} ${pane === 'summary' ? styles.summaryWorkspace : ''}`}
                 >
                   <PaperColumn
                     nav={nav}

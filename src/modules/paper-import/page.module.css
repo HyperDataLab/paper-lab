@@ -1551,6 +1551,43 @@ mark.textMark {
     padding-inline: 6px;
   }
 }
+
+/* Summary uses the full workspace and owns its scroll area like the PDF reader. */
+.paperPage .summaryWorkspace {
+  gap: 0;
+  padding: 0;
+}
+.paperPage .summaryColumn {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 12px 20px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.paperPage .summaryColumn > .blocks {
+  gap: var(--space-2);
+}
+.paperPage .summaryColumn > .columnTabs {
+  position: sticky;
+  top: 0;
+  z-index: 16;
+  flex: none;
+  margin: 0 -12px;
+  padding-inline: 12px;
+  background: var(--surface);
+}
+.paperPage .workspace > .summaryColumn,
+.paperPage .workspaceSingle > .summaryColumn {
+  overflow-y: auto;
+}
+
 @media (max-width: 600px) {
   .paperPage .titleRow {
     gap: 6px;
