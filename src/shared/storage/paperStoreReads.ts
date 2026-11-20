@@ -75,5 +75,6 @@ export function paperStoreReads(
   };
   if (store.checkpoint) batched.checkpoint = store.checkpoint.bind(store);
   if (store.flush) batched.flush = store.flush.bind(store);
+  if (store.discard) batched.discard = store.discard.bind(store);
   return { store: batched, checkpointStore };
 }
