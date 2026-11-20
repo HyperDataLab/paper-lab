@@ -48,7 +48,7 @@ it('upgrades a version 24 database, round trips SCG runs and deletes them with t
   old.close();
   const db = createDb(name);
   const repo = createRepositories(db, () => new Date('2026-02-01T00:00:00.000Z'));
-  expect(db.verno).toBe(26);
+  expect(db.verno).toBe(27);
   expect(await db.papers.get('kept')).toEqual({ id: 'kept' });
   expect(await db.corpusKeywords.get('c1')).toEqual({ corpusId: 'c1' });
   await repo.scg.save(run(P));

@@ -35,19 +35,32 @@ import { createResearchDesignRepository } from './researchDesigns';
 import { createScgRepository } from './scg';
 import { createAutoResearchRepository } from './autoresearch';
 import { withChangeEvents } from './changeEvents';
+import { paperStoreReads } from './paperStoreReads';
+import { CompositeDocStore } from './compositeDocStore';
+import type { RemoteDocStore } from './remoteDocStore';
 export function createRepositories(
   db: ParagraphDb,
   clock = () => new Date(),
   ids = () => crypto.randomUUID(),
-  baseStore: DocStore = new DexieDocStore(db),
+  base: DocStore = new DexieDocStore(db),
+  remote?: RemoteDocStore,
 ): Repositories {
+  const { store: batched, checkpointStore } = paperStoreReads(base, remote);
   // Remote stores have no live queries; readers such as the corpus graph refresh on these write events.
-  const { store, subscribe: changes } = withChangeEvents(baseStore);
+  const { store, subscribe: changes } = withChangeEvents(batched);
   const deps = createStorageDeps(clock, ids);
   const { now, makeAudit } = deps;
-  const analyses = createAnalysesRepository(db, deps);
-  const audit = createAuditRepository(db);
-  const generations = createGenerationsRepository(db, deps);
+  const audit = createAuditRepository(store, () =>
+    base === remote || (base instanceof CompositeDocStore && base.isFallback()) ? undefined : remote,
+  );
+  const calibrationLabels = createCalibrationLabelsRepository(store, deps);
+  const analyses = createAnalysesRepository(
+    store,
+    deps,
+    audit.latestAt,
+    async () => (await calibrationLabels.list())[0]?.importedAt,
+  );
+  const generations = createGenerationsRepository(store, deps);
   const library = createLibraryRepository(store, now, ids);
   const paperRecords = createPapersRepository(store, deps);
   const papers: typeof paperRecords = {
@@ -58,35 +71,28 @@ export function createRepositories(
       await library.detachPaper(id);
     },
   };
-  const paperRuns = createPaperRunsRepository(store, deps);
-  const paperOverviews = createPaperOverviewsRepository(db, deps, analyses, papers);
+  const paperRuns = createPaperRunsRepository(store, deps, checkpointStore);
+  const paperOverviews = createPaperOverviewsRepository(store, deps);
   const paperChecks = createPaperChecksRepository(store, deps);
   const paperContext = createPaperContextRepository(store);
-  const calibrationLabels = createCalibrationLabelsRepository(store, deps);
   const corpora = createCorporaRepository(store, deps);
-  const revisions = createRevisionsRepository(db, deps, analyses);
-  const paperReviews = createPaperReviewsRepository(db, now, makeAudit);
+  const revisions = createRevisionsRepository(store, deps);
+  const paperReviews = createPaperReviewsRepository(store, now, makeAudit, audit.latestAt);
   const paperProbes = createPaperProbesRepository(store, now, makeAudit);
-  const measurements = createMeasurementsRepository(store, now, makeAudit);
+  const measurements = createMeasurementsRepository(store, now, makeAudit, checkpointStore);
   const stance = createStanceRepository(store, now, makeAudit);
   const paperInsights = createPaperInsightsRepository(store, now, makeAudit);
   const extraction = createExtractionRepository(store, now, makeAudit);
   const corpusKeywords = createCorpusKeywordsRepository(store, library, now);
   const scg = createScgRepository(store, clock);
   const pdfFiles = createPdfFilesRepository(db, now);
-  const transfer = createTransferRepository(db, clock, deps, {
-    analyses,
+  const transfer = createTransferRepository(db, store, clock, deps, {
     audit,
     generations,
     papers,
     paperOverviews,
-    paperChecks,
-    paperReviews,
-    paperProbes,
     measurements,
     library,
-    stance,
-    paperInsights,
     calibrationLabels,
     corpora,
   });

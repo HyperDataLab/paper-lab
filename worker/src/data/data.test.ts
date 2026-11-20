@@ -512,6 +512,49 @@ describe('POST /v1/data/query', () => {
 });
 
 describe('POST /v1/data/batch-get', () => {
+  it('batches mixed paper references, including the same id in more than one collection', async () => {
+    const { call } = setup();
+    const paper = {
+      schemaVersion: 1,
+      id: PAPER,
+      title: 'Synthetic',
+      createdAt: START.toISOString(),
+      updatedAt: START.toISOString(),
+      source: { kind: 'text', fileName: 'paper.txt', pageCount: null, sha256: 'test' },
+      sections: [],
+      paragraphs: [],
+    };
+    const context = {
+      schemaVersion: 1,
+      paperId: PAPER,
+      checkedAt: START.toISOString(),
+      paperDoi: null,
+      checked: 0,
+      found: 0,
+      retracted: [],
+    };
+    expect((await call('PUT', `/v1/data/papers/${PAPER}`, paper, { 'if-none-match': '*' })).status).toBe(201);
+    expect(
+      (await call('PUT', `/v1/data/paperContext/${PAPER}`, context, { 'if-none-match': '*' })).status,
+    ).toBe(201);
+    const papers = Array.from({ length: 98 }, (_, i) => ({
+      collection: 'papers',
+      id: i ? `synthetic-${i}` : PAPER,
+    }));
+    const refs = [...papers, { collection: 'paperContext', id: PAPER }, { collection: 'stance', id: PAPER }];
+    const response = await call('POST', '/v1/data/batch-get', { refs });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      items: [
+        { collection: 'papers', id: PAPER, body: paper },
+        { collection: 'paperContext', id: PAPER, body: context },
+      ],
+      missing: [...papers.slice(1), { collection: 'stance', id: PAPER }],
+      deferred: [],
+    });
+    expect((await call('POST', '/v1/data/batch-get', { refs: [...refs, refs[0]] })).status).toBe(400);
+  });
+
   it('returns bodies for live ids and lists the missing ones', async () => {
     const { call } = setup();
     await call('PUT', path('doiKeywords', '10.1/x'), doiKeywords('10.1/x'), { 'if-none-match': '*' });

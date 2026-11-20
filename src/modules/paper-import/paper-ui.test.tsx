@@ -3,6 +3,9 @@ import { webcrypto } from 'node:crypto';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { CompositeDocStore } from '@/shared/storage/compositeDocStore';
+import { DexieDocStore } from '@/shared/storage/dexieDocStore';
+import { testWorkerData } from '@/shared/storage/remoteTestSupport';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
@@ -13,8 +16,7 @@ import PaperMapPage from './PaperMapPage';
 import type { LlmClient } from '@/shared/llm/client';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
-function setup() {
-  const repo = createRepositories(createDb(`paper-ui-${crypto.randomUUID()}`));
+function setup(repo = createRepositories(createDb(`paper-ui-${crypto.randomUUID()}`))) {
   render(
     <MemoryRouter initialEntries={['/papers']}>
       <StorageProvider repositories={repo}>
@@ -57,6 +59,26 @@ it('imports a paper, persists and audits role edits, then prefills Evaluate', as
   );
   fireEvent.click(screen.getByRole('button', { name: 'Đánh giá đoạn này' }));
   expect(await screen.findByLabelText('Dán một paragraph tiếng Anh')).toHaveValue('The first paragraph.');
+});
+it('C3 imports and opens a paper from the worker and lists it by summary', async () => {
+  const worker = testWorkerData();
+  const db = createDb(`paper-ui-remote-${crypto.randomUUID()}`);
+  const local = new DexieDocStore(db);
+  const remote = worker.connect();
+  const repo = createRepositories(db, undefined, undefined, new CompositeDocStore(local, remote), remote);
+  setup(repo);
+  await importPaper();
+  fireEvent.click(screen.getByRole('link', { name: 'Bài báo đã nhập' }));
+  expect(await screen.findByRole('link', { name: 'study' })).toBeInTheDocument();
+  const summary = (await repo.papers.listSummaries())[0];
+  if (!summary) throw new Error('Remote paper missing');
+  expect(summary.paragraphCount).toBe(2);
+  expect(await local.get('papers', summary.id)).toBeNull();
+  expect(await remote.get('papers', summary.id)).not.toBeNull();
+  const queries = worker.requests.filter((request) => request.url.endsWith('/query'));
+  expect(await Promise.all(queries.map((request) => request.json()))).toContainEqual(
+    expect.objectContaining({ collection: 'papers', include: 'summary' }),
+  );
 });
 it('requires confirmation before deleting a paper', async () => {
   const repo = setup();
@@ -181,6 +203,7 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu phân tích' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
   fireEvent.click(screen.getByRole('tab', { name: 'Full text' }));
+  await waitFor(() => expect(completeJson).toHaveBeenCalled());
   expect(await screen.findByText('Thất bại')).toBeInTheDocument();
   expect(screen.getByText(/Đã có lỗi không xác định/)).toBeInTheDocument();
   fail = false;
@@ -189,8 +212,12 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   expect(await screen.findByText('Hoàn tất')).toBeInTheDocument();
   const paper = (await repo.papers.list())[0];
   if (!paper) throw new Error('missing paper');
-  const run = (await repo.paperRuns.listByPaper(paper.id))[0];
-  if (!run) throw new Error('missing run');
+  const run = await waitFor(async () => {
+    const [saved] = await repo.paperRuns.listByPaper(paper.id);
+    expect(saved?.status).toBe('done');
+    if (!saved) throw new Error('missing run');
+    return saved;
+  });
   await repo.paperRuns.save({ ...run, status: 'running' });
   view.unmount();
   render(tree(`/papers/${paper.id}`));

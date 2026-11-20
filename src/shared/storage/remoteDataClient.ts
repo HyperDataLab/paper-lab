@@ -21,6 +21,11 @@ const batchPage = z.object({
   missing: z.array(z.string()),
   deferred: z.array(z.string()),
 });
+export type DocRef = z.output<typeof ref>;
+const refsPage = z.object({
+  items: z.array(meta.extend({ collection: z.string() })),
+  deferred: z.array(ref),
+});
 const commitResult = z.object({ results: z.array(ref.extend({ version })) });
 const writeResult = z.object({ version });
 const legacyCorporaPage = z.object({
@@ -94,7 +99,7 @@ export class RemoteDataClient {
       throw new StorageConflictError(
         conflict?.collection ?? '',
         conflict?.id ?? '',
-        parsed.data?.serverVersion ?? null,
+        parsed.data?.conflicts?.[0]?.serverVersion ?? parsed.data?.serverVersion ?? null,
       );
     }
     throw new RemoteStorageError(response.status, parsed.data?.error ?? 'http_error', detail);
@@ -147,6 +152,11 @@ export class RemoteDataClient {
   async batch(collection: string, ids: string[]) {
     const result = await this.request('batch-get', { method: 'POST', body: { collection, ids } });
     return batchPage.parse(await result.json());
+  }
+
+  async batchRefs(refs: DocRef[]) {
+    const result = await this.request('batch-get', { method: 'POST', body: { refs } });
+    return refsPage.parse(await result.json());
   }
 
   async commit(body: object) {

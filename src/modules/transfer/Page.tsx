@@ -75,17 +75,14 @@ export default function Page() {
   }
   return (
     <div className={styles.page}>
-      <PageHeader
-        title="Xuất/Nhập"
-        lead="Dữ liệu PaperLab chỉ nằm trong trình duyệt này. Xuất một tệp JSON để sao lưu hoặc chuyển sang máy khác."
-      />
+      <PageHeader title="Xuất/Nhập" lead="Xuất một tệp JSON để sao lưu hoặc chuyển dữ liệu PaperLab." />
       <div className={styles.columns}>
         <Card>
           <div className={styles.section}>
             <h2>
               <Download size={18} aria-hidden="true" /> Xuất
             </h2>
-            <p>Tải về toàn bộ dữ liệu trong trình duyệt này để sao lưu hoặc chuyển máy.</p>
+            <p>Tải dữ liệu có thể xuất từ phiên làm việc này.</p>
             <Button variant="primary" onClick={() => void download()}>
               Xuất toàn bộ (JSON)
             </Button>
