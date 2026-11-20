@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { z } from 'zod';
-import { addMember } from '@/core/corpus/intake';
 import { admiredQuotas, samplingOf, selectAdmired, selectAdmiredControl } from '@/core/corpus/admired';
 import { drawSample, harvestQuery, type Work } from '@/core/corpus/sampling';
-import { openAlexLevelId } from '@/core/library/lookup';
+import {
+  addJournalSample,
+  admiredControlQuotas,
+  admiredHarvestLimit,
+  JournalWorkSchema,
+} from '@/core/corpus/journalHarvest';
 import type { Corpus } from '@/core/schemas/corpus';
 import { createScholarClient } from '@/shared/scholar/client';
 import { useRepositories } from '@/shared/storage/StorageProvider';
@@ -11,81 +14,7 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { exclusionLabel } from './labels';
 
-const workSchema = z.object({
-  id: z.string(),
-  doi: z.string().nullable(),
-  title: z.string().nullable(),
-  publication_year: z.number(),
-  type: z.string(),
-  is_retracted: z.boolean(),
-  primary_location: z
-    .object({ source: z.object({ id: z.string().optional() }).nullable().optional() })
-    .nullable()
-    .optional(),
-  biblio: z
-    .object({ volume: z.string().nullable().optional(), issue: z.string().nullable().optional() })
-    .nullable()
-    .optional(),
-  authorships: z
-    .array(
-      z.object({
-        author: z.object({ id: z.string().optional() }).optional(),
-        institutions: z.array(z.object({ country_code: z.string().nullable().optional() })).optional(),
-      }),
-    )
-    .optional(),
-  cited_by_count: z.number().int().nonnegative().nullish(),
-  primary_topic: z.object({ subfield: z.object({ id: z.string().nullish() }).nullish() }).nullish(),
-});
 type Report = ReturnType<typeof drawSample>['report'];
-
-function addSample(corpus: Corpus, sample: { work: Work; role: 'build' | 'held_out' }[]) {
-  let next = corpus;
-  const at = new Date().toISOString();
-  for (const { work, role } of sample) {
-    const added = addMember(
-      next,
-      { doi: work.doi, openalexId: work.id, title: work.title, year: work.publication_year },
-      at,
-    );
-    next = added.corpus;
-    if (!('memberId' in added)) continue;
-    const subfieldId = openAlexLevelId(work.primary_topic?.subfield?.id, 'subfields');
-    next = {
-      ...next,
-      members: next.members.map((m) =>
-        m.memberId !== added.memberId
-          ? m
-          : {
-              ...m,
-              role,
-              version: 'publishedVersion',
-              stratum: {
-                ...m.stratum,
-                year: work.publication_year,
-                articleType: work.type,
-                issue: [work.biblio?.volume, work.biblio?.issue].filter(Boolean).join('/') || undefined,
-              },
-              authorIds: [
-                ...new Set(
-                  (work.authorships ?? []).map((a) => a.author?.id).filter((v): v is string => Boolean(v)),
-                ),
-              ],
-              countries: [
-                ...new Set(
-                  (work.authorships ?? [])
-                    .flatMap((a) => (a.institutions ?? []).map((i) => i.country_code))
-                    .filter((v): v is string => Boolean(v)),
-                ),
-              ],
-              ...(typeof work.cited_by_count === 'number' ? { citedByCount: work.cited_by_count } : {}),
-              ...(subfieldId ? { subfieldId } : {}),
-            },
-      ),
-    };
-  }
-  return next;
-}
 
 export function JournalHarvest({ corpus, save }: { corpus: Corpus; save: (value: Corpus) => Promise<void> }) {
   const repo = useRepositories();
@@ -120,12 +49,7 @@ export function JournalHarvest({ corpus, save }: { corpus: Corpus; save: (value:
       const client = createScholarClient({});
       if (sampling.scope === 'admired') {
         const quotas = target
-          ? new Map(
-              years.map((year) => [
-                year,
-                target.members.filter((m) => m.role && m.stratum.year === year).length,
-              ]),
-            )
+          ? admiredControlQuotas(target, years)
           : admiredQuotas({
               n: sampling.n,
               years,
@@ -135,9 +59,7 @@ export function JournalHarvest({ corpus, save }: { corpus: Corpus; save: (value:
         for (const venue of protocol.venues)
           for (const year of years) {
             // The control splits a year's quota per venue; the target pools its venues.
-            const quota = Math.ceil((quotas.get(year) ?? 0) / (target ? protocol.venues.length : 1));
-            // Most cited first, with room for records that the C4a exclusions drop.
-            const limit = quota ? Math.max(3 * quota, 20) : 0;
+            const limit = admiredHarvestLimit(quotas.get(year) ?? 0, target ? protocol.venues.length : 1);
             const url = harvestQuery({
               sourceId: venue.openalexSourceId ?? '',
               years: [year],
@@ -149,7 +71,7 @@ export function JournalHarvest({ corpus, save }: { corpus: Corpus; save: (value:
               setProgress(`${venue.name} · ${year}: ${count} bản ghi`);
               const page = await client.harvestWorks(url, cursor);
               for (const raw of page.results.slice(0, limit - count)) {
-                const parsed = workSchema.safeParse(raw);
+                const parsed = JournalWorkSchema.safeParse(raw);
                 if (parsed.success) records.push(parsed.data);
               }
               count += page.results.length;
@@ -169,9 +91,10 @@ export function JournalHarvest({ corpus, save }: { corpus: Corpus; save: (value:
               ...(sampling.perYear ? { perYear: sampling.perYear } : {}),
             });
         await save(
-          addSample(
+          addJournalSample(
             corpus,
             result.sample.map(({ work }) => ({ work, role: 'build' as const })),
+            new Date().toISOString(),
           ),
         );
         setReport({
@@ -211,7 +134,7 @@ export function JournalHarvest({ corpus, save }: { corpus: Corpus; save: (value:
             setProgress(`${venue.name} · ${bucket.from}–${bucket.to}: ${count} bản ghi`);
             const page = await client.harvestWorks(url, cursor);
             for (const raw of page.results.slice(0, Math.min(150 - count, 2000 - venueCount))) {
-              const parsed = workSchema.safeParse(raw);
+              const parsed = JournalWorkSchema.safeParse(raw);
               if (parsed.success) records.push(parsed.data);
             }
             count += page.results.length;
@@ -228,7 +151,7 @@ export function JournalHarvest({ corpus, save }: { corpus: Corpus; save: (value:
         heldOutShare: 0.2,
         seed: protocol.seed,
       });
-      await save(addSample(corpus, result.sample));
+      await save(addJournalSample(corpus, result.sample, new Date().toISOString()));
       setReport(result.report);
       setProgress(`Đã chọn ${result.sample.length} bài.`);
     } catch (e) {
