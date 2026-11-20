@@ -71,6 +71,7 @@ export function useAutoResearch(project: ExtractionProject, bank: BankDoc | null
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'STAGE_ERROR');
       if (cause instanceof AutoResearchConflictError) {
+        if (cause.id) await repo.autoresearch.discard(cause.id);
         const records = await repo.autoresearch.list(project.id).catch(() => null);
         if (records) setRuns(records);
       }

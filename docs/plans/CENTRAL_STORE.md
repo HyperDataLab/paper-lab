@@ -51,6 +51,15 @@ Decision: `docs/adr/0007-central-lab-store.md`. Existing local data is sample da
 
 After C4, the semantic layer (steps 1 → 4) builds on the same collection registry.
 
+## C3 corpus follow-up deployment
+
+1. Ensure the existing `worker/migrations-data` migrations are applied to `paperlab-data`, then deploy the
+   PaperLab data worker with the admin import route.
+2. Push the merged main commit to `deploy/topics-worker` to deploy the topics worker with its `DATA` binding.
+3. Deploy Hosting, then sign in as a lab admin and choose **Cài đặt → Tài khoản lab → Nhập corpus cũ**.
+   The importer follows the R2 cursor, adds missing records, and shows counts for imported, skipped and failed
+   records.
+
 ## C2 verification after deploy
 
 Apply `worker/migrations-data/0002_body_order.sql` to the lab data database, then deploy the updated worker

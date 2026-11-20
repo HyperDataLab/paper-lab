@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { exampleCorpus } from '../../../src/core/corpus/contract';
 import { handle, type Deps } from '../app';
 import { NotAllowedError } from '../auth';
 import type { D1Database, D1Statement } from '../kg/bindings';
 import { testDb } from '../kg/testDb';
 import { collectOrphanBodies, GC_MAX_AGE_MS } from './gc';
+import { CORPUS_PREFIX } from './legacyCorpora';
 import { bodyKey, type DocRow } from './store';
 import { memoryBucket } from './testBucket';
 
@@ -28,6 +30,7 @@ function setup(options: { data?: boolean; wrapDb?: (db: D1Database) => D1Databas
       throw new Error('bad token');
     },
     allowedOrigins: ['https://app.example'],
+    adminEmails: [A],
     now,
     data: options.data === false ? undefined : (options.wrapDb?.(db) ?? db),
   };
@@ -124,6 +127,64 @@ const auditEvent = (id: string) => ({
 });
 const ngram = (paperId: string, digit: string) => ({ hash: `sha256:${digit.repeat(64)}`, paperId });
 const path = (collection: string, id: string) => `/v1/data/${collection}/${encodeURIComponent(id)}`;
+
+describe('/v1/data/admin/import-legacy-corpora', () => {
+  const route = '/v1/data/admin/import-legacy-corpora';
+  const putLegacy = (bucket: ReturnType<typeof memoryBucket>['bucket'], id: string, body: unknown) =>
+    bucket.put(`${CORPUS_PREFIX}${id}`, new TextEncoder().encode(JSON.stringify(body)).buffer, {
+      httpMetadata: { contentType: 'application/json' },
+      customMetadata: {},
+    });
+
+  it('requires a lab admin', async () => {
+    const { call } = setup();
+    expect((await call('POST', route, undefined, {}, 'lab-b')).status).toBe(403);
+    expect((await call('POST', route, undefined, {}, null)).status).toBe(401);
+  });
+
+  it('imports through the corpus schema and commit, skips live rows and counts invalid bodies', async () => {
+    const { call, bucket, row } = setup();
+    const corpus = { ...exampleCorpus(), id: PAPER };
+    const existing = { ...corpus, id: PAPER_2, title: 'Current title' };
+    expect(
+      (await call('PUT', path('corpora', existing.id), existing, { 'if-none-match': '*' }, 'lab-b')).status,
+    ).toBe(201);
+    await putLegacy(bucket, corpus.id, corpus);
+    await putLegacy(bucket, existing.id, { ...existing, title: 'Legacy title' });
+    await putLegacy(bucket, ANALYSIS, { id: ANALYSIS });
+
+    const first = await call('POST', route);
+    expect(first.status).toBe(200);
+    expect(await first.json()).toEqual({ imported: 1, skipped: 1, failed: 1, cursor: null });
+    expect(row('corpora', corpus.id)).toMatchObject({
+      created_by: A,
+      updated_by: A,
+      version: 1,
+      r2_key: bodyKey('corpora', corpus.id, 1),
+    });
+    expect(await (await call('GET', path('corpora', corpus.id))).json()).toEqual(corpus);
+    expect(await (await call('GET', path('corpora', existing.id))).json()).toEqual(existing);
+    expect(row('corpora', ANALYSIS)).toBeUndefined();
+    expect(await (await call('POST', route)).json()).toEqual({
+      imported: 0,
+      skipped: 2,
+      failed: 1,
+      cursor: null,
+    });
+    expect(row('corpora', corpus.id)?.version).toBe(1);
+  });
+
+  it('returns a cursor for more legacy objects than fit in one call', async () => {
+    const { call, bucket } = setup();
+    for (let index = 0; index < 9; index++) await putLegacy(bucket, `invalid-${index}`, {});
+    const first = (await (await call('POST', route)).json()) as { failed: number; cursor: string };
+    expect(first.failed).toBe(8);
+    expect(first.cursor).toEqual(expect.any(String));
+    expect(
+      await (await call('POST', `${route}?${new URLSearchParams({ cursor: first.cursor })}`)).json(),
+    ).toEqual({ imported: 0, skipped: 0, failed: 1, cursor: null });
+  });
+});
 
 describe('/v1/data/{col}/{id}', () => {
   it('creates with If-None-Match: *, reads with an ETag and answers 304', async () => {

@@ -3,12 +3,13 @@ import { GrobidStartingError } from './grobid-error';
 import { handlePublished, publishedError } from './published';
 import { handlePlans } from './plans';
 import { handleMeasure, MEASURE_PATH } from './measure';
-import { handleFactRequests, isAdmin } from './factRequests';
+import { handleFactRequests } from './factRequests';
 import { handleScg, SCG_LIST_PATH, SCG_PATH } from './scg';
 import { handleSciAtlas, SCIATLAS_PATH } from './sciatlas';
-import type { Deps } from './deps';
+import { isAdmin, type Deps } from './deps';
 import { handleKg } from './kg/routes';
 import { DATA_PATH_PREFIX, handleData } from './data/routes';
+import { CORPUS_PREFIX } from './data/legacyCorpora';
 
 export type { Bucket, Deps } from './deps';
 
@@ -18,7 +19,6 @@ export const GROBID_CACHE_TAG = 'grobid-0.9.0-crf';
 const GROBID_SHA = /^\/grobid\/fulltext\/([0-9a-f]{64})$/;
 const SHA = /^\/pdfs\/([0-9a-f]{64})$/;
 const CORPUS = /^\/corpora\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
-const CORPUS_PREFIX = 'paperlab/corpora/';
 
 function cors(request: Request, deps: Deps): Record<string, string> {
   const origin = request.headers.get('origin');

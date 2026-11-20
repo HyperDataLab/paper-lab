@@ -93,8 +93,12 @@ article types. Manual entry and the built-in ESWA values remain available when W
 ## Corpus topics
 
 The corpus topics service runs BERTopic and KeyBERT in a separate Cloudflare container, with snapshots
-stored in the shared R2 bucket and cached locally. Deployment is controlled through the
+stored in the shared R2 bucket and cached locally. Topic runs read corpus bodies through the
+`paperlab-data` D1 binding. Deployment is controlled through the
 `deploy/topics-worker` branch; see `topics-worker/README.md`.
+
+Lab admins can import legacy R2 corpora from Settings. The corpus detail page checks the displayed
+document version when releasing a corpus and discards failed checkpoints when reloading after a conflict.
 
 The `corpus-topics-v1` contract accepts optional nullable member fit and weak-reason fields for older
 snapshots. Weakness follows centroid fit or an unassigned topic, independently of HDBSCAN probability.

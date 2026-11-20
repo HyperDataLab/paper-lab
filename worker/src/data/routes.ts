@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { COLLECTIONS, isCollectionName } from '../../../src/core/storage/collections';
-import type { Deps } from '../deps';
+import { isAdmin, type Deps } from '../deps';
+import { importLegacyCorpora } from './legacyCorpora';
 import { collectionSchema, filterSchema, queryGuardSchema, queryPlan } from './queryPlan';
 import {
   commit,
@@ -16,6 +17,7 @@ import {
 } from './store';
 
 export const DATA_PATH_PREFIX = '/v1/data/';
+const IMPORT_LEGACY_CORPORA_PATH = '/v1/data/admin/import-legacy-corpora';
 const DOC_PATH = /^\/v1\/data\/([A-Za-z]+)\/([^/]+)$/u;
 /** A commit request carries whole bodies; each body still has its collection's own cap. */
 export const MAX_COMMIT_BYTES = 32 * 1024 * 1024;
@@ -91,9 +93,17 @@ export async function handleData(
   email: string,
   headers: Headers,
 ) {
+  if (path === IMPORT_LEGACY_CORPORA_PATH && !isAdmin(deps, email))
+    return fail(403, 'forbidden', 'Forbidden.', headers);
   const db = deps.data;
   if (!db) return fail(503, 'data_not_configured', 'The lab data store is unavailable.', headers);
   const env: StoreEnv = { db, bucket: deps.bucket, now: deps.now, email };
+
+  if (path === IMPORT_LEGACY_CORPORA_PATH) {
+    if (request.method !== 'POST') return fail(405, 'bad_request', 'Use POST.', headers);
+    const cursor = new URL(request.url).searchParams.get('cursor') ?? undefined;
+    return ok(200, await importLegacyCorpora(env, cursor), headers);
+  }
 
   if (path === '/v1/data/query' || path === '/v1/data/batch-get' || path === '/v1/data/commit') {
     if (request.method !== 'POST') return fail(405, 'bad_request', 'Use POST.', headers);

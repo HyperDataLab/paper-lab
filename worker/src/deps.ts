@@ -39,3 +39,5 @@ export interface Deps {
   /** The central lab store's D1 (`DATA`); absent → /v1/data answers 503. */
   data?: D1Database;
 }
+
+export const isAdmin = (deps: Deps, email: string) => (deps.adminEmails ?? []).includes(email.toLowerCase());

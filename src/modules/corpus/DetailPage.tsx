@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { labKgIds } from '@/shared/labKg/client';
 import { LabKgActions } from '@/shared/labKg/LabKgActions';
-import { canonicalDigest } from '@/core/corpus';
 import { CorpusSchema, type Corpus } from '@/core/schemas/corpus';
 import type { CorpusTopics as TopicsSnapshot, TopicName } from '@/core/schemas/corpusTopics';
 import { useAuth } from '@/shared/auth/authContext';
@@ -40,8 +39,10 @@ export default function DetailPage() {
   const repo = useRepositories();
   const { user } = useAuth();
   const [conflict, setConflict] = useState(false);
-  const [corpus, setCorpus] = useState<Corpus>();
+  const [record, setRecord] = useState<{ doc: Corpus; version: number | null }>();
+  const corpus = record?.doc;
   const [loaded, setLoaded] = useState(false);
+  const [releasing, setReleasing] = useState(false);
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [filter, setFilter] = useState('all');
@@ -57,9 +58,9 @@ export default function DetailPage() {
   useEffect(() => {
     if (id)
       void repo.corpora
-        .get(id)
+        .getVersioned(id)
         .then((value) => {
-          setCorpus(value);
+          setRecord(value);
           setLoaded(true);
         })
         .catch((e: unknown) => {
@@ -70,7 +71,11 @@ export default function DetailPage() {
   /** Saves the corpus. `checkpoint` coalesces hot writes (a triage batch); the next plain save sends them. */
   async function save(value: Corpus, options: SaveOptions = {}) {
     try {
-      setCorpus(await (options.checkpoint ? repo.corpora.checkpoint(value) : repo.corpora.save(value)));
+      setRecord(
+        options.checkpoint
+          ? { doc: await repo.corpora.checkpoint(value), version: null }
+          : await repo.corpora.saveVersioned(value),
+      );
     } catch (e) {
       if (e instanceof CorpusConflict) setConflict(true);
       throw e;
@@ -80,10 +85,11 @@ export default function DetailPage() {
   async function reload() {
     if (!id) return;
     try {
-      const latest = await repo.corpora.get(id);
-      if (latest) setCorpus(latest);
+      setRecord(await repo.corpora.reload(id));
       setConflict(false);
       setError('');
+      setEditing(false);
+      setAdding(false);
     } catch (e) {
       setError(String(e));
     }
@@ -92,40 +98,15 @@ export default function DetailPage() {
   if (!corpus) return <p role="alert">Không tìm thấy corpus. {error}</p>;
   const protocol = corpus.protocol.at(-1);
   async function release() {
-    if (!corpus || !protocol) return;
+    if (!record || record.version === null || !protocol) return;
+    setReleasing(true);
     try {
-      const contents = {
-        protocol: { version: protocol.version, body: protocol.body },
-        members: corpus.members
-          .map((m) => ({
-            memberId: m.memberId,
-            role: m.role,
-            stratum: m.stratum,
-            identifiers: m.identifiers,
-          }))
-          .sort((a, b) => a.memberId.localeCompare(b.memberId)),
-      };
-      const digest = await canonicalDigest(JSON.parse(JSON.stringify(contents)) as unknown);
-      const at = new Date().toISOString();
-      // Read the stored corpus: a second click can land before React re-renders with the first release.
-      const stored = (await repo.corpora.get(corpus.id)) ?? corpus;
-      await save({
-        ...corpus,
-        updatedAt: at,
-        releases: [
-          ...stored.releases,
-          {
-            id: crypto.randomUUID(),
-            createdAt: at,
-            protocolVersion: protocol.version,
-            digest,
-            memberCount: corpus.members.length,
-            registryVersion: null,
-          },
-        ],
-      });
+      setRecord(await repo.corpora.release(record.doc, record.version));
     } catch (e) {
+      if (e instanceof CorpusConflict) setConflict(true);
       setError(String(e));
+    } finally {
+      setReleasing(false);
     }
   }
   function download() {
@@ -186,7 +167,11 @@ export default function DetailPage() {
           <IconButton label="Xuất manifest" onClick={download}>
             <Download size={18} />
           </IconButton>
-          <Button variant="primary" onClick={() => void release()}>
+          <Button
+            variant="primary"
+            disabled={releasing || conflict || record?.version === null}
+            onClick={() => void release()}
+          >
             Phát hành
           </Button>
         </div>

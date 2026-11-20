@@ -208,6 +208,48 @@ describe('C3 corpus group on the lab store', () => {
     expect((await theirs.corpora.get(corpus.id))?.title).toBe('Mine after reload');
   });
 
+  it('discards a checkpoint that received a 409, then reloads and saves normally', async () => {
+    const worker = testWorkerData();
+    const { repo, composite } = online(worker);
+    const other = worker.connect();
+    const corpus = exampleCorpus();
+    await repo.corpora.save(corpus);
+    await other.put('corpora', corpus.id, { ...corpus, title: 'Edited elsewhere' }, 1);
+    await repo.corpora.checkpoint({ ...corpus, title: 'Failed checkpoint' });
+    await expect(repo.corpora.flush(corpus.id)).rejects.toMatchObject({ name: 'CorpusConflict', version: 2 });
+    expect(composite.getSaveStatus()).toBe('error');
+    await expect(repo.corpora.save(corpus)).rejects.toBeInstanceOf(CorpusConflict);
+
+    const latest = await repo.corpora.reload(corpus.id);
+    if (!latest) throw new Error('Corpus not found');
+    expect(composite.getSaveStatus()).toBe('idle');
+    expect(latest).toMatchObject({ doc: { title: 'Edited elsewhere' }, version: 2 });
+    expect(worker.requests.at(-1)?.headers.get('If-None-Match')).toBeNull();
+    await repo.corpora.save({ ...latest.doc, title: 'Saved after reload' });
+    expect(await other.get('corpora', corpus.id)).toMatchObject({
+      doc: { title: 'Saved after reload' },
+      version: 3,
+    });
+  });
+
+  it('releases with the version of the displayed corpus even when its cache has a newer edit', async () => {
+    const worker = testWorkerData();
+    const { repo } = online(worker);
+    const corpus = exampleCorpus();
+    const displayed = await repo.corpora.saveVersioned(corpus);
+    const other = worker.connect();
+    const concurrent = { ...corpus, title: 'Edited elsewhere' };
+    await other.put('corpora', corpus.id, concurrent, displayed.version);
+    await repo.corpora.get(corpus.id);
+
+    await expect(repo.corpora.release(displayed.doc, displayed.version)).rejects.toMatchObject({
+      name: 'CorpusConflict',
+      version: 2,
+    });
+    expect(worker.requests.at(-1)?.headers.get('If-Match')).toBe('"v1"');
+    expect(await repo.corpora.get(corpus.id)).toEqual(concurrent);
+  });
+
   it('runs overlapping writes to one corpus from this tab one after another, without self-conflicts', async () => {
     const { repo } = online();
     const corpus = exampleCorpus();

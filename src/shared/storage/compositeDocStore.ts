@@ -84,6 +84,11 @@ export class CompositeDocStore implements DocStore {
     return this.remote?.flush(collection, id) ?? Promise.resolve();
   }
 
+  async discard(collection: string, id: string) {
+    if (spike.has(collection)) await this.remote?.discard(collection, id);
+    await this.local.discard?.(collection, id);
+  }
+
   async unitOfWork<R>(fn: (tx: DocTx) => Promise<R>, collections: readonly string[] = []) {
     const remote = collections.some((collection) => this.useRemote(collection));
     if (remote && collections.some((collection) => !this.useRemote(collection)))
