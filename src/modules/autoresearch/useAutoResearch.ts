@@ -55,8 +55,8 @@ export function useAutoResearch(project: ExtractionProject, bank: BankDoc | null
     };
   }, [project.id, repo, reload]);
 
-  const save = async (value: Run) => {
-    const saved = await repo.autoresearch.save(value);
+  const save = async (value: Run, checkpoint = false) => {
+    const saved = await (checkpoint ? repo.autoresearch.checkpoint(value) : repo.autoresearch.save(value));
     setRuns((items) => items?.map((item) => (item.id === saved.id ? saved : item)) ?? [saved]);
     return saved;
   };
@@ -130,6 +130,11 @@ export function useAutoResearch(project: ExtractionProject, bank: BankDoc | null
             latest = await save(next);
             return latest;
           },
+          checkpoint: async (next) => {
+            latest = await save(next, true);
+            return latest;
+          },
+          flush: repo.autoresearch.flush,
           screen: (options) => defaultScreen({ ...options, client: llm.client, config: llm.config, signal }),
         });
         if (active.stop && latest.status !== 'ended') await save(endRun(latest, 'cancelled', now()));

@@ -14,8 +14,7 @@ function loadAuth() {
 }
 
 /**
- * The lab account: a Google sign-in limited to the lab's domain. It is only needed to keep original PDFs in
- * the lab's storage; everything else in PaperLab works without it.
+ * The lab account grants access to original PDFs and shared lab projects.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<LabUser | null>(null);
@@ -73,9 +72,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { auth, module } = await loadAuth();
     await module.signOut(auth);
   }, []);
-  const getIdToken = useCallback(async () => {
+  const getIdToken = useCallback(async (expectedUid?: string) => {
     const { auth } = await loadAuth();
-    return auth.currentUser ? auth.currentUser.getIdToken() : null;
+    const current = auth.currentUser;
+    return current && (expectedUid === undefined || current.uid === expectedUid)
+      ? current.getIdToken()
+      : null;
   }, []);
   const value = useMemo(
     () => ({ user, ready, error, signIn, signOut, getIdToken }),

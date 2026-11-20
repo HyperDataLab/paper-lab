@@ -1,0 +1,143 @@
+import { z } from 'zod';
+import { PDF_WORKER_URL } from '@/shared/pdfStore';
+import { DataNotConfiguredError, RemoteStorageError, StorageConflictError } from './errors';
+
+const version = z.number().int().positive();
+const ref = z.object({ collection: z.string(), id: z.string() });
+const meta = z.object({
+  id: z.string(),
+  version,
+  summary: z.record(z.string(), z.unknown()),
+  body: z.unknown().optional(),
+});
+const queryPage = z.object({ items: z.array(meta), nextCursor: z.string().nullable() });
+const batchPage = z.object({
+  items: z.array(meta),
+  missing: z.array(z.string()),
+  deferred: z.array(z.string()),
+});
+const commitResult = z.object({ results: z.array(ref.extend({ version })) });
+const writeResult = z.object({ version });
+const errorBody = z.object({
+  error: z.string(),
+  message: z.string().optional(),
+  serverVersion: version.nullable().optional(),
+  conflicts: z.array(ref.extend({ serverVersion: version.nullable() })).optional(),
+});
+const etag = (value: number) => `"v${value}"`;
+
+export interface RemoteDataOptions {
+  getToken: () => Promise<string | null>;
+  baseUrl?: string;
+  fetch?: typeof fetch;
+}
+
+export class RemoteDataClient {
+  constructor(private readonly options: RemoteDataOptions) {}
+
+  private async request(
+    path: string,
+    {
+      method = 'GET',
+      body,
+      headers,
+      target,
+      onSend,
+      prepareBody,
+    }: {
+      method?: string;
+      body?: unknown;
+      headers?: Record<string, string>;
+      target?: z.output<typeof ref>;
+      onSend?: () => void;
+      prepareBody?: () => unknown;
+    } = {},
+  ) {
+    const token = await this.options.getToken();
+    if (!token) throw new RemoteStorageError(401, 'sign_in_required', 'Phiên đăng nhập đã hết hạn.');
+    const url = (this.options.baseUrl ?? PDF_WORKER_URL).replace(/\/$/u, '');
+    const send = this.options.fetch ?? fetch;
+    const payload = JSON.stringify(prepareBody ? prepareBody() : body);
+    onSend?.();
+    const response = await send(`${url}/v1/data/${path}`, {
+      method,
+      cache: 'no-store',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(payload === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...headers,
+      },
+      body: payload,
+    }).catch(() => {
+      throw new RemoteStorageError(0, 'network_error', 'Không kết nối được với kho dữ liệu lab.');
+    });
+    if (response.ok || (method === 'GET' && [304, 404].includes(response.status))) return response;
+    const parsed = errorBody.safeParse(await response.json().catch(() => null));
+    const detail = parsed.data?.message ?? `Kho dữ liệu lab trả lời HTTP ${response.status}.`;
+    if (response.status === 503 && parsed.data?.error === 'data_not_configured')
+      throw new DataNotConfiguredError(detail);
+    if (response.status === 409) {
+      const conflict = parsed.data?.conflicts?.[0] ?? target;
+      throw new StorageConflictError(
+        conflict?.collection ?? '',
+        conflict?.id ?? '',
+        parsed.data?.serverVersion ?? null,
+      );
+    }
+    throw new RemoteStorageError(response.status, parsed.data?.error ?? 'http_error', detail);
+  }
+
+  private path(collection: string, id: string) {
+    return `${encodeURIComponent(collection)}/${encodeURIComponent(id)}`;
+  }
+
+  async get(collection: string, id: string, cached?: number) {
+    const result = await this.request(this.path(collection, id), {
+      headers: cached === undefined ? undefined : { 'If-None-Match': etag(cached) },
+    });
+    if (result.status === 304) return undefined;
+    if (result.status === 404) return null;
+    const tag = /^"v([1-9]\d*)"$/u.exec(result.headers.get('ETag') ?? '');
+    return { doc: (await result.json()) as unknown, version: version.parse(Number(tag?.[1])) };
+  }
+
+  async put(
+    collection: string,
+    id: string,
+    prepareBody: () => unknown,
+    expected: number | null,
+    onSend?: () => void,
+  ) {
+    const result = await this.request(this.path(collection, id), {
+      method: 'PUT',
+      prepareBody,
+      headers: expected === null ? { 'If-None-Match': '*' } : { 'If-Match': etag(expected) },
+      target: { collection, id },
+      onSend,
+    });
+    return writeResult.parse(await result.json()).version;
+  }
+
+  async remove(collection: string, id: string, expected: number) {
+    await this.request(this.path(collection, id), {
+      method: 'DELETE',
+      headers: { 'If-Match': etag(expected) },
+      target: { collection, id },
+    });
+  }
+
+  async query(body: object) {
+    const result = await this.request('query', { method: 'POST', body });
+    return queryPage.parse(await result.json());
+  }
+
+  async batch(collection: string, ids: string[]) {
+    const result = await this.request('batch-get', { method: 'POST', body: { collection, ids } });
+    return batchPage.parse(await result.json());
+  }
+
+  async commit(body: object) {
+    const result = await this.request('commit', { method: 'POST', body });
+    return commitResult.parse(await result.json()).results;
+  }
+}

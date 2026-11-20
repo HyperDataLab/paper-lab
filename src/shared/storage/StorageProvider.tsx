@@ -1,7 +1,16 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useAuth } from '@/shared/auth/authContext';
+import { CompositeDocStore } from './compositeDocStore';
 import { createDb } from './db';
+import { DexieDocStore } from './dexieDocStore';
+import { RemoteDocStore } from './remoteDocStore';
 import { createRepositories, type Repositories } from './repositories';
 const Context = createContext<Repositories | null>(null);
+const StoreContext = createContext<CompositeDocStore | null>(null);
+const noopSubscribe = () => () => {};
+const idle = () => 'idle' as const;
+const noFallback = () => false;
+
 export function StorageProvider({
   children,
   repositories,
@@ -9,8 +18,39 @@ export function StorageProvider({
   children: ReactNode;
   repositories?: Repositories;
 }) {
-  const [value] = useState(() => repositories ?? createRepositories(createDb()));
-  return <Context.Provider value={value}>{children}</Context.Provider>;
+  const { user, getIdToken } = useAuth();
+  const uid = user?.uid;
+  const [local] = useState(() => {
+    if (repositories) return null;
+    const db = createDb();
+    return { db, store: new DexieDocStore(db) };
+  });
+  const storage = useMemo(() => {
+    if (!local) return null;
+    const remote = uid ? new RemoteDocStore({ getToken: () => getIdToken(uid) }) : null;
+    const store = new CompositeDocStore(local.store, remote);
+    return { store, repositories: createRepositories(local.db, undefined, undefined, store) };
+  }, [getIdToken, local, uid]);
+  return (
+    <StoreContext.Provider value={storage?.store ?? null}>
+      <Context.Provider value={repositories ?? storage?.repositories ?? null} key={uid ?? 'local'}>
+        {children}
+      </Context.Provider>
+    </StoreContext.Provider>
+  );
+}
+
+export function StorageStatus({ className }: { className?: string }) {
+  const store = useContext(StoreContext);
+  const status = useSyncExternalStore(store?.subscribe ?? noopSubscribe, store?.getSaveStatus ?? idle);
+  const fallback = useSyncExternalStore(store?.subscribe ?? noopSubscribe, store?.isFallback ?? noFallback);
+  if (status === 'idle' && !fallback) return null;
+  return (
+    <div className={className} role="status">
+      {status !== 'idle' && <span>{status === 'saving' ? 'Đang lưu…' : 'Lỗi lưu'}</span>}
+      {fallback && <span>Kho dữ liệu lab chưa được cấu hình. Dữ liệu dự án đang lưu trên thiết bị này.</span>}
+    </div>
+  );
 }
 // The provider and its hook form one public storage entry point.
 // eslint-disable-next-line react-refresh/only-export-components

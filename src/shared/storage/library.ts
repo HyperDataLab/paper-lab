@@ -3,12 +3,11 @@ import type { DocReader, DocStore } from './docStore';
 
 type Patch = Partial<Omit<LibraryItem, 'id' | 'doi' | 'addedAt' | 'schemaVersion'>>;
 
-/** Library items with any of these DOIs, one index lookup per DOI. */
+/** Library items with any of these DOIs, in a single index query. */
 export async function libraryByDois(reader: DocReader, dois: readonly string[]) {
-  const rows = await Promise.all(
-    [...new Set(dois)].map((doi) => reader.query('library', { where: { doi } })),
-  );
-  return rows.flat().map((row) => LibraryItemSchema.parse(row.doc));
+  if (!dois.length) return [];
+  const rows = await reader.query('library', { whereIn: { field: 'doi', values: [...new Set(dois)] } });
+  return rows.map((row) => LibraryItemSchema.parse(row.doc));
 }
 
 export function createLibraryRepository(store: DocStore, now: () => string, ids: () => string) {

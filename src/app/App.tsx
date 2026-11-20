@@ -7,7 +7,7 @@ import { Button } from '@/shared/ui/Button';
 import { ToastProvider } from '@/shared/ui/ToastProvider';
 import { Kbd } from '@/shared/ui/Kbd';
 import { Skeleton } from '@/shared/ui/Skeleton';
-import { StorageProvider } from '@/shared/storage/StorageProvider';
+import { StorageProvider, StorageStatus } from '@/shared/storage/StorageProvider';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { AuthProvider } from '@/shared/auth/AuthProvider';
 import { AccountButton } from './AccountButton';
@@ -120,6 +120,7 @@ export function App() {
               className={`${styles.content} ${wideContent ? styles.wideContent : ''} ${appContent ? styles.appContent : ''}`}
             >
               <StorageProvider>
+                <StorageStatus className={styles.storageStatus} />
                 <PdfSync />
                 <LlmProvider>
                   <Suspense fallback={<Skeleton />}>

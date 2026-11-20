@@ -1,6 +1,8 @@
 /// <reference types="node" />
 import { readFileSync, readdirSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { fileURLToPath } from 'node:url';
 import { onTestFinished } from 'vitest';
 import type { D1Database, D1Statement, SqlValue } from './bindings';
 
@@ -25,11 +27,11 @@ export function testDb(migrationsDir = 'migrations') {
   const limits = (sqlite as { limits?: { compoundSelect: number } }).limits;
   if (limits) limits.compoundSelect = D1_MAX_COMPOUND_SELECT;
   onTestFinished(() => sqlite.close());
-  const migrations = new URL(`../../${migrationsDir}/`, import.meta.url);
+  const migrations = resolve(dirname(fileURLToPath(import.meta.url)), '../../', migrationsDir);
   for (const file of readdirSync(migrations)
     .filter((name) => name.endsWith('.sql'))
     .sort())
-    sqlite.exec(readFileSync(new URL(file, migrations), 'utf8'));
+    sqlite.exec(readFileSync(resolve(migrations, file), 'utf8'));
   const db: D1Database = {
     prepare: (sql) => new Statement(sql),
     async batch<T>(statements: D1Statement[]) {

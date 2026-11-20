@@ -50,3 +50,26 @@ Decision: `docs/adr/0007-central-lab-store.md`. Existing local data is sample da
 - **C5 Permissions** (later): filter on the `created_by`, `project_id`, `lab_id` and `visibility` columns.
 
 After C4, the semantic layer (steps 1 → 4) builds on the same collection registry.
+
+## C2 verification after deploy
+
+Apply `worker/migrations-data/0002_body_order.sql` to the lab data database, then deploy the updated worker
+before deploying the app.
+Signed-in sessions use the worker for extraction projects, research designs, bank snapshots and AutoResearch
+runs. A worker response of `503 data_not_configured` selects browser storage for the session and shows a
+notice. Extraction audit entries are appended within their owning project commit. Other audit operations,
+the 9router key and AI consent keep their existing storage.
+
+Run the latency probe from the network you want to measure. Supply a current PaperLab ID token through
+`PAPERLAB_DATA_TOKEN`. Set `PAPERLAB_DATA_URL` to override the deployed worker URL and optionally set
+`PAPERLAB_DATA_SAMPLES` to change the default of 20 timed requests per operation.
+
+```sh
+node scripts/measure/dataStore.mjs
+```
+
+The probe creates temporary extraction projects with 0.1, 1 and 5 MB JSON bodies. It reports p50 and p95
+for list summaries, lists with bodies, GET and conditional PUT, followed by a commit with a 1 MB write and
+a separate read guard. It soft-deletes its projects on exit. Use the browser Network panel to record PUT
+spacing during a 20-paper run, then repeat with two signed-in tabs to measure conflicts. Check that each
+stage's final checkpoint reaches the worker and reloads from a new tab.

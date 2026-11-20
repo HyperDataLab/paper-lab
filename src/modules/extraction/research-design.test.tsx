@@ -9,7 +9,10 @@ import type { LlmClient } from '@/shared/llm/client';
 import { revokeConsent } from '@/shared/llm/consent';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
-import { StorageProvider } from '@/shared/storage/StorageProvider';
+import { StorageProvider, StorageStatus } from '@/shared/storage/StorageProvider';
+import { AuthContext } from '@/shared/auth/authContext';
+import { testWorkerData } from '@/shared/storage/remoteTestSupport';
+import ExtractionPage from './Page';
 import ProjectPage from './ProjectPage';
 import { currentArtifact, selectable } from '@/core/autoresearch/artifacts';
 import { STAGES } from '@/core/autoresearch/contracts';
@@ -20,6 +23,78 @@ function Location() {
   const location = useLocation();
   return <output data-testid="location">{location.search}</output>;
 }
+
+const testAuth = {
+  user: { uid: 'test', email: 'test@hyperdatalab.org', name: null },
+  ready: true,
+  error: '',
+  signIn: async () => {},
+  signOut: async () => {},
+  getIdToken: async () => 'lab-test',
+};
+
+it('creates an extraction project and edits its research design through the signed-in worker store', async () => {
+  const worker = testWorkerData();
+  vi.stubGlobal('crypto', webcrypto);
+  vi.stubGlobal('fetch', worker.dispatch);
+  try {
+    render(
+      <AuthContext.Provider value={testAuth}>
+        <MemoryRouter initialEntries={['/extraction?design=topic']}>
+          <StorageProvider>
+            <StorageStatus />
+            <LlmProvider innerClient={{ completeJson: vi.fn() }}>
+              <Routes>
+                <Route path="/extraction" element={<ExtractionPage />} />
+                <Route path="/extraction/:id" element={<ProjectPage />} />
+              </Routes>
+            </LlmProvider>
+          </StorageProvider>
+        </MemoryRouter>
+      </AuthContext.Provider>,
+    );
+    await screen.findByText('Chưa có project nào.');
+    fireEvent.click(screen.getByRole('button', { name: 'Project mới' }));
+    fireEvent.change(screen.getByLabelText('Tên project'), { target: { value: 'Shared extraction' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo project' }));
+    await screen.findByRole('heading', { name: 'Shared extraction' });
+    fireEvent.click(await screen.findByRole('tab', { name: 'Topic và research gaps' }));
+    const statement = await screen.findByRole('textbox', { name: 'Phát biểu đề tài' });
+    fireEvent.change(statement, { target: { value: 'A topic stored by the lab.' } });
+    fireEvent.blur(statement);
+    const remote = worker.connect();
+    const [row] = await remote.query('extractionProjects', { select: 'summary' });
+    if (!row) throw new Error('Project missing from the worker');
+    await waitFor(async () => {
+      expect((await remote.get('researchDesigns', row.id))?.doc).toMatchObject({
+        topicCheck: { statement: 'A topic stored by the lab.' },
+      });
+    });
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+it('shows the browser-storage notice when the signed-in worker has no data binding', async () => {
+  const worker = testWorkerData(false);
+  vi.stubGlobal('fetch', worker.dispatch);
+  try {
+    render(
+      <AuthContext.Provider value={testAuth}>
+        <MemoryRouter>
+          <StorageProvider>
+            <StorageStatus />
+            <ExtractionPage />
+          </StorageProvider>
+        </MemoryRouter>
+      </AuthContext.Provider>,
+    );
+    expect(await screen.findByText(/Kho dữ liệu lab chưa được cấu hình/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Project mới' })).toBeInTheDocument();
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
 
 async function mountProject(
   paperId: string | null,

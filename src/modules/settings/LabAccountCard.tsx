@@ -5,7 +5,7 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import styles from './page.module.css';
 
-/** Who is signed in to the lab, and what that changes: only where original PDFs are kept. */
+/** The account that grants access to the lab's shared storage. */
 export function LabAccountCard() {
   const { user, ready, error, signIn, signOut } = useAuth();
   return (
@@ -14,9 +14,9 @@ export function LabAccountCard() {
         <header>
           <h2>Tài khoản lab</h2>
           <p>
-            Đăng nhập bằng tài khoản Google @{LAB_DOMAIN} để lưu PDF gốc của bài vào kho chung của lab và mở
-            được trên máy khác. Thành viên lab đã đăng nhập đều mở được các PDF trong kho. Không đăng nhập thì
-            PDF chỉ nằm trên máy này; mọi phân tích vẫn chạy như bình thường.
+            Đăng nhập bằng tài khoản Google @{LAB_DOMAIN} để dùng PDF gốc, dự án trích xuất, thiết kế nghiên
+            cứu và lượt chạy AutoResearch trong kho chung của lab. Khi đăng xuất, ứng dụng dùng dữ liệu trên
+            thiết bị này.
           </p>
         </header>
         <div className={styles.fields}>

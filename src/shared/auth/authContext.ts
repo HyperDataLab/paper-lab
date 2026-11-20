@@ -13,7 +13,7 @@ export interface AuthValue {
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   /** A fresh ID token for the lab's services, or null when nobody is signed in. */
-  getIdToken: () => Promise<string | null>;
+  getIdToken: (expectedUid?: string) => Promise<string | null>;
 }
 
 const signedOut: AuthValue = {

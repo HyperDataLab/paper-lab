@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { newProject } from '@/core/extraction';
+import { newRun } from '@/core/autoresearch/run';
 import { emptyResearchDesign } from '@/core/schemas/researchDesign';
 import { createDb } from './db';
 import { DexieDocStore } from './dexieDocStore';
@@ -9,68 +10,70 @@ import { MemoryDocStore, type DocStore } from './docStore';
 import { AutoResearchConflictError, ResearchDesignConflictError, StorageConflictError } from './errors';
 import { createRepositories } from './repositories';
 import { testRepositories } from './testRepositories';
+import { CompositeDocStore } from './compositeDocStore';
+import { testId, testWorkerData } from './remoteTestSupport';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 
 const at = '2026-11-19T00:00:00.000Z';
+const [a, b, c] = [testId(1), testId(2), testId(3)] as const;
+const [p1, p2] = [testId(4), testId(5)] as const;
 const run = (id: string, projectId: string, createdAt: string, status = 'running') => ({
-  id,
-  projectId,
-  createdAt,
-  updatedAt: createdAt,
+  ...newRun(projectId, id, 10, createdAt),
   status,
 });
 
 const stores: [string, () => DocStore][] = [
   ['MemoryDocStore', () => new MemoryDocStore()],
   ['DexieDocStore', () => new DexieDocStore(createDb(`test-${crypto.randomUUID()}`))],
+  ['RemoteDocStore', () => testWorkerData().connect()],
 ];
 
 describe.each(stores)('%s contract', (_name, make) => {
   it('puts and gets documents with versions and guards', async () => {
     const store = make();
-    expect(await store.get('autoresearchRuns', 'a')).toBeNull();
-    const first = await store.put('autoresearchRuns', 'a', run('a', 'p1', at), null);
-    const row = await store.get('autoresearchRuns', 'a');
-    expect(row).toEqual({ doc: run('a', 'p1', at), version: first });
-    await expect(store.put('autoresearchRuns', 'a', run('a', 'p1', at), null)).rejects.toBeInstanceOf(
+    expect(await store.get('autoresearchRuns', a)).toBeNull();
+    const first = await store.put('autoresearchRuns', a, run(a, p1, at), null);
+    const row = await store.get('autoresearchRuns', a);
+    expect(row).toEqual({ doc: run(a, p1, at), version: first });
+    await expect(store.put('autoresearchRuns', a, run(a, p1, at), null)).rejects.toBeInstanceOf(
       StorageConflictError,
     );
-    await expect(store.put('autoresearchRuns', 'a', run('a', 'p1', at), first + 5)).rejects.toMatchObject({
+    await expect(store.put('autoresearchRuns', a, run(a, p1, at), first + 5)).rejects.toMatchObject({
       collection: 'autoresearchRuns',
-      id: 'a',
+      id: a,
       serverVersion: first,
     });
-    const second = await store.put('autoresearchRuns', 'a', run('a', 'p2', at), first);
+    const second = await store.put('autoresearchRuns', a, run(a, p2, at), first);
     expect(second).toBeGreaterThan(first);
-    expect(await store.getMany('autoresearchRuns', ['a', 'missing'])).toEqual([
-      { doc: run('a', 'p2', at), version: second },
+    expect(await store.getMany('autoresearchRuns', [a, 'missing'])).toEqual([
+      { doc: run(a, p2, at), version: second },
       null,
     ]);
-    await store.remove('autoresearchRuns', 'a', second);
-    expect(await store.get('autoresearchRuns', 'a')).toBeNull();
+    await store.remove('autoresearchRuns', a, second);
+    expect(await store.get('autoresearchRuns', a)).toBeNull();
   });
 
   it('queries by index with order, limit and summaries', async () => {
     const store = make();
-    await store.put('autoresearchRuns', 'b', run('b', 'p1', '2026-01-02T00:00:00.000Z'));
-    await store.put('autoresearchRuns', 'a', run('a', 'p1', '2026-01-01T00:00:00.000Z'));
-    await store.put('autoresearchRuns', 'c', run('c', 'p2', '2026-01-03T00:00:00.000Z'));
+    await store.put('autoresearchRuns', b, run(b, p1, '2026-01-02T00:00:00.000Z'));
+    await store.put('autoresearchRuns', a, run(a, p1, '2026-01-01T00:00:00.000Z'));
+    await store.put('autoresearchRuns', c, run(c, p2, '2026-01-03T00:00:00.000Z'));
     const ids = (rows: { id: string }[]) => rows.map((row) => row.id);
-    expect(ids(await store.query('autoresearchRuns', { where: { projectId: 'p1' } }))).toEqual(['a', 'b']);
+    expect(ids(await store.query('autoresearchRuns', { where: { projectId: p1 } }))).toEqual([a, b]);
     expect(ids(await store.query('autoresearchRuns', { orderBy: 'createdAt', desc: true }))).toEqual([
-      'c',
-      'b',
-      'a',
+      c,
+      b,
+      a,
     ]);
-    expect(ids(await store.query('autoresearchRuns', { orderBy: 'createdAt', limit: 1 }))).toEqual(['a']);
+    expect(ids(await store.query('autoresearchRuns', { orderBy: 'createdAt', limit: 1 }))).toEqual([a]);
     const [summary] = await store.query('autoresearchRuns', {
-      where: { projectId: 'p2' },
+      where: { projectId: p2 },
       select: 'summary',
     });
-    expect(summary?.doc).toEqual({
-      id: 'c',
-      projectId: 'p2',
+    expect(summary?.doc).toMatchObject({
+      id: c,
+      projectId: p2,
       status: 'running',
       createdAt: '2026-01-03T00:00:00.000Z',
       updatedAt: '2026-01-03T00:00:00.000Z',
@@ -79,21 +82,21 @@ describe.each(stores)('%s contract', (_name, make) => {
 
   it('commits a unit of work at once, sees its own writes, and drops everything on error', async () => {
     const store = make();
-    await store.put('autoresearchRuns', 'a', run('a', 'p1', at));
+    await store.put('autoresearchRuns', a, run(a, p1, at));
     const seen = await store.unitOfWork(async (tx) => {
-      await tx.put('autoresearchRuns', 'b', run('b', 'p1', at), null);
-      await tx.remove('autoresearchRuns', 'a');
-      return (await tx.query('autoresearchRuns', { where: { projectId: 'p1' } })).map((row) => row.id);
+      await tx.put('autoresearchRuns', b, run(b, p1, at), null);
+      await tx.remove('autoresearchRuns', a);
+      return (await tx.query('autoresearchRuns', { where: { projectId: p1 } })).map((row) => row.id);
     });
-    expect(seen).toEqual(['b']);
-    expect(await store.get('autoresearchRuns', 'a')).toBeNull();
+    expect(seen).toEqual([b]);
+    expect(await store.get('autoresearchRuns', a)).toBeNull();
     await expect(
       store.unitOfWork(async (tx) => {
-        await tx.put('autoresearchRuns', 'c', run('c', 'p1', at));
+        await tx.put('autoresearchRuns', c, run(c, p1, at));
         throw new Error('stop');
       }),
     ).rejects.toThrow('stop');
-    expect(await store.get('autoresearchRuns', 'c')).toBeNull();
+    expect(await store.get('autoresearchRuns', c)).toBeNull();
   });
 });
 
@@ -120,36 +123,36 @@ it('DexieDocStore maps registry ids onto compound Dexie keys, and paper deletion
 describe('MemoryDocStore conflicts', () => {
   it('retries a unit of work once when a read document changed, then gives up', async () => {
     const store = new MemoryDocStore();
-    await store.put('autoresearchRuns', 'a', run('a', 'p1', at));
+    await store.put('autoresearchRuns', a, run(a, p1, at));
     let attempts = 0;
     await store.unitOfWork(async (tx) => {
       attempts++;
-      const row = await tx.get('autoresearchRuns', 'a');
-      if (attempts === 1) await store.put('autoresearchRuns', 'a', run('a', 'p1', at, 'waiting'));
-      await tx.put('autoresearchRuns', 'a', { ...(row!.doc as object), status: 'ended' });
+      const row = await tx.get('autoresearchRuns', a);
+      if (attempts === 1) await store.put('autoresearchRuns', a, run(a, p1, at, 'waiting'));
+      await tx.put('autoresearchRuns', a, { ...(row!.doc as object), status: 'ended' });
     });
     expect(attempts).toBe(2);
-    expect((await store.get('autoresearchRuns', 'a'))?.doc).toMatchObject({ status: 'ended' });
+    expect((await store.get('autoresearchRuns', a))?.doc).toMatchObject({ status: 'ended' });
 
     await expect(
       store.unitOfWork(async (tx) => {
-        await tx.get('autoresearchRuns', 'a');
-        await store.put('autoresearchRuns', 'a', run('a', 'p1', at));
-        await tx.put('autoresearchRuns', 'a', run('a', 'p1', at, 'ended'));
+        await tx.get('autoresearchRuns', a);
+        await store.put('autoresearchRuns', a, run(a, p1, at));
+        await tx.put('autoresearchRuns', a, run(a, p1, at, 'ended'));
       }),
-    ).rejects.toMatchObject({ collection: 'autoresearchRuns', id: 'a' });
+    ).rejects.toMatchObject({ collection: 'autoresearchRuns', id: a });
   });
 
   it('commits a query-only unit of work at once when nothing changed', async () => {
     const store = new MemoryDocStore();
-    await store.put('autoresearchRuns', 'b', run('b', 'p1', at));
-    await store.put('autoresearchRuns', 'a', run('a', 'p1', at));
+    await store.put('autoresearchRuns', b, run(b, p1, at));
+    await store.put('autoresearchRuns', a, run(a, p1, at));
     let attempts = 0;
     await store.unitOfWork(async (tx) => {
       attempts++;
-      await tx.query('autoresearchRuns', { where: { projectId: 'p1' } });
+      await tx.query('autoresearchRuns', { where: { projectId: p1 } });
       await tx.query('autoresearchRuns', { orderBy: 'createdAt', desc: true, limit: 1 });
-      await tx.put('autoresearchRuns', 'c', run('c', 'p2', at));
+      await tx.put('autoresearchRuns', c, run(c, p2, at));
     });
     expect(attempts).toBe(1);
   });
@@ -159,8 +162,8 @@ describe('MemoryDocStore conflicts', () => {
     let attempts = 0;
     await store.unitOfWork(async (tx) => {
       attempts++;
-      await tx.query('autoresearchRuns', { where: { projectId: 'p1' } });
-      if (attempts === 1) await store.put('autoresearchRuns', 'x', run('x', 'p1', at));
+      await tx.query('autoresearchRuns', { where: { projectId: p1 } });
+      if (attempts === 1) await store.put('autoresearchRuns', testId(6), run(testId(6), p1, at));
     });
     expect(attempts).toBe(2);
   });
@@ -169,6 +172,18 @@ describe('MemoryDocStore conflicts', () => {
 const repositories: [string, () => ReturnType<typeof createRepositories>][] = [
   ['MemoryDocStore', () => testRepositories()],
   ['DexieDocStore', () => createRepositories(createDb(`test-${crypto.randomUUID()}`))],
+  [
+    'CompositeDocStore',
+    () => {
+      const db = createDb(`test-${crypto.randomUUID()}`);
+      return createRepositories(
+        db,
+        undefined,
+        undefined,
+        new CompositeDocStore(new DexieDocStore(db), testWorkerData().connect()),
+      );
+    },
+  ],
 ];
 
 describe.each(repositories)('project repositories over %s', (_name, make) => {
