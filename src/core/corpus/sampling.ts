@@ -39,6 +39,13 @@ export function harvestQuery(protocol: {
   return `https://api.openalex.org/works?${params}`;
 }
 
+export function harvestPageUrl(url: string, cursor: string) {
+  const query = new URL(url);
+  query.searchParams.set('per-page', '200');
+  query.searchParams.set('cursor', cursor);
+  return query.toString();
+}
+
 export function excludeRecord(work: Work): string | null {
   if (work.is_retracted) return 'retracted';
   if (!work.doi?.trim()) return 'missing_doi';
