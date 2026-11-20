@@ -32,15 +32,19 @@ export function createCorpusKeywordsRepository(
       const dois = [...new Set(corpus.members.flatMap((member) => doiOf(member.identifiers.doi) ?? []))];
       const byId = new Map<string, LibraryItem>();
       const byDoi = new Map<string, LibraryItem>();
-      const linked = (await store.getMany('library', libraryIds)).flatMap((row) =>
-        row ? [LibraryItemSchema.parse(row.doc)] : [],
-      );
-      for (const item of [...linked, ...(await libraryByDois(store, dois))]) {
+      // Start every read together: Dexie's liveQuery only tracks reads issued before its context is lost.
+      const [linkedRows, byDoiItems, fetchedRows] = await Promise.all([
+        store.getMany('library', libraryIds),
+        libraryByDois(store, dois),
+        store.getMany('doiKeywords', dois),
+      ]);
+      const linked = linkedRows.flatMap((row) => (row ? [LibraryItemSchema.parse(row.doc)] : []));
+      for (const item of [...linked, ...byDoiItems]) {
         byId.set(item.id, item);
         byDoi.set(item.doi, item);
       }
       const fetched = new Map(
-        (await store.getMany('doiKeywords', dois)).flatMap((row) => {
+        fetchedRows.flatMap((row) => {
           if (!row) return [];
           const value = DoiKeywordsSchema.parse(row.doc);
           return [[value.doi, value.keywords] as const];
