@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usableGrobid } from '@/core/grobid/merge';
 import type { GrobidRecord, Paper } from '@/core/schemas';
 import { useAuth } from '@/shared/auth/authContext';
@@ -85,7 +85,9 @@ export function useGrobid(paper: Paper | null, onChanged: () => void): GrobidSta
 
   // Until the new paper's record is read, the previous paper's state is not shown or merged.
   const own = !state.record || state.record.paperId === paperId;
-  return own
-    ? { ...state, refetch: paper ? start : null }
-    : { ...GROBID_IDLE, refetch: paper ? start : null };
+  const refetch = paper ? start : null;
+  return useMemo(
+    () => (own ? { ...state, refetch } : { ...GROBID_IDLE, refetch }),
+    [own, refetch, state],
+  );
 }
