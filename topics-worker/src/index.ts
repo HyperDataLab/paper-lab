@@ -1,5 +1,5 @@
 import { Container, getContainer } from '@cloudflare/containers';
-import { createRemoteJWKSet } from 'jose';
+import { createRemoteJWKSet, customFetch } from 'jose';
 import { handle, refreshJob, type Bucket, type Deps } from './app';
 import { SECURETOKEN_JWKS, verifyFirebaseToken } from './auth';
 
@@ -69,7 +69,11 @@ interface Env {
   ALLOWED_DOMAIN: string;
   ALLOWED_ORIGINS: string;
 }
-const jwks = createRemoteJWKSet(new URL(SECURETOKEN_JWKS));
+// A Worker's fetch goes through Cloudflare's cache, which keeps Google's key set for its ~7 h max-age; after a key
+// rotation every newly signed token would fail. jose already caches the keys in the isolate.
+const jwks = createRemoteJWKSet(new URL(SECURETOKEN_JWKS), {
+  [customFetch]: (url, options) => fetch(url, { ...options, cache: 'no-store' }),
+});
 export default {
   fetch(request: Request, env: Env) {
     return handle(request, {

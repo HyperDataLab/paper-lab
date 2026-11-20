@@ -1,4 +1,4 @@
-import { createRemoteJWKSet } from 'jose';
+import { createRemoteJWKSet, customFetch } from 'jose';
 import { getContainer } from '@cloudflare/containers';
 import { handle, type Bucket } from './app';
 import { SECURETOKEN_JWKS, verifyFirebaseToken } from './auth';
@@ -36,7 +36,11 @@ function nlpParse(env: Env) {
     });
 }
 
-const jwks = createRemoteJWKSet(new URL(SECURETOKEN_JWKS));
+// A Worker's fetch goes through Cloudflare's cache, which keeps Google's key set for its ~7 h max-age; after a key
+// rotation every newly signed token would fail. jose already caches the keys in the isolate.
+const jwks = createRemoteJWKSet(new URL(SECURETOKEN_JWKS), {
+  [customFetch]: (url, options) => fetch(url, { ...options, cache: 'no-store' }),
+});
 
 async function processPdf(binding: Env['GROBID'], pdf: ArrayBuffer): Promise<Response> {
   const container = getContainer(binding);
