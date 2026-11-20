@@ -54,9 +54,25 @@ export class AutoResearchConflictError extends StorageConflictError {
 export class CorpusConflict extends StorageConflictError {
   override name = 'CorpusConflict';
   constructor(
-    public version: string | null,
+    public version: number | null,
     id = '',
   ) {
     super('corpora', id, version, 'Corpus đã được người khác sửa');
+  }
+}
+
+/** The lab store refused a write because another live record holds the same unique value (a library DOI). */
+export class UniqueConflictError extends RemoteStorageError {
+  override name = 'UniqueConflictError';
+  constructor(detail = 'Another live record has the same DOI.') {
+    super(409, 'unique_conflict', detail);
+  }
+}
+
+/** A DOI that is already in the Library. */
+export class DuplicateDoiError extends Error {
+  override name = 'DuplicateDoiError';
+  constructor(cause?: unknown) {
+    super('DOI này đã có trong Library.', { cause });
   }
 }

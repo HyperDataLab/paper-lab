@@ -1,4 +1,4 @@
-import { Library, Plus, RefreshCw } from 'lucide-react';
+import { Library, Plus } from 'lucide-react';
 import { Badge } from '@/shared/ui/Badge';
 import { ItemCard, ItemGrid } from '@/shared/ui/ItemCard';
 import { useEffect, useState } from 'react';
@@ -7,8 +7,6 @@ import { newCorpus } from '@/core/corpus';
 import type { Corpus } from '@/core/schemas/corpus';
 import { useAuth } from '@/shared/auth/authContext';
 import { searchBankJournals } from '@/shared/bank/journals';
-import { pullCorpus, pullCorpora, pushCorpus } from '@/shared/corpusSync';
-import { CorpusConflict } from '@/shared/storage/errors';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { Dialog, DialogActions } from '@/shared/ui/Dialog';
@@ -25,7 +23,6 @@ import styles from './corpus.module.css';
 export default function Page() {
   const repo = useRepositories();
   const { user, getIdToken } = useAuth();
-  const [conflict, setConflict] = useState<{ corpus: Corpus; version: string | null }>();
   const navigate = useNavigate();
   const [items, setItems] = useState<Corpus[]>([]);
   const [creating, setCreating] = useState(false);
@@ -34,73 +31,6 @@ export default function Page() {
   const [kind, setKind] = useState<Corpus['kind']>('topic');
   const [error, setError] = useState('');
   const [removing, setRemoving] = useState<Corpus | null>(null);
-  async function sync() {
-    try {
-      const token = await getIdToken();
-      if (!token) return;
-      const remote = await pullCorpora(token);
-      const local = await repo.corpora.list();
-      for (const item of local) {
-        const other = remote.find((entry) => entry.id === item.id);
-        const state = await repo.corpora.syncState(item.id);
-        const dirty = !state || state.snapshot !== JSON.stringify(item);
-        if (other && dirty && state?.version !== other.version) {
-          setConflict({ corpus: item, version: other.version });
-          break;
-        }
-        if (!other || (dirty && other.version === state?.version)) {
-          try {
-            const version = await pushCorpus(item, state?.version ?? null, token);
-            await repo.corpora.setSyncState(item.id, version, item);
-          } catch (e) {
-            if (e instanceof CorpusConflict) {
-              setConflict({ corpus: item, version: e.version });
-              break;
-            }
-            throw e;
-          }
-        } else if (!dirty && other.version !== state?.version && other.updatedAt > item.updatedAt) {
-          const value = await pullCorpus(item.id, token);
-          if (!(await repo.corpora.replaceSynced(value.corpus, value.version, item))) {
-            const latest = await repo.corpora.get(item.id);
-            if (latest) setConflict({ corpus: latest, version: value.version });
-          }
-        }
-      }
-      for (const item of remote.filter((entry) => !local.some((value) => value.id === entry.id))) {
-        const value = await pullCorpus(item.id, token);
-        if (!(await repo.corpora.replaceSynced(value.corpus, value.version, undefined))) {
-          const latest = await repo.corpora.get(item.id);
-          if (latest) setConflict({ corpus: latest, version: value.version });
-        }
-      }
-      setItems(await repo.corpora.list());
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-  async function resolveConflict(keep: boolean) {
-    if (!conflict) return;
-    try {
-      const token = await getIdToken();
-      if (!token) return;
-      if (keep) {
-        const latest = await repo.corpora.get(conflict.corpus.id);
-        if (!latest) return;
-        const version = await pushCorpus(latest, conflict.version, token);
-        await repo.corpora.setSyncState(latest.id, version, latest);
-      } else {
-        const value = await pullCorpus(conflict.corpus.id, token);
-        await repo.corpora.save(value.corpus);
-        await repo.corpora.setSyncState(value.corpus.id, value.version, value.corpus);
-      }
-      setConflict(undefined);
-      setItems(await repo.corpora.list());
-    } catch (e) {
-      if (e instanceof CorpusConflict) setConflict({ ...conflict, version: e.version });
-      else setError(String(e));
-    }
-  }
   useEffect(() => {
     void repo.corpora
       .list()
@@ -156,11 +86,6 @@ export default function Page() {
         title="Corpus"
         lead="Tập bài báo có tiêu chí chọn rõ ràng, dùng làm nền cho tổng hợp và so sánh."
       >
-        {user && (
-          <Button onClick={() => void sync()} leadingIcon={<RefreshCw size={16} aria-hidden="true" />}>
-            Đồng bộ
-          </Button>
-        )}
         <Button
           variant="primary"
           leadingIcon={<Plus size={16} aria-hidden="true" />}
@@ -174,18 +99,7 @@ export default function Page() {
       </PageHeader>
       <p>Seed cho cặp ESWA: {ESWA_SEED}</p>
       {error && <p role="alert">{error}</p>}
-      {conflict && (
-        <div role="alert" className={styles.conflict}>
-          <p>Corpus đã được người khác sửa: {conflict.corpus.title}</p>
-          <Button size="sm" onClick={() => void resolveConflict(false)}>
-            Tải bản mới
-          </Button>
-          <Button size="sm" onClick={() => void resolveConflict(true)}>
-            Giữ bản của tôi
-          </Button>
-        </div>
-      )}
-      {!user && <p className={styles.muted}>Đăng nhập tài khoản lab để đồng bộ corpus giữa các máy.</p>}
+      {!user && <p className={styles.muted}>Đăng nhập tài khoản lab để lưu corpus trong kho dữ liệu lab.</p>}
       {items.length === 0 ? (
         <Empty title="Chưa có corpus nào." hint="Corpus bạn tạo sẽ hiện ở đây.">
           <Button onClick={() => setCreating(true)}>Tạo corpus đầu tiên</Button>
@@ -279,7 +193,7 @@ export default function Page() {
       {removing && (
         <Dialog
           title="Xoá corpus này?"
-          description={`Corpus “${removing.title}” cùng giao thức và các bản phát hành sẽ bị xoá khỏi máy này. Bài báo trong Library không bị xoá.`}
+          description={`Corpus “${removing.title}” cùng giao thức và các bản phát hành sẽ bị xoá. Bài báo trong Library không bị xoá.`}
           onClose={() => setRemoving(null)}
         >
           <DialogActions>

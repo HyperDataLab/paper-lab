@@ -73,12 +73,7 @@ export function createPapersRepository(store: DocStore, deps: StorageDeps) {
         if (!(await tx.get('papers', id))) return;
         await tx.remove('papers', id);
         for (const collection of PER_PAPER) await tx.remove(collection, id);
-        for (const row of await tx.query('library', { where: { paperId: id } }))
-          await tx.put('library', row.id, {
-            ...(row.doc as object),
-            paper_id: null,
-            file_matches_title: null,
-          });
+        // Library links to the paper are cleared by the caller in a commit of their own (library.detachPaper).
         for (const row of await tx.query('reviewNgrams', { where: { paperId: id } }))
           await tx.remove('reviewNgrams', row.id);
         for (const row of await tx.query('paperRuns', { where: { paperId: id }, select: 'summary' }))

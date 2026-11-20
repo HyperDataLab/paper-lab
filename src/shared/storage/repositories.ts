@@ -34,24 +34,36 @@ import { createTransferRepository } from './transfer';
 import { createResearchDesignRepository } from './researchDesigns';
 import { createScgRepository } from './scg';
 import { createAutoResearchRepository } from './autoresearch';
+import { withChangeEvents } from './changeEvents';
 export function createRepositories(
   db: ParagraphDb,
   clock = () => new Date(),
   ids = () => crypto.randomUUID(),
-  store: DocStore = new DexieDocStore(db),
+  baseStore: DocStore = new DexieDocStore(db),
 ): Repositories {
+  // Remote stores have no live queries; readers such as the corpus graph refresh on these write events.
+  const { store, subscribe: changes } = withChangeEvents(baseStore);
   const deps = createStorageDeps(clock, ids);
   const { now, makeAudit } = deps;
   const analyses = createAnalysesRepository(db, deps);
   const audit = createAuditRepository(db);
   const generations = createGenerationsRepository(db, deps);
-  const papers = createPapersRepository(store, deps);
+  const library = createLibraryRepository(store, now, ids);
+  const paperRecords = createPapersRepository(store, deps);
+  const papers: typeof paperRecords = {
+    ...paperRecords,
+    // Papers and the library may sit in different stores, so library links are cleared in a commit of their own.
+    async delete(id: string) {
+      await paperRecords.delete(id);
+      await library.detachPaper(id);
+    },
+  };
   const paperRuns = createPaperRunsRepository(store, deps);
   const paperOverviews = createPaperOverviewsRepository(db, deps, analyses, papers);
   const paperChecks = createPaperChecksRepository(store, deps);
   const paperContext = createPaperContextRepository(store);
-  const calibrationLabels = createCalibrationLabelsRepository(db, deps);
-  const corpora = createCorporaRepository(db);
+  const calibrationLabels = createCalibrationLabelsRepository(store, deps);
+  const corpora = createCorporaRepository(store);
   const revisions = createRevisionsRepository(db, deps, analyses);
   const paperReviews = createPaperReviewsRepository(db, now, makeAudit);
   const paperProbes = createPaperProbesRepository(store, now, makeAudit);
@@ -59,7 +71,6 @@ export function createRepositories(
   const stance = createStanceRepository(store, now, makeAudit);
   const paperInsights = createPaperInsightsRepository(store, now, makeAudit);
   const extraction = createExtractionRepository(store, now, makeAudit);
-  const library = createLibraryRepository(store, now, ids);
   const corpusKeywords = createCorpusKeywordsRepository(store, library, now);
   const scg = createScgRepository(store, clock);
   const pdfFiles = createPdfFilesRepository(db, now);
@@ -103,7 +114,7 @@ export function createRepositories(
     corpusProfiles: createCorpusProfilesRepository(store),
     corpusTopics: createCorpusTopicsRepository(store),
     corpusKeywords,
-    corpusOpenKg: createCorpusOpenKgRepository(db, corpusKeywords, scg),
+    corpusOpenKg: createCorpusOpenKgRepository(store, changes, corpusKeywords, scg),
     pdfFiles,
     grobid: createGrobidRepository(store),
     calibrationLabels,

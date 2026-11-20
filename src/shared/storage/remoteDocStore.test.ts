@@ -170,7 +170,7 @@ it('keeps browser and lab units of work separate and uses Dexie for an unconfigu
     online.unitOfWork(
       async (tx) => {
         await tx.put(collection, projectId, project, null);
-        await tx.get('library', 'anything');
+        await tx.get('pdfFiles', 'anything');
       },
       [collection],
     ),
