@@ -117,3 +117,17 @@ the harvest filter.
    **Tính profile**.
 6. Choose **Tải profile v2 (nháp)** and import the exported `*.corpus-profile-v2.draft.json` as real profile
    data in Writing Bank. See the [v2 export contract](../contracts/corpus-profile-v2.md).
+
+### Acquire PDFs through Paper Fetch Hub
+
+Once the Hub lab API is deployed, set `VITE_FETCH_HUB_URL` to the Hub Worker base URL in the PaperLab
+build environment. Sign in with your PaperLab lab account, open a corpus and choose **Gửi DOI sang
+Paper Fetch Hub** under **Thu thập và dựng paper model**. PaperLab submits members with a DOI that still
+need full text and shows how many requests were created, joined or invalid.
+
+Choose **Cập nhật từ Hub** to check immediately. Pending requests are checked every ten minutes while
+the page is visible. Resolve any **Cần người xử lý** items in the Hub. PaperLab imports finished PDFs
+through its own worker. Continue with **Dựng paper model** once the members show **Đã lấy**.
+
+The DOI file export is available as **Xuất danh sách DOI (.txt)** when the API is configured. If the URL
+is unset, **Gửi DOI sang Paper Fetch Hub** downloads `paper-fetch-hub-dois.txt` for manual import.

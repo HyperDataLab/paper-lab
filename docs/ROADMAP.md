@@ -90,6 +90,9 @@ The journal form searches Writing Bank's live journal registry and reads article
 Protocol versions record the stable registry ID, its writing profile when available and the release of any selected
 article types. Manual entry and the built-in ESWA values remain available when Writing Bank cannot be reached.
 
+The corpus build card integrates with the Paper Fetch Hub lab API when `VITE_FETCH_HUB_URL` is set.
+The PaperLab client is ready for the Hub deployment. See the [PDF acquisition workflow](datasets/FL_JOURNAL_CORPORA.md#acquire-pdfs-through-paper-fetch-hub).
+
 ## Corpus topics
 
 The corpus topics service runs BERTopic and KeyBERT in a separate Cloudflare container, with snapshots

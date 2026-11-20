@@ -13,4 +13,4 @@ const module: ModuleDefinition = {
 };
 export default module;
 export { SECTION_ROLE_LABELS as ROLE_LABELS } from './sectionRoles';
-export { importPaperFile } from './importPaperFile';
+export { importPaperFile, importStoredPdf } from './importPaperFile';
