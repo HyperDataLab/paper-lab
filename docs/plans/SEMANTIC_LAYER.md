@@ -5,9 +5,9 @@ agents (the lab MCP server, AutoResearch PI / Critic, UI agents) understand Pape
 corpora. Everything is plain TypeScript data plus pure helpers in `src/core/semantic/`; no embeddings, no new
 runtime dependency. The four steps run in order, and each one builds on the previous step's output.
 
-The data the layer describes lives in the central store (D1 `paperlab-data` plus R2, ADR-0007): the collection
-registry `src/core/storage/collections.ts` with its zod schemas, the lab KG tables in `worker/migrations/*.sql`,
-and raw R2 objects (original PDFs under `paperlab/pdfs/`).
+The layer describes the central store (D1 `paperlab-data` plus R2, ADR-0007), including its collection registry
+and Zod schemas in `src/core/storage/collections.ts` and original PDFs under `paperlab/pdfs/`. The lab KG has
+its own D1 database, `paperlab-kg`, with migrations in `worker/migrations/*.sql`.
 
 ## Step 1: concept registry (done)
 
@@ -98,16 +98,16 @@ The registry ships to the MCP server as `toJson()` output (a generated JSON file
 source), so the server never imports app code. `describe_corpus` reads the central store through the existing
 data routes. No tool writes.
 
-## Step 4: read-only text-to-SQL on the lab KG
+## Step 4: read-only text-to-SQL on the lab KG (done)
 
 Files: `worker/src/kg/sql.ts` (validator and runner), `src/core/semantic/kgSchema.ts` (the KG part of the
 registry rendered as a prompt schema), tests next to each.
 
-- The prompt gets only the `kg` concepts: tables, columns, descriptions and relations.
-- The model returns one SQL statement. The worker accepts it only when it parses as a single `SELECT` (or
-  `WITH … SELECT`) over the KG tables, with no `PRAGMA`, `ATTACH`, writes or the `doc` tables; adds a `LIMIT`
-  (default 100, maximum 1000); and runs it with a time limit. The validator is what keeps it read-only; use a
-  read-only D1 access path as well if Cloudflare offers one by then (not checked for this plan).
-- Output: `{ sql, columns, rows, truncated, concepts }`. `concepts` names the registry concepts the query used,
-  so answers stay traceable.
-- Tests use a synthetic KG built from the migrations; rejected statements have named failing cases.
+- The question and the `kg` schema go to 9router from the browser after consent. The prompt version is
+  `kg-sql-1`. The model returns a statement and an explanation. KG rows stay out of the model request.
+- The browser posts the statement to `POST /v1/kg/sql`. The authenticated worker validates one `SELECT` or
+  non-recursive `WITH … SELECT` against the registry and runs it on the `KG` binding. See the
+  [route contract](../contracts/lab-kg.md) for validation and limits.
+- `/lab-kg` shows the generated SQL, explanation, result table, truncation and the registry concepts used.
+- Validator, route and UI tests use synthetic data. Deploy the worker before Firebase Hosting so the panel
+  can reach the new route. The existing KG binding suffices and this step adds no migration or worker secret.

@@ -4,7 +4,23 @@ The PaperLab PDF worker builds the lab graph from OpenAlex works. It stores grap
 
 ## HTTP contract
 
-Every `/v1/kg/*` route requires `Authorization: Bearer <Firebase ID token>` from an accepted project and a verified lab account. Missing or invalid credentials return `401`, and an account outside the lab returns `403`. An authenticated request gets `503` with `error: "kg_not_configured"` when any of `KG`, `KG_VECTORS` or `AI` is absent. Errors use the worker's usual `{ error, message }` JSON shape.
+Every `/v1/kg/*` route requires `Authorization: Bearer <Firebase ID token>` from an accepted project and a verified lab account. Missing or invalid credentials return `401`, and an account outside the lab returns `403`. An authenticated request gets `503` with `error: "kg_not_configured"` when a required binding is absent. The SQL route uses `KG` alone. The other routes require `KG`, `KG_VECTORS` and `AI`. Errors use the worker's usual `{ error, message }` JSON shape.
+
+### `POST /v1/kg/sql`
+
+Send `{ "sql": "SELECT title FROM paper ORDER BY id", "limit": 10 }`. `limit` is optional and accepts integers
+from 1 to 1,000 (default 100). `200` returns `{ sql, columns, rows, truncated, concepts }` with positional rows
+and registry concept IDs. The worker binds `limit + 1` to an outer `LIMIT` to detect truncation. The route uses
+`Cache-Control: no-store`.
+
+The validator accepts one `SELECT` or non-recursive `WITH … SELECT` with an optional trailing semicolon.
+Sources must be unqualified registry tables, previously declared CTEs or SELECT subqueries. Joins can group
+those sources with parentheses. Comments, write
+and administrative keywords, `RETURNING`, `load_extension`, bind placeholders, table-valued functions,
+SQLite internals, FTS tables and `doc` tables are rejected. SQLite's implicit `IN table` form is rejected.
+Malformed or rejected statements return `400` with an `sql_*` code. Invalid request bodies return
+`bad_request`. The Worker stops waiting after five seconds (`sql_timeout`). D1 enforces the database execution
+ceiling and resource limits. [Cloudflare D1 limits and cancellation support](https://developers.cloudflare.com/d1/observability/debug-d1/)
 
 ### `POST /v1/kg/ingest`
 

@@ -1,3 +1,5 @@
+import { KG_TABLE_CONCEPTS } from './kgSchema';
+
 /**
  * Semantic layer, step 2: the page map (docs/plans/SEMANTIC_LAYER.md). One entry per route the app serves, with
  * the concepts each page shows, reads and writes, and its main actions. Plain data, so `core` stays free of `app`
@@ -794,24 +796,12 @@ export const PAGES: readonly Page[] = [
     titleVi: 'KG của lab',
     name: 'Lab knowledge graph',
     purpose:
-      'Xem knowledge graph chung của lab (paper, author, keyword, topic và các cạnh), tìm một nút, xem chi tiết và đưa bài còn thiếu vào KG.',
-    shows: [
-      'kg-paper',
-      'kg-author',
-      'kg-keyword',
-      'kg-topic',
-      'kg-source',
-      'kg-institution',
-      'kg-has-keyword',
-      'kg-cites',
-      'kg-authored',
-      'kg-cooccur',
-      'kg-has-topic',
-      'kg-ingest-log',
-    ],
-    reads: ['kg-paper', 'kg-author', 'kg-keyword', 'kg-topic', 'kg-ingest-log', 'paper-context', 'corpus'],
+      'Xem knowledge graph chung của lab, hỏi bằng câu tiếng Việt hoặc tiếng Anh, tìm một nút và đưa bài còn thiếu vào KG.',
+    shows: KG_TABLE_CONCEPTS.map(({ id }) => id),
+    reads: [...KG_TABLE_CONCEPTS.map(({ id }) => id), 'paper-context', 'corpus'],
     writes: ['kg-ingest-queue'],
     actions: [
+      { labelVi: 'Hỏi KG (AI)', effect: 'Dùng AI để tạo SQL chỉ đọc và xem kết quả truy vấn KG.', ai: true },
       { labelVi: 'Tìm trong KG', effect: 'Tìm bài hoặc keyword trong KG của lab.' },
       { labelVi: 'Đặt làm tâm', effect: 'Vẽ lại đồ thị quanh nút đã chọn.' },
       {

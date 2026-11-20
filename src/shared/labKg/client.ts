@@ -1,4 +1,5 @@
 import type { SciAtlasSearchRequest } from '@/core/openkg';
+import { KgSqlResultSchema } from '@/core/schemas/kgSql';
 import {
   KG_INGEST_LIMIT,
   KgIngestResultSchema,
@@ -42,6 +43,12 @@ function errorMessage(status: number, code: string, path: string) {
   if (status === 401) return 'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.';
   if (status === 403) return 'Tài khoản này không được dùng KG của lab.';
   if (status === 400 && path === '/search') return 'Yêu cầu chưa hợp lệ: cần ít nhất một keyword hoặc title.';
+  if (status === 400 && path === '/sql') {
+    if (code === 'sql_timeout') return 'Truy vấn KG hết thời gian chờ.';
+    if (code === 'sql_limit') return 'Truy vấn vượt giới hạn của KG.';
+    if (code === 'sql_execution') return 'Không thực thi được SQL. Hãy kiểm tra tên cột hoặc cú pháp.';
+    return 'SQL không hợp lệ hoặc truy cập ngoài phạm vi KG.';
+  }
   if (status === 400) return 'Yêu cầu tới KG của lab chưa hợp lệ.';
   if (status === 404) return 'KG của lab chưa có mục này.';
   if (status === 429) return 'Máy chủ lab đang bận. Hãy thử lại sau ít phút.';
@@ -202,5 +209,18 @@ export async function getLabKgKeyword(id: string, token: string | null, signal?:
   );
   if (!parsed.success)
     throw new LabKgError('Không đọc được keyword trong KG của lab.', 'Invalid keyword response.');
+  return parsed.data;
+}
+
+export async function queryLabKg(sql: string, token: string, signal?: AbortSignal) {
+  const parsed = KgSqlResultSchema.safeParse(
+    await request('/sql', token, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql }),
+      signal,
+    }),
+  );
+  if (!parsed.success) throw new LabKgError('Không đọc được kết quả truy vấn KG.', 'Invalid SQL response.');
   return parsed.data;
 }

@@ -7,8 +7,10 @@ import { drainKgQueue, REQUEST_JOBS } from './ingest';
 import { kgQueue } from './queue';
 import { handleKgRead } from './reads';
 import { handleKgSearch } from './search';
+import { handleKgSql } from './sql';
 
 export async function handleKg(deps: Deps, request: Request, path: string, headers: Record<string, string>) {
+  if (path === '/v1/kg/sql' && deps.kg?.KG) return handleKgSql(deps.kg.KG, request, headers);
   const kg = configuredKg(deps.kg);
   if (!kg) return publishedError(503, 'kg_not_configured', 'The lab KG bindings are unavailable.', headers);
   if (path === '/v1/kg/search') {

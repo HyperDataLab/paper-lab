@@ -4,7 +4,7 @@ import { ConsentRequiredError } from './errors';
 export const CONSENT_VERSION = 1;
 export const PAPER_CONSENT_VERSION = 2;
 const AUTORESEARCH_CONSENT_VERSION = 1;
-export type ConsentScope = 'paper' | 'autoresearch';
+export type ConsentScope = 'paper' | 'autoresearch' | 'kg';
 const consentSchema = z.object({
   version: z.number(),
   provider: z.string(),
