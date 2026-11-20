@@ -63,7 +63,7 @@ export function createRepositories(
   const paperChecks = createPaperChecksRepository(store, deps);
   const paperContext = createPaperContextRepository(store);
   const calibrationLabels = createCalibrationLabelsRepository(store, deps);
-  const corpora = createCorporaRepository(store);
+  const corpora = createCorporaRepository(store, deps);
   const revisions = createRevisionsRepository(db, deps, analyses);
   const paperReviews = createPaperReviewsRepository(db, now, makeAudit);
   const paperProbes = createPaperProbesRepository(store, now, makeAudit);

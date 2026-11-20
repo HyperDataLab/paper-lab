@@ -140,6 +140,7 @@ export function ResearchDesignProvider({
   );
   const ready = !state.loading && !state.error;
   const reload = useCallback(async () => {
+    await repo.researchDesigns.discard(project.id);
     // A ready area keeps its sections mounted so open dialogs survive; after a load error everything is read again.
     if (!ready) {
       setState({ loading: true });

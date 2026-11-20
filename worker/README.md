@@ -151,7 +151,7 @@ lab contact for OpenAlex.
 The lab's records (ADR-0007) live in the D1 database `paperlab-data` (binding `DATA`), one `doc` row per
 record, with bodies in R2 at `paperlab/data/{collection}/{id}/v{n}.json` (one immutable object per version;
 small inline collections keep their body in the row). Collections, their Zod schemas, index columns and size
-caps are in `src/core/storage/collections.ts`. Every route returns `503 data_not_configured` without `DATA`.
+caps are in `src/core/storage/collections.ts`. Authorized requests return `503 data_not_configured` without `DATA`.
 
 - `GET /v1/data/:collection/:id` returns the body with `ETag: "v<n>"`; `If-None-Match` gives 304.
 - `PUT` needs `If-Match: "v<n>"` or `If-None-Match: *` (otherwise 428). The body is validated on the server.
@@ -160,6 +160,9 @@ caps are in `src/core/storage/collections.ts`. Every route returns `503 data_not
   `kind`, `status`, `sourceSha256`) and returns summary rows, or bodies with `include: "body"`.
 - `POST /v1/data/batch-get` reads up to 100 ids. `POST /v1/data/commit` applies up to 100 puts and deletes,
   100 read guards and 200 inline appends in one D1 batch: all of them land, or none (409 lists the conflicts).
+- `POST /v1/data/admin/import-legacy-corpora` requires a lab admin and processes up to eight legacy R2 objects.
+  It creates validated corpora that have no live row and returns `{imported, skipped, failed, cursor}`.
+  Pass a returned cursor as the `cursor` query parameter on the next request. A null cursor ends the import.
 
 Writes are stamped with the caller's email. The cron removes bodies that are no longer current after a day,
 or at once when three versions behind. To provision on the HyperDataLab account, from `worker/`:

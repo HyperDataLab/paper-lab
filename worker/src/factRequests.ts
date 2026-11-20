@@ -1,4 +1,4 @@
-import type { Deps } from './app';
+import { isAdmin, type Deps } from './deps';
 import { publishedError } from './published';
 
 const PREFIX = 'paperlab/fact-requests/';
@@ -23,7 +23,6 @@ const json = (status: number, value: unknown, headers: Headers) =>
     headers: { ...headers, 'Content-Type': 'application/json' },
   });
 const key = (id: string) => `${PREFIX}${id}.json`;
-export const isAdmin = (deps: Deps, email: string) => (deps.adminEmails ?? []).includes(email.toLowerCase());
 
 export async function readFactRequest(deps: Deps, id: string) {
   const object = await deps.bucket.get(key(id));

@@ -57,6 +57,7 @@ export function withChangeEvents(inner: DocStore): { store: DocStore; subscribe:
       return doc;
     };
   if (inner.flush) store.flush = (collection, id) => inner.flush!(collection, id);
+  if (inner.discard) store.discard = inner.discard.bind(inner);
   return {
     store,
     subscribe: (listener) => {

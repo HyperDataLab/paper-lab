@@ -40,6 +40,11 @@ export class RemoteDocStore implements DocStore {
     return this.checkpoints.flush(collection, id);
   }
 
+  async discard(collection: string, id: string) {
+    await this.checkpoints.discard(collection, id);
+    this.cache.delete(keyOf(collection, id));
+  }
+
   async get(collection: string, id: string) {
     const key = keyOf(collection, id);
     const cached = this.cache.get(key);

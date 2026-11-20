@@ -23,6 +23,12 @@ const batchPage = z.object({
 });
 const commitResult = z.object({ results: z.array(ref.extend({ version })) });
 const writeResult = z.object({ version });
+const legacyCorporaPage = z.object({
+  imported: z.number().int().nonnegative(),
+  skipped: z.number().int().nonnegative(),
+  failed: z.number().int().nonnegative(),
+  cursor: z.string().nullable(),
+});
 const errorBody = z.object({
   error: z.string(),
   message: z.string().optional(),
@@ -146,5 +152,11 @@ export class RemoteDataClient {
   async commit(body: object) {
     const result = await this.request('commit', { method: 'POST', body });
     return commitResult.parse(await result.json()).results;
+  }
+
+  async importLegacyCorpora(cursor: string | null) {
+    const query = cursor === null ? '' : `?${new URLSearchParams({ cursor })}`;
+    const result = await this.request(`admin/import-legacy-corpora${query}`, { method: 'POST' });
+    return legacyCorporaPage.parse(await result.json());
   }
 }

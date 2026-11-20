@@ -39,6 +39,7 @@ export function createResearchDesignRepository(store: DocStore, now: () => strin
   };
   return {
     get,
+    discard: (projectId: string) => store.discard?.('researchDesigns', projectId),
     async save(input: ResearchDesign, expectedVersion: number) {
       const parsed = ResearchDesignSchema.parse(input);
       return change(parsed.projectId, ['extractionProjects', 'researchDesigns'], async (tx) => {

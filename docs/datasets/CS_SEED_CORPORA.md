@@ -1,9 +1,10 @@
 # CS seed corpora (agent-seeded, 2026-11-19)
 
 Six Computer Science topic corpora seeded by an agent from OpenAlex (CC0 metadata) at the owner's request. They
-are stored in R2 under `paperlab/corpora/<id>` and appear in PaperLab's corpus list. Members carry DOI, OpenAlex
-W id, year (stratum), `cited_by_count` and subfield, all with role `build`. No screening decisions were made:
-screening is left to a person or the AI triage.
+were seeded in R2 under `paperlab/corpora/<id>`. In Settings, a lab admin can choose **Nhập corpus cũ**
+under **Tài khoản lab** to add missing corpus records to the central store and make them visible in the corpus list.
+Members carry DOI, OpenAlex W id, year (stratum), `cited_by_count` and subfield, all with role `build`.
+No screening decisions were made. Screening is left to a person or the AI triage.
 
 ## How they were built
 

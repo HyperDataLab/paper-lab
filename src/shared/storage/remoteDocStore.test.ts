@@ -140,6 +140,30 @@ it('picks the latest checkpoint when token refresh delays a PUT', async () => {
   expect(await puts[0]?.json()).toMatchObject({ title: 'Queued during refresh' });
 });
 
+it('discards a pending checkpoint that is still waiting for authentication', async () => {
+  const worker = testWorkerData();
+  let releaseToken = (_token: string) => {};
+  const token = new Promise<string>((resolve) => {
+    releaseToken = resolve;
+  });
+  let calls = 0;
+  const store = new RemoteDocStore({
+    baseUrl: 'https://worker.test',
+    fetch: worker.dispatch,
+    getToken: async () => (++calls === 2 ? token : 'lab-test'),
+  });
+  await store.checkpoint(collection, projectId, () => project);
+  expect(calls).toBe(2);
+  const flush = store.flush();
+  await store.discard(collection, projectId);
+  expect(store.getSaveStatus()).toBe('idle');
+  expect(await store.get(collection, projectId)).toBeNull();
+  releaseToken('lab-test');
+  await flush;
+  expect(worker.requests.map((request) => request.method)).toEqual(['GET', 'GET']);
+  expect(await store.put(collection, projectId, { ...project, title: 'Saved after discard' })).toBe(1);
+});
+
 it('retains an unsaved checkpoint after a failed PUT and retries it on the next flush', async () => {
   vi.useFakeTimers();
   const worker = testWorkerData();

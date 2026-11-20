@@ -1,4 +1,7 @@
-import { expect, it } from 'vitest';
+/// <reference types="node" />
+import { readFileSync, readdirSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
+import { expect, it, onTestFinished } from 'vitest';
 import { handle, refreshJob, type Deps } from './app';
 
 const id = '00000000-0000-4000-8000-000000000001';
@@ -7,6 +10,14 @@ const job = '00000000-0000-4000-8000-000000000003';
 const path = `/corpora/${id}/topics`;
 const response = (value: unknown, status = 200) => Response.json(value, { status });
 function setup() {
+  // The deployment workflow installs Vitest in topics-worker only.
+  const sqlite = new DatabaseSync(':memory:');
+  onTestFinished(() => sqlite.close());
+  const migrations = new URL('../../worker/migrations-data/', import.meta.url);
+  for (const file of readdirSync(migrations)
+    .filter((name) => name.endsWith('.sql'))
+    .sort())
+    sqlite.exec(readFileSync(new URL(file, migrations), 'utf8'));
   const values = new Map<string, string>();
   let state: unknown = { state: 'running', progress: 'Embedding' };
   let result: unknown = {
@@ -18,6 +29,13 @@ function setup() {
     topics: [],
   };
   const deps: Deps = {
+    data: {
+      prepare: (sql) => ({
+        bind: (id) => ({
+          first: async <T>() => (sqlite.prepare(sql).get(id) as T | undefined) ?? null,
+        }),
+      }),
+    },
     bucket: {
       get: async (key) => (values.has(key) ? { body: new Blob([values.get(key) ?? '']).stream() } : null),
       put: async (key, value) => {
@@ -47,6 +65,21 @@ function setup() {
     values,
     deps,
     request,
+    addCorpusRow(
+      corpusId: string,
+      inline: string | null,
+      key: string | null,
+      deletedAt: string | null = null,
+    ) {
+      sqlite
+        .prepare(
+          `INSERT INTO doc (
+          collection, id, version, body_json, r2_key, deleted_at, size, sha256,
+          created_by, created_at, updated_by, updated_at, lab_id
+        ) VALUES ('corpora', ?, 1, ?, ?, ?, 0, '', 'test', '', 'test', '', 'lab')`,
+        )
+        .run(corpusId, inline, key, deletedAt);
+    },
     setState: (value: unknown) => {
       state = value;
     },
@@ -55,6 +88,44 @@ function setup() {
     },
   };
 }
+it('runs topics over current R2 and inline corpus bodies rather than legacy copies', async () => {
+  const t = setup();
+  const key = `paperlab/data/corpora/${id}/v2.json`;
+  t.values.set(`paperlab/corpora/${id}`, JSON.stringify({ id, title: 'Legacy corpus', members: [] }));
+  t.addCorpusRow(id, null, key);
+  t.values.set(
+    key,
+    JSON.stringify({ id, kind: 'journal', title: 'Edited corpus', members: [{ memberId: 'new-member' }] }),
+  );
+  t.addCorpusRow(
+    control,
+    JSON.stringify({ id: control, kind: 'control', title: 'Inline control', members: [] }),
+    null,
+  );
+  t.deps.container = async (_url, init) => {
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      corpora: [
+        { corpusId: id, title: 'Edited corpus' },
+        { corpusId: control, title: 'Inline control' },
+      ],
+      members: [{ corpusId: id, memberId: 'new-member' }],
+    });
+    return response({ jobId: job }, 202);
+  };
+  expect((await t.request('POST', '/run', { controlIds: [control] })).status).toBe(202);
+});
+
+it.each([
+  { name: 'invalid', inline: '{}', key: null, deletedAt: null, status: 400 },
+  { name: 'missing its body', inline: null, key: 'paperlab/data/missing', deletedAt: null, status: 404 },
+  { name: 'deleted', inline: null, key: null, deletedAt: '2026-11-20T00:00:00Z', status: 404 },
+])('gives the central row precedence when it is $name', async ({ inline, key, deletedAt, status }) => {
+  const t = setup();
+  t.values.set(`paperlab/corpora/${id}`, JSON.stringify({ id, kind: 'journal', members: [] }));
+  t.addCorpusRow(id, inline, key, deletedAt);
+  expect((await t.request('POST', '/run', {})).status).toBe(status);
+});
+
 it('authenticates requests, starts jobs and stores validated completed results for both corpora', async () => {
   const t = setup();
   expect((await t.request('GET', '', undefined, '')).status).toBe(401);

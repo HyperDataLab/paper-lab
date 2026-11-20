@@ -52,6 +52,8 @@ export interface DocStore extends DocTx {
   /** Accepts a hot checkpoint in memory. Use flush to await persistence. */
   checkpoint?<T>(collection: string, id: string, update: (current: unknown) => T): Promise<T>;
   flush?(collection?: string, id?: string): Promise<void>;
+  /** Drops a checkpoint and its cached base before reloading the document. */
+  discard?(collection: string, id: string): Promise<void>;
   /**
    * Runs `fn` with tracked reads and buffered writes, then commits every write at once. A read document that
    * changed in the meantime is a conflict: `fn` runs once more, and a second conflict throws StorageConflictError.

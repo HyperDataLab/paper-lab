@@ -13,6 +13,11 @@ ALLOWED_ORIGINS = "https://hyperdatalab-paragraph-lab.web.app,https://hyperdatal
 binding = "BUCKET"
 bucket_name = "paper-fetch"
 
+[[d1_databases]]
+binding = "DATA"
+database_name = "paperlab-data"
+database_id = "bc85e212-9260-49af-9356-112777035255"
+
 [[containers]]
 class_name = "TopicsContainer"
 image = "./topics/Dockerfile"

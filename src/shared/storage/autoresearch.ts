@@ -15,7 +15,7 @@ export function createAutoResearchRepository(store: DocStore, { now, ids }: Stor
       if (!(error instanceof StorageConflictError) || error instanceof AutoResearchConflictError) throw error;
       throw new AutoResearchConflictError(
         error.message,
-        id,
+        error.collection === collection ? error.id || id : id,
         typeof error.serverVersion === 'number' ? error.serverVersion : null,
       );
     }
@@ -87,5 +87,6 @@ export function createAutoResearchRepository(store: DocStore, { now, ids }: Stor
       });
     },
     flush: (id: string) => withConflict(id, () => store.flush?.(collection, id) ?? Promise.resolve()),
+    discard: (id: string) => store.discard?.(collection, id),
   };
 }

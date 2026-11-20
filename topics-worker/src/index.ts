@@ -1,6 +1,6 @@
 import { Container, getContainer } from '@cloudflare/containers';
 import { createRemoteJWKSet } from 'jose';
-import { handle, refreshJob, type Bucket } from './app';
+import { handle, refreshJob, type Bucket, type Deps } from './app';
 import { SECURETOKEN_JWKS, verifyFirebaseToken } from './auth';
 
 export class TopicsContainer extends Container<Env> {
@@ -62,6 +62,7 @@ export class NlpContainer extends Container<Env> {
 }
 interface Env {
   BUCKET: Bucket;
+  DATA: Deps['data'];
   TOPICS: Parameters<typeof getContainer>[0];
   NLP: Parameters<typeof getContainer>[0];
   FIREBASE_PROJECT_ID: string;
@@ -73,6 +74,7 @@ export default {
   fetch(request: Request, env: Env) {
     return handle(request, {
       bucket: env.BUCKET,
+      data: env.DATA,
       origins: env.ALLOWED_ORIGINS.split(',').map((s) => s.trim()),
       verify: (token) => verifyFirebaseToken(token, jwks, env.FIREBASE_PROJECT_ID, env.ALLOWED_DOMAIN),
       container: (path, init) => getContainer(env.TOPICS).fetch(`http://container${path}`, init),

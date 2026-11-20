@@ -1,13 +1,16 @@
 import { useAuth } from '@/shared/auth/authContext';
 import { LAB_DOMAIN } from '@/shared/auth/config';
+import { useAdmin } from '@/shared/auth/useAdmin';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
+import { LegacyCorporaImport } from './LegacyCorporaImport';
 import styles from './page.module.css';
 
 /** The account that grants access to the lab's shared storage. */
 export function LabAccountCard() {
   const { user, ready, error, signIn, signOut } = useAuth();
+  const { admin } = useAdmin();
   return (
     <Card>
       <div className={styles.section}>
@@ -43,6 +46,7 @@ export function LabAccountCard() {
           </div>
           {error && <p role="alert">{error}</p>}
         </div>
+        {admin && user && <LegacyCorporaImport key={user.uid} uid={user.uid} />}
       </div>
     </Card>
   );

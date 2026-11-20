@@ -239,7 +239,7 @@ it('C1c releases the same digest twice without changes', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Thêm bài' }));
   await screen.findByRole('status');
   fireEvent.click(screen.getByRole('button', { name: 'Phát hành' }));
-  await waitFor(async () => expect((await repo.corpora.get(corpus.id))?.releases).toHaveLength(1));
+  await screen.findByText(/, 1 bài$/);
   fireEvent.click(screen.getByRole('button', { name: 'Phát hành' }));
   expect(await screen.findByText(/không đổi so với bản trước/)).toBeInTheDocument();
   const releases = (await repo.corpora.get(corpus.id))?.releases;
@@ -322,14 +322,16 @@ it('C3 lists and opens a corpus on the lab store, then shows a conflict with rel
     fireEvent.click(screen.getByRole('menuitem', { name: 'Mở' }));
     await screen.findByRole('heading', { name: corpus.title });
     await other.corpora.save({ ...corpus, title: 'Edited elsewhere' });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Sửa giao thức' })[0]!);
-    fireEvent.click(await screen.findByRole('button', { name: 'Lưu phiên bản mới' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Phát hành' }));
     expect(await screen.findByText(/Corpus đã được người khác sửa/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Giữ bản của tôi' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Tải bản mới' }));
     expect(await screen.findByRole('heading', { name: 'Edited elsewhere' })).toBeInTheDocument();
     expect(screen.queryByText(/Corpus đã được người khác sửa/)).toBeNull();
     expect((await other.corpora.get(corpus.id))?.protocol).toHaveLength(corpus.protocol.length);
+    expect((await other.corpora.get(corpus.id))?.releases).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Phát hành' }));
+    await waitFor(async () => expect((await other.corpora.get(corpus.id))?.releases).toHaveLength(1));
   } finally {
     vi.unstubAllGlobals();
   }
