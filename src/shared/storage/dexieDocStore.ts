@@ -22,6 +22,7 @@ const NATIVE_INDEXES: Record<string, Partial<Record<DocIndexField, string>>> = {
   auditEvents: { refId: 'analysisId' },
   revisions: { refId: 'sourceAnalysisId' },
   paperRuns: { paperId: 'paperId' },
+  paperCheckpointParts: { refId: 'refId', paperId: 'paperId' },
   library: { doi: 'doi', paperId: 'paper_id' },
   corpora: { kind: 'kind' },
   reviewNgrams: { paperId: 'paperId' },

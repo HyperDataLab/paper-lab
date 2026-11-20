@@ -2,44 +2,32 @@ import {
   AnalysisSchema,
   AuditEventSchema,
   RevisionSchema,
-  GenerationSchema,
+  PaperReviewsRecordSchema,
   ExportPackageSchema,
-  validateAnalysisSpans,
-  PaperSchema,
-  type Paper,
-  PaperOverviewRecordSchema,
   type PaperOverviewRecord,
   PaperChecksRecordSchema,
-  type PaperChecksRecord,
-  PaperReviewsRecordSchema,
   PaperProbesRecordSchema,
-  MeasurementsRecordSchema,
   LibraryItemSchema,
   StanceRecordSchema,
   PaperInsightsRecordSchema,
   ExtractionProjectSchema,
   CalibrationLabelSetSchema,
 } from '@/core/schemas';
-import { validateLocations } from '@/core/paperChecks';
 import { buildExportPackage } from '@/core/transfer/buildExportPackage';
 import { planImport, type ImportPlan } from '@/core/transfer/planImport';
 import { sourceHash } from '@/core/text/hash';
 import { z } from 'zod';
 import type { ParagraphDb } from './db';
-import { createPaperReviewsRepository, rebuildReviewRecord } from './paperReviews';
-import { createPaperProbesRepository } from './paperProbes';
+import type { DocStore } from './docStore';
+import { applyPaperImport } from './paperTransfer';
 import { createMeasurementsRepository } from './measurements';
-import { createLibraryRepository } from './library';
-import { createStanceRepository } from './stance';
-import { createPaperInsightsRepository } from './paperInsights';
+import { createLibraryRepository, libraryByDois } from './library';
 import { CorpusSchema } from '@/core/schemas/corpus';
-import { readAnalyses, SourceImmutableError, type StorageDeps } from './storageShared';
-import type { createAnalysesRepository } from './analyses';
+import { readAnalyses, type StorageDeps } from './storageShared';
 import type { createAuditRepository } from './audit';
 import type { createGenerationsRepository } from './generations';
 import type { createPapersRepository } from './papers';
 import type { createPaperOverviewsRepository } from './paperOverviews';
-import type { createPaperChecksRepository } from './paperChecks';
 import type { createCalibrationLabelsRepository } from './calibrationLabels';
 import { StoredCorpusProfileSchema } from '@/core/schemas/corpusProfile';
 import type { createCorporaRepository } from './corpora';
@@ -49,49 +37,41 @@ import { snapshotRelease } from '@/core/researchDesign/bank/release';
 import { toBankDoc } from '@/core/researchDesign/bank/readSnapshot';
 import { canResume } from '@/core/autoresearch/artifacts';
 import { runSchema } from '@/core/autoresearch/record';
+/** Writes per lab commit for the corpus-group part of an import; the lab server accepts at most 100. */
+const IMPORT_BATCH = 50;
+const chunks = <T>(values: readonly T[]) =>
+  Array.from({ length: Math.ceil(values.length / IMPORT_BATCH) }, (_, i) =>
+    values.slice(i * IMPORT_BATCH, (i + 1) * IMPORT_BATCH),
+  );
+
 export function createTransferRepository(
   db: ParagraphDb,
+  store: DocStore,
   clock: () => Date,
   deps: StorageDeps,
   repositories: {
-    analyses: ReturnType<typeof createAnalysesRepository>;
     audit: ReturnType<typeof createAuditRepository>;
     generations: ReturnType<typeof createGenerationsRepository>;
     papers: ReturnType<typeof createPapersRepository>;
     paperOverviews: ReturnType<typeof createPaperOverviewsRepository>;
-    paperChecks: ReturnType<typeof createPaperChecksRepository>;
-    paperReviews: ReturnType<typeof createPaperReviewsRepository>;
-    paperProbes: ReturnType<typeof createPaperProbesRepository>;
     measurements: ReturnType<typeof createMeasurementsRepository>;
     library: ReturnType<typeof createLibraryRepository>;
-    stance: ReturnType<typeof createStanceRepository>;
-    paperInsights: ReturnType<typeof createPaperInsightsRepository>;
     calibrationLabels: ReturnType<typeof createCalibrationLabelsRepository>;
     corpora: ReturnType<typeof createCorporaRepository>;
   },
 ) {
   const { makeAudit } = deps;
-  const {
-    analyses,
-    audit,
-    generations,
-    papers,
-    paperOverviews,
-    paperChecks,
-    paperReviews,
-    paperProbes,
-    measurements,
-    library,
-    stance,
-    paperInsights,
-    calibrationLabels,
-    corpora,
-  } = repositories;
+  const { audit, generations, papers, paperOverviews, measurements, library, calibrationLabels, corpora } =
+    repositories;
+  async function list<S extends z.ZodType>(collection: string, schema: S): Promise<z.output<S>[]> {
+    return (await store.query(collection)).map(({ doc }) => schema.parse(doc));
+  }
+  const pendingLocalImports = new WeakSet<Extract<ImportPlan, { ok: true }>>();
   const transfer = {
     async exportAll(appVersion: string) {
-      const a = await readAnalyses(db);
+      const a = await readAnalyses(store);
       const events = await audit.listAll();
-      const storedRevisions = (await db.revisions.toArray()).map((item) => RevisionSchema.parse(item));
+      const storedRevisions = await list('revisions', RevisionSchema);
       return buildExportPackage(
         a.values,
         events.items,
@@ -102,20 +82,22 @@ export function createTransferRepository(
         await papers.list(),
         (
           await Promise.all(
-            (await db.paperOverviews.toCollection().primaryKeys()).map((id) => paperOverviews.get(id)),
+            (await store.query('paperOverviews', { select: 'summary' })).map(({ id }) =>
+              paperOverviews.get(id),
+            ),
           )
         ).filter((value): value is PaperOverviewRecord => value !== undefined),
-        (await db.paperChecks.toArray()).map((value) => PaperChecksRecordSchema.parse(value)),
-        (await db.paperReviews.toArray()).map((value) => PaperReviewsRecordSchema.parse(value)),
-        (await db.paperProbes.toArray()).map((value) => PaperProbesRecordSchema.parse(value)),
+        await list('paperChecks', PaperChecksRecordSchema),
+        await list('paperReviews', PaperReviewsRecordSchema),
+        await list('paperProbes', PaperProbesRecordSchema),
         await calibrationLabels.list(),
-        (await db.measurements.toArray()).map((value) => MeasurementsRecordSchema.parse(value)),
+        await measurements.list(),
         await library.list(),
-        (await db.stance.toArray()).map((value) => StanceRecordSchema.parse(value)),
-        (await db.paperInsights.toArray()).map((value) => PaperInsightsRecordSchema.parse(value)),
+        await list('stance', StanceRecordSchema),
+        await list('paperInsights', PaperInsightsRecordSchema),
         (await db.extractionProjects.toArray()).map((value) => ExtractionProjectSchema.parse(value)),
         await corpora.list(),
-        (await db.corpusProfiles.toArray()).map((row) => StoredCorpusProfileSchema.parse(row)),
+        await list('corpusProfiles', StoredCorpusProfileSchema),
         (await db.researchDesigns.toArray()).map((row) => ResearchDesignSchema.parse(row)),
         (await db.researchDesignBanks.toArray()).map((row) => ({
           projectId: row.projectId,
@@ -126,7 +108,7 @@ export function createTransferRepository(
       );
     },
     async previewImport(raw: unknown) {
-      const a = await readAnalyses(db);
+      const a = await readAnalyses(store);
       const events = await audit.listAll();
       const parsed = ExportPackageSchema.extend({ analyses: z.array(z.unknown()) }).safeParse(raw);
       const hashes = new Map<string, string>();
@@ -145,15 +127,15 @@ export function createTransferRepository(
         new Set(events.items.map((v) => v.id)),
         hashes,
         revisionHashes,
-        new Set(await db.revisions.toCollection().primaryKeys()),
-        new Set(await db.generations.toCollection().primaryKeys()),
+        new Set((await store.query('revisions', { select: 'summary' })).map((row) => row.id)),
+        new Set((await store.query('generations', { select: 'summary' })).map((row) => row.id)),
         new Map(
           (await papers.list()).map((paper) => [
             paper.id,
             { updatedAt: paper.updatedAt, sha256: paper.source.sha256 },
           ]),
         ),
-        new Set(await db.calibrationLabels.toCollection().primaryKeys()),
+        new Set((await store.query('calibrationLabels', { select: 'summary' })).map((row) => row.id)),
       );
     },
     async applyImport(plan: Extract<ImportPlan, { ok: true }>) {
@@ -174,217 +156,45 @@ export function createTransferRepository(
       for (const revision of plan.revisionsToInsert)
         if ((await sourceHash(revision.revisedText)) !== revision.revisedHash)
           throw new Error('Revision hash mismatch');
-      const ngrams = await db.reviewNgrams.toArray();
-      const preparedReviews = new Map<
-        string,
-        {
-          paper: Paper;
-          previousUpdatedAt: string | undefined;
-          rebuilt: Awaited<ReturnType<typeof rebuildReviewRecord>>;
-        }
-      >();
-      for (const record of plan.paperReviews) {
-        const paper =
-          [...plan.papersToInsert, ...plan.papersToUpdate].find((p) => p.id === record.paperId) ??
-          (await papers.get(record.paperId));
-        const existing = await paperReviews.get(record.paperId);
-        if (paper && (!existing || record.updatedAt > existing.updatedAt))
-          preparedReviews.set(record.paperId, {
-            paper,
-            previousUpdatedAt: existing?.updatedAt,
-            rebuilt: await rebuildReviewRecord(paper, record, []),
-          });
+      const localActions = new Set(['import_labels', 'run_extraction', 'review_extraction']);
+      if (!pendingLocalImports.has(plan)) {
+        if (
+          (
+            await store.getMany(
+              'calibrationLabels',
+              plan.calibrationLabels.map(({ id }) => id),
+            )
+          ).some(Boolean)
+        )
+          throw new Error('Import preview is out of date');
+        await applyPaperImport(
+          store,
+          makeAudit,
+          { ...plan, auditEvents: plan.auditEvents.filter(({ action }) => !localActions.has(action)) },
+          new Set((await audit.listAll()).items.map((event) => event.id)),
+        );
+        pendingLocalImports.add(plan);
       }
-      const corpus = ngrams.filter((item) => !preparedReviews.has(item.paperId));
-      for (const prepared of preparedReviews.values()) corpus.push(...prepared.rebuilt.ngrams);
-      for (const [paperId, prepared] of preparedReviews) {
-        const record = plan.paperReviews.find((item) => item.paperId === paperId);
-        if (record) prepared.rebuilt = await rebuildReviewRecord(prepared.paper, record, corpus);
-      }
+      const linkedPaperIds = [
+        ...new Set(plan.library.flatMap(({ paper_id }) => (paper_id ? [paper_id] : []))),
+      ];
+      const knownPapers = new Set(
+        (await papers.getMany(linkedPaperIds)).flatMap((paper) => (paper ? [paper.id] : [])),
+      );
       await db.transaction(
         'rw',
         [
-          db.analyses,
-          db.auditEvents,
-          db.revisions,
-          db.generations,
-          db.papers,
-          db.paperOverviews,
-          db.paperChecks,
-          db.paperReviews,
-          db.paperProbes,
-          db.measurements,
           db.library,
-          db.stance,
-          db.paperInsights,
+          db.auditEvents,
           db.extractionProjects,
           db.researchDesigns,
           db.researchDesignBanks,
           db.autoresearchRuns,
-          db.corpora,
-          db.corpusProfiles,
-          db.reviewNgrams,
-          db.calibrationLabels,
         ],
         async () => {
-          for (const item of plan.calibrationLabels) {
-            if (await db.calibrationLabels.get(item.id)) throw new Error('Import preview is out of date');
-            await db.calibrationLabels.add(CalibrationLabelSetSchema.parse(item));
-          }
-          if (plan.suppressed.length) console.warn('Suppressed invalid imported spans', plan.suppressed);
-          for (const value of [...plan.toInsert, ...plan.toUpdate]) {
-            const incoming = validateAnalysisSpans(AnalysisSchema.parse(value)).valid;
-            const current = await db.analyses.get(incoming.id);
-            if (current) {
-              const existing = AnalysisSchema.parse(current);
-              if (
-                existing.text.sourceText !== incoming.text.sourceText ||
-                existing.text.sourceHash !== incoming.text.sourceHash
-              )
-                throw new SourceImmutableError('Source text is immutable');
-              if (Date.parse(incoming.updatedAt) <= Date.parse(existing.updatedAt))
-                throw new Error('Import preview is out of date');
-            }
-            await db.analyses.put(incoming);
-            await db.auditEvents.add(makeAudit(value.id, 'import', 'system'));
-          }
-          for (const raw of plan.revisionsToInsert) {
-            const revision = RevisionSchema.parse(raw);
-            const source = await analyses.get(revision.sourceAnalysisId);
-            if (!source || source.text.sourceHash !== revision.sourceHash)
-              throw new Error('Revision source mismatch');
-            if (await db.revisions.get(revision.id)) throw new Error('Import preview is out of date');
-            const sourceLength = Array.from(source.text.sourceText).length;
-            const revisedLength = Array.from(revision.revisedText).length;
-            if (
-              revision.hunks.some(
-                (hunk) =>
-                  (hunk.before && hunk.before.end > sourceLength) ||
-                  (hunk.after && hunk.after.end > revisedLength) ||
-                  hunk.changeIndexes.some((index) => index >= revision.changes.length),
-              ) ||
-              revision.checks.some((check) =>
-                check.spans.some(
-                  (span) => span.end > (span.side === 'source' ? sourceLength : revisedLength),
-                ),
-              )
-            )
-              throw new Error('Invalid revision spans');
-            await db.revisions.add(revision);
-          }
-          for (const generation of plan.generationsToInsert) {
-            if (await db.generations.get(generation.id)) throw new Error('Import preview is out of date');
-            await db.generations.add(GenerationSchema.parse(generation));
-          }
-          for (const paper of plan.papersToInsert) {
-            if (await db.papers.get(paper.id)) throw new Error('Import preview is out of date');
-            await db.papers.add(PaperSchema.parse(paper));
-          }
-          for (const raw of plan.papersToUpdate) {
-            const paper = PaperSchema.parse(raw);
-            const current = await papers.get(paper.id);
-            if (
-              !current ||
-              current.source.sha256 !== paper.source.sha256 ||
-              Date.parse(paper.updatedAt) <= Date.parse(current.updatedAt)
-            )
-              throw new Error('Import preview is out of date');
-            if (JSON.stringify(current.paragraphs) !== JSON.stringify(paper.paragraphs))
-              throw new SourceImmutableError('Paper paragraphs are immutable');
-            await db.papers.put(paper);
-            await db.auditEvents.add(makeAudit(paper.id, 'import', 'system'));
-          }
-          const importedFindings = new Map<string, Set<string>>();
-          for (const record of plan.paperOverviews) {
-            if (!(await db.papers.get(record.paperId))) continue;
-            const existing = await db.paperOverviews.get(record.paperId);
-            if (
-              !existing ||
-              (record.transitions &&
-                (!existing.transitions ||
-                  Math.max(
-                    Date.parse(record.transitions.updatedAt),
-                    Date.parse(record.transitions.reviewedAt ?? record.transitions.updatedAt),
-                  ) >
-                    Math.max(
-                      Date.parse(existing.transitions.updatedAt),
-                      Date.parse(existing.transitions.reviewedAt ?? existing.transitions.updatedAt),
-                    )))
-            ) {
-              await db.paperOverviews.put(PaperOverviewRecordSchema.parse(record));
-              importedFindings.set(
-                record.paperId,
-                new Set(record.transitions?.findings.map((finding) => finding.id) ?? []),
-              );
-            }
-          }
-          for (const record of plan.paperChecks) {
-            const paper = await papers.get(record.paperId);
-            if (!paper) continue;
-            const existing = await paperChecks.get(record.paperId);
-            const changed = (value: PaperChecksRecord) =>
-              Math.max(
-                Date.parse(value.report.generatedAt),
-                Date.parse(value.reviewedAt ?? value.report.generatedAt),
-                ...value.decisions.map((decision) => Date.parse(decision.at)),
-              );
-            if (!existing || changed(record) > changed(existing)) {
-              let dropped = 0;
-              const checks = record.report.checks.map((check) => {
-                const valid = validateLocations(paper, check.findings);
-                dropped += valid.dropped;
-                return { ...check, findings: valid.findings };
-              });
-              const value = PaperChecksRecordSchema.parse({
-                ...record,
-                report: {
-                  ...record.report,
-                  checks,
-                  droppedLocations: record.report.droppedLocations + dropped,
-                },
-              });
-              await db.paperChecks.put(value);
-            }
-          }
-          for (const record of plan.paperReviews) {
-            const paper = await papers.get(record.paperId);
-            if (!paper) continue;
-            const existing = await paperReviews.get(record.paperId);
-            const prepared = preparedReviews.get(record.paperId);
-            if (prepared && prepared.previousUpdatedAt !== existing?.updatedAt)
-              throw new Error('Review changed; retry');
-            if (!existing || record.updatedAt > existing.updatedAt) {
-              if (!prepared || JSON.stringify(prepared.paper.paragraphs) !== JSON.stringify(paper.paragraphs))
-                throw new Error('Paper changed');
-              const rebuilt = prepared.rebuilt;
-              await db.paperReviews.put(rebuilt.record);
-              await db.reviewNgrams.where('paperId').equals(record.paperId).delete();
-              await db.reviewNgrams.bulkPut(rebuilt.ngrams);
-            }
-          }
-          for (const record of plan.paperProbes) {
-            if (!(await db.papers.get(record.paperId))) continue;
-            const existing = await paperProbes.get(record.paperId);
-            if (!existing || record.updatedAt > existing.updatedAt)
-              await db.paperProbes.put(PaperProbesRecordSchema.parse(record));
-          }
-          for (const record of plan.measurements) {
-            if (!(await db.papers.get(record.paperId))) continue;
-            const existing = await measurements.get(record.paperId);
-            if (!existing || record.updatedAt > existing.updatedAt)
-              await db.measurements.put(MeasurementsRecordSchema.parse(record));
-          }
-          for (const record of plan.stance) {
-            if (!(await db.papers.get(record.paperId))) continue;
-            const existing = await stance.get(record.paperId);
-            if (!existing || record.updatedAt > existing.updatedAt)
-              await db.stance.put(StanceRecordSchema.parse(record));
-          }
-          for (const record of plan.paperInsights) {
-            if (!(await db.papers.get(record.paperId))) continue;
-            const existing = await paperInsights.get(record.paperId);
-            if (!existing || record.updatedAt > existing.updatedAt)
-              await db.paperInsights.put(PaperInsightsRecordSchema.parse(record));
+          for (const event of plan.auditEvents) {
+            if (localActions.has(event.action) && !(await db.auditEvents.get(event.id)))
+              await db.auditEvents.add(AuditEventSchema.parse(event));
           }
           for (const record of plan.extractionProjects) {
             const existing = await db.extractionProjects.get(record.id);
@@ -425,38 +235,76 @@ export function createTransferRepository(
               }),
             );
           }
-          for (const record of plan.corpora) {
-            const existing = await db.corpora.get(record.id);
-            if (!existing || record.updatedAt > existing.updatedAt)
-              await db.corpora.put(CorpusSchema.parse(record));
-          }
-          for (const record of plan.corpusProfiles) {
-            const existing = await db.corpusProfiles.get(record.corpusId);
-            if (!existing || record.savedAt > existing.savedAt)
-              await db.corpusProfiles.put(StoredCorpusProfileSchema.parse(record));
-          }
-          for (const record of plan.library) {
-            const existing = await db.library.where('doi').equals(record.doi).first();
-            if (existing && record.updatedAt <= existing.updatedAt) continue;
-            const paperKnown = record.paper_id !== null && (await db.papers.get(record.paper_id));
-            await db.library.put(
-              LibraryItemSchema.parse({
+        },
+      );
+      // The corpus group sits on the lab store when signed in. Each batch commits on its own and skips what an
+      // earlier, interrupted run already wrote, so applying the same plan again finishes the rest.
+      for (const part of chunks(plan.calibrationLabels))
+        await store.unitOfWork(
+          async (tx) => {
+            for (const item of part)
+              if (!(await tx.get('calibrationLabels', item.id)))
+                await tx.put('calibrationLabels', item.id, CalibrationLabelSetSchema.parse(item), null);
+          },
+          ['calibrationLabels'],
+        );
+      for (const part of chunks(plan.corpora))
+        await store.unitOfWork(
+          async (tx) => {
+            const rows = await tx.getMany(
+              'corpora',
+              part.map(({ id }) => id),
+            );
+            for (const [i, record] of part.entries()) {
+              const existing = rows[i] ? CorpusSchema.parse(rows[i].doc) : undefined;
+              if (!existing || record.updatedAt > existing.updatedAt)
+                await tx.put('corpora', record.id, CorpusSchema.parse(record));
+            }
+          },
+          ['corpora'],
+        );
+      for (const part of chunks(plan.corpusProfiles))
+        await store.unitOfWork(
+          async (tx) => {
+            const rows = await tx.getMany(
+              'corpusProfiles',
+              part.map(({ corpusId }) => corpusId),
+            );
+            for (const [i, record] of part.entries()) {
+              const existing = rows[i] ? StoredCorpusProfileSchema.parse(rows[i].doc) : undefined;
+              if (!existing || record.savedAt > existing.savedAt)
+                await tx.put('corpusProfiles', record.corpusId, StoredCorpusProfileSchema.parse(record));
+            }
+          },
+          ['corpusProfiles'],
+        );
+      for (const part of chunks(plan.library))
+        await store.unitOfWork(
+          async (tx) => {
+            const byDoi = new Map(
+              (
+                await libraryByDois(
+                  tx,
+                  part.map(({ doi }) => doi),
+                )
+              ).map((item) => [item.doi, item]),
+            );
+            for (const record of part) {
+              const existing = byDoi.get(record.doi);
+              if (existing && record.updatedAt <= existing.updatedAt) continue;
+              const paperKnown = record.paper_id !== null && knownPapers.has(record.paper_id);
+              const value = LibraryItemSchema.parse({
                 ...record,
                 id: existing?.id ?? record.id,
                 paper_id: paperKnown ? record.paper_id : null,
                 file_matches_title: paperKnown ? record.file_matches_title : null,
-              }),
-            );
-          }
-          for (const event of plan.auditEvents)
-            if (
-              (event.action !== 'review_transition' ||
-                (event.issueId && importedFindings.get(event.analysisId)?.has(event.issueId))) &&
-              !(await db.auditEvents.get(event.id))
-            )
-              await db.auditEvents.add(AuditEventSchema.parse(event));
-        },
-      );
+              });
+              await tx.put('library', value.id, value);
+            }
+          },
+          ['library'],
+        );
+      pendingLocalImports.delete(plan);
     },
   };
   return transfer;

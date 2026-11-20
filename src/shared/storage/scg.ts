@@ -23,16 +23,19 @@ export function createScgRepository(store: DocStore, clock = () => new Date()) {
       return (await store.getMany('scgRuns', paperIds)).flatMap((row) => (row ? [parse(row.doc)] : []));
     },
     async setReview(paperId: string, target: ScgReviewTarget, review: ScgReview) {
-      return store.unitOfWork(async (tx) => {
-        const current = await tx.get('scgRuns', paperId);
-        if (!current) return undefined;
-        const value = parse({
-          ...setScgReview(parse(current.doc), target, review),
-          updatedAt: clock().toISOString(),
-        });
-        await tx.put('scgRuns', paperId, value);
-        return value;
-      });
+      return store.unitOfWork(
+        async (tx) => {
+          const current = await tx.get('scgRuns', paperId);
+          if (!current) return undefined;
+          const value = parse({
+            ...setScgReview(parse(current.doc), target, review),
+            updatedAt: clock().toISOString(),
+          });
+          await tx.put('scgRuns', paperId, value);
+          return value;
+        },
+        ['scgRuns'],
+      );
     },
   };
 }

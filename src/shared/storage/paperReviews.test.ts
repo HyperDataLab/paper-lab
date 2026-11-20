@@ -107,7 +107,7 @@ it('P5 migrates v7, gates reviews, preserves decisions, exports and deletes atom
   const rerun = await repo.paperReviews.saveRun(paper.id, { ...run, id: crypto.randomUUID() });
   expect(rerun.decisions).toMatchObject([{ pointId: point.id, status: 'dismissed_by_human' }]);
   expect(await db.reviewNgrams.count()).toBeGreaterThan(0);
-  expect(Object.keys((await db.reviewNgrams.toArray())[0] ?? {}).sort()).toEqual(['hash', 'paperId']);
+  expect((await db.reviewNgrams.toArray()).every((row) => !Object.hasOwn(row, 'phrase'))).toBe(true);
   const data = await repo.transfer.exportAll('test');
   expect(data.paperReviews).toHaveLength(1);
   expect(data).not.toHaveProperty('reviewNgrams');
@@ -192,11 +192,7 @@ it('P5 imports four reviewed papers as one corpus and flags phrases from three o
     const flags = (await dest.paperReviews.get(paper.id))?.runs[0]?.metrics.templates ?? [];
     expect(flags.some((item) => item.phrase === 'cần mô tả chi tiết hơn về')).toBe(true);
   }
-  expect(
-    (await destDb.reviewNgrams.toArray()).every(
-      (item) => Object.keys(item).sort().join(',') === 'hash,paperId',
-    ),
-  ).toBe(true);
+  expect((await destDb.reviewNgrams.toArray()).every((item) => !Object.hasOwn(item, 'phrase'))).toBe(true);
 });
 it('P5 migrates an unambiguous old decision id when a review is rebuilt', async () => {
   vi.stubGlobal('crypto', webcrypto);

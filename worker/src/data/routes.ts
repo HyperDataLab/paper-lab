@@ -53,10 +53,15 @@ const QuerySchema = z.strictObject({
   include: z.enum(['summary', 'body']).default('summary'),
   includeDeleted: z.boolean().default(false),
 });
-const BatchGetSchema = z.strictObject({
-  collection: collectionSchema,
-  ids: z.array(idSchema).min(1).max(MAX_BATCH_IDS),
-});
+const BatchGetSchema = z.union([
+  z.strictObject({ collection: collectionSchema, ids: z.array(idSchema).min(1).max(MAX_BATCH_IDS) }),
+  z.strictObject({
+    refs: z
+      .array(z.strictObject({ collection: collectionSchema, id: idSchema }))
+      .min(1)
+      .max(MAX_BATCH_IDS),
+  }),
+]);
 const CommitSchema = z.strictObject({
   ops: z
     .array(
@@ -308,20 +313,26 @@ async function batchGet(env: StoreEnv, value: unknown, headers: Headers) {
   const parsed = BatchGetSchema.safeParse(value);
   if (!parsed.success)
     return fail(400, 'bad_request', `Invalid batch-get: ${parsed.error.issues[0]?.message ?? ''}`, headers);
-  const { collection, ids } = parsed.data;
-  const unique = [...new Set(ids)];
-  const rows = await readRows(
-    env.db,
-    unique.map((id) => ({ collection, id })),
-  );
+  const input = parsed.data;
+  const refs = 'refs' in input ? input.refs : input.ids.map((id) => ({ collection: input.collection, id }));
+  const unique = [...new Map(refs.map((ref) => [refKey(ref), ref])).values()];
+  const rows = await readRows(env.db, unique);
   const found = unique
-    .map((id) => rows.get(refKey({ collection, id })))
+    .map((ref) => rows.get(refKey(ref)))
     .filter((row): row is DocRow => !!row && !row.deleted_at);
   const { items, deferred } = await withBodies(env, found);
-  const foundIds = new Set(found.map((row) => row.id));
+  const foundKeys = new Set(found.map(refKey));
+  const missing = unique.filter((ref) => !foundKeys.has(refKey(ref)));
+  if ('refs' in input) {
+    return ok(
+      200,
+      { items, missing, deferred: deferred.map(({ collection, id }) => ({ collection, id })) },
+      headers,
+    );
+  }
   return ok(
     200,
-    { items, missing: unique.filter((id) => !foundIds.has(id)), deferred: deferred.map((row) => row.id) },
+    { items, missing: missing.map(({ id }) => id), deferred: deferred.map(({ id }) => id) },
     headers,
   );
 }

@@ -103,6 +103,7 @@ export class ParagraphDb extends Dexie {
     this.version(24).stores({ corpusKeywords: 'corpusId', doiKeywords: 'doi' });
     this.version(25).stores({ scgRuns: 'paperId' });
     this.version(26).stores({ autoresearchRuns: 'id, projectId, updatedAt' });
+    this.version(27).stores({ paperCheckpointParts: 'id, refId, paperId' });
   }
 }
 export function createDb(name?: string) {

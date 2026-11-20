@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { runSchema } from '../autoresearch/record';
+import { detectTitle } from '../paperIdentity';
 import { normalizeDoi } from '../library/doi';
 import { bankDocSchema } from '../researchDesign/bank/snapshot';
 import { AnalysisSchema } from '../schemas/analysis';
@@ -26,6 +27,7 @@ import { ResearchDesignSchema } from '../schemas/researchDesign';
 import { RevisionSchema } from '../schemas/revision';
 import { ScgPaperRunSchema } from '../schemas/scg';
 import { StanceRecordSchema } from '../schemas/stance';
+import { PaperCheckpointPartSchema, PaperRunManifestSchema } from './paperCheckpoints';
 
 /**
  * The central lab store's collections (ADR-0007). Shared by the worker (server-side validation and the D1
@@ -108,10 +110,27 @@ export const ResearchDesignBankSchema = z.object({
   bytes: z.array(z.number().int().min(0).max(255)),
 });
 
+export const ReviewNgramBucketSchema = ReviewNgramSchema.extend({
+  hash: z.string().regex(/^bucket:\d+$/u),
+  hashes: z.array(ReviewNgramSchema.shape.hash).min(1).max(700),
+});
+
 export const COLLECTIONS = {
   analyses: define(AnalysisSchema, {
     key: (body) => body.id,
-    index: (body) => ({ title: body.title ?? null, sourceSha256: body.text.sourceHash }),
+    index: (body) => ({
+      title: body.title ?? null,
+      sourceSha256: body.text.sourceHash,
+      paperId: body.origin?.kind === 'paper' ? body.origin.paperId : null,
+    }),
+    summary: (body) => ({
+      title: body.title,
+      preview: Array.from(body.text.sourceText).slice(0, 120).join(''),
+      sentenceCount: body.text.sentences.length,
+      issueCount: body.issues.length,
+      sourceHash: body.text.sourceHash,
+      paperId: body.origin?.kind === 'paper' ? body.origin.paperId : null,
+    }),
   }),
   auditEvents: define(AuditEventSchema, {
     key: (body) => body.id,
@@ -126,10 +145,26 @@ export const COLLECTIONS = {
   papers: define(PaperSchema, {
     key: (body) => body.id,
     index: (body) => ({ title: body.title, kind: body.source.kind, sourceSha256: body.source.sha256 }),
+    summary: (body) => ({
+      title: body.title,
+      source: body.source,
+      detectedTitle: detectTitle(body),
+      sectionCount: body.sections.length,
+      paragraphCount: body.paragraphs.length,
+    }),
   }),
-  paperRuns: define(PaperRunSchema, {
+  paperRuns: define(PaperRunSchema.or(PaperRunManifestSchema), {
     key: (body) => body.id,
     index: (body) => ({ paperId: body.paperId, status: body.status }),
+  }),
+  paperCheckpointParts: define(PaperCheckpointPartSchema, {
+    key: (body) => body.id,
+    index: (body) => ({
+      paperId: body.paperId,
+      kind: body.kind,
+      refId: body.kind === 'chunk' ? body.refId : null,
+    }),
+    maxBytes: MIB,
   }),
   paperOverviews: define(PaperOverviewRecordSchema, byPaper),
   paperChecks: define(PaperChecksRecordSchema, byPaper),
@@ -193,7 +228,7 @@ export const COLLECTIONS = {
       verified: body.cells.filter((cell) => cell.status === 'VERIFIED').length,
     }),
   }),
-  reviewNgrams: define(ReviewNgramSchema, {
+  reviewNgrams: define(ReviewNgramBucketSchema.or(ReviewNgramSchema), {
     key: (body) => `${body.paperId}:${body.hash}`,
     index: (body) => ({ paperId: body.paperId }),
     storage: 'inline',

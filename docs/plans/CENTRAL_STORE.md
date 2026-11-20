@@ -82,3 +82,13 @@ for list summaries, lists with bodies, GET and conditional PUT, followed by a co
 a separate read guard. It soft-deletes its projects on exit. Use the browser Network panel to record PUT
 spacing during a 20-paper run, then repeat with two signed-in tabs to measure conflicts. Check that each
 stage's final checkpoint reaches the worker and reloads from a new tab.
+
+## C3 PAPERS verification
+
+Deploy the worker before the app so the paper page can batch references from different collections in
+one request. The paper group uses the indexes and sort keys from the existing migrations. There is no new
+D1 migration or upload of old browser data. Signed-out and unconfigured sessions continue to use Dexie.
+
+Paper run and measurement progress use separate checkpoint documents capped at 1 MiB each. The browser
+coalesces each stream and flushes at run completion, pause, or failure. Measurement history is written
+when a run or a review is saved. The checkpoint manifest and its changed parts commit together.

@@ -29,7 +29,10 @@ export function StorageProvider({
     if (!local) return null;
     const remote = uid ? new RemoteDocStore({ getToken: () => getIdToken(uid) }) : null;
     const store = new CompositeDocStore(local.store, remote);
-    return { store, repositories: createRepositories(local.db, undefined, undefined, store) };
+    return {
+      store,
+      repositories: createRepositories(local.db, undefined, undefined, store, remote ?? undefined),
+    };
   }, [getIdToken, local, uid]);
   return (
     <StoreContext.Provider value={storage?.store ?? null}>
@@ -42,13 +45,24 @@ export function StorageProvider({
 
 export function StorageStatus({ className }: { className?: string }) {
   const store = useContext(StoreContext);
-  const status = useSyncExternalStore(store?.subscribe ?? noopSubscribe, store?.getSaveStatus ?? idle);
+  const repo = useContext(Context);
+  const runs = useSyncExternalStore(
+    repo?.paperRuns.subscribe ?? noopSubscribe,
+    repo?.paperRuns.getSaveStatus ?? idle,
+  );
+  const measurements = useSyncExternalStore(
+    repo?.measurements.checkpoints.subscribe ?? noopSubscribe,
+    repo?.measurements.checkpoints.getSaveStatus ?? idle,
+  );
+  const spike = useSyncExternalStore(store?.subscribe ?? noopSubscribe, store?.getSaveStatus ?? idle);
+  const pending = [runs, measurements, spike];
+  const status = pending.includes('error') ? 'error' : pending.includes('saving') ? 'saving' : 'idle';
   const fallback = useSyncExternalStore(store?.subscribe ?? noopSubscribe, store?.isFallback ?? noFallback);
   if (status === 'idle' && !fallback) return null;
   return (
     <div className={className} role="status">
       {status !== 'idle' && <span>{status === 'saving' ? 'Đang lưu…' : 'Lỗi lưu'}</span>}
-      {fallback && <span>Kho dữ liệu lab chưa được cấu hình. Dữ liệu dự án đang lưu trên thiết bị này.</span>}
+      {fallback && <span>Kho dữ liệu lab chưa được cấu hình. Dữ liệu đang lưu trên thiết bị này.</span>}
     </div>
   );
 }

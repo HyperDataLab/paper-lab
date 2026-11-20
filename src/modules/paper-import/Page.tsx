@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authorsShort, paperIdentity, type PaperIdentity } from '@/core/paperIdentity';
-import type { Paper } from '@/core/schemas';
+import type { PaperSummary } from '@/core/schemas/paper';
 import { PaperSizeError } from '@/shared/paper/sizeGuard';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
@@ -25,7 +25,7 @@ const SOURCE_NOTE: Partial<Record<PaperIdentity['titleSource'], string>> = {
 export default function Page() {
   const repo = useRepositories();
   const navigate = useNavigate();
-  const [papers, setPapers] = useState<Paper[]>([]);
+  const [papers, setPapers] = useState<PaperSummary[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [identities, setIdentities] = useState(new Map<string, PaperIdentity>());
   const [search, setSearch] = useState('');
@@ -34,11 +34,11 @@ export default function Page() {
   const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
   const [detail, setDetail] = useState('');
-  const [deleting, setDeleting] = useState<Paper | null>(null);
+  const [deleting, setDeleting] = useState<PaperSummary | null>(null);
   const [trigger, setTrigger] = useState<HTMLElement | null>(null);
   const [view, setView] = useState<'papers' | 'library'>('papers');
   const load = useCallback(() => {
-    void Promise.all([repo.papers.list(), repo.paperContext.list(), repo.library.list()])
+    void Promise.all([repo.papers.listSummaries(), repo.paperContext.list(), repo.library.list()])
       .then(([saved, contexts, library]) => {
         setPapers(saved);
         setLoaded(true);
@@ -223,7 +223,7 @@ export default function Page() {
                       <td>{identity.venue ?? '—'}</td>
                       <td>
                         {paper.source.pageCount ? `${paper.source.pageCount} trang · ` : ''}
-                        {paper.sections.length} section · {paper.paragraphs.length} paragraph
+                        {paper.sectionCount} section · {paper.paragraphCount} paragraph
                       </td>
                       <td>{new Date(paper.createdAt).toLocaleDateString('vi')}</td>
                       <td>

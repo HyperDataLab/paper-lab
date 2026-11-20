@@ -9,7 +9,7 @@ import {
   type Versioned,
 } from './docStore';
 import { StorageConflictError } from './errors';
-import { RemoteDataClient, type RemoteDataOptions } from './remoteDataClient';
+import { RemoteDataClient, type DocRef, type RemoteDataOptions } from './remoteDataClient';
 
 const PAGE_SIZE = 100;
 
@@ -72,6 +72,21 @@ export class RemoteDocStore implements DocStore {
     return ids.map((id) => structuredClone(found.get(id) ?? null));
   }
 
+  async getBatch(refs: DocRef[]) {
+    const found = new Map<string, Versioned>();
+    const unique = [...new Map(refs.map((ref) => [keyOf(ref.collection, ref.id), ref])).values()];
+    for (let start = 0; start < unique.length; start += PAGE_SIZE) {
+      let pending = unique.slice(start, start + PAGE_SIZE);
+      while (pending.length) {
+        const page = await this.api.batchRefs(pending);
+        for (const { collection, id, body, version } of page.items)
+          found.set(keyOf(collection, id), this.bodyRow(collection, id, body, version));
+        pending = page.deferred;
+      }
+    }
+    return refs.map(({ collection, id }) => structuredClone(found.get(keyOf(collection, id)) ?? null));
+  }
+
   async query(collection: string, query: DocQuery = {}) {
     const rows: QueryRow[] = [];
     let cursor: string | null = null;
@@ -108,6 +123,11 @@ export class RemoteDocStore implements DocStore {
     const key = keyOf(collection, id);
     const previous = this.cache.get(key);
     if (!row || !previous || row.version >= previous.version) this.cache.set(key, structuredClone(row));
+  }
+
+  cachedVersion(collection: string, id: string) {
+    const row = this.cache.get(keyOf(collection, id));
+    return row && { doc: structuredClone(row.doc), version: row.version };
   }
 
   private readForWrite(collection: string, id: string) {

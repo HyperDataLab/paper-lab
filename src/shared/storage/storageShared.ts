@@ -5,11 +5,12 @@ import {
   type Analysis,
   type AuditEvent,
 } from '@/core/schemas';
-import type { ParagraphDb } from './db';
-import type { DocReader, DocWriter } from './docStore';
+import type { DocReader, DocTx } from './docStore';
 /** Appends an audit event; an event id is never reused. */
-export async function appendAudit(tx: DocWriter, event: AuditEvent) {
-  await tx.put('auditEvents', event.id, AuditEventSchema.parse(event), null);
+export async function appendAudit(tx: DocTx, event: AuditEvent) {
+  const value = AuditEventSchema.parse(event);
+  if (tx.appendAudit) await tx.appendAudit(value.id, value);
+  else await tx.put('auditEvents', value.id, value, null);
 }
 export async function requirePaper(reader: DocReader, paperId: string) {
   const row = await reader.get('papers', paperId);
@@ -42,25 +43,26 @@ export function checkedAnalysis(value: unknown) {
   if (result.suppressed.length) console.warn('Suppressed invalid analysis spans', result.suppressed);
   return result.valid;
 }
-export async function readAnalyses(db: ParagraphDb) {
-  const rows = await db.analyses.toArray();
+export async function readAnalyses(reader: DocReader, paperId?: string, sourceSha256?: string) {
+  const where = paperId ? { paperId, ...(sourceSha256 ? { sourceSha256 } : {}) } : undefined;
+  const rows = await reader.query('analyses', { where });
   const values: Analysis[] = [];
   let corrupt = 0;
   for (const row of rows) {
     try {
-      values.push(checkedAnalysis(row));
+      values.push(checkedAnalysis(row.doc));
     } catch {
       corrupt++;
     }
   }
   return { values, corrupt };
 }
-export async function readAudit(db: ParagraphDb) {
-  const rows = await db.auditEvents.toArray();
+export async function readAudit(reader: DocReader, id?: string) {
+  const rows = await reader.query('auditEvents', id ? { where: { refId: id } } : undefined);
   const values: AuditEvent[] = [];
   let corrupt = 0;
   for (const row of rows) {
-    const result = AuditEventSchema.safeParse(row);
+    const result = AuditEventSchema.safeParse(row.doc);
     if (result.success) values.push(result.data);
     else corrupt++;
   }
