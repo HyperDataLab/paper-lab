@@ -60,7 +60,8 @@ export function LlmProvider({
     return new Promise<boolean>((resolve) => pending.current.push(resolve));
   };
   const close = (accepted: boolean) => {
-    const record = accepted ? acceptConsent(config, scope !== undefined, scope === 'autoresearch') : null;
+    const paper = scope === 'paper' || scope === 'autoresearch';
+    const record = accepted ? acceptConsent(config, paper, scope === 'autoresearch') : null;
     if (record) setConsent(record);
     setOpen(false);
     pending.current.splice(0).forEach((resolve) => resolve(Boolean(record)));
@@ -92,7 +93,9 @@ export function LlmProvider({
               ? 'Charter, chỉ dẫn, nội dung bài báo được chọn và dữ liệu AutoResearch sẽ được gửi tới các model đã cấu hình qua 9router. Từ khoá tra cứu có thể được gửi tới OpenAlex và máy chủ lab khi đã đăng nhập. Bạn có thể thu hồi đồng ý trong Cài đặt.'
               : scope === 'paper'
                 ? 'Các đoạn được chọn của bản thảo sẽ được gửi tới mô hình đã cấu hình. Bạn có thể thu hồi đồng ý trong Cài đặt.'
-                : 'Văn bản của paragraph sẽ được gửi tới endpoint 9router đã cấu hình. Không tải lên nơi nào khác; dữ liệu còn lại nằm trong trình duyệt này. Bạn có thể thu hồi đồng ý trong Cài đặt.'
+                : scope === 'kg'
+                  ? 'Câu hỏi và schema của KG sẽ được gửi tới model đã cấu hình qua 9router. SQL được chạy trên máy chủ lab. Bạn có thể thu hồi đồng ý trong Cài đặt.'
+                  : 'Văn bản của paragraph sẽ được gửi tới endpoint 9router đã cấu hình. Không tải lên nơi nào khác; dữ liệu còn lại nằm trong trình duyệt này. Bạn có thể thu hồi đồng ý trong Cài đặt.'
           }
           onClose={() => close(false)}
         >

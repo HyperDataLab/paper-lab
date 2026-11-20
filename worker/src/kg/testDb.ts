@@ -4,20 +4,26 @@ import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { onTestFinished } from 'vitest';
-import type { D1Database, D1Statement, SqlValue } from './bindings';
+import { D1_MAX_COMPOUND_SELECT, type D1Database, type D1Statement, type SqlValue } from './bindings';
 
 class Statement implements D1Statement {
   constructor(
+    private readonly sqlite: DatabaseSync,
     readonly sql: string,
     readonly values: SqlValue[] = [],
   ) {}
   bind(...values: SqlValue[]) {
-    return new Statement(this.sql, values);
+    return new Statement(this.sqlite, this.sql, values);
+  }
+  async raw<T>(_options: { columnNames: true }): Promise<[string[], ...T[]]> {
+    const prepared = this.sqlite.prepare(this.sql);
+    prepared.setReturnArrays(true);
+    const rows = prepared.all(...this.values) as unknown as unknown[][];
+    const values = rows.map((row) => row.map((value) => (value instanceof Uint8Array ? [...value] : value)));
+    return [prepared.columns().map(({ name }) => name), ...(values as T[])];
   }
 }
 
-/** D1 allows at most five terms in a compound SELECT; SQLite's default is 500. */
-export const D1_MAX_COMPOUND_SELECT = 5;
 const compoundTerms = (sql: string) => (sql.match(/\b(?:UNION|INTERSECT|EXCEPT)\b/giu)?.length ?? 0) + 1;
 
 /** An in-memory D1 with the migrations of `migrationsDir` (relative to worker/) applied. */
@@ -33,7 +39,7 @@ export function testDb(migrationsDir = 'migrations') {
     .sort())
     sqlite.exec(readFileSync(resolve(migrations, file), 'utf8'));
   const db: D1Database = {
-    prepare: (sql) => new Statement(sql),
+    prepare: (sql) => new Statement(sqlite, sql),
     async batch<T>(statements: D1Statement[]) {
       sqlite.exec('BEGIN');
       try {

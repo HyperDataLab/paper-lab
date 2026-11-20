@@ -121,6 +121,9 @@ L1 adds the OpenAlex graph mapper, D1 schema and optional worker bindings. L2 ad
 Library and published SCG, plus queue status and the scheduled drain. Owner provisioning is pending. Search
 and graph reads are L3. See the [Lab KG contract](contracts/lab-kg.md) and [plan](plans/LAB_KG.md).
 
+Semantic step 4 adds a consent-gated question panel on `/lab-kg`. It runs generated read-only SQL against
+`paperlab-kg` and shows the SQL, result rows and concepts used. See the [semantic layer plan](plans/SEMANTIC_LAYER.md).
+
 ## Open decisions
 
 - Hosting: Firebase Hosting (ADR-0001) or an Oracle Cloud Always Free VM (ADR-0005, proposed). Keep the app

@@ -1,7 +1,10 @@
 export type SqlValue = string | number | null;
 
+export const D1_MAX_COMPOUND_SELECT = 5;
+
 export interface D1Statement {
   bind(...values: SqlValue[]): D1Statement;
+  raw<T = unknown[]>(options: { columnNames: true }): Promise<[string[], ...T[]]>;
 }
 
 export interface D1Database {

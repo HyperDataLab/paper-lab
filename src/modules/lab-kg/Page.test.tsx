@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
+import { LlmProvider } from '@/shared/llm/LlmProvider';
 import Page from './Page';
 
 const download = vi.hoisted(() => vi.fn());
@@ -165,7 +166,9 @@ function show(auth: AuthValue = signedIn) {
   return render(
     <AuthContext.Provider value={auth}>
       <MemoryRouter>
-        <Page />
+        <LlmProvider>
+          <Page />
+        </LlmProvider>
       </MemoryRouter>
     </AuthContext.Provider>,
   );
@@ -187,6 +190,7 @@ describe('L4 lab KG explorer', () => {
   it('L4 asks to sign in when signed out', () => {
     show({ ...signedIn, user: null, getIdToken: async () => null });
     expect(screen.getByText('Cần đăng nhập')).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Hỏi KG bằng câu hỏi' })).toBeNull();
     expect(fetcher).not.toHaveBeenCalled();
   });
 
@@ -197,6 +201,7 @@ describe('L4 lab KG explorer', () => {
     expect(screen.getByText(/Đưa bài này vào KG/u)).toBeTruthy();
     expect(await screen.findByRole('link', { name: 'Mở Corpus' })).toBeTruthy();
     expect(screen.getByLabelText('Tìm tâm đồ thị')).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Hỏi KG bằng câu hỏi' })).toBeInTheDocument();
     expect(calls('/overview')).toHaveLength(0);
   });
 

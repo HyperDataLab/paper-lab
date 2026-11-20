@@ -37,6 +37,7 @@ import { Empty, Loading } from '@/shared/ui/StateNote';
 import { TextField } from '@/shared/ui/TextField';
 import { OpenKgGraph } from '@/shared/ui/openkg/OpenKgGraph';
 import openkg from '@/shared/ui/openkg/openkg.module.css';
+import { AskKg } from './AskKg';
 import { EmptyKg } from './EmptyKg';
 import { ErrorNote } from './ErrorNote';
 import { KIND_LABELS, LAYER_NAMES } from './labels';
@@ -344,6 +345,7 @@ export default function Page() {
   return (
     <div className={styles.page}>
       {header}
+      <AskKg key={uid} />
       {statsError ? (
         <ErrorNote error={statsError} onRetry={() => setStatsRefresh((value) => value + 1)} />
       ) : !stats ? (
