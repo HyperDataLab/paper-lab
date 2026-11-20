@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, Maximize2, Minus, Plus } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { TextField } from '@/shared/ui/TextField';
@@ -38,6 +38,29 @@ interface RenderedPage {
   items: string[];
   divs: HTMLElement[];
 }
+
+const PdfPageFrame = memo(function PdfPageFrame({
+  number,
+  width,
+  height,
+  flash,
+}: {
+  number: number;
+  width: number;
+  height: number;
+  flash: boolean;
+}) {
+  return (
+    <div
+      data-page={number}
+      data-flash={flash}
+      className={styles.page}
+      aria-label={`Trang ${number}`}
+      role="region"
+      style={{ width, height }}
+    />
+  );
+});
 
 /** Boxes over the words of a range of text items, in the page holder's coordinates. */
 function boxesFor(page: RenderedPage, ranges: { item: number; from: number; to: number }[]) {
@@ -342,21 +365,31 @@ export function PdfViewer({
   // The page counter follows the page under the upper part of the dedicated PDF scroller.
   useEffect(() => {
     if (!doc) return;
-    // A few page boxes are read per scroll event: cheap enough to do directly.
+    let frame = 0;
     const onScroll = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        updatePage();
+      });
+    };
+    const updatePage = () => {
       const root = scroller.current;
       if (!root) return;
-      const line = root.getBoundingClientRect().top + root.clientHeight * 0.4;
+      const line = root.scrollTop + root.clientHeight * 0.4;
       let current = 1;
       for (const holder of root.querySelectorAll<HTMLElement>('[data-page]'))
-        if (holder.getBoundingClientRect().top <= line) current = Number(holder.dataset.page);
-      setPage(current);
+        if (holder.offsetTop <= line) current = Number(holder.dataset.page);
+      setPage((previous) => (previous === current ? previous : current));
     };
     const root = scroller.current;
     if (!root) return;
     root.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-    return () => root.removeEventListener('scroll', onScroll);
+    updatePage();
+    return () => {
+      root.removeEventListener('scroll', onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
   }, [doc]);
 
   const goTo = useCallback((number: number) => {
@@ -488,17 +521,16 @@ export function PdfViewer({
         )}
       </div>
       <div ref={scroller} className={styles.pages} aria-label="Các trang PDF">
-        {doc && base && Array.from({ length: doc.numPages }, (_, index) => index + 1).map((number) => (
-          <div
-            key={number}
-            data-page={number}
-            data-flash={flash === number}
-            className={styles.page}
-            aria-label={`Trang ${number}`}
-            role="region"
-            style={{ width: base.width * scale, height: base.height * scale }}
-          />
-        ))}
+        {doc && base &&
+          Array.from({ length: doc.numPages }, (_, index) => index + 1).map((number) => (
+            <PdfPageFrame
+              key={number}
+              number={number}
+              width={base.width * scale}
+              height={base.height * scale}
+              flash={flash === number}
+            />
+          ))}
         {loading || failed ? (
           <div
             className={styles.pdfStateMessage}

@@ -1,7 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
-import { useState, type RefObject } from 'react';
+import { useLayoutEffect, useMemo, useRef, type RefObject } from 'react';
 import type { Finding, Paper, PaperChecksRecord } from '@/core/schemas';
-import type { FindingInputs } from '@/core/paperFindings';
+import type { FindingInputs, FindingStatus, PaperFinding } from '@/core/paperFindings';
 import type { Criterion } from './criteria';
 import { Button } from '@/shared/ui/Button';
 import { Tabs } from '@/shared/ui/Tabs';
@@ -58,14 +58,27 @@ export function AnalysisColumn({
   onFilter: (ids: string[]) => void;
   inDrawer?: boolean;
 }) {
-  const { mode, inSpace, wide } = nav;
-  // Keep visited reader tabs mounted so their filters, fetched context, and expanded rows survive tab switches.
-  const [tabHistory, setTabHistory] = useState(() => ({ mode, visited: new Set([mode]) }));
-  if (tabHistory.mode !== mode) {
-    setTabHistory({ mode, visited: new Set([...tabHistory.visited, mode]) });
-  }
-  const keepIssues = mode === 'issues' || tabHistory.visited.has('issues');
-  const keepCitations = mode === 'citations' || tabHistory.visited.has('citations');
+  const { mode, inSpace, wide, visitedModes } = nav;
+  const latestIssues = useRef(issues);
+  useLayoutEffect(() => {
+    latestIssues.current = issues;
+  }, [issues]);
+  const issueActions = useMemo(
+    () => ({
+      onLocation: (location: Finding['locations'][number]) => latestIssues.current.onLocation(location),
+      onOpenSource: (view: string) => latestIssues.current.onOpenSource(view as ViewId),
+      onDecide: (finding: PaperFinding, status: FindingStatus) => latestIssues.current.onDecide(finding, status),
+      onRunChecks: () => latestIssues.current.onRunChecks(),
+    }),
+    [],
+  );
+  const stableIssues = useMemo(
+    () => ({ paper: issues.paper, findings: issues.findings, ...issueActions }),
+    [issues.paper, issues.findings, issueActions],
+  );
+  // Navigation records visited modes in its event handler so this panel avoids a render-phase state update.
+  const keepIssues = visitedModes.has('issues');
+  const keepCitations = visitedModes.has('citations');
   return (
     <section
       ref={columnRef}
@@ -108,10 +121,10 @@ export function AnalysisColumn({
               paper={paper}
               findings={issues.findings}
               focusId={focusFinding}
-              onLocation={onLocation}
-              onOpenSource={(view) => issues.onOpenSource(view as ViewId)}
-              onDecide={issues.onDecide}
-              onRunChecks={issues.onRunChecks}
+              onLocation={issueActions.onLocation}
+              onOpenSource={issueActions.onOpenSource}
+              onDecide={issueActions.onDecide}
+              onRunChecks={issueActions.onRunChecks}
             />
           </>
         )}
@@ -122,12 +135,12 @@ export function AnalysisColumn({
           only={CITATION_CRITERIA}
           visible={keepCitations}
           kit={kit}
-          issues={issues}
+          issues={stableIssues}
           idPrefix="citation-"
         />
         <PaperBlock id="references" kit={kit}>
           {keepCitations && kit.openBlocks.includes('references') && (
-            <PaperReferences paper={paper} onLocation={onLocation} />
+            <PaperReferences paper={paper} onLocation={issueActions.onLocation} />
           )}
         </PaperBlock>
         {keepCitations && (

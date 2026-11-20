@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { paperIdentity } from '@/core/paperIdentity';
 import { type Paper, type Section, type Finding, type PaperMetadata as Metadata } from '@/core/schemas';
@@ -52,7 +54,28 @@ function BatchWorkspace({
   return <>{children(batch)}</>;
 }
 
+const paperQueryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 45_000,
+      gcTime: 2 * 60_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      retry: false,
+    },
+  },
+});
+
 export default function PaperMapPage() {
+  return (
+    <QueryClientProvider client={paperQueryClient}>
+      <PaperMapPageContent />
+      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />}
+    </QueryClientProvider>
+  );
+}
+
+function PaperMapPageContent() {
   const { id } = useParams();
   const [query] = useSearchParams();
   const repo = useRepositories();
@@ -84,7 +107,6 @@ export default function PaperMapPage() {
     id,
     paper,
     doneJobs: JOB_IDS.filter((job) => jobFacts[job]?.done).join(','),
-    place: `${pane}:${mode}`,
     onError: setError,
   });
   // Asked in the background once the paper is open; the parsed text is used alone until (or unless) it arrives.

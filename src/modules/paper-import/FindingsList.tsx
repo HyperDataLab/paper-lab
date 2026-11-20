@@ -1,6 +1,6 @@
 import { ArrowUpRight, ChevronDown, Filter, RotateCw } from 'lucide-react';
 import { IconButton } from '@/shared/ui/IconButton';
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import type { Criterion, FindingLocation, FindingStatus, PaperFinding } from '@/core/paperFindings';
 import type { Paper } from '@/core/schemas';
 import { displayQuote, displayReason } from './findingText';
@@ -32,7 +32,7 @@ const GROUP_RANK = new Map(GROUPS.map((entry, index) => [entry.id, index]));
  * is the kind of problem. A result counts as accepted unless the reader rejects it; a rejected card stays in
  * place, dimmed, with undo.
  */
-export function FindingsList({
+export const FindingsList = memo(function FindingsList({
   paper,
   findings,
   focusId,
@@ -261,4 +261,4 @@ export function FindingsList({
       )}
     </section>
   );
-}
+});

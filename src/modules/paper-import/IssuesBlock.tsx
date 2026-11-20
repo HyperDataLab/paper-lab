@@ -1,6 +1,6 @@
 import type { Finding, Paper } from '@/core/schemas';
 import type { FindingStatus, PaperFinding } from '@/core/paperFindings';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { Criterion } from './criteria';
 import { FindingsList } from './FindingsList';
 import { PaperBlock, type BlockKit } from './PaperBlock';
@@ -48,6 +48,11 @@ export function IssuesBlock({
       ),
     [id, issues.findings, only],
   );
+  const onOpenSourceView = issues.onOpenSource;
+  const onOpenSource = useCallback(
+    (view: string) => onOpenSourceView(view as ViewId),
+    [onOpenSourceView],
+  );
   return (
     <PaperBlock id={id} kit={kit} title={`Issues (${own.length})`}>
       {visible && kit.openBlocks.includes(id) && (
@@ -57,7 +62,7 @@ export function IssuesBlock({
           only={only}
           focusId={null}
           onLocation={issues.onLocation}
-          onOpenSource={(view) => issues.onOpenSource(view as ViewId)}
+          onOpenSource={onOpenSource}
           onDecide={issues.onDecide}
           onRunChecks={issues.onRunChecks}
           idPrefix={idPrefix}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { usableGrobid } from '@/core/grobid/merge';
 import type { Finding, Paper, PaperContextRecord } from '@/core/schemas';
 import {
@@ -21,7 +21,7 @@ import { PlaceText } from './PlaceText';
 import { ReferenceAudit } from './ReferenceAudit';
 import styles from './page.module.css';
 
-export function PaperReferences({
+export const PaperReferences = memo(function PaperReferences({
   paper,
   onLocation,
 }: {
@@ -194,4 +194,4 @@ export function PaperReferences({
       </Card>
     </>
   );
-}
+});
