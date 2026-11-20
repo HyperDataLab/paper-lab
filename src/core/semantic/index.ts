@@ -1,6 +1,9 @@
 import { CONCEPTS, type Concept, type ConceptRelation } from './concepts';
+import { PAGES, type Page } from './pages';
 
 export { CONCEPTS } from './concepts';
+export { PAGES } from './pages';
+export type { Page, PageAction, PageParam, PageTab } from './pages';
 export type {
   Concept,
   ConceptField,
@@ -123,7 +126,47 @@ export function relatedTerms(id: string): RelatedTerm[] {
   return related;
 }
 
-export const SEMANTIC_REGISTRY_VERSION = 1;
+const pathOnly = (route: string) => {
+  const bare = route.split(/[?#]/u)[0] ?? '';
+  const trimmed = bare.length > 1 ? bare.replace(/\/+$/u, '') : bare;
+  return trimmed || '/';
+};
+
+/** Whether a concrete path such as `/corpus/abc` fits a pattern such as `/corpus/:id`. */
+export function matchPath(pattern: string, route: string): boolean {
+  const want = pathOnly(pattern).split('/');
+  const have = pathOnly(route).split('/');
+  if (want.length !== have.length) return false;
+  return want.every((part, index) => {
+    const value = have[index] ?? '';
+    return part.startsWith(':') ? value.length > 0 : part === value;
+  });
+}
+
+/**
+ * The page for a page id, a route pattern or a concrete path (query and hash are ignored). Literal routes win
+ * over patterns, so `/papers` is the list and `/papers/abc` the paper.
+ */
+export function describePage(idOrPath: string): Page | undefined {
+  const byId = PAGES.find((item) => item.id === idOrPath);
+  if (byId) return byId;
+  const route = pathOnly(idOrPath);
+  return (
+    PAGES.find((item) => item.path === route) ??
+    PAGES.find((item) => item.path.includes(':') && matchPath(item.path, route))
+  );
+}
+
+/** The pages that show, read or write a concept, in page-map order. */
+export function pagesForConcept(conceptId: string): Page[] {
+  return PAGES.filter(
+    (item) =>
+      item.shows.includes(conceptId) || item.reads.includes(conceptId) || item.writes.includes(conceptId),
+  );
+}
+
+/** Version 2 added `pages` (step 2, the page map). */
+export const SEMANTIC_REGISTRY_VERSION = 2;
 
 /** A stable, JSON-safe export of the registry (registry order, no timestamps), for the MCP server. */
 export function toJson() {
@@ -140,6 +183,28 @@ export function toJson() {
       fields: concept.fields.map((field) => ({ ...field })),
       relations: concept.relations.map((relation) => ({ ...relation })),
       schema: concept.schema ? { ...concept.schema } : null,
+    })),
+    pages: PAGES.map((item) => ({
+      id: item.id,
+      path: item.path,
+      module: item.module,
+      titleVi: item.titleVi,
+      name: item.name,
+      purpose: item.purpose,
+      params: item.params.map((param) => ({ ...param })),
+      query: item.query.map((param) => ({ ...param })),
+      shows: [...item.shows],
+      reads: [...item.reads],
+      writes: [...item.writes],
+      actions: item.actions.map((action) => ({
+        labelVi: action.labelVi,
+        effect: action.effect,
+        writes: [...(action.writes ?? [])],
+        ai: action.ai ?? false,
+      })),
+      requiresSignIn: item.requiresSignIn,
+      parent: item.parent ?? null,
+      tabs: (item.tabs ?? []).map((tab) => ({ ...tab })),
     })),
   };
 }
