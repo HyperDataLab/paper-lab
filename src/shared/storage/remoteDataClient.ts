@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { PDF_WORKER_URL } from '@/shared/pdfStore';
-import { DataNotConfiguredError, RemoteStorageError, StorageConflictError } from './errors';
+import {
+  DataNotConfiguredError,
+  RemoteStorageError,
+  StorageConflictError,
+  UniqueConflictError,
+} from './errors';
 
 const version = z.number().int().positive();
 const ref = z.object({ collection: z.string(), id: z.string() });
@@ -76,6 +81,8 @@ export class RemoteDataClient {
     const detail = parsed.data?.message ?? `Kho dữ liệu lab trả lời HTTP ${response.status}.`;
     if (response.status === 503 && parsed.data?.error === 'data_not_configured')
       throw new DataNotConfiguredError(detail);
+    if (response.status === 409 && parsed.data?.error === 'unique_conflict')
+      throw new UniqueConflictError(detail);
     if (response.status === 409) {
       const conflict = parsed.data?.conflicts?.[0] ?? target;
       throw new StorageConflictError(

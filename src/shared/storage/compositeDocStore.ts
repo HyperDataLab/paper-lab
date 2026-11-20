@@ -1,6 +1,7 @@
 import type { DocQuery, DocStore, DocTx, ExpectedVersion } from './docStore';
 import { DataNotConfiguredError, MixedStorageError } from './errors';
 import type { RemoteDocStore } from './remoteDocStore';
+import { CORPUS_COLLECTIONS } from './remote/corpusCollections';
 
 export const SPIKE_COLLECTIONS = [
   'extractionProjects',
@@ -8,7 +9,7 @@ export const SPIKE_COLLECTIONS = [
   'researchDesignBanks',
   'autoresearchRuns',
 ] as const;
-const spike: ReadonlySet<string> = new Set(SPIKE_COLLECTIONS);
+const spike: ReadonlySet<string> = new Set([...SPIKE_COLLECTIONS, ...CORPUS_COLLECTIONS]);
 
 export class CompositeDocStore implements DocStore {
   private fallback = false;

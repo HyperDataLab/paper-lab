@@ -11,6 +11,9 @@ import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { createDb } from '@/shared/storage/db';
 import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
+import { CompositeDocStore } from '@/shared/storage/compositeDocStore';
+import { DexieDocStore } from '@/shared/storage/dexieDocStore';
+import { testWorkerData } from '@/shared/storage/remoteTestSupport';
 import Page from './Page';
 import DetailPage from './DetailPage';
 
@@ -282,54 +285,54 @@ it('C1d shows Vietnamese member labels', async () => {
   expect(screen.getByRole('cell', { name: 'Giữ riêng kiểm tra' })).toBeInTheDocument();
   expect(screen.getByRole('cell', { name: 'Bản chấp nhận' })).toBeInTheDocument();
 });
-it('C1d offers both choices after a stale write', async () => {
-  const corpus = { ...exampleCorpus(), id: crypto.randomUUID() };
-  const repo = createRepositories(createDb(`corpus-conflict-${crypto.randomUUID()}`));
-  await repo.corpora.save(corpus);
-  await repo.corpora.setSyncState(corpus.id, 'old', corpus);
-  vi.stubGlobal(
-    'fetch',
-    vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify([
-            {
-              id: corpus.id,
-              title: corpus.title,
-              kind: corpus.kind,
-              updatedAt: corpus.updatedAt,
-              version: 'old',
-            },
-          ]),
-        ),
-      )
-      .mockResolvedValueOnce(new Response(JSON.stringify({ version: 'new' }), { status: 409 })),
+it('C3 lists and opens a corpus on the lab store, then shows a conflict with reload after another write', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const corpus = exampleCorpus();
+  const worker = testWorkerData();
+  const db = createDb(`corpus-remote-${crypto.randomUUID()}`);
+  const repo = createRepositories(
+    db,
+    undefined,
+    undefined,
+    new CompositeDocStore(new DexieDocStore(db), worker.connect()),
   );
-  await repo.corpora.save({ ...corpus, title: 'Local edit' });
-  render(
-    <MemoryRouter initialEntries={['/corpus']}>
-      <AuthContext.Provider
-        value={{
-          user: { uid: '1', email: 'a@hyperdatalab.org', name: null },
-          ready: true,
-          error: '',
-          signIn: async () => {},
-          signOut: async () => {},
-          getIdToken: async () => 'token',
-        }}
-      >
+  const other = createRepositories(
+    createDb(`corpus-other-${crypto.randomUUID()}`),
+    undefined,
+    undefined,
+    worker.connect(),
+  );
+  try {
+    await repo.corpora.save(corpus);
+    // The corpus is on the lab store, not in this browser.
+    expect(await db.corpora.count()).toBe(0);
+    render(
+      <MemoryRouter initialEntries={['/corpus']}>
         <StorageProvider repositories={repo}>
-          <Page />
+          <LlmProvider innerClient={client}>
+            <Routes>
+              <Route path="/corpus" element={<Page />} />
+              <Route path="/corpus/:id" element={<DetailPage />} />
+            </Routes>
+          </LlmProvider>
         </StorageProvider>
-      </AuthContext.Provider>
-    </MemoryRouter>,
-  );
-  fireEvent.click(screen.getByRole('button', { name: 'Đồng bộ' }));
-  expect(await screen.findByText(/Corpus đã được người khác sửa/)).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Tải bản mới' })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Giữ bản của tôi' })).toBeInTheDocument();
-  vi.unstubAllGlobals();
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: `Thao tác với ${corpus.title}` }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Mở' }));
+    await screen.findByRole('heading', { name: corpus.title });
+    await other.corpora.save({ ...corpus, title: 'Edited elsewhere' });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Sửa giao thức' })[0]!);
+    fireEvent.click(await screen.findByRole('button', { name: 'Lưu phiên bản mới' }));
+    expect(await screen.findByText(/Corpus đã được người khác sửa/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Giữ bản của tôi' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Tải bản mới' }));
+    expect(await screen.findByRole('heading', { name: 'Edited elsewhere' })).toBeInTheDocument();
+    expect(screen.queryByText(/Corpus đã được người khác sửa/)).toBeNull();
+    expect((await other.corpora.get(corpus.id))?.protocol).toHaveLength(corpus.protocol.length);
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });
 it('C1c deletes a corpus from its card menu after confirming', async () => {
   const corpus = exampleCorpus();

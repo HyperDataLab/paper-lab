@@ -43,7 +43,14 @@ import styles from './corpus.module.css';
  * Two-stage screening: every click appends a person decision; AI suggestions are shown apart until accepted.
  * The AI triage (scores, buckets, bulk apply) is the Project's, run on the stage's members.
  */
-export function ScreeningList({ corpus, save }: { corpus: Corpus; save: (value: Corpus) => Promise<void> }) {
+export function ScreeningList({
+  corpus,
+  save,
+}: {
+  corpus: Corpus;
+  /** `checkpoint` lets the store coalesce a run's batch writes; the run ends with a plain save. */
+  save: (value: Corpus, options?: { checkpoint?: boolean }) => Promise<void>;
+}) {
   const llm = useLlm();
   const [stage, setStage] = useState<ScreeningStage>('title-abstract');
   const [name, setName] = useState('');
@@ -128,6 +135,7 @@ export function ScreeningList({ corpus, save }: { corpus: Corpus; save: (value: 
     const runStage = stage;
     setBusy('Đang chấm điểm sàng lọc…');
     setError('');
+    let checkpointed = false;
     try {
       if (!(await llm.ensureConsent('paper')) || abort.signal.aborted) return;
       const start = current.current;
@@ -141,12 +149,15 @@ export function ScreeningList({ corpus, save }: { corpus: Corpus; save: (value: 
           const next = storeTriage(base, runStage, before, apply(before), new Date().toISOString());
           current.current = next;
           setBusy(`Đang chấm điểm sàng lọc… lô ${index + 1}/${total}`);
-          await save(next);
+          await save(next, { checkpoint: true });
+          checkpointed = true;
         },
       });
     } catch (cause) {
       if (!abort.signal.aborted) setError(describeLlmError(cause) ?? String(cause));
     } finally {
+      // The run's last state is written for certain, also after a stop or a failed batch.
+      if (checkpointed) await save(current.current).catch((cause: unknown) => setError(String(cause)));
       setBusy('');
       controller.current = null;
     }

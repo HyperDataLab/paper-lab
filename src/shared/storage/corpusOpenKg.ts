@@ -1,6 +1,5 @@
-import { liveQuery } from 'dexie';
 import { normalizeDoi } from '@/core/library';
-import { buildCorpusKg, type CorpusKgMetadata } from '@/core/openkg';
+import { buildCorpusKg, type CorpusKg, type CorpusKgMetadata } from '@/core/openkg';
 import { buildPaperModel } from '@/core/paperModel';
 import {
   LibraryItemSchema,
@@ -10,12 +9,30 @@ import {
 } from '@/core/schemas';
 import type { Corpus } from '@/core/schemas/corpus';
 import { paperDoi } from '@/core/scholarlyContext';
+import type { SubscribeChanges } from './changeEvents';
 import type { createCorpusKeywordsRepository } from './corpusKeywords';
-import type { ParagraphDb } from './db';
+import type { DocReader } from './docStore';
+import { libraryByDois, libraryByPapers } from './library';
 import type { createScgRepository } from './scg';
 
+/** Collections the corpus graph reads; a write to any of them rebuilds it. */
+const SOURCES: ReadonlySet<string> = new Set([
+  'papers',
+  'paperContext',
+  'paperInsights',
+  'scgRuns',
+  'library',
+  'doiKeywords',
+]);
+
+export interface GraphObserver {
+  next?: (graph: CorpusKg) => void;
+  error?: (cause: unknown) => void;
+}
+
 export function createCorpusOpenKgRepository(
-  db: ParagraphDb,
+  store: DocReader,
+  changes: SubscribeChanges,
   keywordRepo: ReturnType<typeof createCorpusKeywordsRepository>,
   scg: ReturnType<typeof createScgRepository>,
 ) {
@@ -23,18 +40,20 @@ export function createCorpusOpenKgRepository(
     const members = corpus.members;
     const paperIds = [...new Set(members.flatMap(({ identifiers }) => identifiers.paperIds))];
     const [rows, contexts, insights, runs, keywordData] = await Promise.all([
-      db.papers.bulkGet(paperIds),
-      db.paperContext.bulkGet(paperIds),
-      db.paperInsights.bulkGet(paperIds),
+      store.getMany('papers', paperIds),
+      store.getMany('paperContext', paperIds),
+      store.getMany('paperInsights', paperIds),
       scg.listByPapers(paperIds),
       keywordRepo.memberKeywords(corpus),
     ]);
     const byPaper = new Map(runs.map((run) => [run.paperId, run]));
     const local = rows.flatMap((row, i) => {
       if (!row) return [];
-      const paper = PaperSchema.parse(row);
-      const context = contexts[i] && PaperContextRecordSchema.parse(contexts[i]);
-      const insight = insights[i] && PaperInsightsRecordSchema.parse(insights[i]);
+      const paper = PaperSchema.parse(row.doc);
+      const contextRow = contexts[i];
+      const insightRow = insights[i];
+      const context = contextRow ? PaperContextRecordSchema.parse(contextRow.doc) : undefined;
+      const insight = insightRow ? PaperInsightsRecordSchema.parse(insightRow.doc) : undefined;
       return [
         {
           paper,
@@ -53,15 +72,17 @@ export function createCorpusOpenKgRepository(
     const libraryIds = [...new Set(members.flatMap(({ identifiers }) => identifiers.libraryIds))];
     const dois = [...new Set([...members.flatMap(memberDois), ...local.flatMap(({ doi }) => doi ?? [])])];
     const [linked, byDoiRows, attached] = await Promise.all([
-      db.library.bulkGet(libraryIds),
-      db.library.where('doi').anyOf(dois).toArray(),
-      db.library.where('paper_id').anyOf(paperIds).toArray(),
+      store.getMany('library', libraryIds),
+      libraryByDois(store, dois),
+      libraryByPapers(store, paperIds),
     ]);
     const items = [
       ...new Map(
-        [...linked, ...byDoiRows, ...attached].flatMap((row) =>
-          row ? ([[row.id, LibraryItemSchema.parse(row)]] as const) : [],
-        ),
+        [
+          ...linked.flatMap((row) => (row ? [LibraryItemSchema.parse(row.doc)] : [])),
+          ...byDoiRows,
+          ...attached,
+        ].map((item) => [item.id, item] as const),
       ).values(),
     ];
     const byId = new Map(items.map((item) => [item.id, item]));
@@ -87,5 +108,52 @@ export function createCorpusOpenKgRepository(
     return buildCorpusKg({ papers, members, memberMetadata });
   }
 
-  return { observe: (corpus: Corpus) => liveQuery(() => read(corpus)) };
+  /**
+   * Builds the graph now and again after writes to a collection it reads. One build runs at a time; writes during
+   * it (a keyword backfill writes once per member) cause a single rebuild after it.
+   */
+  function observe(corpus: Corpus) {
+    return {
+      subscribe(observer: GraphObserver) {
+        let closed = false;
+        let running = false;
+        let again = false;
+        const refresh = () => {
+          if (running) {
+            again = true;
+            return;
+          }
+          running = true;
+          void read(corpus)
+            .then(
+              (graph) => {
+                if (!closed && !again) observer.next?.(graph);
+              },
+              (cause: unknown) => {
+                if (!closed && !again) observer.error?.(cause);
+              },
+            )
+            .finally(() => {
+              running = false;
+              if (again && !closed) {
+                again = false;
+                refresh();
+              }
+            });
+        };
+        const off = changes((collections) => {
+          if ([...collections].some((collection) => SOURCES.has(collection))) refresh();
+        });
+        refresh();
+        return {
+          unsubscribe() {
+            closed = true;
+            off();
+          },
+        };
+      },
+    };
+  }
+
+  return { read, observe };
 }
