@@ -1,10 +1,4 @@
-import {
-  PaperSchema,
-  PaperSummarySchema,
-  SectionSchema,
-  AuditEventSchema,
-  type Paper,
-} from '@/core/schemas';
+import { PaperSchema, PaperSummarySchema, SectionSchema, AuditEventSchema, type Paper } from '@/core/schemas';
 import { appendAudit, type StorageDeps } from './storageShared';
 import type { DocStore } from './docStore';
 import { checkpointParts } from './paperCheckpoints';

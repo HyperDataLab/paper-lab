@@ -50,7 +50,10 @@ function batchPaperReads(store: DocStore, remote?: RemoteDocStore) {
  * Batches single-document paper reads into one lab request and exposes what checkpointing repositories need.
  * Write events for readers such as the corpus graph come from `withChangeEvents`, which wraps this store.
  */
-export function paperStoreReads(store: DocStore, remote = store instanceof RemoteDocStore ? store : undefined) {
+export function paperStoreReads(
+  store: DocStore,
+  remote = store instanceof RemoteDocStore ? store : undefined,
+) {
   const online = () => Boolean(remote && !(store instanceof CompositeDocStore && store.isFallback()));
   const checkpointStore = {
     queued: online,
