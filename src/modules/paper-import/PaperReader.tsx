@@ -145,7 +145,13 @@ export function PaperReader({
         <div className={item.table && !marked ? styles.hidden : styles.markedRow}>
           <MarkGutter marks={own} />
           <p className={styles.reading}>
-            <MarkedText text={item.text} marks={own} selected={marked} onMark={onMark} />
+            <MarkedText
+              text={item.text}
+              marks={own}
+              selected={marked}
+              onMark={onMark}
+              forceMath={item.kind === 'equation'}
+            />
           </p>
         </div>
         <BatchParagraphStatus

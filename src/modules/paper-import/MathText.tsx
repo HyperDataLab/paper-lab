@@ -31,10 +31,12 @@ function plainParts(text: string): MathPart[] {
   return parts.length ? parts : [{ text, math: false, display: false }];
 }
 
-function splitMath(text: string): MathPart[] {
+function splitMath(text: string, forceMath: boolean): MathPart[] {
+  const delimited = [...text.matchAll(DELIMITED_MATH)];
+  if (forceMath && delimited.length === 0) return [{ text, math: true, display: true }];
   const parts: MathPart[] = [];
   let cursor = 0;
-  for (const match of text.matchAll(DELIMITED_MATH)) {
+  for (const match of delimited) {
     const token = match[0];
     const index = match.index;
     if (index > cursor) parts.push(...plainParts(text.slice(cursor, index)));
@@ -67,8 +69,8 @@ function renderMath(katexModule: typeof import('katex'), text: string, display: 
 }
 
 /** Renders delimited LaTeX and common extracted Big-O notation without changing stored source text. */
-export function MathText({ text }: { text: string }) {
-  const needsMath = /[$\\]|O\(/u.test(text);
+export function MathText({ text, forceMath = false }: { text: string; forceMath?: boolean }) {
+  const needsMath = forceMath || /[$\\]|O\(/u.test(text);
   const [rendered, setRendered] = useState<{
     source: string;
     parts: (MathPart & { html?: string | null })[];
@@ -79,7 +81,7 @@ export function MathText({ text }: { text: string }) {
     let active = true;
     void Promise.all([import('katex'), import('katex/dist/katex.min.css')])
       .then(([katexModule]) => {
-        const parts = splitMath(text).map((part) =>
+        const parts = splitMath(text, forceMath).map((part) =>
           part.math ? { ...part, html: renderMath(katexModule, part.text, part.display) } : part,
         );
         if (active) setRendered({ source: text, parts });
@@ -90,7 +92,7 @@ export function MathText({ text }: { text: string }) {
     return () => {
       active = false;
     };
-  }, [needsMath, text]);
+  }, [forceMath, needsMath, text]);
 
   if (!needsMath) return text;
   if (rendered?.source !== text) return text;
