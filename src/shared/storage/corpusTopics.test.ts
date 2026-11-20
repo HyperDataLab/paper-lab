@@ -1,13 +1,11 @@
-import 'fake-indexeddb/auto';
 import { expect, it } from 'vitest';
-import { createDb } from './db';
 import { createCorpusTopicsRepository } from './corpusTopics';
-import { DexieDocStore } from './dexieDocStore';
 import { MemoryDocStore, type DocStore } from './docStore';
+import { testWorkerData } from './remoteTestSupport';
 
 it.each<[string, () => DocStore]>([
   ['MemoryDocStore', () => new MemoryDocStore()],
-  ['DexieDocStore', () => new DexieDocStore(createDb(`topics-${crypto.randomUUID()}`))],
+  ['RemoteDocStore', () => testWorkerData().connect()],
 ])('retains snapshots by corpus and keeps names attached to each snapshot (%s)', async (_name, make) => {
   const repo = createCorpusTopicsRepository(make());
   const snapshot = {

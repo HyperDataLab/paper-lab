@@ -1,6 +1,6 @@
 # 0007 Central lab store replaces browser-local storage
 
-Status: Accepted (owner, 2026-11-19). Supersedes ADR-0002 (local-first storage).
+Status: Accepted (owner, 2026-11-19). Supersedes ADR-0002 (local-first storage). Slices C0–C4 are done: since C4 the browser keeps no lab data.
 
 ## Context
 
@@ -28,7 +28,7 @@ Agents, the lab KG and other members could not see each other's work.
    - Every row is stamped with `created_by`, `updated_by`, `project_id` / `corpus_id`, `lab_id` and `visibility` (default `lab`), so permissions can be added without migrating data.
    - Until then, any signed-in lab account can read and write all lab data. Since the Writing Bank site is also accepted, that includes accounts signing in through Writing Bank.
 5. **What stays in the browser:** the 9router key, model settings, AI consent and UI preferences (localStorage). LLM calls stay browser-side on the user's own key.
-6. **No migration of existing local data.** Dexie is retired, keeping only its migration tests until removal.
+6. **No migration of existing local data.** Dexie is removed (C4), with its tables, migration tests and dependency. The app no longer opens the old paragraph-lab IndexedDB database, and does not delete it either. PDFs are read from R2 and held in memory for the session only. Signed out, data screens ask for the lab sign-in; an unconfigured store (503 data_not_configured) is an error shown to the user, not a fallback.
 
 ## Consequences
 

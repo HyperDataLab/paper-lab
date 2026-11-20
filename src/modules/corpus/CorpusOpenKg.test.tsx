@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
@@ -7,11 +6,8 @@ import { buildCorpusKg } from '@/core/openkg';
 import type { Paper } from '@/core/schemas';
 import type { CorpusMember } from '@/core/schemas/corpus';
 import { downloadText } from '@/shared/calibration/download';
-import { CompositeDocStore } from '@/shared/storage/compositeDocStore';
-import { DexieDocStore } from '@/shared/storage/dexieDocStore';
 import { testWorkerData } from '@/shared/storage/remoteTestSupport';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
+import { testRepositories } from '@/shared/storage/testRepositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { CorpusOpenKg } from './CorpusOpenKg';
 import { CorpusOpenKgView } from './CorpusOpenKgView';
@@ -40,20 +36,11 @@ const member = (memberId: string, overrides: Partial<CorpusMember['identifiers']
 });
 const keyword = { id: 'keywords/synthetic', name: 'Synthetic keyword', score: 0.75 };
 
-it.each(['local', 'remote'])(
+it.each(['memory', 'remote'])(
   'K3 renders the %s corpus graph and updates after keyword backfill',
   async (backend) => {
-    const db = createDb(`openkg-ui-${crypto.randomUUID()}`);
     vi.stubGlobal('crypto', webcrypto);
-    const worker = backend === 'remote' ? testWorkerData() : null;
-    const remote = worker?.connect();
-    const repo = createRepositories(
-      db,
-      undefined,
-      undefined,
-      new CompositeDocStore(new DexieDocStore(db), remote ?? null),
-      remote,
-    );
+    const repo = testRepositories(backend === 'remote' ? { store: testWorkerData().connect() } : {});
     const corpus = {
       ...base,
       members: [
@@ -132,7 +119,6 @@ it.each(['local', 'remote'])(
       expect(within(inspector).getAllByRole('list', { name: 'Bài báo làm căn cứ' })).toHaveLength(2);
     } finally {
       view.unmount();
-      await db.delete();
       vi.unstubAllGlobals();
     }
   },

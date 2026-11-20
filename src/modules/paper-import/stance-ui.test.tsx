@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
@@ -8,10 +7,10 @@ import type { LlmClient } from '@/shared/llm/client';
 import { getConfig } from '@/shared/llm/config';
 import { acceptConsent } from '@/shared/llm/consent';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories, type Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { PaperStance } from './PaperStance';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 const TEXT = 'We think this may help readers in practice.';
 const paper: Paper = {
@@ -65,7 +64,7 @@ beforeEach(() => {
   localStorage.clear();
 });
 async function setup(seed = true, client?: LlmClient) {
-  const repo: Repositories = createRepositories(createDb(`stance-ui-${crypto.randomUUID()}`));
+  const repo: Repositories = testRepositories();
   await repo.papers.create(paper);
   if (seed) await repo.stance.saveRun(paper.id, run());
   const onLocation = vi.fn();

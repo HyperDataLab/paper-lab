@@ -1,13 +1,11 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
 import { expect, it, vi } from 'vitest';
 import { newProject } from '@/core/extraction';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import Page from './Page';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 function Opened() {
   return <p>project {useParams().id}</p>;
@@ -15,7 +13,7 @@ function Opened() {
 
 it('home starts a project from a research question and lists recent work', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`home-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.extraction.save(
     newProject({
       id: crypto.randomUUID(),

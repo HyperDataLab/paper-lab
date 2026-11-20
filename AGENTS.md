@@ -23,9 +23,9 @@ The UI is in Vietnamese; analysed text is English. Code, identifiers and commit 
 ## Hard platform constraints
 
 - **Deploy = Firebase Hosting only** (Spark, no billing). No Cloud Functions, no Storage, no server routes.
-- **Database use is minimised: local-first.** All user data lives in the browser (IndexedDB via Dexie) and moves
-  between machines through JSON export / import. There is no Auth and no Firestore in the MVP (ADR-0002).
-  Do not add a remote database without a new ADR approved by the product owner.
+- **Lab data is central (ADR-0007, supersedes ADR-0002).** Every record lives in the lab's data worker (D1 `paperlab-data` plus R2); PDFs live in R2. A lab account (Firebase Auth, @hyperdatalab.org) is required for
+  data screens. The browser keeps no lab data: no IndexedDB, no Dexie. Only the 9router key, AI consent and UI
+  preferences stay in localStorage. JSON export / import still works through the Transfer page.
 - **LLM = 9router**, an OpenAI-compatible chat-completions endpoint supplied by the owner (ADR-0003).
   - Dev: `VITE_LLM_BASE_URL=/llm` goes through the Vite proxy, which adds `LLM_PROXY_API_KEY` server-side.
     Real values go in gitignored `.env.development.local`.
@@ -49,7 +49,7 @@ src/
     schemas/           Zod schemas = the contract for storage, LLM output and export
   shared/
     llm/               9router client, JSON-schema prompting, repair round, consent gate
-    storage/           Dexie DB + repositories (only place that touches IndexedDB)
+    storage/           DocStore port (remote lab store; in-memory for tests) + repositories
     ui/                design-system primitives (see DESIGN.md)
 ```
 
@@ -59,9 +59,9 @@ src/
   internal cross-module imports; existing exceptions are listed explicitly in `eslint.config.js`.
 - **Adding a module** = create `src/modules/<id>/index.ts` exporting a `ModuleDefinition` and register it in
   `src/app/modules.ts`. The sidebar, routes and breadcrumbs are generated from the registry. Do not hand-edit nav.
-- **Zod schemas in `core/schemas` are the single source of truth.** Every IndexedDB write, every LLM response and
+- **Zod schemas in `core/schemas` are the single source of truth.** Every stored write, every LLM response and
   every import is parsed through them. Timestamps are ISO strings. Schemas carry a `schemaVersion`.
-- **Storage access goes only through `shared/storage` repositories.** Components never call Dexie directly.
+- **Storage access goes only through `shared/storage` repositories.** Components never call the store or the data worker directly.
 - **Prompts are versioned** (`PROMPT_VERSIONS`). Store prompt, model, rubric, tokenizer and rule-set versions plus
   `source_hash` on every analysis (PRD §9 Versioning). Bump the version when a prompt changes.
 

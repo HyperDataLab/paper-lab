@@ -1,14 +1,12 @@
-import 'fake-indexeddb/auto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { exampleCorpus } from '@/core/corpus/contract';
 import type { Corpus, CorpusMember } from '@/core/schemas/corpus';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { CorpusOpenKg } from './CorpusOpenKg';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 const base = exampleCorpus();
 const template = base.members[0];
@@ -31,7 +29,7 @@ const auth: AuthValue = {
 afterEach(() => vi.unstubAllGlobals());
 
 it('K4 corpus SciAtlas panel sends corpus keywords, marks members and adds a result by DOI', async () => {
-  const repo = createRepositories(createDb(`sciatlas-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const corpus: Corpus = { ...base, members: [member('Alpha', '10.1000/alpha')] };
   const {
     added: [entry],

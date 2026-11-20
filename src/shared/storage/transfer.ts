@@ -17,7 +17,7 @@ import { buildExportPackage } from '@/core/transfer/buildExportPackage';
 import { planImport, type ImportPlan } from '@/core/transfer/planImport';
 import { sourceHash } from '@/core/text/hash';
 import { z } from 'zod';
-import type { ParagraphDb } from './db';
+import { ResearchDesignBankSchema } from '@/core/storage/collections';
 import type { DocStore } from './docStore';
 import { applyPaperImport } from './paperTransfer';
 import { createMeasurementsRepository } from './measurements';
@@ -45,7 +45,6 @@ const chunks = <T>(values: readonly T[]) =>
   );
 
 export function createTransferRepository(
-  db: ParagraphDb,
   store: DocStore,
   clock: () => Date,
   deps: StorageDeps,
@@ -65,6 +64,18 @@ export function createTransferRepository(
     repositories;
   async function list<S extends z.ZodType>(collection: string, schema: S): Promise<z.output<S>[]> {
     return (await store.query(collection)).map(({ doc }) => schema.parse(doc));
+  }
+  /** Banks are large, so their ids are listed first and the bodies fetched a page at a time. */
+  async function listBanks() {
+    const ids = (await store.query('researchDesignBanks', { select: 'summary' })).map(({ id }) => id);
+    const banks = [];
+    for (const part of chunks(ids))
+      for (const row of await store.getMany('researchDesignBanks', part)) {
+        if (!row) continue;
+        const value = ResearchDesignBankSchema.parse(row.doc);
+        banks.push({ projectId: value.projectId, bank: value.bank, bytes: value.bytes });
+      }
+    return banks;
   }
   const pendingLocalImports = new WeakSet<Extract<ImportPlan, { ok: true }>>();
   const transfer = {
@@ -95,16 +106,12 @@ export function createTransferRepository(
         await library.list(),
         await list('stance', StanceRecordSchema),
         await list('paperInsights', PaperInsightsRecordSchema),
-        (await db.extractionProjects.toArray()).map((value) => ExtractionProjectSchema.parse(value)),
+        await list('extractionProjects', ExtractionProjectSchema),
         await corpora.list(),
         await list('corpusProfiles', StoredCorpusProfileSchema),
-        (await db.researchDesigns.toArray()).map((row) => ResearchDesignSchema.parse(row)),
-        (await db.researchDesignBanks.toArray()).map((row) => ({
-          projectId: row.projectId,
-          bank: bankDocSchema.parse(row.bank),
-          bytes: row.bytes,
-        })),
-        (await db.autoresearchRuns.toArray()).map((row) => runSchema.parse(row)),
+        await list('researchDesigns', ResearchDesignSchema),
+        await listBanks(),
+        await list('autoresearchRuns', runSchema),
       );
     },
     async previewImport(raw: unknown) {
@@ -181,64 +188,79 @@ export function createTransferRepository(
       const knownPapers = new Set(
         (await papers.getMany(linkedPaperIds)).flatMap((paper) => (paper ? [paper.id] : [])),
       );
-      await db.transaction(
-        'rw',
-        [
-          db.library,
-          db.auditEvents,
-          db.extractionProjects,
-          db.researchDesigns,
-          db.researchDesignBanks,
-          db.autoresearchRuns,
-        ],
-        async () => {
-          for (const event of plan.auditEvents) {
-            if (localActions.has(event.action) && !(await db.auditEvents.get(event.id)))
-              await db.auditEvents.add(AuditEventSchema.parse(event));
-          }
-          for (const record of plan.extractionProjects) {
-            const existing = await db.extractionProjects.get(record.id);
-            if (!existing || record.updatedAt > existing.updatedAt)
-              await db.extractionProjects.put(ExtractionProjectSchema.parse(record));
-          }
-          for (const record of plan.researchDesigns) {
-            if (!(await db.extractionProjects.get(record.projectId))) continue;
-            const existing = await db.researchDesigns.get(record.projectId);
-            if (existing) continue;
+      // Every part below commits in bounded batches and skips what an earlier, interrupted run already wrote,
+      // so applying the same plan again finishes the rest.
+      for (const part of chunks(plan.auditEvents.filter(({ action }) => localActions.has(action))))
+        await store.unitOfWork(
+          async (tx) => {
+            const rows = await tx.getMany(
+              'auditEvents',
+              part.map(({ id }) => id),
+            );
+            for (const [i, event] of part.entries())
+              if (!rows[i]) await tx.put('auditEvents', event.id, AuditEventSchema.parse(event), null);
+          },
+          ['auditEvents'],
+        );
+      for (const part of chunks(plan.extractionProjects))
+        await store.unitOfWork(
+          async (tx) => {
+            const rows = await tx.getMany(
+              'extractionProjects',
+              part.map(({ id }) => id),
+            );
+            for (const [i, record] of part.entries()) {
+              const existing = rows[i] ? ExtractionProjectSchema.parse(rows[i].doc) : undefined;
+              if (!existing || record.updatedAt > existing.updatedAt)
+                await tx.put('extractionProjects', record.id, ExtractionProjectSchema.parse(record));
+            }
+          },
+          ['extractionProjects'],
+        );
+      // A bank can be megabytes, so each design and its bank commit together and alone.
+      for (const record of plan.researchDesigns)
+        await store.unitOfWork(
+          async (tx) => {
+            if (!(await tx.get('extractionProjects', record.projectId))) return;
+            if (await tx.get('researchDesigns', record.projectId)) return;
             const bank = plan.researchDesignBanks.find((row) => row.projectId === record.projectId);
             if (record.bankRelease && (!bank || bank.bank.release !== record.bankRelease))
               throw new Error('Missing research design bank');
-            await db.researchDesigns.add(ResearchDesignSchema.parse(record));
+            await tx.put('researchDesigns', record.projectId, ResearchDesignSchema.parse(record), null);
             if (bank)
-              await db.researchDesignBanks.add({
+              await tx.put('researchDesignBanks', record.projectId, {
                 projectId: record.projectId,
                 bank: bankDocSchema.parse(bank.bank),
                 bytes: bank.bytes,
               });
-          }
-          for (const run of researchRuns) {
-            if (!(await db.extractionProjects.get(run.projectId)) || (await db.autoresearchRuns.get(run.id)))
-              continue;
+          },
+          ['extractionProjects', 'researchDesigns', 'researchDesignBanks'],
+        );
+      for (const run of researchRuns)
+        await store.unitOfWork(
+          async (tx) => {
             if (
-              run.status !== 'ended' &&
-              (await db.autoresearchRuns
-                .where('projectId')
-                .equals(run.projectId)
-                .filter((existing) => existing.status !== 'ended')
-                .first())
+              !(await tx.get('extractionProjects', run.projectId)) ||
+              (await tx.get('autoresearchRuns', run.id))
             )
-              throw new Error('AutoResearch project already has an active run');
-            await db.autoresearchRuns.add(
-              runSchema.parse({
-                ...run,
-                status: run.status === 'running' ? 'waiting' : run.status,
-              }),
+              return;
+            if (run.status !== 'ended') {
+              const active = await tx.query('autoresearchRuns', {
+                where: { projectId: run.projectId },
+                select: 'summary',
+              });
+              if (active.some(({ doc }) => (doc as { status?: string }).status !== 'ended'))
+                throw new Error('AutoResearch project already has an active run');
+            }
+            await tx.put(
+              'autoresearchRuns',
+              run.id,
+              runSchema.parse({ ...run, status: run.status === 'running' ? 'waiting' : run.status }),
+              null,
             );
-          }
-        },
-      );
-      // The corpus group sits on the lab store when signed in. Each batch commits on its own and skips what an
-      // earlier, interrupted run already wrote, so applying the same plan again finishes the rest.
+          },
+          ['extractionProjects', 'autoresearchRuns'],
+        );
       for (const part of chunks(plan.calibrationLabels))
         await store.unitOfWork(
           async (tx) => {

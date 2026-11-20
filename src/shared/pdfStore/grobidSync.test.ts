@@ -1,16 +1,14 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { grobidPaper, grobidRecord, grobidTei } from '@/test/grobidFixtures';
 import { requestGrobid } from './grobidSync';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 afterEach(() => vi.unstubAllGlobals());
 
 async function setup() {
-  const repo = createRepositories(createDb(`sync-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.papers.create(grobidPaper);
   await repo.grobid.save(grobidRecord());
   return repo;

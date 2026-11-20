@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -6,19 +5,17 @@ import { expect, it, vi } from 'vitest';
 import { buildGeneration } from '@/core/generation';
 import type { LlmClient } from '@/shared/llm/client';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import Evaluate from '../evaluate/Page';
 import History from '../history/Page';
 import Generate from './Page';
 import { GenerationResult } from './GenerationResult';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 it('WR-01 WR-08 validates, asks consent, displays provenance and confirms before opening Evaluate', async () => {
   vi.stubGlobal('crypto', webcrypto);
   localStorage.clear();
-  const db = createDb(`generate-ui-${crypto.randomUUID()}`);
-  const repo = createRepositories(db);
+  const repo = testRepositories();
   const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => ({
     data: options.schema.parse({
       paragraph: 'Growth improved by 9 percent.',
@@ -95,13 +92,11 @@ it('WR-01 WR-08 validates, asks consent, displays provenance and confirms before
       expect.stringContaining('/generate?id='),
     ),
   );
-  await db.delete();
 });
 
 it('WR-06 WR-08 requires an override when the draft drops a negation', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const db = createDb(`generate-negation-${crypto.randomUUID()}`);
-  const repo = createRepositories(db);
+  const repo = testRepositories();
   const generation = buildGeneration(
     {
       mainClaim: 'Treatment affects growth',
@@ -138,7 +133,6 @@ it('WR-06 WR-08 requires an override when the draft drops a negation', async () 
   expect(within(screen.getByRole('alertdialog')).getByText(/Giữ nguyên phủ định/)).toBeInTheDocument();
   expect((await repo.analyses.list()).items).toHaveLength(0);
   view.unmount();
-  await db.delete();
 });
 
 it('WR-01 lists unanchored sentences and marks the correct displayed sentence', () => {

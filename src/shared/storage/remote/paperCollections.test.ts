@@ -1,12 +1,8 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { fixtureRun } from '@/core/measurement/testFixture';
 import { COLLECTIONS } from '@/core/storage/collections';
-import { CompositeDocStore } from '../compositeDocStore';
-import { createDb } from '../db';
-import { DexieDocStore } from '../dexieDocStore';
-import { StorageConflictError } from '../errors';
+import { DataNotConfiguredError, StorageConflictError } from '../errors';
 import { testId, testWorkerData } from '../remoteTestSupport';
 import { createRepositories } from '../repositories';
 import { PAPER_COLLECTIONS } from './paperCollections';
@@ -54,42 +50,22 @@ it.each(PAPER_COLLECTIONS)('C0 RemoteDocStore contract for %s', async (collectio
 });
 
 function connect(worker: ReturnType<typeof testWorkerData>) {
-  const db = createDb(`c3-${crypto.randomUUID()}`);
-  const local = new DexieDocStore(db);
   const remote = worker.connect();
-  const composite = new CompositeDocStore(local, remote);
-  return {
-    db,
-    local,
-    remote,
-    composite,
-    repo: createRepositories(db, undefined, undefined, composite, remote),
-  };
+  return { remote, repo: createRepositories(remote) };
 }
 
-it('C3 falls back to Dexie on the first routed unit of work and keeps its paper audit', async () => {
+it('C4 refuses paper writes on an unconfigured worker instead of keeping them in the browser', async () => {
   const worker = testWorkerData(false);
-  const { db, repo, composite, local } = connect(worker);
-  try {
-    await repo.papers.create(paper);
-    await repo.paperRuns.create(paperRun());
-    expect(composite.isFallback()).toBe(true);
-    expect((await local.get('papers', paper.id))?.doc).toEqual(paper);
-    expect(await repo.paperRuns.get(paperRun().id)).toEqual(paperRun());
-    expect((await repo.audit.listByAnalysis(paper.id)).items.map(({ action }) => action)).toEqual([
-      'import_paper',
-      'start_run',
-    ]);
-    expect(worker.requests[0]?.url).toMatch(/\/commit$/u);
-  } finally {
-    await db.delete();
-  }
+  const { repo } = connect(worker);
+  await expect(repo.papers.create(paper)).rejects.toBeInstanceOf(DataNotConfiguredError);
+  await expect(repo.papers.get(paper.id)).rejects.toBeInstanceOf(DataNotConfiguredError);
+  expect(worker.requests[0]?.url).toMatch(/\/commit$/u);
 });
 
-it('C3 batches collections with the same paper id and unlinks only local library rows after a remote delete', async () => {
+it('C3 batches collections with the same paper id and unlinks library rows after a remote delete', async () => {
   const worker = testWorkerData();
-  const { db, repo, local } = connect(worker);
-  try {
+  const { repo } = connect(worker);
+  {
     await repo.papers.create(paper);
     const context = await repo.paperContext.save({
       schemaVersion: 1,
@@ -114,7 +90,6 @@ it('C3 batches collections with the same paper id and unlinks only local library
       ]),
     ).toEqual([paper, context, undefined]);
     expect(worker.requests.map(({ url }) => new URL(url).pathname)).toEqual(['/v1/data/batch-get']);
-    expect(await local.get('papers', paper.id)).toBeNull();
     await repo.papers.delete(paper.id);
     await repo.papers.delete(paper.id);
     expect(await repo.papers.get(paper.id)).toBeUndefined();
@@ -123,16 +98,14 @@ it('C3 batches collections with the same paper id and unlinks only local library
     expect(
       (await repo.audit.listByAnalysis(paper.id)).items.filter(({ action }) => action === 'delete_paper'),
     ).toHaveLength(1);
-  } finally {
-    await db.delete();
   }
 });
 
 it('C3 stores large checkpoints in small bodies and flushes the latest calls and run state', async () => {
   const worker = testWorkerData();
-  const { db, repo } = connect(worker);
+  const { repo } = connect(worker);
   const reload = connect(worker);
-  try {
+  {
     await repo.papers.create(paper);
     const run = {
       ...paperRun(),
@@ -200,16 +173,13 @@ it('C3 stores large checkpoints in small bodies and flushes the latest calls and
     expect((await reload.repo.audit.listByAnalysis(paper.id)).items.map(({ action }) => action)).toContain(
       'finish_run',
     );
-  } finally {
-    await db.delete();
-    await reload.db.delete();
   }
 }, 15_000);
 
-it('C3 imports a multi-batch paper backup before attaching the local library item', async () => {
+it('C3 imports a multi-batch paper backup before attaching the library item', async () => {
   const source = connect(testWorkerData());
   const target = connect(testWorkerData());
-  try {
+  {
     const backup = await source.repo.transfer.exportAll('synthetic');
     await source.repo.papers.create(paper);
     const {
@@ -230,9 +200,5 @@ it('C3 imports a multi-batch paper backup before attaching the local library ite
     expect(await target.repo.generations.list()).toHaveLength(103);
     expect(await target.repo.papers.get(paper.id)).toEqual(paper);
     expect((await target.repo.library.list())[0]?.paper_id).toBe(paper.id);
-    expect(await target.local.get('papers', paper.id)).toBeNull();
-  } finally {
-    await source.db.delete();
-    await target.db.delete();
   }
 });

@@ -1,15 +1,11 @@
 import { createContext, useContext, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useAuth } from '@/shared/auth/authContext';
-import { CompositeDocStore } from './compositeDocStore';
-import { createDb } from './db';
-import { DexieDocStore } from './dexieDocStore';
 import { RemoteDocStore } from './remoteDocStore';
 import { createRepositories, type Repositories } from './repositories';
 const Context = createContext<Repositories | null>(null);
-const StoreContext = createContext<CompositeDocStore | null>(null);
+const StoreContext = createContext<{ store: RemoteDocStore; error: string } | null>(null);
 const noopSubscribe = () => () => {};
 const idle = () => 'idle' as const;
-const noFallback = () => false;
 
 export function StorageProvider({
   children,
@@ -20,23 +16,28 @@ export function StorageProvider({
 }) {
   const { user, getIdToken } = useAuth();
   const uid = user?.uid;
-  const [local] = useState(() => {
-    if (repositories) return null;
-    const db = createDb();
-    return { db, store: new DexieDocStore(db) };
-  });
+  const [configurationError, setConfigurationError] = useState<{
+    store: RemoteDocStore;
+    message: string;
+  } | null>(null);
   const storage = useMemo(() => {
-    if (!local) return null;
-    const remote = uid ? new RemoteDocStore({ getToken: () => getIdToken(uid) }) : null;
-    const store = new CompositeDocStore(local.store, remote);
+    if (repositories || !uid) return null;
+    const store = new RemoteDocStore({
+      getToken: () => getIdToken(uid),
+      onConfigurationError: (message) =>
+        setConfigurationError((current) =>
+          message ? { store, message } : current?.store === store ? null : current,
+        ),
+    });
     return {
       store,
-      repositories: createRepositories(local.db, undefined, undefined, store, remote ?? undefined),
+      repositories: createRepositories(store),
     };
-  }, [getIdToken, local, uid]);
+  }, [getIdToken, repositories, uid]);
+  const error = configurationError?.store === storage?.store ? (configurationError?.message ?? '') : '';
   return (
-    <StoreContext.Provider value={storage?.store ?? null}>
-      <Context.Provider value={repositories ?? storage?.repositories ?? null} key={uid ?? 'local'}>
+    <StoreContext.Provider value={storage ? { store: storage.store, error } : null}>
+      <Context.Provider value={repositories ?? storage?.repositories ?? null} key={uid ?? 'signed-out'}>
         {children}
       </Context.Provider>
     </StoreContext.Provider>
@@ -44,7 +45,8 @@ export function StorageProvider({
 }
 
 export function StorageStatus({ className }: { className?: string }) {
-  const store = useContext(StoreContext);
+  const storage = useContext(StoreContext);
+  const store = storage?.store;
   const repo = useContext(Context);
   const runs = useSyncExternalStore(
     repo?.paperRuns.subscribe ?? noopSubscribe,
@@ -57,12 +59,19 @@ export function StorageStatus({ className }: { className?: string }) {
   const spike = useSyncExternalStore(store?.subscribe ?? noopSubscribe, store?.getSaveStatus ?? idle);
   const pending = [runs, measurements, spike];
   const status = pending.includes('error') ? 'error' : pending.includes('saving') ? 'saving' : 'idle';
-  const fallback = useSyncExternalStore(store?.subscribe ?? noopSubscribe, store?.isFallback ?? noFallback);
-  if (status === 'idle' && !fallback) return null;
+  if (status === 'idle' && !storage?.error) return null;
   return (
     <div className={className} role="status">
       {status !== 'idle' && <span>{status === 'saving' ? 'Đang lưu…' : 'Lỗi lưu'}</span>}
-      {fallback && <span>Kho dữ liệu lab chưa được cấu hình. Dữ liệu đang lưu trên thiết bị này.</span>}
+      {storage?.error && (
+        <div role="alert">
+          Kho dữ liệu lab chưa được cấu hình.
+          <details>
+            <summary>Chi tiết kỹ thuật</summary>
+            {storage.error}
+          </details>
+        </div>
+      )}
     </div>
   );
 }

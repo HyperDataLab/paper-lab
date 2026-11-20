@@ -1,29 +1,11 @@
-import 'fake-indexeddb/auto';
-import Dexie from 'dexie';
 import { webcrypto } from 'node:crypto';
 import { expect, it, vi } from 'vitest';
-import { createDb } from './db';
-import { createRepositories } from './repositories';
+import { testRepositories } from './testRepositories';
 import type { PaperRun } from '@/core/schemas';
 
-it('P2 migrates v4, stores run checkpoints and excludes them from exports', async () => {
+it('P2 stores run checkpoints and excludes them from exports', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const name = `p2-migrate-${crypto.randomUUID()}`;
-  const old = new Dexie(name);
-  old.version(4).stores({
-    analyses: 'id, createdAt, updatedAt, text.sourceHash',
-    auditEvents: 'id, analysisId, at',
-    revisions: 'id, sourceAnalysisId, createdAt',
-    generations: 'id, createdAt',
-    papers: 'id, updatedAt, title',
-  });
-  await old.open();
-  await old.table('papers').add({ id: 'existing', title: 'unchanged' });
-  old.close();
-  const db = createDb(name);
-  expect(await db.papers.get('existing')).toEqual({ id: 'existing', title: 'unchanged' });
-  await db.papers.delete('existing');
-  const repo = createRepositories(db);
+  const repo = testRepositories();
   const at = '2026-01-01T00:00:00.000Z';
   const run: PaperRun = {
     schemaVersion: 1,

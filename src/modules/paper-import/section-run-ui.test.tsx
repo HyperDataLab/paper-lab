@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -10,10 +9,9 @@ import type { LlmClient } from '@/shared/llm/client';
 import { getConfig } from '@/shared/llm/config';
 import { acceptConsent } from '@/shared/llm/consent';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import PaperMapPage from './PaperMapPage';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 const paper: Paper = {
   schemaVersion: 1,
@@ -61,7 +59,7 @@ beforeEach(() => {
 });
 
 it('R6 a section run from the section menu of a block reads only that section and keeps the other section and its decision', async () => {
-  const repo = createRepositories(createDb(`section-run-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.papers.create(paper);
   const config = getConfig();
   acceptConsent(config, true);

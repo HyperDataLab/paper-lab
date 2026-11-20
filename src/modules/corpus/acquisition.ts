@@ -9,6 +9,7 @@ import { importPaperFile } from '@/modules/paper-import';
 export async function acquireMember(
   member: CorpusMember,
   repo: Repositories,
+  getIdToken: () => Promise<string | null>,
   signal?: AbortSignal,
   onImported?: (paper: Paper) => void,
 ): Promise<CorpusMember> {
@@ -47,6 +48,7 @@ export async function acquireMember(
     }
     if (!file) throw new Error(failure);
     const paper = await importPaperFile(file, repo, {
+      getIdToken,
       title: member.title ?? patch.title,
       reuseExisting: true,
     });

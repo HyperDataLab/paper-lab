@@ -6,7 +6,6 @@ import {
   type ExtractionProject,
 } from '@/core/schemas';
 import type { DocStore, DocTx } from './docStore';
-import { SPIKE_COLLECTIONS } from './compositeDocStore';
 
 const projects = 'extractionProjects';
 const summarySchema = ExtractionProjectSchema.pick({
@@ -103,13 +102,19 @@ export function createExtractionRepository(
       return value;
     },
     async remove(id: string) {
-      await store.unitOfWork(async (tx) => {
-        await tx.remove(projects, id);
-        await tx.remove('researchDesigns', id);
-        await tx.remove('researchDesignBanks', id);
-        for (const run of await tx.query('autoresearchRuns', { where: { projectId: id }, select: 'summary' }))
-          await tx.remove('autoresearchRuns', run.id);
-      }, SPIKE_COLLECTIONS);
+      await store.unitOfWork(
+        async (tx) => {
+          await tx.remove(projects, id);
+          await tx.remove('researchDesigns', id);
+          await tx.remove('researchDesignBanks', id);
+          for (const run of await tx.query('autoresearchRuns', {
+            where: { projectId: id },
+            select: 'summary',
+          }))
+            await tx.remove('autoresearchRuns', run.id);
+        },
+        [projects, 'researchDesigns', 'researchDesignBanks', 'autoresearchRuns'],
+      );
     },
   };
 }

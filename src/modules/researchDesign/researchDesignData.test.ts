@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { emptyTopicCheck } from '@/core/schemas/topicCheck';
@@ -6,24 +5,14 @@ import { emptyResearchDesign } from '@/core/schemas/researchDesign';
 import { fixturePaper, fixtureRun } from '@/core/measurement/testFixture';
 import { snapshot } from '@/core/researchDesign/bank/testSupport';
 import { loadLocalData } from '@/modules/researchDesign/localData';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
-import { CompositeDocStore } from '@/shared/storage/compositeDocStore';
-import { DexieDocStore } from '@/shared/storage/dexieDocStore';
 import { testWorkerData } from '@/shared/storage/remoteTestSupport';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 const id = '00000000-0000-4000-8000-000000000001';
 const at = '2026-01-01T00:00:00.000Z';
-async function setup(backend = 'Dexie') {
-  const db = createDb(`research-design-${crypto.randomUUID()}`);
-  const remote = backend === 'remote' ? testWorkerData().connect() : null;
-  const repo = createRepositories(
-    db,
-    undefined,
-    undefined,
-    new CompositeDocStore(new DexieDocStore(db), remote),
-  );
+async function setup(backend = 'memory') {
+  const repo = testRepositories(backend === 'remote' ? { store: testWorkerData().connect() } : {});
   const project = await repo.extraction.save({
     schemaVersion: 1,
     id,
@@ -76,7 +65,7 @@ it('M2 exports and imports a research design', async () => {
   const { repo } = await setup();
   await repo.researchDesigns.save(emptyResearchDesign(id), 0);
   const exported = await repo.transfer.exportAll('test');
-  const target = createRepositories(createDb(`research-design-${crypto.randomUUID()}`));
+  const target = testRepositories();
   const plan = await target.transfer.previewImport(exported);
   if (!plan.ok) throw new Error(plan.error);
   await target.transfer.applyImport(plan);
@@ -88,7 +77,7 @@ it('M2 verifies snapshot bytes again on import', async () => {
   const bytes = new TextEncoder().encode(JSON.stringify(snapshot)).buffer;
   await repo.researchDesigns.importBank(id, 0, bytes, 'local');
   const exported = await repo.transfer.exportAll('test');
-  const target = createRepositories(createDb(`research-design-${crypto.randomUUID()}`));
+  const target = testRepositories();
   const plan = await target.transfer.previewImport(exported);
   if (!plan.ok) throw new Error(plan.error);
   await target.transfer.applyImport(plan);
@@ -110,7 +99,7 @@ it('C2 imports a bank and its research design version together on the worker', a
   expect(await repo.researchDesigns.getBank(id)).toMatchObject({ release: saved.bankRelease });
 });
 
-it.each(['Dexie', 'remote'])('M2 freezes and protects versions over %s', async (backend) => {
+it.each(['memory', 'remote'])('M2 freezes and protects versions over %s', async (backend) => {
   const { repo } = await setup(backend);
   const design = emptyResearchDesign(id);
   design.draft.hypotheses = [
@@ -200,7 +189,7 @@ it('TC storage preserves topic check through save, reload and export/import', as
   await repo.researchDesigns.save(design, 0);
   expect((await repo.researchDesigns.get(id))?.topicCheck).toEqual(design.topicCheck);
   const backup = await repo.transfer.exportAll('test');
-  const target = createRepositories(createDb(`topic-${crypto.randomUUID()}`));
+  const target = testRepositories();
   const plan = await target.transfer.previewImport(JSON.parse(JSON.stringify(backup)));
   if (!plan.ok) throw new Error(plan.error);
   await target.transfer.applyImport(plan);

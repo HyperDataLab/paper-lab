@@ -42,11 +42,14 @@ Decision: `docs/adr/0007-central-lab-store.md`. Existing local data is sample da
 
   Hot runs split their checkpoint state into small records. Per-paper pages use batch reads.
 
-- **C4 Retire Dexie:**
-  - the remote store becomes the default;
+- **C4 Retire Dexie (done):**
+  - RemoteDocStore is the only runtime store; MemoryDocStore stays for tests;
+  - signed out, every data route shows a sign-in requirement (LabDataGate) and makes no data call; Settings and the Playground stay available;
+  - 503 data_not_configured is shown as an error, with no browser fallback;
   - "Đưa dữ liệu lên" is not needed;
-  - the Transfer page exports from the server;
-  - remove the Dexie tables and keep their migration tests until the code is deleted.
+  - PDFs are uploaded to R2 at import and attach time and read from R2, with an in-memory cache for the session;
+  - the Transfer page exports every collection from the server (paged queries, getMany for bank bodies) and imports through bounded, idempotent commits, including auditEvents and the project collections;
+  - Dexie, ake-indexeddb, the Dexie tables, their migration tests, pdfFiles, corpusSync and LOCAL_KEYS are deleted; ESLint bans dexie and ake-indexeddb imports everywhere.
 - **C5 Permissions** (later): filter on the `created_by`, `project_id`, `lab_id` and `visibility` columns.
 
 After C4, the semantic layer (steps 1 → 4) builds on the same collection registry.
@@ -65,8 +68,7 @@ After C4, the semantic layer (steps 1 → 4) builds on the same collection regis
 Apply `worker/migrations-data/0002_body_order.sql` to the lab data database, then deploy the updated worker
 before deploying the app.
 Signed-in sessions use the worker for extraction projects, research designs, bank snapshots and AutoResearch
-runs. A worker response of `503 data_not_configured` selects browser storage for the session and shows a
-notice. Extraction audit entries are appended within their owning project commit. Other audit operations,
+runs. Before C4, a worker response of `503 data_not_configured` selected browser storage for the session; since C4 it is an error. Extraction audit entries are appended within their owning project commit. Other audit operations,
 the 9router key and AI consent keep their existing storage.
 
 Run the latency probe from the network you want to measure. Supply a current PaperLab ID token through
@@ -87,7 +89,7 @@ stage's final checkpoint reaches the worker and reloads from a new tab.
 
 Deploy the worker before the app so the paper page can batch references from different collections in
 one request. The paper group uses the indexes and sort keys from the existing migrations. There is no new
-D1 migration or upload of old browser data. Signed-out and unconfigured sessions continue to use Dexie.
+D1 migration or upload of old browser data. Since C4, signed-out sessions see a sign-in requirement and unconfigured ones an error.
 
 Paper run and measurement progress use separate checkpoint documents capped at 1 MiB each. The browser
 coalesces each stream and flushes at run completion, pause, or failure. Measurement history is written

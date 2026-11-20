@@ -1,18 +1,8 @@
-import { Cloud, CloudOff, HardDrive } from 'lucide-react';
-import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type ReactNode,
-} from 'react';
+import { Cloud } from 'lucide-react';
+import { lazy, Suspense, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import type { Paper } from '@/core/schemas';
 import { useAuth } from '@/shared/auth/authContext';
-import { paperSha, pdfRemote, sha256Hex } from '@/shared/pdfStore';
-import { useRepositories } from '@/shared/storage/StorageProvider';
+import { loadPdf, paperSha, pdfRemote, PdfRemoteError, sha256Hex } from '@/shared/pdfStore';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Loading } from '@/shared/ui/StateNote';
@@ -22,14 +12,11 @@ import styles from './pdf.module.css';
 
 const PdfViewer = lazy(() => import('./PdfViewer').then((module) => ({ default: module.PdfViewer })));
 
-type State =
-  | { kind: 'loading' }
-  | { kind: 'missing'; reason: string }
-  | { kind: 'ready'; blob: Blob; uploaded: boolean };
+type State = { kind: 'loading' } | { kind: 'missing'; reason: string } | { kind: 'ready'; blob: Blob };
 
 /**
- * The paper's original PDF: the copy kept in this browser, else the lab's copy when a lab account is signed
- * in. A paper imported before PDFs were kept has neither; the reader attaches the same file once.
+ * The paper's original PDF, read from the lab's storage (R2) and held in memory for this tab. A paper whose
+ * PDF never reached the lab has none; the reader attaches the same file once and it is sent to the lab.
  */
 export function PaperPdf({
   paper,
@@ -44,57 +31,29 @@ export function PaperPdf({
   target: PdfTarget | null;
   marks?: PdfMark[];
   onMark?: (id: string) => void;
-  /** The parsed text, shown under the attach box while the PDF is not on this machine or in the lab. */
+  /** The parsed text, shown under the attach box while the lab has no PDF of the paper. */
   fallback?: ReactNode;
   /** A way back to where the reader came from, at the start of the toolbar. */
   back?: ReactNode;
   /** Search and section controls, on a row of the toolbar. */
   find?: ReactNode;
 }) {
-  const repo = useRepositories();
   const { user, getIdToken, signIn } = useAuth();
   const sha = paperSha(paper);
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [message, setMessage] = useState('');
-  // A failed upload is a state of the stored copy, not an error with the paper: it shows in the toolbar badge.
-  const [uploadError, setUploadError] = useState('');
   const picker = useRef<HTMLInputElement>(null);
-
-  /** Keeps the lab's copy in step: sends the local file when the lab does not have it yet. */
-  const upload = useCallback(
-    async (blob: Blob) => {
-      if (!sha) return false;
-      const token = await getIdToken();
-      if (!token) return false;
-      await pdfRemote.upload(sha, blob, token);
-      await repo.pdfFiles.markUploaded(sha);
-      return true;
-    },
-    [sha, getIdToken, repo],
-  );
 
   useEffect(() => {
     let active = true;
     if (!sha) return;
     void (async () => {
-      const local = await repo.pdfFiles.get(sha);
-      if (local) {
-        if (!active) return;
-        setState({ kind: 'ready', blob: local.blob, uploaded: local.uploaded });
-        if (!local.uploaded && user)
-          void upload(local.blob)
-            .then((sent) => sent && active && setState({ kind: 'ready', blob: local.blob, uploaded: true }))
-            .catch((cause: unknown) => active && setUploadError(String(cause)));
-        return;
-      }
       const token = user ? await getIdToken() : null;
       if (token) {
         try {
-          const remote = await pdfRemote.download(sha, token);
-          if (remote) {
-            // A full browser store only costs the local copy; the lab's copy is still shown.
-            await repo.pdfFiles.put(sha, remote, true).catch(() => undefined);
-            if (active) setState({ kind: 'ready', blob: remote, uploaded: true });
+          const blob = await loadPdf(sha, token);
+          if (blob) {
+            if (active) setState({ kind: 'ready', blob });
             return;
           }
         } catch (cause) {
@@ -106,13 +65,13 @@ export function PaperPdf({
           kind: 'missing',
           reason: user
             ? 'Kho của lab chưa có PDF của bài này.'
-            : 'Máy này chưa có PDF của bài. Đăng nhập lab để mở bản trong kho của lab, hoặc gắn lại tệp.',
+            : 'Đăng nhập lab để mở PDF của bài trong kho của lab.',
         });
     })();
     return () => {
       active = false;
     };
-  }, [sha, repo, user, getIdToken, upload]);
+  }, [sha, user, getIdToken]);
 
   async function attach(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -126,13 +85,16 @@ export function PaperPdf({
       return;
     }
     const blob = new Blob([data], { type: 'application/pdf' });
-    await repo.pdfFiles.put(sha, blob);
-    setMessage('');
-    setState({ kind: 'ready', blob, uploaded: false });
-    if (user)
-      void upload(blob)
-        .then((sent) => sent && setState({ kind: 'ready', blob, uploaded: true }))
-        .catch((cause: unknown) => setUploadError(String(cause)));
+    try {
+      const token = await getIdToken();
+      if (!token) throw new PdfRemoteError(401);
+      setMessage('Đang lưu PDF vào kho lab…');
+      await pdfRemote.upload(sha, blob, token);
+      setMessage('');
+      setState({ kind: 'ready', blob });
+    } catch (cause) {
+      setMessage(`Chưa lưu được PDF lên kho lab: ${cause instanceof Error ? cause.message : String(cause)}`);
+    }
   }
 
   if (!sha) return <p className={styles.note}>Bài này không được nhập từ tệp PDF.</p>;
@@ -183,21 +145,9 @@ export function PaperPdf({
           toolbarStart={back}
           toolbarBelow={find}
           toolbarEnd={
-            state.uploaded ? (
-              <Badge tone="success" icon={<Cloud size={14} aria-hidden="true" />}>
-                Đã lưu trong kho lab
-              </Badge>
-            ) : uploadError ? (
-              <span title={uploadError}>
-                <Badge tone="warning" icon={<CloudOff size={14} aria-hidden="true" />}>
-                  Chưa lưu được lên kho lab
-                </Badge>
-              </span>
-            ) : (
-              <Badge icon={<HardDrive size={14} aria-hidden="true" />}>
-                {user ? 'Đang lưu lên kho lab…' : 'Chỉ trên máy này'}
-              </Badge>
-            )
+            <Badge tone="success" icon={<Cloud size={14} aria-hidden="true" />}>
+              Đã lưu trong kho lab
+            </Badge>
           }
         />
       </Suspense>

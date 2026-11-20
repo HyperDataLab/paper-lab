@@ -1,11 +1,12 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
-import Dexie from 'dexie';
 import { expect, it, vi } from 'vitest';
 import { anchorReview, anchoringRate, mergePanel, panelSimilarity } from '@/core/reviewPanel';
 import type { Paper, PaperReviewRun } from '@/core/schemas';
-import { createDb } from './db';
-import { createRepositories } from './repositories';
+import { MemoryDocStore } from './docStore';
+import { testRepositories } from './testRepositories';
+
+const ngrams = async (store: MemoryDocStore) =>
+  (await store.query('reviewNgrams')).map(({ doc }) => doc as object);
 
 const at = '2026-01-01T00:00:00.000Z';
 function fixture(): { paper: Paper; run: PaperReviewRun } {
@@ -73,28 +74,11 @@ function fixture(): { paper: Paper; run: PaperReviewRun } {
     },
   };
 }
-it('P5 migrates v7, gates reviews, preserves decisions, exports and deletes atomically', async () => {
+it('P5 gates reviews, preserves decisions, exports and deletes atomically', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const name = `review-${crypto.randomUUID()}`;
-  const old = new Dexie(name);
-  old.version(7).stores({
-    papers: 'id, updatedAt, title',
-    paperOverviews: 'paperId',
-    paperChecks: 'paperId',
-    analyses: 'id, createdAt, updatedAt, text.sourceHash',
-    auditEvents: 'id, analysisId, at',
-    revisions: 'id, sourceAnalysisId, createdAt',
-    generations: 'id, createdAt',
-    paperRuns: 'id, paperId, updatedAt',
-  });
-  await old.open();
-  const legacyPaper = fixture().paper;
-  await old.table('papers').add(legacyPaper);
-  old.close();
-  const db = createDb(name),
-    repo = createRepositories(db, () => new Date('2026-02-01T00:00:00Z'));
+  const db = new MemoryDocStore(),
+    repo = testRepositories({ store: db, clock: () => new Date('2026-02-01T00:00:00Z') });
   const { paper, run } = fixture();
-  expect(await repo.papers.get(legacyPaper.id)).toEqual(legacyPaper);
   await repo.papers.create(paper);
   const saved = await repo.paperReviews.saveRun(paper.id, run);
   const point = saved.runs[0]?.merged[0];
@@ -106,18 +90,18 @@ it('P5 migrates v7, gates reviews, preserves decisions, exports and deletes atom
   await repo.paperReviews.review(paper.id, point.id, 'dismissed_by_human', 'reviewed');
   const rerun = await repo.paperReviews.saveRun(paper.id, { ...run, id: crypto.randomUUID() });
   expect(rerun.decisions).toMatchObject([{ pointId: point.id, status: 'dismissed_by_human' }]);
-  expect(await db.reviewNgrams.count()).toBeGreaterThan(0);
-  expect((await db.reviewNgrams.toArray()).every((row) => !Object.hasOwn(row, 'phrase'))).toBe(true);
+  expect(await ngrams(db)).not.toHaveLength(0);
+  expect((await ngrams(db)).every((row) => !Object.hasOwn(row, 'phrase'))).toBe(true);
   const data = await repo.transfer.exportAll('test');
   expect(data.paperReviews).toHaveLength(1);
   expect(data).not.toHaveProperty('reviewNgrams');
-  const destDb = createDb(`review-dest-${crypto.randomUUID()}`),
-    dest = createRepositories(destDb, () => new Date('2030-01-01T00:00:00Z'));
+  const destDb = new MemoryDocStore(),
+    dest = testRepositories({ store: destDb, clock: () => new Date('2030-01-01T00:00:00Z') });
   const plan = await dest.transfer.previewImport(data);
   if (!plan.ok) throw new Error(plan.error);
   await dest.transfer.applyImport(plan);
   expect((await dest.paperReviews.get(paper.id))?.decisions).toMatchObject([{ pointId: point.id }]);
-  expect(await destDb.reviewNgrams.count()).toBeGreaterThan(0);
+  expect(await ngrams(destDb)).not.toHaveLength(0);
   await dest.paperReviews.review(paper.id, point.id, 'candidate');
   const oldPlan = await dest.transfer.previewImport(data);
   if (!oldPlan.ok) throw new Error(oldPlan.error);
@@ -129,11 +113,11 @@ it('P5 migrates v7, gates reviews, preserves decisions, exports and deletes atom
   expect(events.filter((e) => e.action === 'save_notes')).toHaveLength(1);
   await dest.papers.delete(paper.id);
   expect(await dest.paperReviews.get(paper.id)).toBeUndefined();
-  expect(await destDb.reviewNgrams.count()).toBe(0);
+  expect(await ngrams(destDb)).toHaveLength(0);
 });
 it('P5 reanchors imported reviews and suppresses forged locations', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const source = createRepositories(createDb(`review-source-${crypto.randomUUID()}`));
+  const source = testRepositories();
   const { paper, run } = fixture();
   await source.papers.create(paper);
   await source.paperReviews.saveRun(paper.id, run);
@@ -142,7 +126,7 @@ it('P5 reanchors imported reviews and suppresses forged locations', async () => 
   if (!point) throw new Error('missing point');
   point.quote = 'a quotation absent from the paper';
   point.anchor.start = 0;
-  const dest = createRepositories(createDb(`review-forged-${crypto.randomUUID()}`));
+  const dest = testRepositories();
   const plan = await dest.transfer.previewImport(data);
   if (!plan.ok) throw new Error(plan.error);
   await dest.transfer.applyImport(plan);
@@ -152,7 +136,7 @@ it('P5 reanchors imported reviews and suppresses forged locations', async () => 
 });
 it('P5 skipping notes reveals results and unanchored points cannot be reviewed', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`review-skip-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const { paper, run } = fixture();
   await repo.papers.create(paper);
   await repo.paperReviews.saveRun(paper.id, run);
@@ -162,7 +146,7 @@ it('P5 skipping notes reveals results and unanchored points cannot be reviewed',
 });
 it('P5 imports four reviewed papers as one corpus and flags phrases from three other papers', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const source = createRepositories(createDb(`review-corpus-source-${crypto.randomUUID()}`));
+  const source = testRepositories();
   const papers: Paper[] = [];
   for (let i = 0; i < 4; i++) {
     const { paper, run } = fixture();
@@ -177,14 +161,14 @@ it('P5 imports four reviewed papers as one corpus and flags phrases from three o
     papers: data.papers.filter((paper) => subsetIds.has(paper.id)),
     paperReviews: data.paperReviews.filter((record) => subsetIds.has(record.paperId)),
   };
-  const three = createRepositories(createDb(`review-three-${crypto.randomUUID()}`));
+  const three = testRepositories();
   const threePlan = await three.transfer.previewImport(subset);
   if (!threePlan.ok) throw new Error(threePlan.error);
   await three.transfer.applyImport(threePlan);
   for (const paper of papers.slice(0, 3))
     expect((await three.paperReviews.get(paper.id))?.runs[0]?.metrics.templates).toEqual([]);
-  const destDb = createDb(`review-corpus-dest-${crypto.randomUUID()}`);
-  const dest = createRepositories(destDb);
+  const destDb = new MemoryDocStore();
+  const dest = testRepositories({ store: destDb });
   const plan = await dest.transfer.previewImport(data);
   if (!plan.ok) throw new Error(plan.error);
   await dest.transfer.applyImport(plan);
@@ -192,11 +176,11 @@ it('P5 imports four reviewed papers as one corpus and flags phrases from three o
     const flags = (await dest.paperReviews.get(paper.id))?.runs[0]?.metrics.templates ?? [];
     expect(flags.some((item) => item.phrase === 'cần mô tả chi tiết hơn về')).toBe(true);
   }
-  expect((await destDb.reviewNgrams.toArray()).every((item) => !Object.hasOwn(item, 'phrase'))).toBe(true);
+  expect((await ngrams(destDb)).every((item) => !Object.hasOwn(item, 'phrase'))).toBe(true);
 });
 it('P5 migrates an unambiguous old decision id when a review is rebuilt', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const source = createRepositories(createDb(`review-old-id-${crypto.randomUUID()}`));
+  const source = testRepositories();
   const { paper, run } = fixture();
   await source.papers.create(paper);
   const saved = await source.paperReviews.saveRun(paper.id, run);
@@ -213,7 +197,7 @@ it('P5 migrates an unambiguous old decision id when a review is rebuilt', async 
     point.anchor.start,
     point.anchor.end,
   ]);
-  const dest = createRepositories(createDb(`review-old-id-dest-${crypto.randomUUID()}`));
+  const dest = testRepositories();
   const plan = await dest.transfer.previewImport(data);
   if (!plan.ok) throw new Error(plan.error);
   await dest.transfer.applyImport(plan);
@@ -221,7 +205,7 @@ it('P5 migrates an unambiguous old decision id when a review is rebuilt', async 
 });
 it('P5 preserves independent decisions for points from the same lens and quotation across reruns', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`review-distinct-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const { paper, run } = fixture();
   const review = run.reviews[0];
   const point = review?.points[0];

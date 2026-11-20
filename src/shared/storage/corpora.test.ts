@@ -1,12 +1,10 @@
-import 'fake-indexeddb/auto';
 import { expect, it } from 'vitest';
 import { exampleCorpus } from '@/core/corpus/contract';
-import { createDb } from './db';
-import { createRepositories } from './repositories';
+import { testRepositories } from './testRepositories';
 
 it('C1b corpus repository and export import round trip, including legacy packages', async () => {
-  const source = createRepositories(createDb(`corpus-${crypto.randomUUID()}`));
-  const target = createRepositories(createDb(`corpus-${crypto.randomUUID()}`));
+  const source = testRepositories();
+  const target = testRepositories();
   const corpus = exampleCorpus();
   await source.corpora.save(corpus);
   expect(await source.corpora.get(corpus.id)).toEqual(corpus);

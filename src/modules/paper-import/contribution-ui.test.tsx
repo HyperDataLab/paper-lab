@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
@@ -8,10 +7,9 @@ import type { LlmClient } from '@/shared/llm/client';
 import { getConfig } from '@/shared/llm/config';
 import { acceptConsent } from '@/shared/llm/consent';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { PaperContribution } from './PaperContribution';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 it('R17e shows a contribution unit and a verified triple', async () => {
   vi.stubGlobal('crypto', webcrypto);
@@ -38,7 +36,7 @@ it('R17e shows a contribution unit and a verified triple', async () => {
       },
     ],
   };
-  const repo = createRepositories(createDb(`contribution-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.papers.create(paper);
   const completeJson = vi.fn(async (request: Parameters<LlmClient['completeJson']>[0]) => {
     await request.onRequest?.();

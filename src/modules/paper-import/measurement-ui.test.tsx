@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import PaperMapPage from './PaperMapPage';
 import { webcrypto } from 'node:crypto';
@@ -9,17 +8,17 @@ import { acceptConsent } from '@/shared/llm/consent';
 import { getConfig } from '@/shared/llm/config';
 import type { LlmClient } from '@/shared/llm/client';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories, type Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { PaperMeasurement } from './PaperMeasurement';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 beforeEach(() => {
   vi.stubGlobal('crypto', webcrypto);
   localStorage.clear();
 });
 async function setup(seed = true, client?: LlmClient) {
-  const repo: Repositories = createRepositories(createDb(`measure-ui-${crypto.randomUUID()}`));
+  const repo: Repositories = testRepositories();
   await repo.papers.create(fixturePaper);
   const run = fixtureRun();
   if (seed) await repo.measurements.saveRun(PAPER_ID, run);
@@ -214,7 +213,7 @@ it('FR-16 offers the four exports and downloads the reviewed profile', async () 
 });
 
 it('AS-10 opens an atomic sentence, marks it checked, undoes it and tracks progress', async () => {
-  const repo: Repositories = createRepositories(createDb(`measure-ui-${crypto.randomUUID()}`));
+  const repo: Repositories = testRepositories();
   await repo.papers.create(fixturePaper);
   const run = fixtureRun();
   run.profile.atomic_sentences = [
@@ -259,7 +258,7 @@ it('AS-10 opens an atomic sentence, marks it checked, undoes it and tracks progr
 });
 
 it('R5 decides a measurement finding from the unified list', async () => {
-  const repo = createRepositories(createDb(`r5-measure-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.papers.create(fixturePaper);
   const run = fixtureRun();
   await repo.measurements.saveRun(PAPER_ID, run);

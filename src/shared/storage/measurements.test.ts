@@ -1,16 +1,13 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { fixturePaper, fixtureRun, PAPER_ID } from '@/core/measurement/testFixture';
-import { createDb } from './db';
-import { createRepositories } from './repositories';
+import { testRepositories } from './testRepositories';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 async function setup() {
-  const db = createDb(`measurements-${crypto.randomUUID()}`);
-  const repo = createRepositories(db);
+  const repo = testRepositories();
   await repo.papers.create(fixturePaper);
-  return { db, repo };
+  return { repo };
 }
 const decision = (run_id: string) => ({
   run_id,
@@ -28,13 +25,13 @@ const pending = {
 };
 
 it('FR-15 stores a run, appends decisions with audit and keeps the AI original', async () => {
-  const { repo, db } = await setup();
+  const { repo } = await setup();
   const run = fixtureRun();
   await repo.measurements.saveRun(PAPER_ID, run);
   const value = await repo.measurements.decide(PAPER_ID, decision(run.id));
   expect(value.decisions[0]).toMatchObject({ reviewer: 'local', new_value: 'percent' });
   expect(value.runs[0]?.profile.metrics[0]?.unit.value).toBe('%');
-  const actions = (await db.auditEvents.toArray()).map((event) => event.action);
+  const actions = (await repo.audit.listAll()).items.map((event) => event.action);
   expect(actions).toEqual(expect.arrayContaining(['run_measurement', 'review_measurement']));
 });
 
@@ -62,7 +59,7 @@ it('M4 deletes with the paper and survives export and import', async () => {
   expect(exported.measurements).toHaveLength(1);
   await repo.papers.delete(PAPER_ID);
   expect(await repo.measurements.get(PAPER_ID)).toBeUndefined();
-  const target = createRepositories(createDb(`measurements-${crypto.randomUUID()}`));
+  const target = testRepositories();
   const plan = await target.transfer.previewImport(JSON.parse(JSON.stringify(exported)));
   if (!plan.ok) throw new Error('Import plan failed');
   await target.transfer.applyImport(plan);

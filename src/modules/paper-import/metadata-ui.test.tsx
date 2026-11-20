@@ -1,23 +1,25 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { exampleInsights, examplePaper, exampleStance } from '@/core/paperModel/contract';
 import { PaperModelSchema } from '@/core/schemas';
 import { downloadJson, downloadText } from '@/shared/calibration/download';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
+import { MemoryDocStore } from '@/shared/storage/docStore';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { PaperMetadata } from './PaperMetadata';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 vi.mock('@/shared/calibration/download', () => ({ downloadJson: vi.fn(), downloadText: vi.fn() }));
 
-async function setup() {
+async function setup(
+  seed?: (db: MemoryDocStore, paper: ReturnType<typeof examplePaper>) => Promise<unknown>,
+) {
   vi.stubGlobal('crypto', webcrypto);
-  const db = createDb(`metadata-${crypto.randomUUID()}`);
-  const repo = createRepositories(db);
+  const db = new MemoryDocStore();
+  const repo = testRepositories({ store: db });
   const paper = examplePaper();
   await repo.papers.create(paper);
+  await seed?.(db, paper);
   render(
     <StorageProvider repositories={repo}>
       <PaperMetadata paper={paper} />
@@ -30,9 +32,10 @@ describe('R17a Publication info: metadata form and paper model', () => {
   beforeEach(() => vi.mocked(downloadJson).mockClear());
 
   it('downloads a valid paper-model.json carrying the stored labels', async () => {
-    const { db, paper } = await setup();
-    await db.paperInsights.put(exampleInsights(paper));
-    await db.stance.put(exampleStance(paper));
+    await setup(async (db, paper) => {
+      await db.put('paperInsights', paper.id, exampleInsights(paper));
+      await db.put('stance', paper.id, exampleStance(paper));
+    });
     expect(await screen.findByText(/4 câu · 1 reference/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Tải paper-model.json' }));
     await waitFor(() => expect(downloadJson).toHaveBeenCalledTimes(1));

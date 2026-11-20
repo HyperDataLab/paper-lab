@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { useEffect } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -8,12 +7,11 @@ import type { ResearchDesign } from '@/core/schemas/researchDesign';
 import { snapshot } from '@/core/researchDesign/bank/testSupport';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { ResearchDesignConflictError } from '@/shared/storage/errors';
 import { ResearchDesignProvider, useResearchDesign } from './ResearchDesignProvider';
 import { SectionBody } from './SectionBody';
 import BankSection from './sections/BankSection';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 afterEach(() => vi.unstubAllGlobals());
@@ -68,7 +66,7 @@ function ready(): Ready {
 }
 
 async function setup(withBank = false) {
-  const repo = createRepositories(createDb(`provider-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.extraction.save(project);
   const view = render(
     <StorageProvider repositories={repo}>
@@ -85,7 +83,7 @@ async function setup(withBank = false) {
 }
 
 it('M2 provides loading followed by the project and its empty design', async () => {
-  const repo = createRepositories(createDb(`provider-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   render(
     <StorageProvider repositories={repo}>
       <ResearchDesignProvider project={project}>
@@ -153,7 +151,7 @@ it('RD-PROV-04 reload picks up a change written elsewhere', async () => {
 });
 
 it('RD-PROV-05 shows Thử lại on a load error and loads again', async () => {
-  const repo = createRepositories(createDb(`provider-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.extraction.save(project);
   vi.spyOn(repo.researchDesigns, 'get').mockRejectedValueOnce(new Error('unreadable'));
   render(

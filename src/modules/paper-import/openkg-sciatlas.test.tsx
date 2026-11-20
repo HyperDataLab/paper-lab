@@ -1,12 +1,10 @@
-import 'fake-indexeddb/auto';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { grobidPaper, grobidRecord } from '@/test/grobidFixtures';
 import { PaperOpenKg } from './PaperOpenKg';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 const auth: AuthValue = {
   user: { uid: 'u-1', email: 'tester@example.test', name: null },
@@ -19,7 +17,7 @@ const auth: AuthValue = {
 afterEach(() => vi.unstubAllGlobals());
 
 it('K4 paper OpenKG tab sends keyword, title and GROBID reference anchors and marks Library papers', async () => {
-  const repo = createRepositories(createDb(`openkg-sciatlas-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.papers.create(grobidPaper);
   await repo.grobid.save(grobidRecord());
   const {

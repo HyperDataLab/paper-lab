@@ -1,26 +1,13 @@
-import 'fake-indexeddb/auto';
-import Dexie from 'dexie';
 import { webcrypto } from 'node:crypto';
 import { expect, it, vi } from 'vitest';
 import { mergeTransitions, transitionFindings } from '@/core/paperOverview';
-import type { TransitionJudgement, TransitionPair } from '@/core/schemas';
-import { createDb } from './db';
-import { createRepositories } from './repositories';
+import type { AuditEvent, TransitionJudgement, TransitionPair } from '@/core/schemas';
+import { MemoryDocStore, type DocTx } from './docStore';
 import { planRun } from '@/core/batch';
+import { testRepositories } from './testRepositories';
 
-it('P3 migrates version 5 and audits transition decisions retained on rerun', async () => {
+it('P3 audits transition decisions retained on rerun', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const name = `overview-${crypto.randomUUID()}`;
-  const old = new Dexie(name);
-  old.version(5).stores({
-    analyses: 'id, createdAt, updatedAt, text.sourceHash',
-    auditEvents: 'id, analysisId, at',
-    revisions: 'id, sourceAnalysisId, createdAt',
-    generations: 'id, createdAt',
-    papers: 'id, updatedAt, title',
-    paperRuns: 'id, paperId, updatedAt',
-  });
-  await old.open();
   const at = '2026-01-01T00:00:00.000Z';
   const paper = {
     schemaVersion: 1 as const,
@@ -32,12 +19,10 @@ it('P3 migrates version 5 and audits transition decisions retained on rerun', as
     sections: [],
     paragraphs: [],
   };
-  await old.table('papers').add(paper);
-  old.close();
-  const db = createDb(name);
-  const repo = createRepositories(db);
+  const seeded = new MemoryDocStore();
+  await seeded.put('papers', paper.id, paper);
+  const repo = testRepositories({ store: seeded });
   expect(await repo.papers.get(paper.id)).toEqual(paper);
-  expect(db.verno).toBe(27);
   const endpoint = {
     paragraphId: 'p1',
     analysisId: crypto.randomUUID(),
@@ -107,7 +92,6 @@ it('P3 migrates version 5 and audits transition decisions retained on rerun', as
     available: false,
     stale: true,
   });
-  db.close();
 });
 
 it('P3 imports newer transition reviews with their audit, but skips audits when their finding state is not imported', async () => {
@@ -123,18 +107,9 @@ it('P3 imports newer transition reviews with their audit, but skips audits when 
     sections: [],
     paragraphs: [],
   };
-  const source = createRepositories(
-    createDb(`overview-source-${crypto.randomUUID()}`),
-    () => new Date('2026-02-01T00:00:00.000Z'),
-  );
-  const dest = createRepositories(
-    createDb(`overview-dest-${crypto.randomUUID()}`),
-    () => new Date('2026-03-01T00:00:00.000Z'),
-  );
-  const conflict = createRepositories(
-    createDb(`overview-conflict-${crypto.randomUUID()}`),
-    () => new Date('2026-03-01T00:00:00.000Z'),
-  );
+  const source = testRepositories({ clock: () => new Date('2026-02-01T00:00:00.000Z') });
+  const dest = testRepositories({ clock: () => new Date('2026-03-01T00:00:00.000Z') });
+  const conflict = testRepositories({ clock: () => new Date('2026-03-01T00:00:00.000Z') });
   await source.papers.create(paper);
   const endpoint = {
     paragraphId: 'p1',
@@ -227,8 +202,27 @@ it('P3 imports newer transition reviews with their audit, but skips audits when 
 
 it('P3 deleting a paper removes only its runs and overview in the audited transaction', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const db = createDb(`overview-delete-${crypto.randomUUID()}`);
-  const repo = createRepositories(db);
+  let failAudit = false;
+  /** Fails the audit write of a paper deletion, inside the deletion's unit of work. */
+  class FailingAuditStore extends MemoryDocStore {
+    override unitOfWork<R>(fn: (tx: DocTx) => Promise<R>) {
+      return super.unitOfWork((tx) =>
+        fn({
+          get: (collection, id) => tx.get(collection, id),
+          getMany: (collection, ids) => tx.getMany(collection, ids),
+          query: (collection, query) => tx.query(collection, query),
+          remove: (collection, id, expected) => tx.remove(collection, id, expected),
+          put: (collection, id, doc, expected) => {
+            if (failAudit && collection === 'auditEvents' && (doc as AuditEvent).action === 'delete_paper')
+              throw new Error('audit failure');
+            return tx.put(collection, id, doc, expected);
+          },
+        }),
+      );
+    }
+  }
+  const store = new FailingAuditStore();
+  const repo = testRepositories({ store });
   const at = '2026-01-01T00:00:00.000Z';
   const base = {
     schemaVersion: 1 as const,
@@ -264,19 +258,16 @@ it('P3 deleting a paper removes only its runs and overview in the audited transa
   const [first, second] = papers;
   if (!first || !second) throw new Error('Missing paper');
   await repo.papers.delete(first.id);
-  expect(await db.paperOverviews.get(first.id)).toBeUndefined();
+  expect(await store.get('paperOverviews', first.id)).toBeNull();
   expect(await repo.paperRuns.listByPaper(first.id)).toHaveLength(0);
-  expect(await db.paperOverviews.get(second.id)).toBeDefined();
+  expect(await store.get('paperOverviews', second.id)).not.toBeNull();
   expect(await repo.paperRuns.listByPaper(second.id)).toHaveLength(1);
   expect((await repo.audit.listByAnalysis(first.id)).items.map((event) => event.action)).toContain(
     'delete_paper',
   );
-  db.auditEvents.hook('creating', (_key, event) => {
-    if (event.action === 'delete_paper') throw new Error('audit failure');
-  });
+  failAudit = true;
   await expect(repo.papers.delete(second.id)).rejects.toThrow('audit failure');
   expect(await repo.papers.get(second.id)).toBeDefined();
-  expect(await db.paperOverviews.get(second.id)).toBeDefined();
+  expect(await store.get('paperOverviews', second.id)).not.toBeNull();
   expect(await repo.paperRuns.listByPaper(second.id)).toHaveLength(1);
-  db.close();
 });

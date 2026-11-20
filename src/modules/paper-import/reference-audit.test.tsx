@@ -1,15 +1,13 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import { sourceHash } from '@/core/text/hash';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { LabResearchError } from '@/shared/labResearch';
 import { useReferenceAudit } from './useReferenceAudit';
 import { ReferenceAudit } from './ReferenceAudit';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 const id = '00000000-0000-4000-8000-000000000001';
 const refs = [1, 2, 3].map((n) => ({
@@ -21,7 +19,7 @@ const refs = [1, 2, 3].map((n) => ({
 const output = { lookup: 'bibliographic', status: 'candidates', candidates: [] };
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 function setup() {
-  const repo = createRepositories(createDb(`audit-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const wrapper = ({ children }: { children: ReactNode }) => (
     <StorageProvider repositories={repo}>{children}</StorageProvider>
   );

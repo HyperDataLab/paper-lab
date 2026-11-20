@@ -7,7 +7,10 @@ let loading: Promise<{ auth: import('firebase/auth').Auth; module: AuthModule }>
 /** Firebase Auth is loaded on first use, so the first page stays light. */
 function loadAuth() {
   loading ??= Promise.all([import('firebase/app'), import('firebase/auth')]).then(([app, module]) => ({
-    auth: module.getAuth(app.getApps()[0] ?? app.initializeApp(firebaseConfig)),
+    auth: module.initializeAuth(app.getApps()[0] ?? app.initializeApp(firebaseConfig), {
+      persistence: module.browserLocalPersistence,
+      popupRedirectResolver: module.browserPopupRedirectResolver,
+    }),
     module,
   }));
   return loading;
@@ -30,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (next && !labEmail(next.email)) {
             void module.signOut(auth);
             setUser(null);
-            setError(`Chỉ tài khoản @${LAB_DOMAIN} mới dùng được kho PDF của lab.`);
+            setError(`Chỉ tài khoản @${LAB_DOMAIN} mới dùng được kho dữ liệu của lab.`);
           } else {
             setUser(next ? { uid: next.uid, email: next.email ?? '', name: next.displayName } : null);
           }

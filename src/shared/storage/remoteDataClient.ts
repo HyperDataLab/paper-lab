@@ -46,6 +46,7 @@ export interface RemoteDataOptions {
   getToken: () => Promise<string | null>;
   baseUrl?: string;
   fetch?: typeof fetch;
+  onConfigurationError?: (message: string | null) => void;
 }
 
 export class RemoteDataClient {
@@ -87,11 +88,16 @@ export class RemoteDataClient {
     }).catch(() => {
       throw new RemoteStorageError(0, 'network_error', 'Không kết nối được với kho dữ liệu lab.');
     });
-    if (response.ok || (method === 'GET' && [304, 404].includes(response.status))) return response;
+    if (response.ok || (method === 'GET' && [304, 404].includes(response.status))) {
+      this.options.onConfigurationError?.(null);
+      return response;
+    }
     const parsed = errorBody.safeParse(await response.json().catch(() => null));
     const detail = parsed.data?.message ?? `Kho dữ liệu lab trả lời HTTP ${response.status}.`;
-    if (response.status === 503 && parsed.data?.error === 'data_not_configured')
+    if (response.status === 503 && parsed.data?.error === 'data_not_configured') {
+      this.options.onConfigurationError?.(detail);
       throw new DataNotConfiguredError(detail);
+    }
     if (response.status === 409 && parsed.data?.error === 'unique_conflict')
       throw new UniqueConflictError(detail);
     if (response.status === 409) {
