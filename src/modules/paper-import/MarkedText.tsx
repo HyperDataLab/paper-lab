@@ -1,6 +1,7 @@
 import { segmentText, type FindingLocation, type PaperMark } from '@/core/paperFindings';
 import { CRITERIA } from './criteria';
 import styles from './page.module.css';
+import { MathText } from './MathText';
 
 /**
  * A paragraph with what was found in it drawn on the words themselves. Each criterion has its own underline
@@ -30,7 +31,14 @@ export function MarkedText({
         const isSelected = segment.marks.some((mark) => mark.id === '__selected');
         const real = segment.marks.filter((mark) => mark.id !== '__selected');
         const top = real[0];
-        if (!top) return isSelected ? <mark key={index}>{segment.text}</mark> : segment.text;
+        if (!top)
+          return isSelected ? (
+            <mark key={index}>
+              <MathText text={segment.text} />
+            </mark>
+          ) : (
+            <MathText key={index} text={segment.text} />
+          );
         const Tag = isSelected ? 'mark' : 'span';
         const open = () => onMark?.(top);
         return (
@@ -49,7 +57,7 @@ export function MarkedText({
               open();
             }}
           >
-            {segment.text}
+            <MathText text={segment.text} />
             {real.length > 1 && <sup className={styles.textMarkMore}>+{real.length - 1}</sup>}
           </Tag>
         );

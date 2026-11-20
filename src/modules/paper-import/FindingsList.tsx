@@ -14,6 +14,7 @@ import { findingTitle } from './findingTitle';
 import { CriterionMark } from './SectionBlock';
 import styles from './page.module.css';
 import { PlaceText } from './PlaceText';
+import { MathText } from './MathText';
 
 const CRITERION_IDS = Object.keys(CRITERIA) as Criterion[];
 const SEVERITY_RANK = { high: 0, medium: 1, low: 2 } as const;
@@ -62,7 +63,8 @@ export const FindingsList = memo(function FindingsList({
   // anything else. Until the reader touches the chips the default follows the findings as they load.
   const [chosen, setCriteria] = useState<Criterion[] | null>(null);
   const defaultCriteria = useMemo(
-    () => (findings.some((item) => item.criterion !== 'writing') ? ids.filter((id) => id !== 'writing') : ids),
+    () =>
+      findings.some((item) => item.criterion !== 'writing') ? ids.filter((id) => id !== 'writing') : ids,
     [findings, ids],
   );
   const criteria = chosen ?? defaultCriteria;
@@ -99,7 +101,8 @@ export const FindingsList = memo(function FindingsList({
             (byPage
               ? (pageByParagraph.get(a.item.locations[0]?.paragraphId ?? '') ?? Infinity) -
                 (pageByParagraph.get(b.item.locations[0]?.paragraphId ?? '') ?? Infinity)
-              : (GROUP_RANK.get(a.item.criterion) ?? Infinity) - (GROUP_RANK.get(b.item.criterion) ?? Infinity)) ||
+              : (GROUP_RANK.get(a.item.criterion) ?? Infinity) -
+                (GROUP_RANK.get(b.item.criterion) ?? Infinity)) ||
             SEVERITY_RANK[a.item.severity] - SEVERITY_RANK[b.item.severity] ||
             a.position - b.position,
         )
@@ -182,10 +185,7 @@ export const FindingsList = memo(function FindingsList({
         const previous = visible[index - 1];
         const entry = GROUPS[GROUP_RANK.get(finding.criterion) ?? -1];
         const heading =
-          (index === 0 || previous?.criterion !== finding.criterion) &&
-          entry &&
-          ids.length > 1 &&
-          !byPage ? (
+          (index === 0 || previous?.criterion !== finding.criterion) && entry && ids.length > 1 && !byPage ? (
             <h3 className={styles.findingGroupHead}>
               <CriterionMark criterion={entry.id} /> {entry.label}{' '}
               <span className={styles.groupCount}>{groupCount(entry.id)}</span>
@@ -211,16 +211,31 @@ export const FindingsList = memo(function FindingsList({
                 <strong className={styles.compactFindingTitle}>{findingTitle(finding)}</strong>
                 {finding.status === 'dismissed' && <Badge tone="neutral">Đã bác bỏ</Badge>}
                 {first && (
-                  <Button size="sm" variant="ghost" className={styles.findingPage} onClick={() => onLocation(first)}>
-                    {paragraph?.pageStart ? `Tr. ${paragraph.pageStart}` : <PlaceText paper={paper} paragraphId={first.paragraphId} />}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={styles.findingPage}
+                    onClick={() => onLocation(first)}
+                  >
+                    {paragraph?.pageStart ? (
+                      `Tr. ${paragraph.pageStart}`
+                    ) : (
+                      <PlaceText paper={paper} paragraphId={first.paragraphId} />
+                    )}
                   </Button>
                 )}
               </div>
               {open && (
                 <div className={styles.compactFindingBody}>
-                  {quote && <blockquote>{quote}</blockquote>}
+                  {quote && (
+                    <blockquote>
+                      <MathText text={quote} />
+                    </blockquote>
+                  )}
                   {finding.code !== 'claim_strength_drift' && quote !== `“${finding.reason}”` && (
-                    <p>{displayReason(finding.reason)}</p>
+                    <p>
+                      <MathText text={displayReason(finding.reason) ?? ''} />
+                    </p>
                   )}
                   {finding.code === 'claim_strength_drift' &&
                     finding.locations.slice(1).map((location, relatedIndex) => {
@@ -229,7 +244,7 @@ export const FindingsList = memo(function FindingsList({
                         <p key={relatedIndex}>
                           Câu liên quan:{' '}
                           <Button size="sm" variant="ghost" onClick={() => onLocation(location)}>
-                            “{displayQuote(related.text, location.start, location.end)}”
+                            “<MathText text={displayQuote(related.text, location.start, location.end)} />”
                           </Button>
                         </p>
                       ) : null;
