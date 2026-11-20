@@ -260,10 +260,16 @@ export function Transparency({
   paper,
   report,
   parserCounts,
+  open: controlledOpen,
+  onOpenChange,
+  hideTrigger = false,
 }: {
   paper?: Paper;
   report?: AnalysisReport;
   parserCounts?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }) {
   const repo = useRepositories();
   const [paperEntries, setSteps] = useState<Step[]>([]);
@@ -291,7 +297,12 @@ export function Transparency({
       active = false;
     };
   }, [repo, paper, report]);
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const changeOpen = (next: boolean) => {
+    if (controlledOpen === undefined) setInternalOpen(next);
+    onOpenChange?.(next);
+  };
   const steps = report ? analysisSteps(report) : paperEntries;
   const record = {
     format: 'paragraph-lab-transparency',
@@ -411,13 +422,15 @@ export function Transparency({
     );
   return (
     <>
-      <Button aria-label="Minh bạch" variant="ghost" onClick={() => setOpen(true)}>
-        <ScrollText size={18} aria-hidden="true" />
-        <span className={styles.headerLabel}>Minh bạch</span>
-      </Button>
+      {!hideTrigger && (
+        <Button aria-label="Minh bạch" variant="ghost" onClick={() => changeOpen(true)}>
+          <ScrollText size={18} aria-hidden="true" />
+          <span className={styles.headerLabel}>Minh bạch</span>
+        </Button>
+      )}
       <Drawer
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={() => changeOpen(false)}
         side="right"
         label="Thông tin minh bạch"
         title="Thông tin minh bạch"

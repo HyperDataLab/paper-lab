@@ -5,18 +5,17 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import styles from './page.module.css';
 
-/** Who is signed in to the lab, and what that changes: only where original PDFs are kept. */
+/** Shows the central SSO identity used for project and PDF access. */
 export function LabAccountCard() {
   const { user, ready, error, signIn, signOut } = useAuth();
   return (
     <Card>
       <div className={styles.section}>
         <header>
-          <h2>Tài khoản lab</h2>
+          <h2>Tài khoản ResearchHub</h2>
           <p>
-            Đăng nhập bằng tài khoản Google @{LAB_DOMAIN} để lưu PDF gốc của bài vào kho chung của lab và mở
-            được trên máy khác. Thành viên lab đã đăng nhập đều mở được các PDF trong kho. Không đăng nhập thì
-            PDF chỉ nằm trên máy này; mọi phân tích vẫn chạy như bình thường.
+            Đăng nhập bằng HyperDataLab SSO với email đã xác minh thuộc @{LAB_DOMAIN}. Workspace mở từ ResearchHub
+            được lưu chung trên server theo project; bản PDF gốc được lưu trong kho dùng chung của lab.
           </p>
         </header>
         <div className={styles.fields}>
@@ -37,7 +36,7 @@ export function LabAccountCard() {
               <Button onClick={() => void signOut()}>Đăng xuất</Button>
             ) : (
               <Button variant="primary" disabled={!ready} onClick={() => void signIn()}>
-                Đăng nhập bằng Google
+                Đăng nhập bằng HyperDataLab SSO
               </Button>
             )}
           </div>

@@ -1,10 +1,11 @@
 import { generateKeyPair, SignJWT, type JWTVerifyGetKey } from 'jose';
 import { describe, expect, it, vi } from 'vitest';
-import { GROBID_CACHE_TAG, handle, MAX_BYTES, PREFIX, type Bucket, type Deps } from './app';
+import { GROBID_CACHE_TAG, handle, MAX_BYTES, PDF_LINK_PREFIX, type Bucket, type Deps } from './app';
 import { emailAllowed, NotAllowedError, verifyFirebaseToken } from './auth';
 import { GrobidStartingError } from './grobid-error';
 
 const ORIGIN = 'https://hyperdatalab-paragraph-lab.web.app';
+const PROJECT_ID = '00000000-0000-4000-8000-000000000001';
 const pdf = new TextEncoder().encode('%PDF-1.7 test file').buffer;
 async function hex(data: ArrayBuffer) {
   const digest = await crypto.subtle.digest('SHA-256', data);
@@ -44,12 +45,20 @@ function memoryBucket() {
   };
   return { bucket, objects };
 }
-function deps(overrides: Partial<Deps> = {}): Deps & { objects: Map<string, unknown> } {
+function deps(
+  overrides: Partial<Deps> = {},
+): Deps & { objects: Map<string, { data: ArrayBuffer; meta: Record<string, string>; etag: string }> } {
   const { bucket, objects } = memoryBucket();
+  const downloadProjectFile = vi.fn(async (_projectId: string, _fileId: string, _token: string) =>
+    new Response(pdf, { headers: { 'Content-Type': 'application/pdf' } }),
+  );
   return {
     verifyToken: async () => ({ uid: 'u1', email: 'a@hyperdatalab.org' }),
     bucket,
     allowedOrigins: [ORIGIN],
+    getOwnedProject: async (projectId) => ({ id: projectId, name: 'Test project' }),
+    uploadProjectFile: async () => 'research-hub-file-id',
+    downloadProjectFile,
     now: () => new Date('2026-11-11T00:00:00.000Z'),
     objects,
     ...overrides,
@@ -63,7 +72,7 @@ const request = (
   new Request(`https://worker.test${path}`, {
     method,
     body: init.body,
-    headers: { origin: ORIGIN, authorization: 'Bearer good', ...init.headers },
+    headers: { origin: ORIGIN, authorization: 'Bearer good', 'X-Project-Id': PROJECT_ID, ...init.headers },
   });
 const put = (sha: string, body: ArrayBuffer, headers: Record<string, string> = {}) =>
   request('PUT', `/pdfs/${sha}`, {
@@ -78,14 +87,18 @@ describe('R8 PDF worker', () => {
     const first = await handle(d, put(sha, pdf));
     expect(first.status).toBe(201);
     expect(first.headers.get('access-control-allow-origin')).toBe(ORIGIN);
-    expect(d.objects.get(`${PREFIX}${sha}.pdf`)).toMatchObject({
-      meta: { uploadedBy: 'a@hyperdatalab.org', uploadedAt: '2026-11-11T00:00:00.000Z' },
+    const link = d.objects.get(`${PDF_LINK_PREFIX}${PROJECT_ID}/${sha}.json`);
+    if (!link) throw new Error('ResearchHub file link was not stored');
+    expect(JSON.parse(new TextDecoder().decode(link.data))).toEqual({
+      fileId: 'research-hub-file-id',
+      fileName: `${sha}.pdf`,
     });
     expect((await handle(d, put(sha, pdf))).status).toBe(200);
     expect((await handle(d, request('HEAD', `/pdfs/${sha}`))).status).toBe(200);
     const got = await handle(d, request('GET', `/pdfs/${sha}`));
     expect(got.status).toBe(200);
     expect(got.headers.get('content-type')).toBe('application/pdf');
+    expect(d.downloadProjectFile).toHaveBeenCalledWith(PROJECT_ID, 'research-hub-file-id', 'good');
     expect(new Uint8Array(await got.arrayBuffer())).toEqual(new Uint8Array(pdf));
   });
 
@@ -106,6 +119,26 @@ describe('R8 PDF worker', () => {
     expect((await handle(d, request('GET', `/pdfs/${'a'.repeat(64)}`))).status).toBe(404);
     expect((await handle(d, request('GET', '/pdfs/../secret'))).status).toBe(400);
     expect((await handle(d, request('GET', `/pdfs/${'A'.repeat(64)}`))).status).toBe(400);
+  });
+
+  it('returns a bounded upload error detail without exposing bearer tokens', async () => {
+    const sha = await hex(pdf);
+    const uploadFailure = Object.assign(new Error('ResearchHub rejected Bearer secret-token\nR2 unavailable'), {
+      status: 500,
+    });
+    const d = deps({
+      uploadProjectFile: async () => {
+        throw uploadFailure;
+      },
+    });
+
+    const response = await handle(d, put(sha, pdf));
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      error: 'ResearchHub file upload failed',
+      detail: 'ResearchHub rejected Bearer [redacted] R2 unavailable',
+    });
   });
 
   it('needs a valid token from the lab domain: 401 without one, 403 from another domain', async () => {

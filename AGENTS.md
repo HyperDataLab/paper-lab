@@ -5,27 +5,32 @@ Claude-specific workflow is in `CLAUDE.md`; UI rules are in `DESIGN.md`; the spe
 
 ## What this is
 
-**PaperLab**: a single-page React + TypeScript + Vite app that evaluates and revises **one English scientific
-paragraph** at the paragraph and sentence level, following Joshua Schimel, _Writing Science_ (2012), Ch. 11–16.
+**PaperLab**: a single-page React + TypeScript + Vite app for research papers, extraction projects and corpora.
+Paper-level writing and style analysis stays with each paper; standalone paragraph writing is moving to Writing Lab.
 
 Modules (see `docs/ROADMAP.md`):
 
-| Module   | Purpose                                                                       | PRD            |
-| -------- | ----------------------------------------------------------------------------- | -------------- |
-| Evaluate | Segment, annotate (Topic / Action / Stress), measure, score, highlight issues | §3, §4, §5, §6 |
-| Revise   | Rewrite selected issues, diff, meaning-preservation checks, re-evaluate       | §2 (WR-02..08) |
-| Generate | Draft a paragraph from claim + supplied evidence                              | §2 (WR-01)     |
-| History  | Local analyses, versions, comparisons, export / import                        | EV-11, EV-12   |
-| Settings | 9router endpoint / key / model, privacy consent                               | §9             |
+| Module      | Purpose                                          |
+| ----------- | ------------------------------------------------ |
+| Papers      | Import, read, inspect and analyse research papers |
+| Projects    | Organise paper extraction and research plans      |
+| Corpus      | Collect, label, profile and compare paper sets    |
+| Settings    | 9router endpoint / key, privacy consent, account  |
 
 The UI is in Vietnamese; analysed text is English. Code, identifiers and commit messages are in English.
 
 ## Hard platform constraints
 
-- **Deploy = Firebase Hosting only** (Spark, no billing). No Cloud Functions, no Storage, no server routes.
-- **Database use is minimised: local-first.** All user data lives in the browser (IndexedDB via Dexie) and moves
-  between machines through JSON export / import. There is no Auth and no Firestore in the MVP (ADR-0002).
-  Do not add a remote database without a new ADR approved by the product owner.
+- **Deploy the SPA = Firebase Hosting only** (Spark, no billing). Cloudflare Workers provide the existing PDF,
+  NLP and ResearchHub workspace APIs. Do not add Firebase Cloud Functions or Firebase Storage.
+- **A ResearchHub project is mandatory for all features.** Without a valid `projectId`, the application gates
+  feature routes; with one, PaperLab stores the project workspace in R2 and authorizes access through HyperDataLab
+  SSO and ResearchHub's owned-project API (ADR-0007, ADR-0008). Do not add Firestore or another remote database
+  without a new ADR.
+- **Auth = HyperDataLab SSO** for all features. PaperLab can use OIDC Authorization Code + PKCE or receive the
+  existing ResearchHub session through an exact-origin, state-checked `postMessage` handoff. No client secret is
+  bundled; tokens stay in `sessionStorage` and never in URLs. Server calls validate the SSO token through
+  `/oauth/userinfo` and verify project access.
 - **LLM = 9router**, an OpenAI-compatible chat-completions endpoint supplied by the owner (ADR-0003).
   - Dev: `VITE_LLM_BASE_URL=/llm` goes through the Vite proxy, which adds `LLM_PROXY_API_KEY` server-side.
     Real values go in gitignored `.env.development.local`.
@@ -62,6 +67,9 @@ src/
 - **Zod schemas in `core/schemas` are the single source of truth.** Every IndexedDB write, every LLM response and
   every import is parsed through them. Timestamps are ISO strings. Schemas carry a `schemaVersion`.
 - **Storage access goes only through `shared/storage` repositories.** Components never call Dexie directly.
+- Project workspace synchronization is implemented at the storage boundary. It serializes papers, extraction
+  projects, corpora and paper-level analysis; standalone paragraph writing records stay out of the ResearchHub
+  workspace. The Worker stores one versioned JSON object per project in R2 and uses ETags to reject stale writes.
 - **Prompts are versioned** (`PROMPT_VERSIONS`). Store prompt, model, rubric, tokenizer and rule-set versions plus
   `source_hash` on every analysis (PRD §9 Versioning). Bump the version when a prompt changes.
 

@@ -1,6 +1,6 @@
 import { Menu, Monitor, Moon, Search, Sun } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useState } from 'react';
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Drawer } from '@/shared/ui/Drawer';
 import { IconButton } from '@/shared/ui/IconButton';
 import { Button } from '@/shared/ui/Button';
@@ -16,8 +16,6 @@ import { CommandPalette } from './CommandPalette';
 import { modules } from './modules';
 import { Sidebar } from './Sidebar';
 import { PageEnter } from '@/shared/motion/PageEnter';
-import ReportPage from '@/modules/report/ReportPage';
-import ComparePage from '@/modules/report/ComparePage';
 import PaperMapPage from '@/modules/paper-import/PaperMapPage';
 import ExtractionProjectPage from '@/modules/extraction/ProjectPage';
 import CorpusDetail from '@/modules/corpus/DetailPage';
@@ -39,17 +37,43 @@ export function App() {
   const [theme, setTheme] = useState<Theme>(readTheme);
   const closeDrawer = useCallback(() => setDrawer(false), []);
   const location = useLocation();
+  const navigate = useNavigate();
+  const rawProjectId = new URLSearchParams(location.search).get('projectId');
+  const validProjectId = rawProjectId && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(rawProjectId)
+    ? rawProjectId
+    : null;
+  const invalidProjectId = rawProjectId !== null && !validProjectId;
+  const [lastProjectId, setLastProjectId] = useState<string | null>(validProjectId);
+  // Keep the current workspace mounted while navigation restores a query param omitted by a module link.
+  const workspaceProjectId = validProjectId ?? (!invalidProjectId && rawProjectId === null ? lastProjectId : null);
   const current = modules.find(
     (item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`),
   );
   // Workspaces and wide tables use the whole window; lists, forms and home stay at a readable width.
   const wideContent =
-    location.pathname === '/evaluate' ||
     location.pathname.startsWith('/extraction/') ||
     location.pathname.startsWith('/corpus/') ||
     location.pathname.startsWith('/papers/');
   // A paper is a workspace: on wide screens it fills the window and its columns scroll on their own.
   const appContent = /^\/papers\/[^/]+/.test(location.pathname);
+  useEffect(() => {
+    if (invalidProjectId) {
+      // Route changes may remove projectId for one render; keep the last accepted ID for that transition.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLastProjectId(null);
+      return;
+    }
+    if (validProjectId) {
+      // This mirrors the URL handoff into render state so StorageProvider never remounts during navigation.
+      setLastProjectId(validProjectId);
+      return;
+    }
+    if (lastProjectId && !rawProjectId) {
+      const query = new URLSearchParams(location.search);
+      query.set('projectId', lastProjectId);
+      navigate(`${location.pathname}?${query.toString()}${location.hash}`, { replace: true });
+    }
+  }, [invalidProjectId, lastProjectId, location.hash, location.pathname, location.search, navigate, rawProjectId, validProjectId]);
   useEffect(() => {
     if (theme === 'system') delete document.documentElement.dataset.theme;
     else document.documentElement.dataset.theme = theme;
@@ -63,9 +87,7 @@ export function App() {
     <ToastProvider>
       <AuthProvider>
         <div className={styles.shell}>
-          <div className={styles.desktopSidebar}>
-            <Sidebar />
-          </div>
+          <Sidebar desktop />
           <Drawer open={drawer} onClose={closeDrawer}>
             <Sidebar mobile onNavigate={closeDrawer} />
           </Drawer>
@@ -80,12 +102,7 @@ export function App() {
                 <span>PaperLab</span>
                 <span aria-hidden="true">/</span>
                 <strong>
-                  {current?.label ??
-                    (location.pathname.startsWith('/report/')
-                      ? 'Báo cáo'
-                      : location.pathname === '/compare'
-                        ? 'So sánh'
-                        : 'Không tìm thấy')}
+                  {current?.label ?? 'Không tìm thấy'}
                 </strong>
               </nav>
               <div className={styles.topActions}>
@@ -119,7 +136,12 @@ export function App() {
             <main
               className={`${styles.content} ${wideContent ? styles.wideContent : ''} ${appContent ? styles.appContent : ''}`}
             >
-              <StorageProvider>
+              <StorageProvider
+                key={workspaceProjectId ?? 'local-workspace'}
+                projectId={workspaceProjectId}
+                invalidProjectId={invalidProjectId}
+                hideStatusBanner={appContent}
+              >
                 <PdfSync />
                 <LlmProvider>
                   <Suspense fallback={<Skeleton />}>
@@ -128,8 +150,6 @@ export function App() {
                         {modules.map((item) => (
                           <Route key={item.id} path={item.path} element={<item.page />} />
                         ))}
-                        <Route path="/report/:id" element={<ReportPage />} />
-                        <Route path="/compare" element={<ComparePage />} />
                         <Route path="/papers/:id" element={<PaperMapPage />} />
                         <Route path="/extraction/:id" element={<ExtractionProjectPage />} />
                         <Route path="/corpus/:id" element={<CorpusDetail />} />

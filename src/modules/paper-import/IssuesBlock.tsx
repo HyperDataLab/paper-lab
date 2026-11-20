@@ -1,5 +1,6 @@
 import type { Finding, Paper } from '@/core/schemas';
 import type { FindingStatus, PaperFinding } from '@/core/paperFindings';
+import { useMemo } from 'react';
 import type { Criterion } from './criteria';
 import { FindingsList } from './FindingsList';
 import { PaperBlock, type BlockKit } from './PaperBlock';
@@ -29,17 +30,23 @@ export function IssuesBlock({
   visible,
   kit,
   issues,
+  idPrefix,
 }: {
   id: BlockId;
   only: Criterion[];
   visible: boolean;
   kit: BlockKit;
   issues: IssuesKit;
+  idPrefix?: string;
 }) {
-  const own = issues.findings.filter(
-    (item) =>
-      only.includes(item.criterion) ||
-      (item.source === 'checks' && CHECK_VIEWS[id]?.includes(item.view as ViewId)),
+  const own = useMemo(
+    () =>
+      issues.findings.filter(
+        (item) =>
+          only.includes(item.criterion) ||
+          (item.source === 'checks' && CHECK_VIEWS[id]?.includes(item.view as ViewId)),
+      ),
+    [id, issues.findings, only],
   );
   return (
     <PaperBlock id={id} kit={kit} title={`Issues (${own.length})`}>
@@ -53,6 +60,7 @@ export function IssuesBlock({
           onOpenSource={(view) => issues.onOpenSource(view as ViewId)}
           onDecide={issues.onDecide}
           onRunChecks={issues.onRunChecks}
+          idPrefix={idPrefix}
         />
       )}
     </PaperBlock>

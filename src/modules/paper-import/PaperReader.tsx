@@ -1,5 +1,4 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { buildSectionTree, type SectionNode } from '@/core/paper';
 import { SectionSchema, type Finding, type Paper, type PaperParagraph, type Section } from '@/core/schemas';
 import { Badge } from '@/shared/ui/Badge';
@@ -87,7 +86,6 @@ export function PaperReader({
   outlineOpen?: boolean;
 }) {
   const [showOutline, setShowOutline] = useState(outlineOpen);
-  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const counts = useMemo(() => {
     const own = new Map<string, number>();
@@ -156,19 +154,8 @@ export function PaperReader({
           retry={() => batch.retry(item.id)}
           busy={batch.run?.status === 'running'}
         />
-        {item.kind === 'body' && (
-          <div className={styles.paragraphActions}>
-            {candidateCounts[item.id] !== undefined && (
-              <span>{candidateCounts[item.id]} ứng viên cục bộ</span>
-            )}
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => navigate('/evaluate', { state: { prefill: item.text } })}
-            >
-              Đánh giá đoạn này
-            </Button>
-          </div>
+        {item.kind === 'body' && candidateCounts[item.id] !== undefined && (
+          <div className={styles.paragraphActions}>{candidateCounts[item.id]} ứng viên cục bộ</div>
         )}
       </div>
     );

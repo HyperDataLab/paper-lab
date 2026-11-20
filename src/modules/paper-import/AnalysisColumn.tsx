@@ -1,7 +1,8 @@
 import { ArrowLeft } from 'lucide-react';
-import type { RefObject } from 'react';
+import { useState, type RefObject } from 'react';
 import type { Finding, Paper, PaperChecksRecord } from '@/core/schemas';
 import type { FindingInputs } from '@/core/paperFindings';
+import type { Criterion } from './criteria';
 import { Button } from '@/shared/ui/Button';
 import { Tabs } from '@/shared/ui/Tabs';
 import { ArgumentsSpace } from './ArgumentsSpace';
@@ -23,6 +24,8 @@ import type { PaperNavigation } from './usePaperNavigation';
 import { WritingSpace } from './WritingSpace';
 import styles from './page.module.css';
 
+const CITATION_CRITERIA: Criterion[] = ['context'];
+
 /**
  * The right column: the tab the reader has open (Issues, Citations, Paper info), or, full width, one of the
  * spaces behind the paper.
@@ -39,6 +42,7 @@ export function AnalysisColumn({
   stored,
   onLocation,
   onFilter,
+  inDrawer = false,
 }: {
   nav: PaperNavigation;
   columnRef: RefObject<HTMLElement | null>;
@@ -52,14 +56,22 @@ export function AnalysisColumn({
   stored: Pick<FindingInputs, 'insights' | 'measurements'>;
   onLocation: (location: Finding['locations'][number]) => void;
   onFilter: (ids: string[]) => void;
+  inDrawer?: boolean;
 }) {
   const { mode, inSpace, wide } = nav;
+  // Keep visited reader tabs mounted so their filters, fetched context, and expanded rows survive tab switches.
+  const [tabHistory, setTabHistory] = useState(() => ({ mode, visited: new Set([mode]) }));
+  if (tabHistory.mode !== mode) {
+    setTabHistory({ mode, visited: new Set([...tabHistory.visited, mode]) });
+  }
+  const keepIssues = mode === 'issues' || tabHistory.visited.has('issues');
+  const keepCitations = mode === 'citations' || tabHistory.visited.has('citations');
   return (
     <section
       ref={columnRef}
-      className={wide ? styles.column : undefined}
+      className={wide && !inDrawer ? styles.column : undefined}
       aria-label={inSpace ? (SPACES.find((item) => item.id === mode)?.label ?? 'Space') : 'Analysis'}
-      hidden={wide ? !nav.showRight : nav.focus !== 'right'}
+      hidden={inDrawer ? false : wide ? !nav.showRight : nav.focus !== 'right'}
     >
       {inSpace ? (
         <div className={styles.spaceHead}>
@@ -76,7 +88,7 @@ export function AnalysisColumn({
         </div>
       ) : (
         <>
-          {wide && (
+          {(wide || inDrawer) && (
             <div className={styles.columnTabs}>
               <Tabs label="Analysis">
                 {MODES.map((item) => (
@@ -88,8 +100,8 @@ export function AnalysisColumn({
         </>
       )}
       <div hidden={mode !== 'issues'} className={styles.blocks}>
-        {/* Rendered only while showing: hidden copies of its labels would shadow the blocks below. */}
-        {mode === 'issues' && (
+        {/* Kept mounted after first visit so filters and expanded issue rows persist across tabs. */}
+        {keepIssues && (
           <>
             <OrphanedChecks record={checks} />
             <FindingsList
@@ -107,17 +119,18 @@ export function AnalysisColumn({
       <div hidden={mode !== 'citations'} className={styles.blocks}>
         <IssuesBlock
           id="citationIssues"
-          only={['context']}
-          visible={mode === 'citations'}
+          only={CITATION_CRITERIA}
+          visible={keepCitations}
           kit={kit}
           issues={issues}
+          idPrefix="citation-"
         />
         <PaperBlock id="references" kit={kit}>
-          {mode === 'citations' && kit.openBlocks.includes('references') && (
+          {keepCitations && kit.openBlocks.includes('references') && (
             <PaperReferences paper={paper} onLocation={onLocation} />
           )}
         </PaperBlock>
-        {mode === 'citations' && (
+        {keepCitations && (
           <SpaceOverview
             paper={paper}
             analyses={batch.analyses}

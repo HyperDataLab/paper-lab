@@ -1,4 +1,4 @@
-import { ArrowRight, FileText, Library, PenLine, Plus, Search, Table2, Upload } from 'lucide-react';
+import { ArrowRight, FileText, Library, Plus, Search, Table2, Upload } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { newProject } from '@/core/extraction';
@@ -31,10 +31,10 @@ const WORKFLOWS = [
     text: 'Tìm trên OpenAlex, sàng lọc và tổng hợp.',
   },
   {
-    to: '/evaluate',
-    icon: PenLine,
-    title: 'Kiểm tra đoạn văn của bạn',
-    text: 'Đánh giá, sửa hoặc tạo đoạn học thuật.',
+    to: '/corpus',
+    icon: Library,
+    title: 'Tổng hợp corpus',
+    text: 'Theo dõi chủ đề và bằng chứng trên nhiều bài báo.',
   },
 ];
 const RECENT = 5;
@@ -116,7 +116,7 @@ export default function Page() {
             {firstName ? `, ${firstName}` : ''}
           </h1>
           <p className={styles.muted}>
-            Đọc bài, trích xuất dữ liệu và kiểm tra đoạn văn. Mọi thứ lưu trên máy này.
+            Đọc bài, trích xuất dữ liệu và tổng hợp corpus trong project ResearchHub.
           </p>
         </div>
         <div className={styles.heroActions}>

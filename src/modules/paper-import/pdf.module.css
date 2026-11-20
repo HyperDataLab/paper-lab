@@ -121,3 +121,253 @@
 .back {
   font-weight: 600;
 }
+
+.viewer {
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+.toolbar {
+  position: relative;
+  top: auto;
+  z-index: 3;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 4px 12px;
+  overflow: visible;
+  box-shadow: none;
+}
+.toolbar[data-loading='true']::before,
+.toolbar[data-loading='true']::after {
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  height: 2px;
+  content: '';
+  pointer-events: none;
+}
+.toolbar[data-loading='true']::before {
+  width: 100%;
+  background: var(--border-subtle);
+}
+.toolbar[data-loading='true']::after {
+  width: 30%;
+  background: var(--accent);
+  animation: pdfProgress 1.5s ease-in-out infinite;
+}
+@container pdfReader (max-width: 1320px) {
+  .toolbar {
+    gap: 3px;
+    padding-inline: 7px;
+  }
+}
+.toolbar > * {
+  flex: none;
+}
+.toolbar input[type='number'] {
+  width: 48px;
+}
+.toolbar .spacer {
+  flex: 1 1 auto;
+  min-width: 4px;
+}
+.pages {
+  position: relative;
+  display: grid;
+  align-content: start;
+  justify-items: safe center;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  gap: 10px;
+  padding: 0 0 24px;
+  scrollbar-gutter: stable;
+}
+.pdfStateMessage {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: center;
+  pointer-events: none;
+}
+.pdfStateMessage[data-error='true'][data-has-fallback='true'] {
+  position: relative;
+  inset: auto;
+  padding: 22px 12px;
+}
+.pdfStateLine {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: calc(100% - 24px);
+  gap: 8px;
+  white-space: normal;
+}
+.pdfLoadingSpinner {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: pdfSpin 0.9s linear infinite;
+}
+.pdfStateActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: calc(100% - 24px);
+  gap: 8px;
+  pointer-events: auto;
+}
+.pdfLoadDetail {
+  max-width: min(560px, calc(100% - 24px));
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+  pointer-events: auto;
+}
+.pdfFallback {
+  width: 100%;
+  min-width: 0;
+}
+@keyframes pdfSpin {
+  to { transform: rotate(360deg); }
+}
+@keyframes pdfProgress {
+  0% { transform: translateX(-110%); }
+  55% { transform: translateX(190%); }
+  100% { transform: translateX(360%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toolbar[data-loading='true']::after {
+    left: 34%;
+    width: 32%;
+    animation: none;
+  }
+  .pdfLoadingSpinner {
+    animation: none;
+  }
+}
+.page {
+  scroll-margin-top: 10px;
+}
+.readerTools {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+}
+.findPopover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(360px, calc(100vw - 24px));
+  padding: 38px 12px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+.findClose {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+}
+.findForm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.findForm > label,
+.findForm > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.findForm input[type='search'] {
+  width: 100%;
+}
+.hitControls {
+  display: flex;
+  flex: none;
+}
+.toolbarRow {
+  flex: none;
+  padding: 0;
+  border: 0;
+}
+.pdfSyncLabel {
+  white-space: nowrap;
+}
+@media (max-width: 1360px) {
+  .toolbar {
+    gap: 2px;
+    padding-inline: 6px;
+  }
+  .toolbar .zoom {
+    min-width: 34px;
+  }
+  .pdfSyncLabel {
+    display: none;
+  }
+}
+@media (max-width: 1023px) {
+  .viewer {
+    height: 100%;
+    min-height: 0;
+  }
+  .toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    flex-wrap: wrap;
+    min-height: 44px;
+  }
+  .pages {
+    flex: 1;
+  }
+  .toolbar .spacer {
+    display: none;
+  }
+  .pdfSyncLabel {
+    display: inline;
+  }
+}
+@media (min-width: 1024px) and (max-width: 1120px) {
+  .toolbar {
+    flex-wrap: wrap;
+    min-height: 44px;
+  }
+  .toolbar .spacer {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .toolbar {
+    gap: 3px;
+    padding: 4px;
+  }
+  .toolbar button {
+    padding-inline: 6px;
+  }
+  .toolbar .count {
+    font-size: 11px;
+  }
+}

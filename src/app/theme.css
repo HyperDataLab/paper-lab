@@ -1,6 +1,6 @@
 /*
- * PaperLab tokens: neutral (zinc) surfaces, text and borders as most current web apps share them, with the
- * brand green and its tints for actions, the current place and selection. Source Serif 4 is kept for the author's words
+ * PaperLab tokens: cool neutral surfaces with the HyperDataLab blue for actions, the current place and selection.
+ * Source Serif 4 is kept for the author's words
  * (quotes, paragraphs under analysis), so a reader can tell source from app at a glance.
  * All sizes are whole pixels: fractional tokens blur text and borders.
  */
@@ -17,8 +17,8 @@
   --space-8: 32px;
   --space-10: 40px;
   --space-12: 48px;
-  --sidebar-width: 232px;
-  --sidebar-rail-width: 64px;
+  --sidebar-width: 224px;
+  --sidebar-rail-width: 60px;
   --header-height: 56px;
   --content-width: 1200px;
   --wide-width: 1440px;
@@ -64,23 +64,23 @@
   --shadow-page: 0 1px 3px rgb(0 0 0 / 10%), 0 8px 24px rgb(0 0 0 / 6%);
   font-family: var(--font-ui);
   color-scheme: light;
-  --bg: #fafbfb;
+  --bg: #f7f9fd;
   --surface: #ffffff;
-  --surface-sunken: #f4f4f5;
-  --sidebar-bg: #fcfcfc;
-  --desk: #e8e9ec;
-  --border: #d9dadf;
-  --border-subtle: #e9eaed;
-  --border-strong: #c4c6cc;
+  --surface-sunken: #f1f5fb;
+  --sidebar-bg: #f8faff;
+  --desk: #e7edf6;
+  --border: #d7e0ec;
+  --border-subtle: #e8eef6;
+  --border-strong: #b8c7da;
   --text: #09090b;
   --text-secondary: #1f1f23;
-  --text-muted: #52525b;
-  --accent: #0b6e5f;
-  --accent-hover: #095c50;
-  --accent-strong: #0a4d43;
+  --text-muted: #526174;
+  --accent: #1d4ed8;
+  --accent-hover: #1e40af;
+  --accent-strong: #1e3a8a;
   --on-accent: #ffffff;
-  --soft: #e6f2ee;
-  --hover: #f4f4f5;
+  --soft: #eaf1ff;
+  --hover: #f1f5fb;
   --highlight: #fde68a;
   --hl-structure: #c2410c;
   --hl-flow: #7e22ce;
@@ -91,23 +91,23 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --bg: #09090b;
-    --surface: #09090b;
-    --surface-sunken: #18181b;
-    --sidebar-bg: #0c0c0e;
-    --desk: #18181b;
-    --border: #27272a;
-    --border-subtle: #18181b;
-    --border-strong: #3f3f46;
+    --bg: #0b1220;
+    --surface: #101a2b;
+    --surface-sunken: #152238;
+    --sidebar-bg: #0d1727;
+    --desk: #101a2b;
+    --border: #26364c;
+    --border-subtle: #1c2b40;
+    --border-strong: #3a4e68;
     --text: #fafafa;
     --text-secondary: #e4e4e7;
-    --text-muted: #a1a1aa;
-    --accent: #5ccfb4;
-    --accent-hover: #7ddcc5;
-    --accent-strong: #a7eadb;
-    --on-accent: #06201b;
-    --soft: #12332d;
-    --hover: #27272a;
+    --text-muted: #a9b8cc;
+    --accent: #79a7ff;
+    --accent-hover: #9bbcff;
+    --accent-strong: #c5d8ff;
+    --on-accent: #0a1730;
+    --soft: #1b3155;
+    --hover: #1b2a40;
     --highlight: #854d0e;
     --scrim: rgb(0 0 0 / 60%);
     --shadow-card: 0 1px 2px rgb(0 0 0 / 30%);
@@ -139,23 +139,23 @@
 }
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #09090b;
-  --surface: #09090b;
-  --surface-sunken: #18181b;
-  --sidebar-bg: #0c0c0e;
-  --desk: #18181b;
-  --border: #27272a;
-  --border-subtle: #18181b;
-  --border-strong: #3f3f46;
+  --bg: #0b1220;
+  --surface: #101a2b;
+  --surface-sunken: #152238;
+  --sidebar-bg: #0d1727;
+  --desk: #101a2b;
+  --border: #26364c;
+  --border-subtle: #1c2b40;
+  --border-strong: #3a4e68;
   --text: #fafafa;
   --text-secondary: #e4e4e7;
-  --text-muted: #a1a1aa;
-  --accent: #5ccfb4;
-  --accent-hover: #7ddcc5;
-  --accent-strong: #a7eadb;
-  --on-accent: #06201b;
-  --soft: #12332d;
-  --hover: #27272a;
+  --text-muted: #a9b8cc;
+  --accent: #79a7ff;
+  --accent-hover: #9bbcff;
+  --accent-strong: #c5d8ff;
+  --on-accent: #0a1730;
+  --soft: #1b3155;
+  --hover: #1b2a40;
   --highlight: #854d0e;
   --scrim: rgb(0 0 0 / 60%);
   --shadow-card: 0 1px 2px rgb(0 0 0 / 30%);

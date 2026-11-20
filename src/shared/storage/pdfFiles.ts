@@ -6,7 +6,7 @@ export interface PdfFileRecord {
   blob: Blob;
   size: number;
   savedAt: string;
-  /** True once the lab's storage has confirmed it holds the file. */
+  /** True once ResearchHub has confirmed it holds the file for this project. */
   uploaded: boolean;
 }
 

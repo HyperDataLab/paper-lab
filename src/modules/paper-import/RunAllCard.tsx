@@ -1,4 +1,5 @@
 import { useRef, useState, type RefObject } from 'react';
+import { Play, Square } from 'lucide-react';
 import { BATCH_CONCURRENCY } from '@/core/batch';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
@@ -159,6 +160,10 @@ export function RunAllCard({
     phase.kind === 'running' ? (
       <Button
         variant="danger"
+        className={compact ? styles.runAllAction : undefined}
+        leadingIcon={compact ? <Square size={14} aria-hidden="true" /> : undefined}
+        aria-label={compact ? 'Dừng phân tích' : undefined}
+        title={compact ? 'Dừng phân tích' : undefined}
         onClick={() => {
           stopping.current = true;
           for (const id of phase.active) jobs.current[id]?.stop?.();
@@ -170,12 +175,18 @@ export function RunAllCard({
       <Button
         disabled={loading}
         variant={remaining === 0 && !loading ? 'secondary' : 'primary'}
+        className={compact ? styles.runAllAction : undefined}
+        leadingIcon={compact ? <Play size={14} aria-hidden="true" /> : undefined}
+        aria-label={compact ? (remaining === 0 && !loading ? 'Phân tích lại bài báo' : 'Phân tích bài báo') : undefined}
+        title={remaining === 0 && !loading ? 'Phân tích lại bài báo' : 'Phân tích bài báo'}
         onClick={() => {
           onPrepare();
           setPhase({ kind: 'confirm' });
         }}
       >
-        {remaining === 0 && !loading ? 'Phân tích lại' : 'Phân tích bài báo'}
+        <span className={compact ? styles.runAllActionLabel : undefined}>
+          {remaining === 0 && !loading ? 'Phân tích lại' : 'Phân tích bài báo'}
+        </span>
       </Button>
     );
   const progress = (

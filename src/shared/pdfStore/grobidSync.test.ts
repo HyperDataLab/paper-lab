@@ -31,7 +31,12 @@ it.each([
 ])('keeps the previous result after %s', async (_name, fetcher) => {
   const repo = await setup();
   vi.stubGlobal('fetch', vi.fn(fetcher));
-  const saved = await requestGrobid(repo, grobidPaper, async () => 'token');
+  const saved = await requestGrobid(
+    repo,
+    grobidPaper,
+    '00000000-0000-4000-8000-000000000001',
+    async () => 'token',
+  );
   expect(saved.result).toEqual(grobidRecord().result);
   expect(saved.fetchedAt).toBe(grobidRecord().fetchedAt);
   expect(saved.lastFailedAttempt).toEqual({ at: expect.any(String), reason: expect.any(String) });
@@ -44,7 +49,14 @@ it('allows an explicit replacement with a degraded result', async () => {
     'fetch',
     vi.fn(async () => new Response(grobidTei.replace(/<body>[\s\S]*?<\/body>/u, '<body/>'))),
   );
-  const saved = await requestGrobid(repo, grobidPaper, async () => 'token', undefined, true);
+  const saved = await requestGrobid(
+    repo,
+    grobidPaper,
+    '00000000-0000-4000-8000-000000000001',
+    async () => 'token',
+    undefined,
+    true,
+  );
   expect(saved.result?.bodyPresent).toBe(false);
   expect(saved.lastFailedAttempt).toBeUndefined();
 });

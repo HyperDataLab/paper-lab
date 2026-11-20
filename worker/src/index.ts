@@ -1,21 +1,106 @@
-import { createRemoteJWKSet } from 'jose';
 import { getContainer } from '@cloudflare/containers';
 import { handle, type Bucket } from './app';
-import { SECURETOKEN_JWKS, verifyFirebaseToken } from './auth';
+import { verifySsoToken } from './auth';
 import { GrobidStartingError } from './grobid-error';
 
 export { GrobidContainer } from './grobid';
 
 interface Env {
   BUCKET: Bucket;
-  FIREBASE_PROJECT_ID: string;
-  ACCEPTED_PROJECT_IDS?: string;
+  SSO_BASE_URL: string;
+  RESEARCH_HUB_API_URL?: string;
+  RESEARCH_HUB: { fetch(request: Request): Promise<Response> };
   ALLOWED_DOMAIN: string;
   ALLOWED_ORIGINS: string;
   ADMIN_EMAILS: string;
   GROBID: Parameters<typeof getContainer>[0];
   /** Base URL of the topics worker that serves POST /nlp/parse; unset → POST /v1/measure skips passive and tense. */
   NLP_URL?: string;
+}
+
+class ResearchHubApiError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+  }
+}
+
+function researchHubRequest(env: Env, path: string, init: RequestInit, token: string) {
+  const baseUrl = env.RESEARCH_HUB_API_URL?.trim();
+  if (!baseUrl) throw new Error('RESEARCH_HUB_API_URL is not configured');
+  const headers = new Headers(init.headers);
+  headers.set('Authorization', `Bearer ${token}`);
+  return env.RESEARCH_HUB.fetch(new Request(new URL(path, baseUrl), { ...init, headers }));
+}
+
+async function getOwnedProject(env: Env, projectId: string, token: string) {
+  const baseUrl = env.RESEARCH_HUB_API_URL?.trim();
+  if (!baseUrl) throw new ResearchHubApiError(503, 'RESEARCH_HUB_API_URL is not configured');
+  let response: Response;
+  try {
+    response = await researchHubRequest(env, '/api/projects', { method: 'GET' }, token);
+  } catch (error) {
+    throw new ResearchHubApiError(502, error instanceof Error ? `ResearchHub request failed: ${error.name}` : 'ResearchHub request failed');
+  }
+  if (!response.ok) {
+    const body: unknown = await response.json().catch(() => null);
+    const detail =
+      body && typeof body === 'object' && 'error' in body && typeof body.error === 'string'
+        ? body.error.slice(0, 240)
+        : null;
+    const responseUrl = response.url ? new URL(response.url) : new URL('/api/projects', baseUrl);
+    const contentType = response.headers.get('content-type')?.split(';')[0] ?? 'unknown content type';
+    throw new ResearchHubApiError(
+      response.status,
+      `ResearchHub API responded with HTTP ${response.status} from ${responseUrl.host}${responseUrl.pathname} (${contentType})${detail ? `: ${detail}` : ''}`,
+    );
+  }
+  const result: unknown = await response.json().catch(() => null);
+  if (!result || typeof result !== 'object' || !('items' in result) || !Array.isArray(result.items))
+    throw new ResearchHubApiError(502, 'ResearchHub returned an invalid project list');
+  const project = result.items.find(
+    (item): item is { id: string; name: string } =>
+      !!item && typeof item === 'object' && 'id' in item && item.id === projectId && 'name' in item && typeof item.name === 'string',
+  );
+  return project ?? null;
+}
+
+async function uploadResearchHubFile(env: Env, projectId: string, token: string, fileName: string, body: ArrayBuffer) {
+  let response: Response;
+  try {
+    response = await researchHubRequest(
+      env,
+      '/api/files',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Length': String(body.byteLength),
+          'X-File-Name': encodeURIComponent(fileName),
+          'X-Project-Id': projectId,
+        },
+        body,
+      },
+      token,
+    );
+  } catch (error) {
+    throw new ResearchHubApiError(502, error instanceof Error ? `ResearchHub upload failed: ${error.name}` : 'ResearchHub upload failed');
+  }
+  if (!response.ok) {
+    const bodyText = await response.text().catch(() => '');
+    throw new ResearchHubApiError(response.status, bodyText.slice(0, 240) || 'ResearchHub file upload failed');
+  }
+  const value: unknown = await response.json().catch(() => null);
+  const fileId = value && typeof value === 'object' && 'item' in value && value.item && typeof value.item === 'object' &&
+    'id' in value.item && typeof value.item.id === 'string'
+    ? value.item.id
+    : null;
+  if (!fileId) throw new ResearchHubApiError(502, 'ResearchHub returned an invalid file response');
+  return fileId;
+}
+
+function downloadResearchHubFile(env: Env, projectId: string, fileId: string, token: string) {
+  const path = `/api/files/${encodeURIComponent(fileId)}?projectId=${encodeURIComponent(projectId)}`;
+  return researchHubRequest(env, path, { method: 'GET' }, token);
 }
 
 function nlpParse(env: Env) {
@@ -28,8 +113,6 @@ function nlpParse(env: Env) {
       body: JSON.stringify({ sentences }),
     });
 }
-
-const jwks = createRemoteJWKSet(new URL(SECURETOKEN_JWKS));
 
 async function processPdf(binding: Env['GROBID'], pdf: ArrayBuffer): Promise<Response> {
   const container = getContainer(binding);
@@ -69,16 +152,10 @@ export default {
   fetch(request: Request, env: Env): Promise<Response> {
     return handle(
       {
-        verifyToken: (token) =>
-          verifyFirebaseToken(
-            token,
-            jwks,
-            (env.ACCEPTED_PROJECT_IDS ?? env.FIREBASE_PROJECT_ID)
-              .split(',')
-              .map((id) => id.trim())
-              .filter(Boolean),
-            env.ALLOWED_DOMAIN,
-          ),
+        verifyToken: (token) => verifySsoToken(token, env.SSO_BASE_URL, env.ALLOWED_DOMAIN),
+        getOwnedProject: (projectId, token) => getOwnedProject(env, projectId, token),
+        uploadProjectFile: (projectId, token, fileName, body) => uploadResearchHubFile(env, projectId, token, fileName, body),
+        downloadProjectFile: (projectId, fileId, token) => downloadResearchHubFile(env, projectId, fileId, token),
         bucket: env.BUCKET,
         allowedOrigins: env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim()),
         adminEmails: (env.ADMIN_EMAILS ?? '').split(',').map((email) => email.trim().toLowerCase()),

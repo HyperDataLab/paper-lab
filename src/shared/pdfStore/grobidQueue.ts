@@ -10,6 +10,7 @@ export type GrobidQueueStatus = {
 
 export function createGrobidQueue(
   repo: Repositories,
+  projectId: string | null,
   auth: () => { signedIn: boolean; getIdToken: () => Promise<string | null> },
   update: (id: string, status: GrobidQueueStatus) => void,
 ) {
@@ -39,7 +40,11 @@ export function createGrobidQueue(
         return;
       }
       update(id, { status: 'running' });
-      const record = await requestGrobid(repo, paper, session.getIdToken);
+      if (!projectId) {
+        update(id, { status: 'failed', reason: 'ResearchHub project is required' });
+        return;
+      }
+      const record = await requestGrobid(repo, paper, projectId, session.getIdToken);
       update(
         id,
         record.status === 'ready' && record.result

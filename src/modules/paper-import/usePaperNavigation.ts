@@ -23,6 +23,7 @@ import {
 } from './paperPlaces';
 
 const WIDE = '(min-width: 1024px)';
+const READER_PANEL_KEY = 'paperlab:reader-panel-open';
 /** True on screens wide enough to show the paper and its analysis as two columns. */
 function useWide() {
   const [wide, setWide] = useState(
@@ -39,9 +40,9 @@ function useWide() {
 }
 function readSplit() {
   try {
-    return localStorage.getItem('paper-split') !== 'false';
+    return sessionStorage.getItem(READER_PANEL_KEY) === 'true';
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -80,7 +81,7 @@ export function usePaperNavigation() {
     return isPane(place) ? place : 'fulltext';
   });
   const [focus, setFocus] = useState<'centre' | 'right'>(() =>
-    initial && !isPane(placeOf(initial)) ? 'right' : 'centre',
+    initial && !isPane(placeOf(initial)) ? 'right' : readSplit() ? 'right' : 'centre',
   );
   // An AI panel stays mounted once opened, so its run keeps going while the reader looks elsewhere.
   const [opened, setOpened] = useState<JobId[]>(RUN_ALL);
@@ -119,11 +120,13 @@ export function usePaperNavigation() {
     if (isPane(place)) {
       setPaneState(place);
       setFocus('centre');
+      setPanelPreference(false);
       // Choosing the paper leaves a space: the right column comes back as it was.
       if (isSpace(modeOf(tab))) setTabState(beforeSpace.current);
     } else {
       setTabState(view);
       setFocus('right');
+      if (!isSpace(place)) setPanelPreference(true);
     }
     if (block) {
       setOpenBlocks((old) => (old.includes(block) ? old : [...old, block]));
@@ -152,15 +155,15 @@ export function usePaperNavigation() {
   const showRight = !wide || splitWanted || inSpace;
   const centreVisible = !inSpace && (wide || focus === 'centre');
 
-  const toggleSplit = () => {
-    const next = !splitWanted;
-    setSplitWanted(next);
+  const setPanelPreference = (open: boolean) => {
+    setSplitWanted(open);
     try {
-      localStorage.setItem('paper-split', String(next));
+      sessionStorage.setItem(READER_PANEL_KEY, String(open));
     } catch {
       /* Storage may be unavailable. */
     }
   };
+  const toggleSplit = () => setPanelPreference(!splitWanted);
   const remember = (view: ViewId, label: string, column: HTMLElement | null) =>
     setReturnTo({ view, label, scroll: scrollOf(column) });
   /** A source opened from a space or the summary shows the paper, with a way back to where it was opened. */
@@ -238,6 +241,7 @@ export function usePaperNavigation() {
     centreColumn,
     setTab,
     toggleSplit,
+    setPanelPreference,
     enterReader,
     showFulltext,
     focusFulltext,

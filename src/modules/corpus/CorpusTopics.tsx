@@ -146,17 +146,6 @@ export function CorpusTopics({
   useEffect(() => {
     let active = true;
     async function load() {
-      try {
-        if (user) {
-          const token = await getIdToken();
-          if (token) {
-            const remote = await pullCorpusTopics(corpus.id, token);
-            if (remote) await repo.corpusTopics.save(remote);
-          }
-        }
-      } catch (e) {
-        if (active) setError(String(e));
-      }
       const latest = (await repo.corpusTopics.list(corpus.id))[0];
       const others = latest
         ? await Promise.all(
@@ -177,7 +166,7 @@ export function CorpusTopics({
     return () => {
       active = false;
     };
-  }, [corpus.id, user, getIdToken, repo]);
+  }, [corpus.id, repo]);
   const label = (id: number) =>
     names.find((name) => name.topicId === id)?.name ||
     snapshot?.topics.find((topic) => topic.topicId === id)?.words.join(', ') ||

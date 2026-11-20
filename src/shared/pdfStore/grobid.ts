@@ -18,7 +18,12 @@ function delay(ms: number, signal: AbortSignal): Promise<void> {
 }
 
 /** Wait for the cold container, within a three-minute total deadline. */
-export async function fetchGrobidTei(sha: string, token: string, signal?: AbortSignal): Promise<string> {
+export async function fetchGrobidTei(
+  sha: string,
+  projectId: string,
+  token: string,
+  signal?: AbortSignal,
+): Promise<string> {
   const controller = new AbortController();
   const abort = () => controller.abort(signal?.reason);
   if (signal?.aborted) abort();
@@ -32,7 +37,7 @@ export async function fetchGrobidTei(sha: string, token: string, signal?: AbortS
     for (;;) {
       const response = await fetch(`${PDF_WORKER_URL}/grobid/fulltext/${encodeURIComponent(sha)}`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}`, 'X-Project-Id': projectId },
         signal: controller.signal,
       });
       if (response.ok) return await response.text();

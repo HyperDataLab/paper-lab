@@ -3,7 +3,7 @@ import { usableGrobid } from '@/core/grobid/merge';
 import type { GrobidRecord, Paper } from '@/core/schemas';
 import { useAuth } from '@/shared/auth/authContext';
 import { grobidBlocker, requestGrobid } from '@/shared/pdfStore/grobidSync';
-import { useRepositories } from '@/shared/storage/StorageProvider';
+import { useHubProjectId, useRepositories } from '@/shared/storage/StorageProvider';
 import { GROBID_IDLE, type GrobidState } from './grobidContext';
 
 const fromRecord = (record: GrobidRecord): Omit<GrobidState, 'refetch'> =>
@@ -18,6 +18,7 @@ const fromRecord = (record: GrobidRecord): Omit<GrobidState, 'refetch'> =>
  */
 export function useGrobid(paper: Paper | null, onChanged: () => void): GrobidState {
   const repo = useRepositories();
+  const projectId = useHubProjectId();
   const { user, ready, getIdToken } = useAuth();
   const [state, setState] = useState<Omit<GrobidState, 'refetch'>>(GROBID_IDLE);
   const paperRef = useRef(paper);
@@ -32,6 +33,10 @@ export function useGrobid(paper: Paper | null, onChanged: () => void): GrobidSta
     (replace = false) => {
       const current = paperRef.current;
       if (!current) return;
+      if (!projectId) {
+        setState({ status: 'failed', reason: 'ResearchHub project is required', record: null });
+        return;
+      }
       const blocker = grobidBlocker(current, signedIn);
       if (blocker) {
         // A result already in use stays in use; only a paper without one shows why nothing was asked.
@@ -50,7 +55,7 @@ export function useGrobid(paper: Paper | null, onChanged: () => void): GrobidSta
         reason: null,
         record: old.record?.paperId === current.id ? old.record : null,
       }));
-      void requestGrobid(repo, current, getIdToken, controller.signal, replace)
+      void requestGrobid(repo, current, projectId, getIdToken, controller.signal, replace)
         .then((record) => {
           if (controller.signal.aborted) return;
           setState(fromRecord(record));
@@ -58,7 +63,7 @@ export function useGrobid(paper: Paper | null, onChanged: () => void): GrobidSta
         })
         .catch(() => undefined);
     },
-    [repo, getIdToken, signedIn, onChanged],
+    [repo, projectId, getIdToken, signedIn, onChanged],
   );
 
   useEffect(() => {

@@ -1,7 +1,5 @@
 import { Cloud, CloudOff, HardDrive } from 'lucide-react';
 import {
-  lazy,
-  Suspense,
   useCallback,
   useEffect,
   useRef,
@@ -12,15 +10,11 @@ import {
 import type { Paper } from '@/core/schemas';
 import { useAuth } from '@/shared/auth/authContext';
 import { paperSha, pdfRemote, sha256Hex } from '@/shared/pdfStore';
-import { useRepositories } from '@/shared/storage/StorageProvider';
+import { useHubProjectId, useRepositories } from '@/shared/storage/StorageProvider';
 import { Badge } from '@/shared/ui/Badge';
-import { Button } from '@/shared/ui/Button';
-import { Loading } from '@/shared/ui/StateNote';
 import type { PdfMark } from './pdfMarks';
-import type { PdfTarget } from './PdfViewer';
+import { PdfViewer, type PdfTarget } from './PdfViewer';
 import styles from './pdf.module.css';
-
-const PdfViewer = lazy(() => import('./PdfViewer').then((module) => ({ default: module.PdfViewer })));
 
 type State =
   | { kind: 'loading' }
@@ -28,7 +22,7 @@ type State =
   | { kind: 'ready'; blob: Blob; uploaded: boolean };
 
 /**
- * The paper's original PDF: the copy kept in this browser, else the lab's copy when a lab account is signed
+ * The paper's original PDF: the copy kept in this browser, else the ResearchHub copy when an account is signed
  * in. A paper imported before PDFs were kept has neither; the reader attaches the same file once.
  */
 export function PaperPdf({
@@ -39,80 +33,104 @@ export function PaperPdf({
   fallback,
   back,
   find,
+  toolbarStart,
+  toolbarActions,
 }: {
   paper: Paper;
   target: PdfTarget | null;
   marks?: PdfMark[];
   onMark?: (id: string) => void;
-  /** The parsed text, shown under the attach box while the PDF is not on this machine or in the lab. */
+  /** The parsed text remains available below the inline notice when the original PDF is unavailable. */
   fallback?: ReactNode;
   /** A way back to where the reader came from, at the start of the toolbar. */
   back?: ReactNode;
   /** Search and section controls, on a row of the toolbar. */
   find?: ReactNode;
+  /** Reader navigation placed before the page controls. */
+  toolbarStart?: ReactNode;
+  /** Analysis and run actions placed at the right of the compact PDF toolbar. */
+  toolbarActions?: ReactNode;
 }) {
   const repo = useRepositories();
+  const projectId = useHubProjectId();
   const { user, getIdToken, signIn } = useAuth();
   const sha = paperSha(paper);
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [message, setMessage] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [attempt, setAttempt] = useState(0);
   // A failed upload is a state of the stored copy, not an error with the paper: it shows in the toolbar badge.
   const [uploadError, setUploadError] = useState('');
   const picker = useRef<HTMLInputElement>(null);
 
-  /** Keeps the lab's copy in step: sends the local file when the lab does not have it yet. */
+  /** Keeps ResearchHub in step: sends the local file when this project does not have it yet. */
   const upload = useCallback(
     async (blob: Blob) => {
-      if (!sha) return false;
+      if (!sha || !projectId) return false;
       const token = await getIdToken();
       if (!token) return false;
-      await pdfRemote.upload(sha, blob, token);
+      await pdfRemote.upload(sha, projectId, paper.source.fileName || `${sha}.pdf`, blob, token);
       await repo.pdfFiles.markUploaded(sha);
       return true;
     },
-    [sha, getIdToken, repo],
+    [sha, projectId, paper.source.fileName, getIdToken, repo],
   );
 
   useEffect(() => {
     let active = true;
     if (!sha) return;
     void (async () => {
-      const local = await repo.pdfFiles.get(sha);
-      if (local) {
-        if (!active) return;
-        setState({ kind: 'ready', blob: local.blob, uploaded: local.uploaded });
-        if (!local.uploaded && user)
-          void upload(local.blob)
-            .then((sent) => sent && active && setState({ kind: 'ready', blob: local.blob, uploaded: true }))
-            .catch((cause: unknown) => active && setUploadError(String(cause)));
-        return;
-      }
-      const token = user ? await getIdToken() : null;
-      if (token) {
-        try {
-          const remote = await pdfRemote.download(sha, token);
+      try {
+        const local = await repo.pdfFiles.get(sha);
+        if (local) {
+          if (!active) return;
+          setState({ kind: 'ready', blob: local.blob, uploaded: false });
+          if (user && projectId)
+            void getIdToken()
+              .then(async (token) => {
+                if (!token) return false;
+                if (await pdfRemote.exists(sha, projectId, token)) return true;
+                return upload(local.blob);
+              })
+              .then((sent) => sent && active && setState({ kind: 'ready', blob: local.blob, uploaded: true }))
+              .catch((cause: unknown) => active && setUploadError(String(cause)));
+          return;
+        }
+        const token = user ? await getIdToken() : null;
+        if (token) {
+          const remote = projectId ? await pdfRemote.download(sha, projectId, token) : null;
           if (remote) {
-            // A full browser store only costs the local copy; the lab's copy is still shown.
-            await repo.pdfFiles.put(sha, remote, true).catch(() => undefined);
+            // A full browser store only costs the local copy; the ResearchHub copy remains available.
             if (active) setState({ kind: 'ready', blob: remote, uploaded: true });
+            await repo.pdfFiles.put(sha, remote, true).catch(() => undefined);
             return;
           }
-        } catch (cause) {
-          if (active) setMessage(String(cause instanceof Error ? cause.message : cause));
+        }
+        if (active)
+          setState({
+            kind: 'missing',
+            reason: user
+              ? 'Không tìm thấy PDF trong ResearchHub hoặc trên thiết bị này.'
+              : 'Không tìm thấy PDF trên thiết bị này.',
+          });
+      } catch (cause) {
+        if (active) {
+          setLoadError(String(cause instanceof Error ? cause.message : cause));
+          setState({ kind: 'missing', reason: 'Không tải được tài liệu PDF.' });
         }
       }
-      if (active)
-        setState({
-          kind: 'missing',
-          reason: user
-            ? 'Kho của lab chưa có PDF của bài này.'
-            : 'Máy này chưa có PDF của bài. Đăng nhập lab để mở bản trong kho của lab, hoặc gắn lại tệp.',
-        });
     })();
     return () => {
       active = false;
     };
-  }, [sha, repo, user, getIdToken, upload]);
+  }, [sha, projectId, repo, user, getIdToken, upload, attempt]);
+
+  const retry = () => {
+    setLoadError('');
+    setMessage('');
+    setState({ kind: 'loading' });
+    setAttempt((current) => current + 1);
+  };
 
   async function attach(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -136,71 +154,53 @@ export function PaperPdf({
   }
 
   if (!sha) return <p className={styles.note}>Bài này không được nhập từ tệp PDF.</p>;
-  if (state.kind === 'loading') return <Loading label="Đang tìm PDF…" />;
-  if (state.kind === 'missing')
-    return (
-      <>
-        <div className={styles.attach}>
-          <p>{state.reason}</p>
-          {sha && (
-            <>
-              <input
-                ref={picker}
-                type="file"
-                accept="application/pdf,.pdf"
-                className={styles.hidden}
-                aria-label="Chọn PDF gốc"
-                onChange={(event) => void attach(event)}
-              />
-              <Button variant="primary" onClick={() => picker.current?.click()}>
-                Gắn PDF gốc
-              </Button>
-              <p className={styles.note}>
-                Chọn đúng tệp đã dùng để nhập bài; app kiểm tra để không gắn nhầm bản khác.
-              </p>
-            </>
-          )}
-          {!user && (
-            <Button variant="ghost" onClick={() => void signIn()}>
-              Đăng nhập lab
-            </Button>
-          )}
-          {message && <p role="alert">{message}</p>}
-        </div>
-        {fallback}
-      </>
-    );
+  const loadState = state.kind === 'loading' ? 'searching' : state.kind === 'missing' ? 'missing' : 'loading';
   return (
     <>
-      {message && <p role="alert">{message}</p>}
-      <Suspense fallback={<Loading label="Đang mở PDF…" />}>
-        <PdfViewer
-          key={sha}
-          blob={state.blob}
-          target={target}
-          marks={marks}
-          onMark={onMark}
-          toolbarStart={back}
-          toolbarBelow={find}
-          toolbarEnd={
-            state.uploaded ? (
+      <input
+        ref={picker}
+        type="file"
+        accept="application/pdf,.pdf"
+        className={styles.hidden}
+        aria-label="Chọn PDF gốc"
+        onChange={(event) => void attach(event)}
+      />
+      <PdfViewer
+        key={`${sha}-${attempt}`}
+        blob={state.kind === 'ready' ? state.blob : null}
+        loadState={loadState}
+        loadMessage={state.kind === 'missing' ? message || state.reason : ''}
+        loadDetail={loadError}
+        onRetry={retry}
+        onUpload={() => picker.current?.click()}
+        onSignIn={!user ? () => void signIn() : undefined}
+        fallback={state.kind === 'missing' ? fallback : undefined}
+        target={target}
+        marks={marks}
+        onMark={onMark}
+        toolbarStart={<>{toolbarStart}{back}</>}
+        toolbarEnd={
+          <>
+            {find}
+            {toolbarActions}
+            {state.kind === 'ready' && state.uploaded ? (
               <Badge tone="success" icon={<Cloud size={14} aria-hidden="true" />}>
-                Đã lưu trong kho lab
+                <span className={styles.pdfSyncLabel}>Đã lưu trong ResearchHub</span>
               </Badge>
-            ) : uploadError ? (
-              <span title={uploadError}>
+            ) : state.kind === 'ready' && uploadError ? (
+              <span title={uploadError} aria-label={`Lỗi lưu PDF lên ResearchHub: ${uploadError}`}>
                 <Badge tone="warning" icon={<CloudOff size={14} aria-hidden="true" />}>
-                  Chưa lưu được lên kho lab
+                  <span className={styles.pdfSyncLabel}>Chưa lưu được lên ResearchHub</span>
                 </Badge>
               </span>
-            ) : (
+            ) : state.kind === 'ready' ? (
               <Badge icon={<HardDrive size={14} aria-hidden="true" />}>
-                {user ? 'Đang lưu lên kho lab…' : 'Chỉ trên máy này'}
+                <span className={styles.pdfSyncLabel}>{user ? 'Đang lưu lên ResearchHub…' : 'Chỉ trên máy này'}</span>
               </Badge>
-            )
-          }
-        />
-      </Suspense>
+            ) : null}
+          </>
+        }
+      />
     </>
   );
 }

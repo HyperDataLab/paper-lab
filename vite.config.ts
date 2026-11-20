@@ -4,21 +4,27 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+  const proxy = {
+    '/paperlab-worker': {
+      target: env.PAPERLAB_WORKER_PROXY_TARGET || 'https://paperlab-pdf-worker.hyperdatalab.workers.dev',
+      changeOrigin: true,
+      rewrite: (path: string) => path.replace(/^\/paperlab-worker/, ''),
+    },
+    ...(env.LLM_PROXY_TARGET
+      ? {
+          '/llm': {
+            target: env.LLM_PROXY_TARGET,
+            changeOrigin: true,
+            rewrite: (path: string) => path.replace(/^\/llm/, ''),
+            headers: env.LLM_PROXY_API_KEY ? { Authorization: `Bearer ${env.LLM_PROXY_API_KEY}` } : {},
+          },
+        }
+      : {}),
+  };
   return {
     plugins: [react()],
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
-    server: env.LLM_PROXY_TARGET
-      ? {
-          proxy: {
-            '/llm': {
-              target: env.LLM_PROXY_TARGET,
-              changeOrigin: true,
-              rewrite: (path) => path.replace(/^\/llm/, ''),
-              headers: env.LLM_PROXY_API_KEY ? { Authorization: `Bearer ${env.LLM_PROXY_API_KEY}` } : {},
-            },
-          },
-        }
-      : undefined,
+    server: { proxy },
     test: {
       globals: true,
       environment: 'jsdom',

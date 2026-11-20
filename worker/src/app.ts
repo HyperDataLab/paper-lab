@@ -5,6 +5,9 @@ import { handlePlans } from './plans';
 import { handleMeasure, MEASURE_PATH } from './measure';
 import { handleFactRequests, isAdmin } from './factRequests';
 import { handleScg, SCG_LIST_PATH, SCG_PATH } from './scg';
+import { handleOpenAlexPdf } from './openalexPdf';
+import { MAX_PDF_BYTES } from './limits';
+import { handleWorkspace } from './workspace';
 
 /** The part of an R2 bucket this worker uses, so the logic runs in tests without Cloudflare. */
 export interface Bucket {
@@ -34,10 +37,20 @@ export interface Deps {
   grobid?: (pdf: ArrayBuffer) => Promise<Response>;
   /** POST /nlp/parse on the topics worker with the caller's token; absent when `NLP_URL` is unset. */
   nlpParse?: (sentences: { key: string; text: string }[], token: string) => Promise<Response>;
+  /** Outbound fetch for OpenAlex and its listed Open Access PDF mirrors. */
+  externalFetch?: typeof fetch;
+  /** Validates project ownership through the ResearchHub API. */
+  getOwnedProject?: (projectId: string, token: string) => Promise<{ id: string; name: string } | null>;
+  /** Stores file bytes in the ResearchHub project and returns the ResearchHub file ID. */
+  uploadProjectFile?: (projectId: string, token: string, fileName: string, body: ArrayBuffer) => Promise<string>;
+  /** Fetches file bytes from the ResearchHub Files API. */
+  downloadProjectFile?: (projectId: string, fileId: string, token: string) => Promise<Response>;
 }
 
-export const MAX_BYTES = 25 * 1024 * 1024;
+export const MAX_BYTES = MAX_PDF_BYTES;
+/** Previous PaperLab PDF objects kept for lazy migration to ResearchHub. */
 export const PREFIX = 'paperlab/pdfs/';
+export const PDF_LINK_PREFIX = 'paperlab/researchhub-file-links/';
 export const GROBID_CACHE_TAG = 'grobid-0.9.0-crf';
 const GROBID_SHA = /^\/grobid\/fulltext\/([0-9a-f]{64})$/;
 const SHA = /^\/pdfs\/([0-9a-f]{64})$/;
@@ -51,7 +64,7 @@ function cors(request: Request, deps: Deps): Record<string, string> {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, HEAD, PUT, POST',
     'Access-Control-Expose-Headers': 'X-Grobid-Cache, X-Grobid-Ms, ETag, Retry-After',
-    'Access-Control-Allow-Headers': 'authorization, content-type, if-match, if-none-match',
+    'Access-Control-Allow-Headers': 'authorization, content-type, if-match, if-none-match, x-project-id, x-file-name',
     'Access-Control-Max-Age': '3600',
     Vary: 'Origin',
   };
@@ -64,9 +77,86 @@ async function sha256Hex(data: ArrayBuffer) {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+function legacyPdfKey(sha: string) {
+  return `${PREFIX}${sha}.pdf`;
+}
+
+function linkedProjectIds(metadata: Record<string, string> | undefined): string[] {
+  if (!metadata) return [];
+  if (metadata.projectIds) {
+    try {
+      const parsed: unknown = JSON.parse(metadata.projectIds);
+      if (Array.isArray(parsed)) return parsed.filter((id): id is string => typeof id === 'string');
+    } catch {
+      // Fall back to the previous single-project metadata field.
+    }
+  }
+  return metadata.projectId ? [metadata.projectId] : [];
+}
+
+function errorStatus(error: unknown): number {
+  return error && typeof error === 'object' && 'status' in error && typeof error.status === 'number'
+    ? error.status
+    : 502;
+}
+
+function safeErrorDetail(error: unknown) {
+  const message = error instanceof Error ? error.message : 'Unknown ResearchHub upload error';
+  return message.replace(/Bearer\s+\S+/giu, 'Bearer [redacted]').replace(/[\r\n\t]+/gu, ' ').slice(0, 240);
+}
+
+type ProjectPdfLink = { fileId: string; fileName: string };
+
+function projectPdfLinkKey(projectId: string, sha: string) {
+  return `${PDF_LINK_PREFIX}${projectId}/${sha}.json`;
+}
+
+async function getProjectPdfLink(deps: Deps, projectId: string, sha: string): Promise<ProjectPdfLink | null> {
+  const object = await deps.bucket.get(projectPdfLinkKey(projectId, sha));
+  if (!object) return null;
+  const value: unknown = await new Response(object.body).json().catch(() => null);
+  if (
+    !value || typeof value !== 'object' || !('fileId' in value) || typeof value.fileId !== 'string' ||
+    !('fileName' in value) || typeof value.fileName !== 'string'
+  ) return null;
+  return { fileId: value.fileId, fileName: value.fileName };
+}
+
+async function saveProjectPdfLink(
+  deps: Deps,
+  projectId: string,
+  sha: string,
+  link: ProjectPdfLink,
+) {
+  const body = await new Response(JSON.stringify(link)).arrayBuffer();
+  await deps.bucket.put(projectPdfLinkKey(projectId, sha), body, {
+    httpMetadata: { contentType: 'application/json' },
+    customMetadata: { projectId, sha256: sha, fileId: link.fileId },
+  });
+}
+
+async function getProjectPdf(deps: Deps, sha: string, projectId: string, token: string): Promise<Response | null> {
+  if (!deps.downloadProjectFile) throw new Error('ResearchHub file download is not configured');
+  let link = await getProjectPdfLink(deps, projectId, sha);
+  if (!link) {
+    const key = legacyPdfKey(sha);
+    const legacy = await deps.bucket.get(key);
+    if (!legacy || !deps.uploadProjectFile) return null;
+    const linked = linkedProjectIds((await deps.bucket.head(key))?.customMetadata);
+    if (linked.length > 0 && !linked.includes(projectId)) return null;
+    const body = await new Response(legacy.body).arrayBuffer();
+    if ((await sha256Hex(body)) !== sha) return null;
+    const fileName = (await deps.bucket.head(key))?.customMetadata?.originalName ?? `${sha}.pdf`;
+    const fileId = await deps.uploadProjectFile(projectId, token, fileName, body);
+    link = { fileId, fileName };
+    await saveProjectPdfLink(deps, projectId, sha, link);
+  }
+  return deps.downloadProjectFile(projectId, link.fileId, token);
+}
+
 /**
- * Stores and serves the lab's original PDFs, one object per file named by its SHA-256. Only signed-in
- * members of the lab's domain may read or write; a file is checked against its name before it is stored.
+ * Proxies PDF storage through the ResearchHub Files API. R2 stores only project/SHA to ResearchHub file-ID links.
+ * Every file request verifies the authenticated user's access to the ResearchHub project.
  */
 export async function handle(deps: Deps, request: Request): Promise<Response> {
   const headers = cors(request, deps);
@@ -97,10 +187,36 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
       : json(401, { error: 'invalid token' }, headers);
   }
 
+  const requestedProjectId = request.headers.get('X-Project-Id')?.trim() ?? '';
+  const projectId = requestedProjectId ? requestedProjectId.toLowerCase() : null;
+  if ((match || grobidMatch) && !projectId)
+    return json(400, { error: 'X-Project-Id is required for project PDF access' }, headers);
+  if (
+    projectId &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(projectId)
+  )
+    return json(400, { error: 'invalid ResearchHub project id' }, headers);
+  if (projectId && (match || grobidMatch)) {
+    if (!deps.getOwnedProject) return json(503, { error: 'ResearchHub project access is not configured' }, headers);
+    try {
+      if (!(await deps.getOwnedProject(projectId, token))) return json(404, { error: 'ResearchHub project not found' }, headers);
+    } catch {
+      return json(502, { error: 'ResearchHub project access could not be verified' }, headers);
+    }
+  }
+
   if (isV1) {
     try {
       if (path === '/v1/me' && request.method === 'GET')
         return json(200, { email: caller.email, admin: isAdmin(deps, caller.email) }, headers);
+      if (path === '/v1/pdfs/openalex')
+        return await handleOpenAlexPdf(request, headers, {
+          fetch: deps.externalFetch ?? fetch,
+        });
+      if (path.startsWith('/v1/workspaces/')) {
+        if (!deps.getOwnedProject) return json(503, { error: 'ResearchHub project access is not configured' }, headers);
+        return await handleWorkspace(request, token, { bucket: deps.bucket, getOwnedProject: deps.getOwnedProject }, headers);
+      }
       if (path === MEASURE_PATH) return await handleMeasure(deps, request, token, headers);
       if (path === SCG_LIST_PATH || SCG_PATH.test(path))
         return await handleScg(deps, request, caller.email, headers);
@@ -120,10 +236,14 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
     let body: ArrayBuffer;
     let sha = grobidMatch?.[1];
     if (sha) {
-      const object = await deps.bucket.get(`${PREFIX}${sha}.pdf`);
-      if (!object) return json(404, { error: 'not stored' }, headers);
-      if (object.size > MAX_BYTES) return json(413, { error: 'file too large' }, headers);
-      body = await new Response(object.body).arrayBuffer();
+      let fileResponse: Response | null;
+      try {
+        fileResponse = projectId ? await getProjectPdf(deps, sha, projectId, token) : null;
+      } catch (error) {
+        return json(errorStatus(error), { error: 'ResearchHub file download failed' }, headers);
+      }
+      if (!fileResponse?.ok) return json(fileResponse?.status ?? 404, { error: 'ResearchHub file not found' }, headers);
+      body = await fileResponse.arrayBuffer();
     } else {
       if ((request.headers.get('content-type') ?? '').split(';')[0]?.trim() !== 'application/pdf')
         return json(415, { error: 'expected application/pdf' }, headers);
@@ -245,17 +365,27 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
     return json(create ? 201 : 200, { version: stored.etag }, headers);
   }
   const sha = match?.[1] as string;
-  const key = `${PREFIX}${sha}.pdf`;
-
-  if (request.method === 'HEAD')
-    return new Response(null, { status: (await deps.bucket.head(key)) ? 200 : 404, headers });
-  if (request.method === 'GET') {
-    const object = await deps.bucket.get(key);
-    if (!object) return json(404, { error: 'not stored' }, headers);
-    return new Response(object.body, {
-      status: 200,
-      headers: { ...headers, 'Content-Type': 'application/pdf', 'Content-Length': String(object.size) },
+  if (request.method === 'HEAD') {
+    const link = projectId ? await getProjectPdfLink(deps, projectId, sha) : null;
+    return new Response(null, {
+      status: link ? 200 : 404,
+      headers,
     });
+  }
+  if (request.method === 'GET') {
+    let fileResponse: Response | null;
+    try {
+      fileResponse = projectId ? await getProjectPdf(deps, sha, projectId, token) : null;
+    } catch (error) {
+      return json(errorStatus(error), { error: 'ResearchHub file download failed' }, headers);
+    }
+    if (!fileResponse?.ok) return json(fileResponse?.status ?? 404, { error: 'ResearchHub file not found' }, headers);
+    const responseHeaders = new Headers(headers);
+    for (const name of ['content-type', 'content-length', 'content-disposition']) {
+      const value = fileResponse.headers.get(name);
+      if (value) responseHeaders.set(name, value);
+    }
+    return new Response(fileResponse.body, { status: 200, headers: responseHeaders });
   }
   if (request.method !== 'PUT') return json(405, { error: 'method not allowed' }, headers);
 
@@ -270,10 +400,25 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
     return json(400, { error: 'not a PDF' }, headers);
   if ((await sha256Hex(body)) !== sha)
     return json(422, { error: 'content does not match its name' }, headers);
-  if (await deps.bucket.head(key)) return json(200, { stored: true, existing: true }, headers);
-  await deps.bucket.put(key, body, {
-    httpMetadata: { contentType: 'application/pdf' },
-    customMetadata: { uploadedBy: caller.email, uploadedAt: deps.now().toISOString() },
-  });
+  if (!projectId) return json(400, { error: 'X-Project-Id is required for PDF uploads' }, headers);
+  if (!deps.uploadProjectFile) return json(503, { error: 'ResearchHub file upload is not configured' }, headers);
+  if (await getProjectPdfLink(deps, projectId, sha)) {
+    return json(200, { stored: true, existing: true }, headers);
+  }
+  const suppliedName = request.headers.get('X-File-Name')?.trim() ?? '';
+  let fileName = suppliedName || `${sha}.pdf`;
+  try {
+    fileName = decodeURIComponent(fileName);
+  } catch {
+    // ResearchHub performs its own filename validation; keep the supplied value if encoding is malformed.
+  }
+  fileName = fileName.replace(/[\\/\u0000-\u001f]/gu, '_').slice(0, 180) || `${sha}.pdf`;
+  try {
+    const fileId = await deps.uploadProjectFile(projectId, token, fileName, body);
+    await saveProjectPdfLink(deps, projectId, sha, { fileId, fileName });
+  } catch (error) {
+    console.error('ResearchHub file upload failed', { status: errorStatus(error), detail: safeErrorDetail(error) });
+    return json(errorStatus(error), { error: 'ResearchHub file upload failed', detail: safeErrorDetail(error) }, headers);
+  }
   return json(201, { stored: true }, headers);
 }

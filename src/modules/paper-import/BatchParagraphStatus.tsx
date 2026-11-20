@@ -1,5 +1,4 @@
 import { AlertCircle, CheckCircle, Clock, LoaderCircle, SkipForward } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import type { Analysis, PaperRun } from '@/core/schemas';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
@@ -51,8 +50,7 @@ export function BatchParagraphStatus({
           ·{' '}
           {analysis.scores
             ? `Điểm ${analysis.scores.overall ?? 'chưa đủ căn cứ'} / 100 · phủ ${analysis.scores.coverage.applicable}/${analysis.scores.coverage.total} · tin cậy ${analysis.scores.confidence ?? '—'} · ${analysis.scores.rubricVersion} · ${analysis.scores.contextLimited ? 'thiếu ngữ cảnh' : 'đủ ngữ cảnh'}`
-            : 'Chưa chấm điểm'}{' '}
-          <Link to={`/evaluate?id=${analysis.id}`}>Mở trong Đánh giá</Link>
+          : 'Chưa chấm điểm'}
         </p>
       )}
     </div>

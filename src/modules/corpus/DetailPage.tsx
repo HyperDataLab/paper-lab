@@ -1,12 +1,11 @@
 import { ArrowLeft, Download, Library, Pencil, Plus } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { canonicalDigest } from '@/core/corpus';
 import { CorpusSchema, type Corpus } from '@/core/schemas/corpus';
 import type { CorpusTopics as TopicsSnapshot, TopicName } from '@/core/schemas/corpusTopics';
 import { useAuth } from '@/shared/auth/authContext';
-import { CorpusConflict, pullCorpus, pushCorpus } from '@/shared/corpusSync';
-import { useRepositories } from '@/shared/storage/StorageProvider';
+import { useHubProjectId, useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
 import { Card } from '@/shared/ui/Card';
@@ -34,10 +33,7 @@ export default function DetailPage() {
   const { id } = useParams();
   const repo = useRepositories();
   const { user, getIdToken } = useAuth();
-  const [conflict, setConflict] = useState<{ version: string | null }>();
-  const conflictRef = useRef(false);
-  const queue = useRef<Promise<void>>(Promise.resolve());
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const hubProjectId = useHubProjectId();
   const [corpus, setCorpus] = useState<Corpus>();
   const [loaded, setLoaded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -65,55 +61,9 @@ export default function DetailPage() {
           setLoaded(true);
         });
   }, [id, repo]);
-  async function save(value: Corpus) {
+  async function save(value: Corpus): Promise<void> {
     const saved = await repo.corpora.save(value);
     setCorpus(saved);
-    if (user) {
-      clearTimeout(timer.current);
-      timer.current = setTimeout(() => {
-        queue.current = queue.current
-          .then(async () => {
-            if (conflictRef.current) return;
-            const latest = await repo.corpora.get(saved.id);
-            const token = await getIdToken();
-            if (!latest || !token) return;
-            const state = await repo.corpora.syncState(saved.id);
-            try {
-              const version = await pushCorpus(latest, state?.version ?? null, token);
-              await repo.corpora.setSyncState(latest.id, version, latest);
-            } catch (e) {
-              if (e instanceof CorpusConflict) {
-                conflictRef.current = true;
-                setConflict({ version: e.version });
-              } else setError(String(e));
-            }
-          })
-          .catch((e: unknown) => setError(String(e)));
-      }, 500);
-    }
-  }
-  async function resolveConflict(keep: boolean) {
-    if (!corpus || !conflict) return;
-    try {
-      const token = await getIdToken();
-      if (!token) return;
-      if (keep) {
-        const latest = await repo.corpora.get(corpus.id);
-        if (!latest) return;
-        const version = await pushCorpus(latest, conflict.version, token);
-        await repo.corpora.setSyncState(latest.id, version, latest);
-      } else {
-        const value = await pullCorpus(corpus.id, token);
-        await repo.corpora.save(value.corpus);
-        await repo.corpora.setSyncState(value.corpus.id, value.version, value.corpus);
-        setCorpus(value.corpus);
-      }
-      conflictRef.current = false;
-      setConflict(undefined);
-    } catch (e) {
-      if (e instanceof CorpusConflict) setConflict({ version: e.version });
-      else setError(String(e));
-    }
   }
   if (!loaded) return <p>Đang tải…</p>;
   if (!corpus) return <p role="alert">Không tìm thấy corpus. {error}</p>;
@@ -201,7 +151,7 @@ export default function DetailPage() {
           <div className={styles.badges}>
             <Badge>{kinds[corpus.kind]}</Badge>
             <Badge>Giao thức v{protocol?.version ?? '—'}</Badge>
-            {!user && <Badge>Chỉ trên máy này</Badge>}
+            {!hubProjectId && !user && <Badge>Chỉ trên máy này</Badge>}
           </div>
         </div>
         <div className={styles.detailActions}>
@@ -217,18 +167,6 @@ export default function DetailPage() {
         </div>
       </header>
       {error && <p role="alert">Có lỗi xảy ra. {error}</p>}
-      {conflict && (
-        <div role="alert" className={styles.conflict}>
-          <p>Corpus đã được người khác sửa</p>
-          <Button size="sm" onClick={() => void resolveConflict(false)}>
-            Tải bản mới
-          </Button>
-          <Button size="sm" onClick={() => void resolveConflict(true)}>
-            Giữ bản của tôi
-          </Button>
-        </div>
-      )}
-
       <dl className={styles.stats} aria-label="Thu thập">
         <div>
           <dt>Tổng số bài</dt>
@@ -246,7 +184,7 @@ export default function DetailPage() {
       {corpus.kind === 'topic' && <TopicSearch corpus={corpus} save={save} />}
       {corpus.kind === 'topic' && <PrismaPanel corpus={corpus} />}
       {corpus.kind === 'topic' && <AppraisalPanel corpus={corpus} save={save} />}
-      <CorpusBuild corpus={corpus} save={save} />
+      <CorpusBuild corpus={corpus} save={save} getIdToken={getIdToken} />
       <CorpusLabels corpus={corpus} save={save} />
       {corpus.kind === 'journal' && <CorpusProfileCard corpus={corpus} />}
       <CorpusTopics corpus={corpus} onData={receiveTopics} />

@@ -231,10 +231,15 @@ export default function PaperMapPage() {
   };
   const openLocation = (location: Finding['locations'][number]) => {
     const paragraph = paper.paragraphs.find((item) => item.id === location.paragraphId);
-    if (!paragraph || !nav.centreVisible) return setEvidence(location);
+    if (!paragraph) return setEvidence(location);
+    if (nav.inSpace) return setEvidence(location);
     setFilter(null);
     setSelected(paragraph.sectionId);
     setHighlight(location);
+    if (!nav.centreVisible && !wide) {
+      nav.setPanelPreference(false);
+      nav.focusFulltext();
+    }
     nav.showFulltext();
     showPassage(paragraph, location);
   };
@@ -315,6 +320,18 @@ export default function PaperMapPage() {
   };
   const jobLabels = Object.fromEntries(JOB_IDS.map((job) => [job, JOBS[job].label])) as Record<JobId, string>;
   const runningJobs = JOB_IDS.filter((job) => jobFacts[job]?.running);
+  const analysisOpen = wide ? nav.showRight : nav.focus === 'right' && !nav.inSpace;
+  const pdfReader = pane === 'fulltext' && paper.source.kind === 'pdf';
+  const toggleAnalysis = () => {
+    if (wide) nav.toggleSplit();
+    else if (analysisOpen) {
+      nav.setPanelPreference(false);
+      nav.focusFulltext();
+    } else {
+      nav.setPanelPreference(true);
+      nav.openMode(mode === 'citations' ? 'citations' : 'issues');
+    }
+  };
   const progressChip = (
     <JobProgress
       running={runningJobs.map((job) => JOBS[job].label)}
@@ -359,8 +376,8 @@ export default function PaperMapPage() {
             void repo.paperContext.get(paper.id).then((context) => setMetadata(context?.metadata ?? null));
           }}
           side="right"
-          label="Thông tin xuất bản"
-          title="Thông tin xuất bản"
+          label="Thông tin bài báo"
+          title="Thông tin bài báo"
         >
           {infoOpen && <PaperMetadata paper={paper} />}
         </Drawer>
@@ -413,19 +430,17 @@ export default function PaperMapPage() {
                   onOpenReader={openInReader}
                 />
                 <div
-                  className={
-                    wide
-                      ? nav.showRight && !nav.inSpace && nav.centreVisible
-                        ? styles.workspace
-                        : styles.workspaceSingle
-                      : undefined
-                  }
+                  className={`${wide && nav.showRight && !nav.inSpace && nav.centreVisible ? styles.workspace : styles.workspaceSingle} ${pdfReader ? styles.pdfWorkspace : ''}`}
                 >
                   <PaperColumn
                     nav={nav}
                     columnRef={centreColumn}
                     paper={paper}
                     progressChip={progressChip}
+                    issueCount={findings.length}
+                    analysisOpen={analysisOpen}
+                    onToggleAnalysis={toggleAnalysis}
+                    keepReaderVisible={!wide && analysisOpen}
                     runAll={{
                       jobs,
                       facts: jobFacts,
@@ -473,7 +488,7 @@ export default function PaperMapPage() {
                       if (!jobFacts.snapshot?.done) void jobs.current.snapshot?.start?.();
                     }}
                   />
-                  <AnalysisColumn
+                  {wide || nav.inSpace ? <AnalysisColumn
                     nav={nav}
                     columnRef={rightColumn}
                     paper={paper}
@@ -491,7 +506,40 @@ export default function PaperMapPage() {
                       showPage(first?.pageStart);
                       setTab('map');
                     }}
-                  />
+                  /> : (
+                    <Drawer
+                      open={analysisOpen}
+                      onClose={() => {
+                        nav.setPanelPreference(false);
+                        nav.focusFulltext();
+                      }}
+                      side="right"
+                      size="lg"
+                      label="Vấn đề và trích dẫn"
+                      title="Vấn đề và trích dẫn"
+                    >
+                      <AnalysisColumn
+                        nav={nav}
+                        columnRef={rightColumn}
+                        paper={paper}
+                        kit={kit}
+                        issues={issues}
+                        focusFinding={focusFinding}
+                        batch={batch}
+                        checks={checks}
+                        stored={stored}
+                        onLocation={openLocation}
+                        onFilter={(ids) => {
+                          setFilter(ids);
+                          const first = paper.paragraphs.find((paragraph) => ids.includes(paragraph.id));
+                          if (first) setSelected(first.sectionId);
+                          showPage(first?.pageStart);
+                          setTab('map');
+                        }}
+                        inDrawer
+                      />
+                    </Drawer>
+                  )}
                 </div>
               </JobsContext.Provider>
             )}

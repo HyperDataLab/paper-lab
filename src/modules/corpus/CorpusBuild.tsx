@@ -9,7 +9,15 @@ import { Card } from '@/shared/ui/Card';
 import { acquireMember } from './acquisition';
 import { modelInputs } from './modelInputs';
 
-export function CorpusBuild({ corpus, save }: { corpus: Corpus; save: (value: Corpus) => Promise<void> }) {
+export function CorpusBuild({
+  corpus,
+  save,
+  getIdToken,
+}: {
+  corpus: Corpus;
+  save: (value: Corpus) => Promise<void>;
+  getIdToken: () => Promise<string | null>;
+}) {
   const repo = useRepositories();
   const grobid = useGrobidQueue();
   const [busy, setBusy] = useState(false);
@@ -55,10 +63,14 @@ export function CorpusBuild({ corpus, save }: { corpus: Corpus; save: (value: Co
     try {
       await navigator.storage?.persist?.().catch(() => false);
       let current = corpus;
-      for (const member of current.members.filter((m) => m.retrieval === 'sought')) {
+      for (const member of current.members.filter((m) => m.retrieval !== 'retrieved')) {
         if (controller.signal.aborted) break;
-        const updated = await acquireMember(member, repo, controller.signal, (paper) =>
-          grobid.enqueue(member.memberId, paper),
+        const updated = await acquireMember(
+          member,
+          repo,
+          controller.signal,
+          (paper) => grobid.enqueue(member.memberId, paper),
+          getIdToken,
         );
         current = {
           ...current,

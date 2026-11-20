@@ -43,7 +43,7 @@ product will keep adding modules (Section/IMRaD, Citation, Figure captions, Batc
   it is the product's main job; single-paragraph tools are secondary.
 - Group titles are sentence case (Nghiên cứu, Viết, Dữ liệu), never all caps. `soon` modules render disabled with a
   badge; `beta` is not marked in the sidebar, where four pills on nine items were noise.
-- Collapsed state is remembered in `localStorage` (try/catch). Widths: 232 px expanded, 64 px rail. The top bar is
+- Collapsed state is remembered in `localStorage` (try/catch). Widths: 232 px expanded, 60 px rail. The top bar is
   56 px and sticky.
 - Active item: soft accent background, accent icon, semibold label + `aria-current="page"`. Keyboard: Tab order follows the list,
   `Ctrl/⌘+K` opens a command palette listing the same registry entries.
@@ -117,9 +117,9 @@ Two of these hues match `--hl-word` and `--hl-flow` above. The two sets never sh
 
 ## 4. Visual tokens
 
-- Direction: the neutral (zinc) system most current web apps share (shadcn/ui, Vercel, Linear): white surfaces,
-  near-black text, 1px borders, 12px card radius, light shadows, a 232px sidebar on `--sidebar-bg`. The brand green
-  (`--accent`, `--accent-hover`, `--accent-strong`, `--soft`) marks actions, the current place and selection; a PDF
+- Direction: restrained cool neutrals with HyperDataLab blue: white surfaces,
+  near-black text, 1px blue-gray borders, 12px card radius, subtle shadows, a 232px sidebar on `--sidebar-bg`.
+  Brand blue (`--accent`, `--accent-hover`, `--accent-strong`, `--soft`) marks actions, the current place and selection; a PDF
   sits on `--desk`, and the passage the reader opened is the one bright mark (`--highlight`).
 - Fonts: `--font-ui` (Inter), `--font-reading` (Source Serif 4) for quotes and analysed paragraphs only,
   `--font-mono` (JetBrains Mono, digests and code only). Reading text uses `--text-reading` (17 px) / 1.7.
@@ -140,7 +140,7 @@ Two of these hues match `--hl-word` and `--hl-flow` above. The two sets never sh
 | Tokens                                                                   | Values                              |
 | ------------------------------------------------------------------------ | ----------------------------------- |
 | `--space-1`, `-2`, `-3`, `-4`, `-5`, `-6`, `-8`, `-10`, `-12`            | 4, 8, 12, 16, 20, 24, 32, 40, 48 px |
-| `--radius-sm`, `--radius`, `--radius-lg`, `--radius-xl`, `--radius-pill` | 4, 6, 10, 16, 999 px                |
+| `--radius-sm`, `--radius`, `--radius-lg`, `--radius-xl`, `--radius-pill` | 4, 6, 10, 12, 999 px                |
 | `--text-xs`, `-sm`, `-base`, `-md`, `-lg`, `-xl`, `-2xl`, `-3xl`         | 12, 13, 14, 15, 17, 20, 24, 30 px   |
 | `--control-h`, `--control-h-sm`, `--control-h-lg`                        | 36, 30, 44 px                       |
 

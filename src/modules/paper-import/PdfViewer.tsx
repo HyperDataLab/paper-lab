@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, Maximize2, Minus, Plus } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
-import { Loading } from '@/shared/ui/StateNote';
 import { TextField } from '@/shared/ui/TextField';
 import { CRITERIA } from './criteria';
 import { findNeedle, type PdfMark, type PdfNeedle } from './pdfMarks';
+import { fitPdfScale } from './fitPdfScale';
 import './pdfTextLayer.css';
 import styles from './pdf.module.css';
 
@@ -69,6 +69,13 @@ function boxesFor(page: RenderedPage, ranges: { item: number; from: number; to: 
  */
 export function PdfViewer({
   blob,
+  loadState = 'loading',
+  loadMessage = '',
+  loadDetail = '',
+  onRetry = () => undefined,
+  onUpload = () => undefined,
+  onSignIn,
+  fallback,
   target,
   marks = [],
   onMark,
@@ -76,7 +83,14 @@ export function PdfViewer({
   toolbarEnd,
   toolbarBelow,
 }: {
-  blob: Blob;
+  blob: Blob | null;
+  loadState?: 'searching' | 'loading' | 'missing';
+  loadMessage?: string;
+  loadDetail?: string;
+  onRetry?: () => void;
+  onUpload?: () => void;
+  onSignIn?: () => void;
+  fallback?: ReactNode;
   target: PdfTarget | null;
   /** What was found in the paper, drawn on its words where the passage can be found on the page. */
   marks?: PdfMark[];
@@ -88,15 +102,19 @@ export function PdfViewer({
 }) {
   const [doc, setDoc] = useState<PdfDocument | null>(null);
   const [error, setError] = useState('');
+  const [firstPageReady, setFirstPageReady] = useState(false);
   const [base, setBase] = useState<{ width: number; height: number } | null>(null);
   // Null fits the page to the column width; a number is the reader's own zoom.
   const [zoom, setZoom] = useState<number | null>(null);
   const [fitScale, setFitScale] = useState(1);
+  const fitScaleRef = useRef(1);
   const [page, setPage] = useState(1);
   // What the reader is typing in the page field; the PDF moves only on Enter or when the field is left.
   const [draft, setDraft] = useState<string | null>(null);
   const [flash, setFlash] = useState<number | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  const pageRef = useRef(page);
+  const fitAnchor = useRef<{ page: number; top: number } | null>(null);
   const rendered = useRef(new Map<number, number>());
   const pages = useRef(new Map<number, RenderedPage>());
   // The marks layer reads the latest props without re-rendering any page.
@@ -105,7 +123,12 @@ export function PdfViewer({
   const [missing, setMissing] = useState(false);
   const scale = zoom ?? fitScale;
 
+  useLayoutEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+
   useEffect(() => {
+    if (!blob) return;
     let active = true;
     let loaded: PdfDocument | null = null;
     void (async () => {
@@ -118,7 +141,7 @@ export function PdfViewer({
         setBase({ width: viewport.width, height: viewport.height });
         setDoc(loaded);
       } catch (cause) {
-        if (active) setError(`Không mở được PDF: ${String(cause)}`);
+        if (active) setError(String(cause));
       }
     })();
     return () => {
@@ -127,17 +150,46 @@ export function PdfViewer({
     };
   }, [blob]);
 
-  // Fit width follows the column, which changes when the analysis column is shown or hidden.
+  // Fit width follows the scroll area's real inner width, including its reserved scrollbar gutter.
   useEffect(() => {
     const element = scroller.current;
     if (!element || !base) return;
-    const update = () => setFitScale(Math.max(0.3, (element.clientWidth - 32) / base.width));
+    const update = () => {
+      const style = window.getComputedStyle(element);
+      const paddingInline =
+        (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0);
+      const nextScale = fitPdfScale(element.clientWidth, base.width, paddingInline);
+      if (Math.abs(nextScale - fitScaleRef.current) < 0.001) return;
+      if (zoom === null) {
+        const currentPage = element.querySelector<HTMLElement>(`[data-page="${pageRef.current}"]`);
+        if (currentPage) {
+          fitAnchor.current = {
+            page: pageRef.current,
+            top: currentPage.getBoundingClientRect().top - element.getBoundingClientRect().top,
+          };
+        }
+      }
+      fitScaleRef.current = nextScale;
+      setFitScale(nextScale);
+    };
     update();
     if (typeof ResizeObserver !== 'function') return;
     const observer = new ResizeObserver(update);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [base]);
+  }, [base, zoom]);
+
+  // A fit-width resize changes every page's height. Keep the current page at the same viewport position.
+  useLayoutEffect(() => {
+    const anchor = fitAnchor.current;
+    const element = scroller.current;
+    if (!anchor || !element || zoom !== null) return;
+    fitAnchor.current = null;
+    const currentPage = element.querySelector<HTMLElement>(`[data-page="${anchor.page}"]`);
+    if (!currentPage) return;
+    const top = currentPage.getBoundingClientRect().top - element.getBoundingClientRect().top;
+    element.scrollTop += top - anchor.top;
+  }, [scale, zoom]);
 
   /**
    * Draws the marks of one rendered page above its text: a box over the words of each passage that can be
@@ -260,6 +312,7 @@ export function PdfViewer({
         divs: textLayer.textDivs,
       });
       drawMarks(number);
+      setFirstPageReady(true);
     },
     [doc, scale, drawMarks],
   );
@@ -279,33 +332,36 @@ export function PdfViewer({
           if (entry.isIntersecting) void renderPage(number, entry.target as HTMLElement);
         }
       },
-      // The pages scroll with the column around them, so the view is the viewport.
-      { rootMargin: '400px 0px' },
+      // Rendering follows the dedicated page scroller, so opening the analysis panel does not change the view.
+      { root, rootMargin: '400px 0px' },
     );
     holders.forEach((holder) => observer.observe(holder));
     return () => observer.disconnect();
   }, [doc, renderPage]);
 
-  // The page counter follows the page under the upper part of the view, whatever element scrolls.
+  // The page counter follows the page under the upper part of the dedicated PDF scroller.
   useEffect(() => {
     if (!doc) return;
     // A few page boxes are read per scroll event: cheap enough to do directly.
     const onScroll = () => {
       const root = scroller.current;
       if (!root) return;
-      const line = window.innerHeight * 0.4;
+      const line = root.getBoundingClientRect().top + root.clientHeight * 0.4;
       let current = 1;
       for (const holder of root.querySelectorAll<HTMLElement>('[data-page]'))
         if (holder.getBoundingClientRect().top <= line) current = Number(holder.dataset.page);
       setPage(current);
     };
-    document.addEventListener('scroll', onScroll, true);
-    return () => document.removeEventListener('scroll', onScroll, true);
+    const root = scroller.current;
+    if (!root) return;
+    root.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => root.removeEventListener('scroll', onScroll);
   }, [doc]);
 
   const goTo = useCallback((number: number) => {
     const holder = scroller.current?.querySelector<HTMLElement>(`[data-page="${number}"]`);
-    holder?.scrollIntoView?.({ block: 'start' });
+    if (holder && scroller.current) scroller.current.scrollTo({ top: holder.offsetTop - 12, behavior: 'smooth' });
     setPage(number);
   }, []);
   useEffect(() => {
@@ -343,16 +399,39 @@ export function PdfViewer({
     setDraft(null);
   };
 
-  if (error) return <p role="alert">{error}</p>;
+  const fitToWidth = () => {
+    const element = scroller.current;
+    const currentPage = element?.querySelector<HTMLElement>(`[data-page="${pageRef.current}"]`);
+    if (element && currentPage) {
+      fitAnchor.current = {
+        page: pageRef.current,
+        top: currentPage.getBoundingClientRect().top - element.getBoundingClientRect().top,
+      };
+    }
+    setZoom(null);
+  };
+
+  const failed = Boolean(error) || loadState === 'missing';
+  const waitingForFile = loadState === 'searching';
+  const waitingForDocument = loadState === 'loading' && (!doc || !base || !firstPageReady);
+  const loading = !failed && (waitingForFile || waitingForDocument);
+  const status = error
+    ? 'Không mở được tài liệu PDF.'
+    : loadState === 'missing'
+      ? loadMessage
+      : waitingForFile
+        ? 'Đang tìm PDF…'
+        : 'Đang tải tài liệu…';
+  const detail = error || loadDetail;
   return (
     <div className={styles.viewer}>
-      <div className={styles.toolbar} role="toolbar" aria-label="PDF">
+      <div className={styles.toolbar} data-loading={loading} role="toolbar" aria-label="PDF">
         {toolbarStart}
         <Button
           size="sm"
           variant="ghost"
           aria-label="Trang trước"
-          disabled={page <= 1}
+          disabled={!doc || page <= 1}
           onClick={() => goTo(page - 1)}
         >
           <ChevronLeft size={16} aria-hidden="true" />
@@ -382,25 +461,26 @@ export function PdfViewer({
           <ChevronRight size={16} aria-hidden="true" />
         </Button>
         <span className={styles.divider} aria-hidden="true" />
-        <Button size="sm" variant="ghost" aria-label="Thu nhỏ" onClick={() => step(-1)}>
+        <Button size="sm" variant="ghost" aria-label="Thu nhỏ" disabled={!doc} onClick={() => step(-1)}>
           <Minus size={16} aria-hidden="true" />
         </Button>
         <span className={`${styles.count} ${styles.zoom}`}>{Math.round(scale * 100)}%</span>
-        <Button size="sm" variant="ghost" aria-label="Phóng to" onClick={() => step(1)}>
+        <Button size="sm" variant="ghost" aria-label="Phóng to" disabled={!doc} onClick={() => step(1)}>
           <Plus size={16} aria-hidden="true" />
         </Button>
         <Button
           size="sm"
           variant="ghost"
+          disabled={!doc}
           aria-pressed={zoom === null}
           leadingIcon={<Maximize2 size={14} aria-hidden="true" />}
-          onClick={() => setZoom(null)}
+          onClick={fitToWidth}
         >
           Vừa khung
         </Button>
         <span className={styles.spacer} />
+        {toolbarBelow}
         {toolbarEnd}
-        {toolbarBelow && <div className={styles.toolbarRow}>{toolbarBelow}</div>}
         {missing && (
           <p className={styles.missing} role="status">
             Không tìm thấy đúng đoạn trong PDF; đã mở trang chứa đoạn.
@@ -408,21 +488,54 @@ export function PdfViewer({
         )}
       </div>
       <div ref={scroller} className={styles.pages} aria-label="Các trang PDF">
-        {!doc || !base ? (
-          <Loading label="Đang mở PDF…" />
-        ) : (
-          Array.from({ length: doc.numPages }, (_, index) => index + 1).map((number) => (
-            <div
-              key={`${number}-${scale}`}
-              data-page={number}
-              data-flash={flash === number}
-              className={styles.page}
-              aria-label={`Trang ${number}`}
-              role="region"
-              style={{ width: base.width * scale, height: base.height * scale }}
-            />
-          ))
-        )}
+        {doc && base && Array.from({ length: doc.numPages }, (_, index) => index + 1).map((number) => (
+          <div
+            key={number}
+            data-page={number}
+            data-flash={flash === number}
+            className={styles.page}
+            aria-label={`Trang ${number}`}
+            role="region"
+            style={{ width: base.width * scale, height: base.height * scale }}
+          />
+        ))}
+        {loading || failed ? (
+          <div
+            className={styles.pdfStateMessage}
+            data-error={failed}
+            data-has-fallback={Boolean(fallback && loadState === 'missing')}
+            role={failed ? 'alert' : 'status'}
+          >
+            <div className={styles.pdfStateLine}>
+              {loading && <span className={styles.pdfLoadingSpinner} aria-hidden="true" />}
+              <span>{status}</span>
+            </div>
+            {failed && (
+              <div className={styles.pdfStateActions}>
+                <Button size="sm" variant="secondary" onClick={onRetry}>
+                  Thử lại
+                </Button>
+                {loadState === 'missing' && (
+                  <Button size="sm" variant="primary" onClick={onUpload}>
+                    Tải PDF lên
+                  </Button>
+                )}
+                {loadState === 'missing' && onSignIn && (
+                  <Button size="sm" variant="ghost" onClick={onSignIn}>
+                    Đăng nhập HyperDataLab
+                  </Button>
+                )}
+              </div>
+            )}
+            {failed && detail && (
+              <details className={styles.pdfLoadDetail}>
+                <summary>Chi tiết</summary>
+                {detail}
+              </details>
+            )}
+          </div>
+        ) : null}
+        {failed && loadState === 'missing' && fallback && <div className={styles.pdfFallback}>{fallback}</div>}
       </div>
     </div>
   );

@@ -1,16 +1,17 @@
 import type { CorpusMember } from '@/core/schemas/corpus';
 import type { Paper } from '@/core/schemas';
-import { guardPaperSize } from '@/shared/paper/sizeGuard';
 import { createScholarClient } from '@/shared/scholar/client';
 import { getScholarEmail } from '@/shared/scholar/settings';
 import type { Repositories } from '@/shared/storage/repositories';
 import { importPaperFile } from '@/modules/paper-import';
+import { downloadOpenAlexPdf } from '@/shared/pdfStore/openAlexDownload';
 
 export async function acquireMember(
   member: CorpusMember,
   repo: Repositories,
   signal?: AbortSignal,
   onImported?: (paper: Paper) => void,
+  getIdToken: () => Promise<string | null> = async () => null,
 ): Promise<CorpusMember> {
   try {
     const doi = member.identifiers.doi;
@@ -30,19 +31,19 @@ export async function acquireMember(
         failure = String(cause);
       }
     }
-    for (const source of patch.oa_sources ?? []) {
-      if (file) break;
-      if (!source.pdf_url || patch.access !== 'open') continue;
-      try {
-        const response = await fetch(source.pdf_url, { signal });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.arrayBuffer();
-        guardPaperSize(data.byteLength);
-        if (new TextDecoder().decode(data.slice(0, 5)) !== '%PDF-') throw new Error('Không phải PDF');
-        file = new File([data], name, { type: 'application/pdf' });
-      } catch (cause) {
-        if (signal?.aborted) throw cause;
-        failure = String(cause);
+    const pdfUrls = patch.oa_sources?.flatMap((source) => (source.pdf_url ? [source.pdf_url] : [])) ?? [];
+    if (!file && patch.access === 'open' && pdfUrls.length > 0) {
+      const token = await getIdToken();
+      if (!token) throw new Error('Hãy đăng nhập tài khoản lab để tải PDF Open Access.');
+      for (const pdfUrl of pdfUrls) {
+        try {
+          const data = await downloadOpenAlexPdf(doi, pdfUrl, token, signal);
+          file = new File([data], name, { type: 'application/pdf' });
+          break;
+        } catch (cause) {
+          if (signal?.aborted) throw cause;
+          failure = cause instanceof Error ? cause.message : String(cause);
+        }
       }
     }
     if (!file) throw new Error(failure);

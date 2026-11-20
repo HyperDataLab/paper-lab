@@ -1,6 +1,5 @@
 import { CheckCircle2, Unlink } from 'lucide-react';
 import { Fragment } from 'react';
-import { Link } from 'react-router-dom';
 import type { Paper, PaperOverviewRecord } from '@/core/schemas';
 import { continuityLabels, relationLabels } from '@/modules/evaluate';
 import { labels, statuses } from '@/modules/evaluate';
@@ -47,15 +46,11 @@ export function OverviewTransitions({
                     {(index === 0 || pairs[index - 1]?.to.paragraphId !== pair.from.paragraphId) && (
                       <>
                         {index > 0 && ' · '}
-                        <Link to={`/evaluate?id=${encodeURIComponent(pair.from.analysisId)}`}>
-                          {pair.from.paragraphId}
-                        </Link>
+                        {pair.from.paragraphId}
                       </>
                     )}
                     {' → '}
-                    <Link to={`/evaluate?id=${encodeURIComponent(pair.to.analysisId)}`}>
-                      {pair.to.paragraphId}
-                    </Link>
+                    {pair.to.paragraphId}
                   </Fragment>
                 ))}
               </p>

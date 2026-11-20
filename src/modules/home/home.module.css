@@ -13,7 +13,7 @@
   font-weight: 600;
 }
 .muted {
-  margin: var(--space-1) 0 0;
+  margin: var(--space-2) 0 0;
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
@@ -32,7 +32,9 @@
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--space-3) var(--space-5);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
 }
 .hero h1 {
   font-size: var(--text-3xl);
@@ -91,7 +93,7 @@
   flex: 1;
   flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-5);
+  padding: var(--space-4) var(--space-5);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background: var(--surface);
@@ -108,7 +110,7 @@
   text-decoration: none;
 }
 .task strong {
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
   font-weight: 600;
 }
 .task small {
@@ -141,7 +143,7 @@
 .stats > div {
   display: grid;
   gap: var(--space-1);
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-3) var(--space-5);
 }
 .stats > div + div {
   border-left: 1px solid var(--border-subtle);
@@ -177,7 +179,7 @@
   display: grid;
   align-content: start;
   gap: var(--space-3);
-  padding: var(--space-5);
+  padding: var(--space-4) var(--space-5);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background: var(--surface);
@@ -317,5 +319,16 @@
   }
   .hero h1 {
     font-size: var(--text-2xl);
+  }
+  .heroActions {
+    width: 100%;
+  }
+  .heroActions > a {
+    flex: 1;
+    justify-content: center;
+  }
+  .task,
+  .card {
+    padding: var(--space-4);
   }
 }

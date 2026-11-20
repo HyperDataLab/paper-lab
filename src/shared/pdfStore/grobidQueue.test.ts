@@ -14,6 +14,7 @@ function setup(signedIn = true, get = vi.fn().mockResolvedValue(undefined)) {
   const statuses: Record<string, GrobidQueueStatus> = {};
   const queue = createGrobidQueue(
     repo,
+    '00000000-0000-4000-8000-000000000001',
     () => ({ signedIn, getIdToken: async () => 'token' }),
     (id, value) => {
       statuses[id] = value;

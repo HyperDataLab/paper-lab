@@ -12,7 +12,7 @@ it('retries a cold container after Retry-After', async () => {
     .mockResolvedValueOnce(new Response('', { status: 503, headers: { 'Retry-After': '2' } }))
     .mockResolvedValueOnce(new Response('<TEI/>'));
   vi.stubGlobal('fetch', fetchMock);
-  const result = fetchGrobidTei('abc', 'token');
+  const result = fetchGrobidTei('abc', '00000000-0000-4000-8000-000000000001', 'token');
   await vi.advanceTimersByTimeAsync(1999);
   expect(fetchMock).toHaveBeenCalledTimes(1);
   await vi.advanceTimersByTimeAsync(1);

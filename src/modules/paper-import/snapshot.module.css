@@ -137,6 +137,30 @@
   display: grid;
   gap: var(--space-6);
 }
+.fullTitle {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.fullTitle > div {
+  min-width: 0;
+}
+.fullTitle strong {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+.fullTitle p {
+  margin: var(--space-1) 0 0;
+  overflow-wrap: anywhere;
+}
+.fullTitle button {
+  flex: none;
+}
 .sourceLine {
   display: flex;
   align-items: center;
