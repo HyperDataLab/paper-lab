@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Maximize2, Minus, Plus } from 'lucide-react'
 import { Button } from '@/shared/ui/Button';
 import { TextField } from '@/shared/ui/TextField';
 import { CRITERIA } from './criteria';
-import { findNeedle, type PdfMark, type PdfNeedle } from './pdfMarks';
+import { findNeedle, indexPdfText, type PdfMark, type PdfNeedle } from './pdfMarks';
 import { fitPdfScale } from './fitPdfScale';
 import './pdfTextLayer.css';
 import styles from './pdf.module.css';
@@ -225,9 +225,11 @@ export function PdfViewer({
     const { marks: all, passage, nonce } = latest.current;
     const layer = document.createElement('div');
     layer.className = 'pl-mark-layer';
+    // Index the page text once per pass, instead of rebuilding it for every mark.
+    const pageText = indexPdfText(page.items);
     const own = (needle: PdfNeedle) => needle.page === number || needle.page === number - 1;
     for (const mark of all.filter(own)) {
-      const ranges = findNeedle(page.items, mark);
+      const ranges = findNeedle(page.items, mark, pageText);
       if (!ranges) continue;
       for (const box of boxesFor(page, ranges)) {
         const element = document.createElement('button');
@@ -236,6 +238,8 @@ export function PdfViewer({
         element.dataset.markId = mark.id;
         element.dataset.criterion = mark.criterion;
         element.dataset.strong = String(mark.strong);
+        element.tabIndex = mark.page === number ? 0 : -1;
+        if (mark.page !== number) element.setAttribute('aria-hidden', 'true');
         element.title = `${CRITERIA[mark.criterion].label}: ${mark.title}`;
         element.setAttribute('aria-label', element.title);
         Object.assign(element.style, {
@@ -249,7 +253,7 @@ export function PdfViewer({
       }
     }
     if (passage && own(passage)) {
-      const ranges = findNeedle(page.items, passage);
+      const ranges = findNeedle(page.items, passage, pageText);
       const boxes = ranges ? boxesFor(page, ranges) : [];
       boxes.forEach((box, index) => {
         const element = document.createElement('div');
@@ -275,15 +279,6 @@ export function PdfViewer({
       }
     }
     page.holder.append(layer);
-    const seen = new Set<string>();
-    for (const mark of scroller.current?.querySelectorAll<HTMLButtonElement>('.pl-mark') ?? []) {
-      const id = mark.dataset.markId ?? '';
-      const duplicate = seen.has(id);
-      mark.tabIndex = duplicate ? -1 : 0;
-      if (duplicate) mark.setAttribute('aria-hidden', 'true');
-      else mark.removeAttribute('aria-hidden');
-      seen.add(id);
-    }
   }, []);
 
   useEffect(() => {
@@ -301,7 +296,8 @@ export function PdfViewer({
       const pdfjs = await loadPdfJs();
       const pdfPage = await doc.getPage(number);
       const viewport = pdfPage.getViewport({ scale });
-      const ratio = window.devicePixelRatio || 1;
+      // High-DPI canvases multiply raster work and memory without improving this inline reader enough to offset it.
+      const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
       const canvas = document.createElement('canvas');
       canvas.width = Math.floor(viewport.width * ratio);
       canvas.height = Math.floor(viewport.height * ratio);
@@ -348,19 +344,50 @@ export function PdfViewer({
     pages.current.clear();
     const holders = [...root.querySelectorAll<HTMLElement>('[data-page]')];
     if (typeof IntersectionObserver !== 'function') return;
+    let active = true;
+    let running = 0;
+    const pending = new Map<number, HTMLElement>();
+    const pump = () => {
+      while (active && running < 2 && pending.size > 0) {
+        const next = [...pending.keys()].sort(
+          (left, right) => Math.abs(left - pageRef.current) - Math.abs(right - pageRef.current),
+        )[0];
+        if (next === undefined) return;
+        const holder = pending.get(next);
+        pending.delete(next);
+        if (!holder || rendered.current.get(next) === scale) continue;
+        running += 1;
+        void renderPage(next, holder)
+          .catch((cause: unknown) => {
+            if (active) setError(String(cause instanceof Error ? cause.message : cause));
+            rendered.current.delete(next);
+          })
+          .finally(() => {
+            running -= 1;
+            pump();
+          });
+      }
+    };
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
           const number = Number((entry.target as HTMLElement).dataset.page);
-          if (entry.isIntersecting) void renderPage(number, entry.target as HTMLElement);
+          if (entry.isIntersecting && rendered.current.get(number) !== scale)
+            pending.set(number, entry.target as HTMLElement);
+          else if (!entry.isIntersecting) pending.delete(number);
         }
+        pump();
       },
       // Rendering follows the dedicated page scroller, so opening the analysis panel does not change the view.
-      { root, rootMargin: '400px 0px' },
+      { root, rootMargin: '140px 0px' },
     );
     holders.forEach((holder) => observer.observe(holder));
-    return () => observer.disconnect();
-  }, [doc, renderPage]);
+    return () => {
+      active = false;
+      pending.clear();
+      observer.disconnect();
+    };
+  }, [doc, renderPage, scale]);
 
   // The page counter follows the page under the upper part of the dedicated PDF scroller.
   useEffect(() => {
@@ -394,7 +421,8 @@ export function PdfViewer({
 
   const goTo = useCallback((number: number) => {
     const holder = scroller.current?.querySelector<HTMLElement>(`[data-page="${number}"]`);
-    if (holder && scroller.current) scroller.current.scrollTo({ top: holder.offsetTop - 12, behavior: 'smooth' });
+    if (holder && scroller.current)
+      scroller.current.scrollTo({ top: holder.offsetTop - 12, behavior: 'smooth' });
     setPage(number);
   }, []);
   useEffect(() => {
@@ -521,7 +549,8 @@ export function PdfViewer({
         )}
       </div>
       <div ref={scroller} className={styles.pages} aria-label="Các trang PDF">
-        {doc && base &&
+        {doc &&
+          base &&
           Array.from({ length: doc.numPages }, (_, index) => index + 1).map((number) => (
             <PdfPageFrame
               key={number}
@@ -567,7 +596,9 @@ export function PdfViewer({
             )}
           </div>
         ) : null}
-        {failed && loadState === 'missing' && fallback && <div className={styles.pdfFallback}>{fallback}</div>}
+        {failed && loadState === 'missing' && fallback && (
+          <div className={styles.pdfFallback}>{fallback}</div>
+        )}
       </div>
     </div>
   );

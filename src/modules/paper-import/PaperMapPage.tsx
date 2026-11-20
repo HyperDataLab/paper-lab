@@ -66,6 +66,30 @@ const paperQueryClient = new QueryClient({
   },
 });
 
+async function analyzePaperMetrics(
+  paper: Paper,
+  isActive: () => boolean,
+  onComplete: (result: {
+    counts: { sentences: number; words: number };
+    candidateCounts: Record<string, number>;
+  }) => void,
+) {
+  const candidateCounts: Record<string, number> = {};
+  let sentences = 0;
+  let words = 0;
+  for (const paragraph of paper.paragraphs) {
+    if (paragraph.kind !== 'body') continue;
+    // The fallback yields between paragraphs so browsers without module workers remain responsive.
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+    if (!isActive()) return;
+    const analysis = await analyzeText(paragraph.text);
+    sentences += analysis.sentences.length;
+    words += analysis.tokens.filter((token) => token.kind === 'word').length;
+    candidateCounts[paragraph.id] = detectCandidates(analysis, null).length;
+  }
+  if (isActive()) onComplete({ counts: { sentences, words }, candidateCounts });
+}
+
 export default function PaperMapPage() {
   return (
     <QueryClientProvider client={paperQueryClient}>
@@ -135,6 +159,7 @@ function PaperMapPageContent() {
   }, [pane, selected, highlight]);
   useEffect(() => {
     let active = true;
+    let metricsWorker: Worker | null = null;
     if (!id) return;
     void repo.papers
       .get(id)
@@ -176,29 +201,58 @@ function PaperMapPageContent() {
           focusFulltext();
         }
         setLoading(false);
-        if (value)
-          void Promise.all(
-            value.paragraphs
-              .filter((p) => p.kind === 'body')
-              .map(async (p) => ({ id: p.id, text: await analyzeText(p.text) })),
-          )
-            .then((analyses) => {
-              if (active) {
-                setCounts({
-                  sentences: analyses.reduce((n, a) => n + a.text.sentences.length, 0),
-                  words: analyses.reduce(
-                    (n, a) => n + a.text.tokens.filter((t) => t.kind === 'word').length,
-                    0,
-                  ),
+        if (value) {
+          const completeMetrics = (result: {
+            counts: { sentences: number; words: number };
+            candidateCounts: Record<string, number>;
+          }) => {
+            if (!active) return;
+            setCounts(result.counts);
+            setCandidateCounts(result.candidateCounts);
+          };
+          if (typeof Worker === 'function') {
+            try {
+              metricsWorker = new Worker(new URL('./paperMetrics.worker.ts', import.meta.url), {
+                type: 'module',
+              });
+              metricsWorker.onmessage = (
+                event: MessageEvent<{
+                  paperId: string;
+                  counts: { sentences: number; words: number };
+                  candidateCounts: Record<string, number>;
+                }>,
+              ) => {
+                if (!active || event.data.paperId !== value.id) return;
+                completeMetrics(event.data);
+                metricsWorker?.terminate();
+                metricsWorker = null;
+              };
+              metricsWorker.onerror = () => {
+                metricsWorker?.terminate();
+                metricsWorker = null;
+                void analyzePaperMetrics(value, () => active, completeMetrics).catch((cause: unknown) => {
+                  if (active) setError(String(cause));
                 });
-                setCandidateCounts(
-                  Object.fromEntries(analyses.map((a) => [a.id, detectCandidates(a.text, null).length])),
-                );
-              }
-            })
-            .catch((cause: unknown) => {
+              };
+              metricsWorker.postMessage({
+                paperId: value.id,
+                paragraphs: value.paragraphs
+                  .filter((paragraph) => paragraph.kind === 'body')
+                  .map(({ id: paragraphId, text }) => ({ id: paragraphId, text })),
+              });
+            } catch {
+              metricsWorker?.terminate();
+              metricsWorker = null;
+              void analyzePaperMetrics(value, () => active, completeMetrics).catch((cause: unknown) => {
+                if (active) setError(String(cause));
+              });
+            }
+          } else {
+            void analyzePaperMetrics(value, () => active, completeMetrics).catch((cause: unknown) => {
               if (active) setError(String(cause));
             });
+          }
+        }
       })
       .catch((cause: unknown) => {
         if (active) {
@@ -208,6 +262,7 @@ function PaperMapPageContent() {
       });
     return () => {
       active = false;
+      metricsWorker?.terminate();
     };
   }, [id, repo, linkP, linkS, linkE, focusFulltext]);
   async function editRole(role: Section['role']) {
@@ -510,25 +565,27 @@ function PaperMapPageContent() {
                       if (!jobFacts.snapshot?.done) void jobs.current.snapshot?.start?.();
                     }}
                   />
-                  {wide || nav.inSpace ? <AnalysisColumn
-                    nav={nav}
-                    columnRef={rightColumn}
-                    paper={paper}
-                    kit={kit}
-                    issues={issues}
-                    focusFinding={focusFinding}
-                    batch={batch}
-                    checks={checks}
-                    stored={stored}
-                    onLocation={openLocation}
-                    onFilter={(ids) => {
-                      setFilter(ids);
-                      const first = paper.paragraphs.find((paragraph) => ids.includes(paragraph.id));
-                      if (first) setSelected(first.sectionId);
-                      showPage(first?.pageStart);
-                      setTab('map');
-                    }}
-                  /> : (
+                  {wide || nav.inSpace ? (
+                    <AnalysisColumn
+                      nav={nav}
+                      columnRef={rightColumn}
+                      paper={paper}
+                      kit={kit}
+                      issues={issues}
+                      focusFinding={focusFinding}
+                      batch={batch}
+                      checks={checks}
+                      stored={stored}
+                      onLocation={openLocation}
+                      onFilter={(ids) => {
+                        setFilter(ids);
+                        const first = paper.paragraphs.find((paragraph) => ids.includes(paragraph.id));
+                        if (first) setSelected(first.sectionId);
+                        showPage(first?.pageStart);
+                        setTab('map');
+                      }}
+                    />
+                  ) : (
                     <Drawer
                       open={analysisOpen}
                       onClose={() => {

@@ -62,7 +62,12 @@ export function normalise(text: string): string {
 }
 
 /** The page's text with, for each compared character, the item and offset it came from. */
-function index(items: string[]) {
+export interface PdfTextIndex {
+  text: string;
+  origin: { item: number; offset: number }[];
+}
+
+export function indexPdfText(items: string[]): PdfTextIndex {
   let text = '';
   const origin: { item: number; offset: number }[] = [];
   items.forEach((item, itemIndex) => {
@@ -111,8 +116,8 @@ const ENDS = 60;
 export function findNeedle(
   items: string[],
   needle: Pick<PdfNeedle, 'before' | 'text' | 'after'>,
+  page = indexPdfText(items),
 ): ItemRange[] | null {
-  const page = index(items);
   const before = normalise(needle.before);
   const text = normalise(needle.text);
   const after = normalise(needle.after);
