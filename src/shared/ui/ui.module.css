@@ -511,6 +511,9 @@
   overflow-x: auto;
   scrollbar-width: none;
 }
+.tabs::-webkit-scrollbar {
+  display: none;
+}
 .tabs [role='tab'],
 .tabs [role='tab']:hover:not(:disabled) {
   box-shadow: none;

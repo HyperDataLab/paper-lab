@@ -46,7 +46,7 @@ export function PaperArguments({
   const [record, setRecord] = useState<PaperInsightsRecord>();
   const [loading, setLoading] = useState(true);
   const [sections, setSections] = usePaperScope(paper, defaultRhetoricSections);
-  const estimate = planArguments(paper, sections).length;
+  const estimate = useMemo(() => planArguments(paper, sections).length, [paper, sections]);
   const { budget, setBudget } = useRunBudget(estimate);
   // A resumed run gets a fresh allowance on top of the calls it already made.
   const [cap, setCap] = useState(0);
@@ -129,9 +129,13 @@ export function PaperArguments({
   const run = record?.argumentRuns.at(-1);
   const decisions = useMemo(() => record?.decisions ?? [], [record]);
   const metrics = useMemo(() => (run ? argumentMetrics(run, decisions) : undefined), [run, decisions]);
-  const sectionChoices = paper.sections
-    .map((section) => ({ id: section.id, estimate: planArguments(paper, [section.id]).length }))
-    .filter((choice) => choice.estimate > 0);
+  const sectionChoices = useMemo(
+    () =>
+      paper.sections
+        .map((section) => ({ id: section.id, estimate: planArguments(paper, [section.id]).length }))
+        .filter((choice) => choice.estimate > 0),
+    [paper],
+  );
   const staleness = run
     ? runFreshness(
         { sectionIds: run.sectionIds, promptVersions: { main: run.promptVersion }, model: run.model },

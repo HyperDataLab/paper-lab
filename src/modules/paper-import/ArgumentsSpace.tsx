@@ -1,5 +1,7 @@
 import type { Analysis, Finding, Paper, PaperChecksRecord } from '@/core/schemas';
 import type { FindingInputs } from '@/core/paperFindings';
+import type { DimensionId } from '@/core/paperProfile';
+import type { Criterion } from './criteria';
 import { IssuesBlock, type IssuesKit } from './IssuesBlock';
 import { PaperArguments } from './PaperArguments';
 import { PaperAtomics } from './PaperAtomics';
@@ -9,9 +11,14 @@ import { PaperMeasurement } from './PaperMeasurement';
 import type { ViewId } from './paperPlaces';
 import { PaperReview } from './PaperReview';
 import { PaperRhetoric } from './PaperRhetoric';
-import { PaperSummary } from './PaperSummary';
+import { PaperSummary, type SummaryPart } from './PaperSummary';
 import { SpaceOverview } from './SpaceOverview';
 import styles from './page.module.css';
+
+const ARGUMENT_DIMENSIONS: DimensionId[] = ['science', 'argument'];
+const ARGUMENT_CRITERIA: Criterion[] = ['claim', 'evidence'];
+const GAP_SUMMARY: SummaryPart[] = ['question'];
+const CLAIMS_SUMMARY: SummaryPart[] = ['claims', 'limits'];
 
 /** The Arguments space: what the paper claims, on what grounds, and how it was measured and reviewed. */
 export function ArgumentsSpace({
@@ -50,11 +57,11 @@ export function ArgumentsSpace({
           checks={checks}
           jobFacts={kit.jobFacts}
           onOpen={onOpen}
-          only={['science', 'argument']}
+          only={ARGUMENT_DIMENSIONS}
           label="Arguments overview"
         />
       )}
-      <IssuesBlock id="argIssues" only={['claim', 'evidence']} visible={active} kit={kit} issues={issues} />
+      <IssuesBlock id="argIssues" only={ARGUMENT_CRITERIA} visible={active} kit={kit} issues={issues} />
       <PaperBlock id="gap" kit={kit}>
         {open('gap') && (
           <PaperSummary
@@ -62,7 +69,7 @@ export function ArgumentsSpace({
             insights={insights}
             onLocation={onLocation}
             onOpen={onOpen}
-            only={['question']}
+            only={GAP_SUMMARY}
           />
         )}
       </PaperBlock>
@@ -73,7 +80,7 @@ export function ArgumentsSpace({
             insights={insights}
             onLocation={onLocation}
             onOpen={onOpen}
-            only={['claims', 'limits']}
+            only={CLAIMS_SUMMARY}
           />
         )}
       </PaperBlock>

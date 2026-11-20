@@ -1383,6 +1383,10 @@ mark.textMark {
   border-radius: 0;
   box-shadow: none;
 }
+.paperPage .pdfColumn[hidden],
+.paperPage .summaryColumn[hidden] {
+  display: none;
+}
 .paperPage .pdfColumn > :not(.viewer) {
   min-width: 0;
 }
@@ -1586,6 +1590,17 @@ mark.textMark {
 .paperPage .workspace > .summaryColumn,
 .paperPage .workspaceSingle > .summaryColumn {
   overflow-y: auto;
+}
+.paperPage .spaceColumn {
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.paperPage .spaceColumn .spaceHead {
+  top: 0;
 }
 
 @media (max-width: 600px) {

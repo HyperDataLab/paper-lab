@@ -187,6 +187,27 @@
 * {
   box-sizing: border-box;
 }
+* {
+  scrollbar-color: color-mix(in srgb, var(--text-muted) 38%, transparent) transparent;
+  scrollbar-width: thin;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-muted) 38%, transparent);
+  background-clip: content-box;
+  border: 2px solid transparent;
+  border-radius: var(--radius-pill);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+  background-clip: content-box;
+}
 body {
   margin: 0;
   background: var(--bg);

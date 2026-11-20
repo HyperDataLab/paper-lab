@@ -67,7 +67,8 @@ export function AnalysisColumn({
     () => ({
       onLocation: (location: Finding['locations'][number]) => latestIssues.current.onLocation(location),
       onOpenSource: (view: string) => latestIssues.current.onOpenSource(view as ViewId),
-      onDecide: (finding: PaperFinding, status: FindingStatus) => latestIssues.current.onDecide(finding, status),
+      onDecide: (finding: PaperFinding, status: FindingStatus) =>
+        latestIssues.current.onDecide(finding, status),
       onRunChecks: () => latestIssues.current.onRunChecks(),
     }),
     [],
@@ -82,7 +83,7 @@ export function AnalysisColumn({
   return (
     <section
       ref={columnRef}
-      className={wide && !inDrawer ? styles.column : undefined}
+      className={`${wide && !inDrawer ? styles.column : ''} ${inSpace && !inDrawer ? styles.spaceColumn : ''}`}
       aria-label={inSpace ? (SPACES.find((item) => item.id === mode)?.label ?? 'Space') : 'Analysis'}
       hidden={inDrawer ? false : wide ? !nav.showRight : nav.focus !== 'right'}
     >
