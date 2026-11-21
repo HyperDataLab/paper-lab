@@ -68,7 +68,7 @@ it('semantic step 4 sends the approved question to the model, then SQL to the wo
     expect.objectContaining({ user: question, promptVersion: 'kg-sql-1' }),
   );
   expect(worker).toHaveBeenCalledWith(
-    expect.stringMatching(/\/v1\/kg\/sql$/u),
+    expect.stringMatching(/\/v1\/kg\/sql\?projectId=rh-test-project$/u),
     expect.objectContaining({
       headers: expect.objectContaining({
         Authorization: 'Bearer test-token',
