@@ -184,7 +184,7 @@ it('offers S4 KG ingestion on demand without fetching status during render', asy
   fireEvent.click(screen.getByRole('button', { name: 'Đưa các bài này vào KG của lab' }));
   await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Đã xếp 1'));
   expect(send).toHaveBeenCalledExactlyOnceWith(
-    expect.stringMatching(/\/v1\/kg\/ingest$/u),
+    expect.stringMatching(/\/v1\/kg\/ingest\?projectId=rh-test-project$/u),
     expect.objectContaining({ method: 'POST', body: JSON.stringify({ ids: [doi] }) }),
   );
 });

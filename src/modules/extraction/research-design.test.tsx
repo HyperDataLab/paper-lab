@@ -8,7 +8,7 @@ import type { LlmClient } from '@/shared/llm/client';
 import { revokeConsent } from '@/shared/llm/consent';
 import { StorageProvider, StorageStatus } from '@/shared/storage/StorageProvider';
 import { AuthContext } from '@/shared/auth/authContext';
-import { testWorkerData } from '@/shared/storage/remoteTestSupport';
+import { testId, testWorkerData } from '@/shared/storage/remoteTestSupport';
 import ExtractionPage from './Page';
 import ProjectPage from './ProjectPage';
 import { currentArtifact, selectable } from '@/core/autoresearch/artifacts';
@@ -34,12 +34,12 @@ const testAuth = {
 it('creates an extraction project and edits its research design through the signed-in worker store', async () => {
   const worker = testWorkerData();
   vi.stubGlobal('crypto', webcrypto);
-  vi.stubGlobal('fetch', worker.dispatch);
+  vi.stubGlobal('fetch', worker.appFetch);
   try {
     render(
       <AuthContext.Provider value={testAuth}>
         <MemoryRouter initialEntries={['/extraction?design=topic']}>
-          <StorageProvider>
+          <StorageProvider projectId={testId(1)}>
             <StorageStatus />
             <LlmProvider innerClient={{ completeJson: vi.fn() }}>
               <Routes>
@@ -75,19 +75,19 @@ it('creates an extraction project and edits its research design through the sign
 
 it('shows an error, not a browser fallback, when the signed-in worker has no data binding', async () => {
   const worker = testWorkerData(false);
-  vi.stubGlobal('fetch', worker.dispatch);
+  vi.stubGlobal('fetch', worker.appFetch);
   try {
     render(
       <AuthContext.Provider value={testAuth}>
         <MemoryRouter>
-          <StorageProvider>
+          <StorageProvider projectId={testId(1)}>
             <StorageStatus />
             <ExtractionPage />
           </StorageProvider>
         </MemoryRouter>
       </AuthContext.Provider>,
     );
-    expect(await screen.findByText(/Kho dữ liệu lab chưa được cấu hình/)).toBeInTheDocument();
+    expect(await screen.findByText(/Kho dữ liệu project chưa được cấu hình/)).toBeInTheDocument();
     expect(screen.queryByText(/thiết bị này/)).toBeNull();
   } finally {
     vi.unstubAllGlobals();
