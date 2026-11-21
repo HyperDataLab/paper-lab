@@ -138,10 +138,10 @@
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-2);
   min-width: 0;
   min-height: 44px;
-  padding: 4px 12px;
+  padding: var(--space-1) var(--space-3);
   overflow: visible;
   box-shadow: none;
 }
@@ -166,7 +166,7 @@
 @container pdfReader (max-width: 1320px) {
   .toolbar {
     gap: 3px;
-    padding-inline: 7px;
+    padding-inline: var(--space-2);
   }
 }
 .toolbar > * {
@@ -189,8 +189,8 @@
   height: 100%;
   overflow: auto;
   overscroll-behavior: contain;
-  gap: 10px;
-  padding: 0 0 24px;
+  gap: var(--space-2);
+  padding: 0 0 var(--space-6);
   scrollbar-gutter: stable;
 }
 .pdfStateMessage {
@@ -199,23 +199,23 @@
   display: grid;
   align-content: center;
   justify-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--text-base);
   text-align: center;
   pointer-events: none;
 }
 .pdfStateMessage[data-error='true'][data-has-fallback='true'] {
   position: relative;
   inset: auto;
-  padding: 22px 12px;
+  padding: var(--space-5) var(--space-3);
 }
 .pdfStateLine {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   max-width: calc(100% - 24px);
-  gap: 8px;
+  gap: var(--space-2);
   white-space: normal;
 }
 .pdfLoadingSpinner {
@@ -232,7 +232,7 @@
   flex-wrap: wrap;
   justify-content: center;
   max-width: calc(100% - 24px);
-  gap: 8px;
+  gap: var(--space-2);
   pointer-events: auto;
 }
 .pdfLoadDetail {
@@ -273,14 +273,14 @@
   }
 }
 .page {
-  scroll-margin-top: 10px;
+  scroll-margin-top: var(--space-2);
 }
 .readerTools {
   position: relative;
   display: inline-flex;
   flex: none;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-1);
 }
 .findPopover {
   position: absolute;
@@ -288,7 +288,7 @@
   top: calc(100% + 8px);
   right: 0;
   width: min(360px, calc(100vw - 24px));
-  padding: 38px 12px 12px;
+  padding: var(--space-10) var(--space-3) var(--space-3);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -302,7 +302,7 @@
 .findForm {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1);
 }
 .findForm > label,
 .findForm > div:first-child {
@@ -327,7 +327,7 @@
 @media (max-width: 1360px) {
   .toolbar {
     gap: 2px;
-    padding-inline: 6px;
+    padding-inline: var(--space-1);
   }
   .toolbar .zoom {
     min-width: 34px;
@@ -370,12 +370,12 @@
 @media (max-width: 600px) {
   .toolbar {
     gap: 3px;
-    padding: 4px;
+    padding: var(--space-1);
   }
   .toolbar button {
-    padding-inline: 6px;
+    padding-inline: var(--space-1);
   }
   .toolbar .count {
-    font-size: 11px;
+    font-size: var(--text-xs);
   }
 }
