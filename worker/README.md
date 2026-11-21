@@ -40,6 +40,11 @@ papers, extraction projects, corpora, and paper-level analysis; standalone parag
 Legacy local data is copied once into the first linked ResearchHub project on this browser if the project has no
 server workspace.
 
+PaperLab reads existing ResearchHub project files through `GET /v1/researchhub/files?cursor=<cursor>` and streams
+selected files through `GET /v1/researchhub/files/{fileId}`. Both routes require the active project ID and verify
+project access before calling the ResearchHub Files API. The file list contains metadata only; PaperLab imports and
+parses a PDF into the project workspace only after the user chooses to open it for analysis.
+
 ## OpenAlex PDF acquisition
 
 `POST /v1/pdfs/openalex` accepts `{ "doi": "10.../...", "pdfUrl": "https://..." }` from an authenticated lab account.

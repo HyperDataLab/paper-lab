@@ -12,7 +12,8 @@ import { Dialog } from '@/shared/ui/Dialog';
 import { Select } from '@/shared/ui/Select';
 import { TextField } from '@/shared/ui/TextField';
 import { Tabs } from '@/shared/ui/Tabs';
-import { importPaperFile } from './importPaperFile';
+import { importPaperFile, importResearchHubFile } from './importPaperFile';
+import { listResearchHubProjectFiles, type ResearchHubProjectFile } from '@/shared/pdfStore/researchHubFiles';
 import { LibraryPanel } from './LibraryPanel';
 import styles from './page.module.css';
 import { Empty, Loading } from '@/shared/ui/StateNote';
@@ -22,6 +23,9 @@ const SOURCE_NOTE: Partial<Record<PaperIdentity['titleSource'], string>> = {
   detected: 'Tên dò từ trang đầu',
   file: 'Tên tệp · chưa có metadata',
 };
+const isPdf = (file: ResearchHubProjectFile) =>
+  file.contentType.toLowerCase() === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+const fileSize = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
 export default function Page() {
   const repo = useRepositories();
@@ -40,6 +44,10 @@ export default function Page() {
   const [deleting, setDeleting] = useState<PaperSummary | null>(null);
   const [trigger, setTrigger] = useState<HTMLElement | null>(null);
   const [view, setView] = useState<'papers' | 'library'>('papers');
+  const [projectFiles, setProjectFiles] = useState<ResearchHubProjectFile[]>([]);
+  const [projectFilesLoading, setProjectFilesLoading] = useState(true);
+  const [projectFilesError, setProjectFilesError] = useState('');
+  const [importingFileId, setImportingFileId] = useState<string | null>(null);
   const load = useCallback(() => {
     void Promise.all([repo.papers.listSummaries(), repo.paperContext.list(), repo.library.list()])
       .then(([saved, contexts, library]) => {
@@ -66,6 +74,38 @@ export default function Page() {
   useEffect(() => {
     load();
   }, [load]);
+  const fetchProjectFiles = useCallback(async () => {
+    const token = await getIdToken();
+    if (!token) throw new Error('Không nhận được phiên ResearchHub.');
+    return (await listResearchHubProjectFiles(projectId, token)).filter(isPdf);
+  }, [getIdToken, projectId]);
+  const loadProjectFiles = useCallback(async () => {
+    setProjectFilesLoading(true);
+    setProjectFilesError('');
+    try {
+      setProjectFiles(await fetchProjectFiles());
+    } catch (cause) {
+      setProjectFilesError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setProjectFilesLoading(false);
+    }
+  }, [fetchProjectFiles]);
+  useEffect(() => {
+    let active = true;
+    void fetchProjectFiles()
+      .then((files) => {
+        if (active) setProjectFiles(files);
+      })
+      .catch((cause: unknown) => {
+        if (active) setProjectFilesError(cause instanceof Error ? cause.message : String(cause));
+      })
+      .finally(() => {
+        if (active) setProjectFilesLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [fetchProjectFiles]);
   async function read(file: File) {
     if (busy) return;
     setBusy(true);
@@ -86,6 +126,25 @@ export default function Page() {
       setDetail(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setBusy(false);
+    }
+  }
+  async function importProjectFile(file: ResearchHubProjectFile) {
+    if (busy) return;
+    setBusy(true);
+    setImportingFileId(file.id);
+    setError('');
+    setDetail('');
+    setProgress('Đang tải tài liệu từ ResearchHub…');
+    try {
+      const paper = await importResearchHubFile(file, repo, { projectId, getIdToken, onProgress: setProgress });
+      navigate(`/papers/${paper.id}`);
+    } catch (cause) {
+      setError('Không thể nhập tài liệu từ ResearchHub.');
+      setDetail(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+      setImportingFileId(null);
+      setProgress('');
     }
   }
   async function remove() {
@@ -148,6 +207,45 @@ export default function Page() {
             status={progress || 'Đang xử lý tệp…'}
             onFile={(file) => void read(file)}
           />
+          <section className={styles.projectFiles} aria-labelledby="research-hub-files-title">
+            <div className={styles.projectFilesHead}>
+              <div>
+                <h2 id="research-hub-files-title">PDF trong project ResearchHub</h2>
+                <p>Tệp gốc được giữ trong kho ResearchHub. Chọn một tệp để mở và phân tích trong PaperLab.</p>
+              </div>
+              <Button size="sm" onClick={() => void loadProjectFiles()} disabled={projectFilesLoading}>
+                {projectFilesLoading ? 'Đang tải…' : 'Tải lại'}
+              </Button>
+            </div>
+            {projectFilesLoading ? (
+              <Loading label="Đang tải danh sách tệp project…" />
+            ) : projectFilesError ? (
+              <div className={styles.projectFilesError} role="alert">
+                <span>Không thể tải tệp từ ResearchHub.</span>
+                <details><summary>Chi tiết kỹ thuật</summary>{projectFilesError}</details>
+              </div>
+            ) : projectFiles.length === 0 ? (
+              <p className={styles.projectFilesEmpty}>Project chưa có PDF nào trong kho ResearchHub.</p>
+            ) : (
+              <ul className={styles.projectFileList}>
+                {projectFiles.map((file) => (
+                  <li key={file.id} className={styles.projectFileRow}>
+                    <span className={styles.projectFileType} aria-hidden="true">PDF</span>
+                    <span className={styles.projectFileName} title={file.name}>{file.name}</span>
+                    <span className={styles.projectFileMeta}>{fileSize(file.size)} · {new Date(file.uploadedAt).toLocaleDateString('vi')}</span>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      disabled={busy}
+                      onClick={() => void importProjectFile(file)}
+                    >
+                      {importingFileId === file.id ? 'Đang nhập…' : 'Mở để phân tích'}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
           {error && (
             <div role="alert" className={styles.importError}>
               {error}

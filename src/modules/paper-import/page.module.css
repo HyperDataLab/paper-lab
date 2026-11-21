@@ -1670,6 +1670,78 @@ mark.textMark {
   margin-top: var(--space-2);
   color: var(--text-muted);
 }
+.projectFiles {
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.projectFilesHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.projectFilesHead h2 {
+  margin: 0;
+  font-size: var(--text-md);
+}
+.projectFilesHead p,
+.projectFilesEmpty {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.projectFileList {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.projectFileRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+}
+.projectFileType {
+  display: grid;
+  width: 36px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--danger-border, var(--border));
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  font-size: 10px;
+  font-weight: 700;
+}
+.projectFileName {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.projectFileMeta {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+.projectFilesError {
+  color: var(--danger);
+  font-size: var(--text-sm);
+}
+.projectFilesError details {
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+}
 .blockToggle svg {
   transition: transform 0.18s ease;
 }
@@ -1679,5 +1751,16 @@ mark.textMark {
 @media (max-width: 767px) {
   .headerLabel {
     display: none;
+  }
+  .projectFileRow {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .projectFileMeta {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .projectFileRow > button {
+    grid-column: 3;
+    grid-row: 1 / span 2;
   }
 }

@@ -50,6 +50,8 @@ export interface Deps extends KgBindings {
   uploadProjectFile?: (projectId: string, token: string, fileName: string, body: ArrayBuffer) => Promise<string>;
   /** Fetches file bytes from the ResearchHub Files API. */
   downloadProjectFile?: (projectId: string, fileId: string, token: string) => Promise<Response>;
+  /** Lists file metadata from the active ResearchHub project. */
+  listProjectFiles?: (projectId: string, cursor: string | null, token: string) => Promise<Response>;
   /** Project-scoped central record store. */
   data?: D1Database;
   kg?: KgBindings;
@@ -68,6 +70,7 @@ export const PDF_LINK_PREFIX = 'paperlab/researchhub-file-links/';
 export const GROBID_CACHE_TAG = 'grobid-0.9.0-crf';
 const GROBID_SHA = /^\/grobid\/fulltext\/([0-9a-f]{64})$/;
 const SHA = /^\/pdfs\/([0-9a-f]{64})$/;
+const RESEARCH_HUB_FILE = /^\/v1\/researchhub\/files\/([0-9a-f-]{36})$/i;
 const CORPUS = /^\/corpora\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const CORPUS_PREFIX = 'paperlab/corpora/';
 
@@ -179,6 +182,7 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
   const path = new URL(request.url).pathname;
   const isV1 = path === '/v1' || path.startsWith('/v1/');
   const match = SHA.exec(path);
+  const researchHubFileMatch = RESEARCH_HUB_FILE.exec(path);
   const corpusMatch = CORPUS.exec(path);
   const grobidMatch = GROBID_SHA.exec(path);
   if (!isV1 && !match && !corpusMatch && !grobidMatch && path !== '/grobid/fulltext' && path !== '/corpora')
@@ -238,6 +242,63 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
           return json(200, { email: caller.email, admin: isAdmin(deps, caller.email), project }, headers);
         }
         return json(200, { email: caller.email, admin: isAdmin(deps, caller.email) }, headers);
+      }
+      if (path === '/v1/researchhub/files' && request.method === 'GET') {
+        if (!projectId) return json(400, { error: 'X-Project-Id is required for ResearchHub files' }, headers);
+        if (!deps.listProjectFiles) return json(503, { error: 'ResearchHub file listing is not configured' }, headers);
+        const cursor = new URL(request.url).searchParams.get('cursor');
+        let response: Response;
+        try {
+          response = await deps.listProjectFiles(projectId, cursor, token);
+        } catch {
+          return json(502, { error: 'ResearchHub file list unavailable' }, headers);
+        }
+        if (!response.ok) return json(response.status, { error: 'ResearchHub file list unavailable' }, headers);
+        const result: unknown = await response.json().catch(() => null);
+        if (!result || typeof result !== 'object' || !('items' in result) || !Array.isArray(result.items))
+          return json(502, { error: 'ResearchHub returned an invalid file list' }, headers);
+        const items = result.items.flatMap((item) => {
+          if (!item || typeof item !== 'object') return [];
+          const file = item as Record<string, unknown>;
+          if (
+            typeof file.id !== 'string' ||
+            typeof file.name !== 'string' ||
+            typeof file.contentType !== 'string' ||
+            typeof file.size !== 'number' ||
+            typeof file.uploadedAt !== 'string' ||
+            typeof file.projectId !== 'string' ||
+            file.projectId.toLowerCase() !== projectId
+          ) return [];
+          return [{
+            id: file.id,
+            name: file.name,
+            contentType: file.contentType,
+            size: file.size,
+            uploadedAt: file.uploadedAt,
+            projectId,
+          }];
+        });
+        const nextCursor = 'cursor' in result && (typeof result.cursor === 'string' || result.cursor === null)
+          ? result.cursor
+          : null;
+        return json(200, { items, cursor: nextCursor }, headers);
+      }
+      if (researchHubFileMatch && request.method === 'GET') {
+        if (!projectId) return json(400, { error: 'X-Project-Id is required for ResearchHub files' }, headers);
+        if (!deps.downloadProjectFile) return json(503, { error: 'ResearchHub file download is not configured' }, headers);
+        let response: Response;
+        try {
+          response = await deps.downloadProjectFile(projectId, researchHubFileMatch[1], token);
+        } catch {
+          return json(502, { error: 'ResearchHub file download failed' }, headers);
+        }
+        if (!response.ok) return json(response.status, { error: 'ResearchHub file download failed' }, headers);
+        const responseHeaders = new Headers(headers);
+        for (const name of ['content-type', 'content-length', 'content-disposition']) {
+          const value = response.headers.get(name);
+          if (value) responseHeaders.set(name, value);
+        }
+        return new Response(response.body, { status: response.status, headers: responseHeaders });
       }
       if (path.startsWith(DATA_PATH_PREFIX))
         return await handleData(deps, request, path, caller.email, headers, projectId as string);

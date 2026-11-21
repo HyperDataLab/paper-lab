@@ -108,6 +108,12 @@ function downloadResearchHubFile(env: Env, projectId: string, fileId: string, to
   return researchHubRequest(env, path, { method: 'GET' }, token);
 }
 
+function listResearchHubFiles(env: Env, projectId: string, cursor: string | null, token: string) {
+  const query = new URLSearchParams({ projectId });
+  if (cursor) query.set('cursor', cursor);
+  return researchHubRequest(env, `/api/files?${query.toString()}`, { method: 'GET' }, token);
+}
+
 function nlpParse(env: Env) {
   const base = (env.NLP_URL ?? '').trim().replace(/\/+$/u, '');
   if (!base) return undefined;
@@ -161,6 +167,7 @@ export default {
         getOwnedProject: (projectId, token) => getOwnedProject(env, projectId, token),
         uploadProjectFile: (projectId, token, fileName, body) => uploadResearchHubFile(env, projectId, token, fileName, body),
         downloadProjectFile: (projectId, fileId, token) => downloadResearchHubFile(env, projectId, fileId, token),
+        listProjectFiles: (projectId, cursor, token) => listResearchHubFiles(env, projectId, cursor, token),
         bucket: env.BUCKET,
         allowedOrigins: env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim()),
         adminEmails: (env.ADMIN_EMAILS ?? '').split(',').map((email) => email.trim().toLowerCase()),
