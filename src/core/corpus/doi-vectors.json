@@ -1,0 +1,64 @@
+{
+  "valid": [
+    {
+      "input": "10.1016/j.engappai.2026.114369",
+      "doi": "10.1016/j.engappai.2026.114369",
+      "doiKey": "f1b1fd41a850bfd528e267e3d6a6c8a5a1417fd5e910bfcbfe46fc3471dea774"
+    },
+    {
+      "input": "https://doi.org/10.1109/TPAMI.2020.1234567",
+      "doi": "10.1109/tpami.2020.1234567",
+      "doiKey": "df2cc0106459f21adf3251724ed4579ffb8611a183a6db0a3b2511dfbaeb9daf"
+    },
+    {
+      "input": "http://dx.doi.org/10.1007/S00521-020-05000-1",
+      "doi": "10.1007/s00521-020-05000-1",
+      "doiKey": "da4960920a70769e4add9f5298518641c6491effaa0bfe7f94fe2f9f171664e6"
+    },
+    {
+      "input": "DOI:10.1145/3292500.3330701",
+      "doi": "10.1145/3292500.3330701",
+      "doiKey": "0f26e97ea7f4d1d1be28a53b8741c8c44b7ce6e6077ece51dd6c9992ded75634"
+    },
+    {
+      "input": "doi: 10.1002/ANIE.201900000",
+      "doi": "10.1002/anie.201900000",
+      "doiKey": "ce225a5e796400e20034790a2b26dc40eeaa66bea1fb5adc8fa2af6cfc29f333"
+    },
+    {
+      "input": "  10.1038/s41586-021-03819-2\n",
+      "doi": "10.1038/s41586-021-03819-2",
+      "doiKey": "2d088b5b0b596cbf3a4ed4b6c051a78d9a4b529f487dd728345772341b9145cf"
+    },
+    {
+      "input": "10.1000/ABC(1)<2>;x",
+      "doi": "10.1000/abc(1)<2>;x",
+      "doiKey": "5f1dda00cc9ee8e8b1f87a85e190dca6ce2ae6e086ea9f885ff93c1e05fc49ea"
+    },
+    {
+      "input": "10.1371/journal.pone.0000308.",
+      "doi": "10.1371/journal.pone.0000308",
+      "doiKey": "20602ba148d978671cddb2d899fa33fd891acfb4880f1afc8538b80c9898ee8e"
+    },
+    {
+      "input": "https://doi.org/10.1016/j.a.2020.1, ",
+      "doi": "10.1016/j.a.2020.1",
+      "doiKey": "c63bedf0d8d42c5d67e6261845f4adea1d08f413e5c4052a033f9a8cd1af0dfa"
+    },
+    {
+      "input": "10.1145/3292500.3330701;",
+      "doi": "10.1145/3292500.3330701",
+      "doiKey": "0f26e97ea7f4d1d1be28a53b8741c8c44b7ce6e6077ece51dd6c9992ded75634"
+    }
+  ],
+  "invalid": [
+    "",
+    "not a doi",
+    "10.12/short",
+    "10.1016/",
+    "11.1016/j.x",
+    "https://example.com/10.1016/j.x",
+    "10.1016/a b",
+    "10.1016/."
+  ]
+}

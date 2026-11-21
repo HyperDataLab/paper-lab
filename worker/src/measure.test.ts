@@ -12,6 +12,7 @@ const DRAFT = [
   '',
   'The widgets were measured twice. We counted every widget.',
 ].join('\n');
+const PROJECT_ID = '00000000-0000-4000-8000-000000000101';
 
 function setup(overrides: Partial<Deps> = {}) {
   const calls: string[] = [];
@@ -34,6 +35,7 @@ function setup(overrides: Partial<Deps> = {}) {
       return { uid: '1', email: 'lab@example.org' };
     },
     allowedOrigins: ['https://bank.example.org'],
+    getOwnedProject: async (projectId) => ({ id: projectId, name: 'Test project' }),
     now: () => new Date('2026-11-18T00:00:00Z'),
     ...overrides,
   };
@@ -48,6 +50,7 @@ function setup(overrides: Partial<Deps> = {}) {
         headers: {
           ...(init.token === null ? {} : { authorization: `Bearer ${init.token ?? 'good'}` }),
           origin: 'https://bank.example.org',
+          'X-Project-Id': PROJECT_ID,
           'content-type': 'application/json',
           ...init.headers,
         },

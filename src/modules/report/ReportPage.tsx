@@ -81,7 +81,7 @@ export default function ReportPage() {
         </ol>
       </section>
       <section>
-        <h2>Cấu trúc đoạn &amp; mạch</h2>
+        <h2>Cấu trúc paragraph &amp; mạch</h2>
         <p>
           Cấu trúc: {analysis.paragraph?.type ?? 'Chưa đánh giá'} · Độ tin cậy:{' '}
           {analysis.paragraph?.confidence ?? '—'}

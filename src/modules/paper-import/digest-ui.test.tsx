@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
@@ -7,12 +6,11 @@ import type { LlmClient } from '@/shared/llm/client';
 import { getConfig } from '@/shared/llm/config';
 import { acceptConsent } from '@/shared/llm/consent';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { PaperDigest } from './PaperDigest';
 import { uniquePageSources } from './digestSources';
 import { PaperSnapshot } from './PaperSnapshot';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 const at = '2026-01-01T00:00:00.000Z';
 const paper: Paper = {
@@ -84,7 +82,7 @@ it('keeps the first existing source for each page in order', () => {
 
 it('R12 one button writes the reader summary, section by section, each part opening its page', async () => {
   acceptConsent(getConfig(), true);
-  const repo = createRepositories(createDb(`digest-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.papers.create(paper);
   const completeJson = vi.fn(async (request: Parameters<LlmClient['completeJson']>[0]) => {
     await request.onRequest?.();
@@ -125,7 +123,7 @@ it('R12 one button writes the reader summary, section by section, each part open
 });
 
 it('R13 key facts sit above the summary as a strip, each with its page; a rejected fact is dimmed and can be undone', async () => {
-  const repo = createRepositories(createDb(`facts-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.papers.create(paper);
   await repo.paperInsights.saveSnapshotRun(paper.id, {
     id: '00000000-0000-4000-8000-0000000000f1',

@@ -72,7 +72,7 @@ export default function MeasurementSection() {
   const closePicker = useCallback(() => setPicker(null), []);
   if (state.loading) return <Loading />;
   // TODO: add "Thử lại" once the provider offers reload().
-  if (state.error) return <Empty title="Không tải được đo lường." />;
+  if (state.error) return <Empty title="Không tải được measurement." />;
   const { draft } = state.design;
   const bank = state.bank;
   const tab = readTab(params);
@@ -97,7 +97,7 @@ export default function MeasurementSection() {
           void change((d) => repin(d, b));
         }}
       />
-      <Tabs label="Đo lường">
+      <Tabs label="Measurement">
         {(Object.keys(tabLabels) as Tab[]).map((t) => (
           <Button
             key={t}

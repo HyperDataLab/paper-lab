@@ -1,13 +1,11 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { expect, it, vi } from 'vitest';
 import { sourceHash } from '@/core/text/hash';
 import { planRun } from '@/core/batch';
 import type { Paper, PaperRun } from '@/core/schemas';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { createPaperParagraphAnalyzer } from './paperParagraphAnalyzer';
 import type { LlmClient } from './client';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 it('P2 creates paper analyses and keeps human decisions on a detector rerun', async () => {
   vi.stubGlobal('crypto', webcrypto);
@@ -33,7 +31,7 @@ it('P2 creates paper analyses and keeps human decisions on a detector rerun', as
       },
     ],
   };
-  const repositories = createRepositories(createDb(`p2-${crypto.randomUUID()}`));
+  const repositories = testRepositories();
   const client: LlmClient = { completeJson: vi.fn() };
   const analyzer = createPaperParagraphAnalyzer(client, repositories, paper);
   const paragraph = paper.paragraphs[0];
@@ -98,7 +96,7 @@ it('P2 applies paper syntax, judgement, structure and scoring to an existing ana
       },
     ],
   };
-  const repositories = createRepositories(createDb(`p2-${crypto.randomUUID()}`));
+  const repositories = testRepositories();
   const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => {
     const answers: Record<string, unknown> = {
       sentence_syntax: { sentences: [] },
@@ -200,7 +198,7 @@ it('P2 splits a paragraph over the sentence limit into several counted requests'
     sections: [{ id: 's', heading: 'Methods', role: 'methods', level: 1, pageStart: null }],
     paragraphs: [paragraph],
   };
-  const repositories = createRepositories(createDb(`p2-${crypto.randomUUID()}`));
+  const repositories = testRepositories();
   const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => {
     await options.onRequest?.();
     return {
@@ -251,7 +249,7 @@ it('P2 shares one syntax request across paragraphs and restores their own ids an
     sections: [{ id: 's', heading: 'Methods', role: 'methods', level: 1, pageStart: null }],
     paragraphs,
   };
-  const repositories = createRepositories(createDb(`p2-${crypto.randomUUID()}`));
+  const repositories = testRepositories();
   const prompts: string[] = [];
   const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => {
     await options.onRequest?.();

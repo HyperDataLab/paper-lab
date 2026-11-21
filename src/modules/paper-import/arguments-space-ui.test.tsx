@@ -1,15 +1,13 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { fixturePaper, fixtureRun, PAPER_ID } from '@/core/measurement/testFixture';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { PaperAtomics } from './PaperAtomics';
 import PaperMapPage from './PaperMapPage';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 beforeEach(() => {
   vi.stubGlobal('crypto', webcrypto);
@@ -24,7 +22,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 /** A stored measurement with one atomic sentence in Methods and one in Results. */
 async function seeded() {
-  const repo = createRepositories(createDb(`args-space-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.papers.create(fixturePaper);
   const run = fixtureRun();
   const evidence = run.profile.evidence[0]!;
@@ -129,7 +127,7 @@ it('R10b the Arguments space opens on gap, claims and atomic sentences, ahead of
   expect(await screen.findByText('Accuracy is the share of correct predictions.')).toBeInTheDocument();
   // Parts with nothing stored yet say so and point to the analysis that fills them.
   expect(screen.getByText('Chưa phân tích cách tác giả dẫn dắt.')).toBeInTheDocument();
-  expect(screen.getByText('Chưa phân tích lập luận.')).toBeInTheDocument();
+  expect(screen.getByText('Chưa phân tích argument.')).toBeInTheDocument();
 });
 
 it('R10c the profile dimensions move from Summary into the spaces, and Writing style opens on vocabulary', async () => {
@@ -153,7 +151,7 @@ it('R10c the profile dimensions move from Summary into the spaces, and Writing s
     within(args)
       .getAllByRole('article')
       .map((card) => card.getAttribute('aria-label')),
-  ).toEqual(['Khoa học và Tri thức', 'Lập luận']);
+  ).toEqual(['Khoa học và Tri thức', 'Argument']);
   fireEvent.click(screen.getByRole('tab', { name: /^Writing style/ }));
   const writing = await screen.findByRole('region', { name: 'Writing overview' });
   expect(within(writing).getAllByRole('article')).toHaveLength(2);

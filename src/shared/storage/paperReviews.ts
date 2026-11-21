@@ -18,7 +18,10 @@ import {
   templatePhrases,
   visibleReviewRuns,
 } from '@/core/reviewPanel';
-import type { ParagraphDb } from './db';
+import type { DocReader, DocStore } from './docStore';
+import { appendAudit, requirePaper } from './storageShared';
+import { readReviewNgrams, replaceReviewNgrams } from './reviewNgrams';
+import { PaperSchema } from '@/core/schemas';
 
 export async function rebuildReviewRecord(
   paper: Paper,
@@ -71,13 +74,14 @@ export async function rebuildReviewRecord(
 }
 
 export function createPaperReviewsRepository(
-  db: ParagraphDb,
+  store: DocStore,
   now: () => string,
   makeAudit: (id: string, action: AuditEvent['action'], actor: AuditEvent['actor']) => AuditEvent,
+  latestAuditAt: (id: string) => Promise<string | undefined>,
 ) {
-  async function get(paperId: string) {
-    const row = await db.paperReviews.get(paperId);
-    return row ? PaperReviewsRecordSchema.parse(row) : undefined;
+  async function read(reader: DocReader, paperId: string) {
+    const row = await reader.get('paperReviews', paperId);
+    return row ? PaperReviewsRecordSchema.parse(row.doc) : undefined;
   }
   const nextTime = (current?: PaperReviewsRecord) =>
     new Date(Math.max(Date.parse(now()), current ? Date.parse(current.updatedAt) + 1 : 0)).toISOString();
@@ -89,6 +93,7 @@ export function createPaperReviewsRepository(
     humanNotes: null,
     decisions: [],
   });
+  const get = (paperId: string) => read(store, paperId);
   return {
     get,
     async getVisible(paperId: string) {
@@ -96,8 +101,7 @@ export function createPaperReviewsRepository(
       return record ? { ...record, runs: visibleReviewRuns(record.humanNotes, record.runs) } : undefined;
     },
     async saveRun(paperId: string, input: PaperReviewRun) {
-      const paper = await db.papers.get(paperId);
-      if (!paper) throw new Error('Paper not found');
+      const paper = PaperSchema.parse(await requirePaper(store, paperId));
       const current = await get(paperId);
       const at = nextTime(current);
       const run = PaperReviewRunSchema.parse(input);
@@ -107,58 +111,66 @@ export function createPaperReviewsRepository(
         updatedAt: at,
         runs: [...(current?.runs ?? []), run],
       };
-      const rebuilt = await rebuildReviewRecord(paper, record, await db.reviewNgrams.toArray());
-      return db.transaction('rw', [db.papers, db.paperReviews, db.reviewNgrams, db.auditEvents], async () => {
-        const livePaper = await db.papers.get(paperId);
-        if (!livePaper || JSON.stringify(livePaper.paragraphs) !== JSON.stringify(paper.paragraphs))
-          throw new Error('Paper changed');
-        if ((await get(paperId))?.updatedAt !== current?.updatedAt) throw new Error('Review changed; retry');
-        await db.paperReviews.put(rebuilt.record);
-        await db.reviewNgrams.where('paperId').equals(paperId).delete();
-        await db.reviewNgrams.bulkPut(rebuilt.ngrams);
-        await db.auditEvents.add(
-          AuditEventSchema.parse({
-            ...makeAudit(paperId, 'run_review', 'model'),
-            at,
-            after: { runId: run.id },
-          }),
-        );
-        return rebuilt.record;
-      });
+      const rebuilt = await rebuildReviewRecord(paper, record, await readReviewNgrams(store));
+      return store.unitOfWork(
+        async (tx) => {
+          const livePaper = PaperSchema.parse(await requirePaper(tx, paperId));
+          if (JSON.stringify(livePaper.paragraphs) !== JSON.stringify(paper.paragraphs))
+            throw new Error('Paper changed');
+          if ((await read(tx, paperId))?.updatedAt !== current?.updatedAt)
+            throw new Error('Review changed; retry');
+          await tx.put('paperReviews', paperId, rebuilt.record);
+          await replaceReviewNgrams(tx, paperId, rebuilt.ngrams);
+          await appendAudit(
+            tx,
+            AuditEventSchema.parse({
+              ...makeAudit(paperId, 'run_review', 'model'),
+              at,
+              after: { runId: run.id },
+            }),
+          );
+          return rebuilt.record;
+        },
+        ['papers', 'paperReviews', 'reviewNgrams'],
+      );
     },
     async saveNotes(paperId: string, text: string, skip = false) {
-      return db.transaction('rw', [db.papers, db.paperReviews, db.auditEvents], async () => {
-        if (!(await db.papers.get(paperId))) throw new Error('Paper not found');
-        const current = await get(paperId);
-        const latestAudit = await db.auditEvents.orderBy('at').last();
-        const at = new Date(
-          Math.max(
-            Date.parse(nextTime(current)),
-            Date.parse(latestAudit?.at ?? '1970-01-01T00:00:00.000Z') + 1,
-          ),
-        ).toISOString();
-        const humanNotes = { paperId, text: skip ? '' : text, writtenAt: at, revealedAt: at };
-        const value = PaperReviewsRecordSchema.parse({
-          ...(current ?? empty(paperId, at)),
-          updatedAt: at,
-          humanNotes,
-          runs: (current?.runs ?? []).map((run) => ({
-            ...run,
-            metrics: { ...run.metrics, agreement: agreement(run.merged, humanNotes) },
-          })),
-        });
-        await db.paperReviews.put(value);
-        await db.auditEvents.add(
-          AuditEventSchema.parse({
-            ...makeAudit(paperId, 'save_notes', 'human'),
-            at,
-            before: current?.humanNotes ?? null,
-            after: humanNotes,
-            note: skip ? 'skipped' : null,
-          }),
-        );
-        return value;
-      });
+      const latestAudit = await latestAuditAt(paperId);
+      return store.unitOfWork(
+        async (tx) => {
+          await requirePaper(tx, paperId);
+          const current = await read(tx, paperId);
+          const at = new Date(
+            Math.max(
+              Date.parse(nextTime(current)),
+              Date.parse(latestAudit ?? '1970-01-01T00:00:00.000Z') + 1,
+            ),
+          ).toISOString();
+          const humanNotes = { paperId, text: skip ? '' : text, writtenAt: at, revealedAt: at };
+          const value = PaperReviewsRecordSchema.parse({
+            ...(current ?? empty(paperId, at)),
+            updatedAt: at,
+            humanNotes,
+            runs: (current?.runs ?? []).map((run) => ({
+              ...run,
+              metrics: { ...run.metrics, agreement: agreement(run.merged, humanNotes) },
+            })),
+          });
+          await tx.put('paperReviews', paperId, value);
+          await appendAudit(
+            tx,
+            AuditEventSchema.parse({
+              ...makeAudit(paperId, 'save_notes', 'human'),
+              at,
+              before: current?.humanNotes ?? null,
+              after: humanNotes,
+              note: skip ? 'skipped' : null,
+            }),
+          );
+          return value;
+        },
+        ['papers', 'paperReviews'],
+      );
     },
     async review(
       paperId: string,
@@ -166,38 +178,42 @@ export function createPaperReviewsRepository(
       status: ReviewDecision['status'] | 'candidate',
       note = '',
     ) {
-      return db.transaction('rw', [db.paperReviews, db.auditEvents], async () => {
-        const current = await get(paperId);
-        if (
-          !current?.humanNotes?.revealedAt ||
-          !current.runs.at(-1)?.merged.some((point) => point.id === pointId)
-        )
-          throw new Error('Review point not available');
-        const latestAudit = await db.auditEvents.orderBy('at').last();
-        const at = new Date(
-          Math.max(
-            Date.parse(nextTime(current)),
-            Date.parse(latestAudit?.at ?? '1970-01-01T00:00:00.000Z') + 1,
-          ),
-        ).toISOString();
-        const before = current.decisions.find((d) => d.pointId === pointId) ?? null;
-        const decisions = current.decisions.filter((d) => d.pointId !== pointId);
-        const after = status === 'candidate' ? null : { pointId, status, note, at };
-        if (after) decisions.push(after);
-        const value = PaperReviewsRecordSchema.parse({ ...current, updatedAt: at, decisions });
-        await db.paperReviews.put(value);
-        await db.auditEvents.add(
-          AuditEventSchema.parse({
-            ...makeAudit(paperId, 'review_point', 'human'),
-            at,
-            issueId: pointId,
-            before,
-            after,
-            note,
-          }),
-        );
-        return value;
-      });
+      const latestAudit = await latestAuditAt(paperId);
+      return store.unitOfWork(
+        async (tx) => {
+          const current = await read(tx, paperId);
+          if (
+            !current?.humanNotes?.revealedAt ||
+            !current.runs.at(-1)?.merged.some((point) => point.id === pointId)
+          )
+            throw new Error('Review point not available');
+          const at = new Date(
+            Math.max(
+              Date.parse(nextTime(current)),
+              Date.parse(latestAudit ?? '1970-01-01T00:00:00.000Z') + 1,
+            ),
+          ).toISOString();
+          const before = current.decisions.find((d) => d.pointId === pointId) ?? null;
+          const decisions = current.decisions.filter((d) => d.pointId !== pointId);
+          const after = status === 'candidate' ? null : { pointId, status, note, at };
+          if (after) decisions.push(after);
+          const value = PaperReviewsRecordSchema.parse({ ...current, updatedAt: at, decisions });
+          await tx.put('paperReviews', paperId, value);
+          await appendAudit(
+            tx,
+            AuditEventSchema.parse({
+              ...makeAudit(paperId, 'review_point', 'human'),
+              at,
+              issueId: pointId,
+              before,
+              after,
+              note,
+            }),
+          );
+          return value;
+        },
+        ['paperReviews'],
+      );
     },
   };
 }

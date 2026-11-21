@@ -14,7 +14,7 @@ import { paperIdentity } from '@/core/paperIdentity';
 import type { ExtractionProject, Paper, PaperMetadata } from '@/core/schemas';
 import { ExtractionMatrix } from '@/modules/extraction';
 import { downloadText } from '@/shared/calibration/download';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Loading } from '@/shared/ui/StateNote';
 import { useGrobidState } from './grobidContext';

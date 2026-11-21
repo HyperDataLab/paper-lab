@@ -3,7 +3,8 @@ import { MAX_DOIS_PER_ADD, titleMatchesText } from '@/core/library';
 import type { LibraryItem } from '@/core/schemas';
 import { createScholarClient, type ScholarClient } from '@/shared/scholar/client';
 import { getScholarEmail } from '@/shared/scholar/settings';
-import { useRepositories } from '@/shared/storage/StorageProvider';
+import { useHubProjectId, useRepositories } from '@/shared/storage/StorageProvider';
+import { useAuth } from '@/shared/auth/authContext';
 import { useGrobidQueue } from '@/shared/pdfStore/useGrobidQueue';
 import { importPaperFile } from './importPaperFile';
 
@@ -16,6 +17,8 @@ export function useLibrary(
   makeClient: () => ScholarClient = () => createScholarClient({ email: getScholarEmail() }),
 ) {
   const repo = useRepositories();
+  const projectId = useHubProjectId() ?? '';
+  const { getIdToken } = useAuth();
   const grobid = useGrobidQueue();
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,7 +104,12 @@ export function useLibrary(
     setItems((old) => old.filter((item) => !ids.includes(item.id)));
   }
   async function attach(item: LibraryItem, file: File) {
-    const paper = await importPaperFile(file, repo, { title: item.title, reuseExisting: true });
+    const paper = await importPaperFile(file, repo, {
+      projectId,
+      title: item.title,
+      reuseExisting: true,
+      getIdToken,
+    });
     const text = paper.paragraphs
       .slice(0, 12)
       .map((paragraph) => paragraph.text)

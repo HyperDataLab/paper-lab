@@ -2,8 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 
 const MODES = [
-  { value: '/evaluate', label: 'Đánh giá đoạn có sẵn' },
-  { value: '/generate', label: 'Soạn đoạn mới' },
+  { value: '/evaluate', label: 'Đánh giá paragraph có sẵn' },
+  { value: '/generate', label: 'Soạn paragraph mới' },
 ];
 
 /** The two ways to start paragraph work. Revising starts from an analysis, so it is not offered here. */

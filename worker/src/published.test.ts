@@ -4,6 +4,8 @@ import { handle, type Bucket, type Deps } from './app';
 import { verifyFirebaseToken } from './auth';
 
 const id = `sha256-${'a'.repeat(64)}`;
+const PROJECT_ID = '00000000-0000-4000-8000-000000000101';
+const projectPublishedKey = (paperId: string, file: string) => `paperlab/projects/${PROJECT_ID}/published/${paperId}/${file}`;
 const model = {
   format: 'paperlab-paper-model',
   schemaVersion: 1,
@@ -40,6 +42,7 @@ function setup() {
     bucket,
     verifyToken: async () => ({ uid: '1', email: 'test@example.org' }),
     allowedOrigins: ['https://example.org'],
+    getOwnedProject: async (projectId) => ({ id: projectId, name: 'Test project' }),
     now: () => new Date('2026-11-17T00:00:00Z'),
   };
   const call = (method: string, path: string, body?: unknown, extra: Record<string, string> = {}) =>
@@ -47,7 +50,7 @@ function setup() {
       deps,
       new Request(`https://worker.test${path}`, {
         method,
-        headers: { authorization: 'Bearer token', origin: 'https://example.org', ...extra },
+        headers: { authorization: 'Bearer token', origin: 'https://example.org', 'X-Project-Id': PROJECT_ID, ...extra },
         body: body === undefined ? undefined : JSON.stringify(body),
       }),
     );
@@ -80,7 +83,7 @@ describe('published models', () => {
       expect((await call('PUT', path, invalid)).status).toBe(400);
     const valid = { ...facts, modelEtag: published.etag };
     const first = (await (await call('PUT', path, valid)).json()) as { etag: string; updatedAt: string };
-    expect(objects.get(`paperlab/published/${id}/model.json`)?.meta).toMatchObject({
+    expect(objects.get(projectPublishedKey(id, 'model.json'))?.meta).toMatchObject({
       experimentFacts: 'candidate',
       contentEtag: published.etag,
     });
@@ -94,9 +97,9 @@ describe('published models', () => {
       updatedAt: first.updatedAt,
     });
     await call('PUT', path, { ...valid, facts: [{ status: 'accepted' }] });
-    expect(objects.get(`paperlab/published/${id}/model.json`)?.meta.experimentFacts).toBe('reviewed');
+    expect(objects.get(projectPublishedKey(id, 'model.json'))?.meta.experimentFacts).toBe('reviewed');
     await call('PUT', modelPath, { ...model, sentences: ['changed'] });
-    expect(objects.get(`paperlab/published/${id}/model.json`)?.meta.experimentFacts).toBe('reviewed');
+    expect(objects.get(projectPublishedKey(id, 'model.json'))?.meta.experimentFacts).toBe('reviewed');
     expect(((await (await call('GET', path)).json()) as typeof valid).modelEtag).toBe(published.etag);
     expect((await call('PUT', path, valid)).status).toBe(409);
     expect(((await (await call('GET', '/v1/papers')).json()) as { items: unknown[] }).items).toHaveLength(1);
@@ -110,7 +113,7 @@ describe('published models', () => {
       unchanged: boolean;
     };
     expect(first.unchanged).toBe(false);
-    expect(objects.get(`paperlab/published/${id}/model.json`)?.meta).toMatchObject({
+    expect(objects.get(projectPublishedKey(id, 'model.json'))?.meta).toMatchObject({
       title: 'Synthetic study',
       experimentFacts: 'none',
       schemaVersion: 'paper-model-v1',

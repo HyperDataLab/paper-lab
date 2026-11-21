@@ -1,15 +1,13 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { expect, it, vi } from 'vitest';
 import { analyzeText } from '@/core/text';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { loadCalibration } from './data';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 it('P7 uses latest audit decision across analyses and counts repeated imported labels once', async () => {
   vi.stubGlobal('crypto', webcrypto);
   let date = '2026-01-01T00:00:00.000Z';
-  const repo = createRepositories(createDb(`dedup-${crypto.randomUUID()}`), () => new Date(date));
+  const repo = testRepositories({ clock: () => new Date(date) });
   const text = await analyzeText('Very clear.');
   const issue = {
     id: 'i',

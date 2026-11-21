@@ -2,7 +2,7 @@ import type { PlanFlag } from '@/core/researchDesign/draft/checkPlan';
 import type { Draft } from '@/core/researchDesign/draft/schema';
 
 const methods: Record<string, [string, string]> = {
-  descriptive: ['thống kê mô tả', 'Tóm tắt các biến được chọn.'],
+  descriptive: ['thống kê mô tả', 'Tóm tắt các variables được chọn.'],
   ttest_independent: [
     'kiểm định t độc lập',
     'So sánh trung bình của hai nhóm độc lập, giả định phương sai bằng nhau.',
@@ -12,8 +12,8 @@ const methods: Record<string, [string, string]> = {
     'kiểm định t Welch',
     'So sánh trung bình của hai nhóm độc lập, không giả định phương sai bằng nhau.',
   ],
-  correlation_pearson: ['tương quan Pearson', 'Đo tương quan tuyến tính giữa các biến.'],
-  correlation_spearman: ['tương quan Spearman', 'Đo tương quan thứ hạng giữa các biến.'],
+  correlation_pearson: ['tương quan Pearson', 'Đo tương quan tuyến tính giữa các variables.'],
+  correlation_spearman: ['tương quan Spearman', 'Đo tương quan thứ hạng giữa các variables.'],
   anova_oneway: ['ANOVA một nhân tố', 'So sánh trung bình của ba nhóm độc lập trở lên.'],
   anova_repeated: ['ANOVA đo lặp', 'So sánh trung bình giữa các phép đo lặp.'],
   mann_whitney: ['Mann–Whitney', 'So sánh hai nhóm độc lập theo thứ hạng.'],
@@ -21,7 +21,7 @@ const methods: Record<string, [string, string]> = {
   kruskal_wallis: ['Kruskal–Wallis', 'So sánh nhiều nhóm độc lập theo thứ hạng.'],
   friedman: ['Friedman', 'So sánh nhiều phép đo lặp theo thứ hạng.'],
   posthoc_pairwise: ['so sánh từng cặp', 'So sánh từng cặp nhóm.'],
-  regression_linear: ['hồi quy tuyến tính', 'Mô hình hoá liên hệ tuyến tính giữa các biến.'],
+  regression_linear: ['hồi quy tuyến tính', 'Mô hình hoá liên hệ tuyến tính giữa các variables.'],
   reliability: ['độ tin cậy', 'Đánh giá độ tin cậy của thang đo.'],
 };
 export const methodWords = (method: string) => methods[method]?.[0] ?? method;
@@ -54,7 +54,7 @@ export function planFlagText(flag: PlanFlag, draft: Draft): string {
     case 'AN-02':
       return `${flag.subject} chưa chọn phương pháp.`;
     case 'AN-03':
-      return `${flag.subject} chưa chọn biến.`;
+      return `${flag.subject} chưa chọn variable.`;
     case 'AN-04':
       return `${flag.subject} dùng ${methodWords(flag.method)}, phương pháp so sánh đúng hai điều kiện, nhưng đang có ${flag.count}.`;
     case 'AN-05': {

@@ -49,9 +49,9 @@ it('R16 puts the estimate beside the analysis button and the section action insi
   const button = screen.getByRole('button', { name: 'Phân tích' });
   expect(button).toHaveTextContent(/^Phân tích$/);
   expect(button.parentElement).toHaveTextContent('~8 lượt · trần 10');
-  expect(screen.queryByRole('button', { name: 'Chạy cho một mục' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Chạy cho một section' })).not.toBeInTheDocument();
   rerender(<SectionBlock {...props} open />);
-  expect(screen.getByRole('button', { name: 'Chạy cho một mục' })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Chạy cho một section' })).toBeVisible();
 });
 
 it('R16 keeps the old English missing-value label out of the paper module', () => {

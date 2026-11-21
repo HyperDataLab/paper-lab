@@ -37,8 +37,8 @@ export function ParagraphView({
     return (
       <Empty
         icon={<Network size={20} />}
-        title="Chưa có phân tích cấu trúc đoạn"
-        hint="Chạy Phân tích cấu trúc đoạn (AI) ở bước 2 để thấy kiểu đoạn, ý chính, vai trò từng câu và mạch nối."
+        title="Chưa có phân tích cấu trúc paragraph"
+        hint="Chạy Phân tích cấu trúc paragraph (AI) ở bước 2 để thấy kiểu paragraph, ý chính, vai trò từng câu và mạch nối."
       />
     );
   const index = createOffsetIndex(text.sourceText);
@@ -51,7 +51,7 @@ export function ParagraphView({
     <div className={styles.view}>
       <dl className={styles.summary}>
         <div>
-          <dt>Kiểu đoạn</dt>
+          <dt>Kiểu paragraph</dt>
           <dd>
             <strong>{paragraph.type === 'UNKNOWN' ? 'Chưa xác định' : paragraph.type}</strong>
             <span className={styles.muted}>độ tin cậy {pct(paragraph.confidence)}</span>

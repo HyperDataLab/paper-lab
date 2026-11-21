@@ -156,7 +156,7 @@ describe('admin fact requests', () => {
     const fetchMock = serve(true);
     open(true);
     fireEvent.click(await screen.findByRole('button', { name: 'Duyệt' }));
-    const measure = await screen.findByRole('link', { name: 'Mở Đo lường của bài' });
+    const measure = await screen.findByRole('link', { name: 'Mở measurement của bài' });
     expect(measure).toHaveAttribute('href', `/papers/${localPaper.id}?view=measure`);
     expect(screen.getByRole('link', { name: 'Publication info' })).toHaveAttribute(
       'href',

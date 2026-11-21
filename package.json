@@ -20,16 +20,15 @@
     "schema:paper-model": "node scripts/paper-model-schema.mjs",
     "schema:corpus": "node scripts/paper-model-schema.mjs",
     "schema:corpus-profile": "node scripts/paper-model-schema.mjs",
-    "bench:arguments": "node scripts/bench-arguments.mjs"
+    "bench:arguments": "node scripts/bench-arguments.mjs",
+    "semantic:export": "node scripts/semantic-export.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
     "@tanstack/react-query": "^5.108.1",
-    "dexie": "^4.4.7",
     "fflate": "^0.8.3",
     "firebase": "^12.19.0",
     "gsap": "^3.13.0",
-    "katex": "^0.19.1",
     "lucide-react": "^0.468.0",
     "pdfjs-dist": "^6.5.438",
     "react": "^19.3.1",
@@ -51,7 +50,6 @@
     "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
-    "fake-indexeddb": "^6.2.7",
     "globals": "^17.13.0",
     "jsdom": "^30.1.3",
     "prettier": "^3.6.2",

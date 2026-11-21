@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
@@ -8,10 +7,9 @@ import type { LlmClient } from '@/shared/llm/client';
 import { getConfig } from '@/shared/llm/config';
 import { acceptConsent } from '@/shared/llm/consent';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { PaperScg } from './PaperScg';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 it('SCG lists a run with prerequisites and quotes, and saves accept and reject', async () => {
   vi.stubGlobal('crypto', webcrypto);
@@ -39,7 +37,7 @@ it('SCG lists a run with prerequisites and quotes, and saves accept and reject',
     ],
   };
   const key = sentenceIndex(paper)[0]?.key ?? '';
-  const repo = createRepositories(createDb(`scg-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.papers.create(paper);
   const outputs: Record<string, unknown> = {
     scg_contributions: {
@@ -88,7 +86,7 @@ it('SCG lists a run with prerequisites and quotes, and saves accept and reject',
       </LlmProvider>
     </StorageProvider>,
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Trích đóng góp (SCG)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Trích contribution (SCG)' }));
   // Stage 1 is shown while the pass goes on, without review controls the next checkpoint would overwrite.
   expect(await screen.findByText('Foo encoder')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Dừng' })).toBeInTheDocument();

@@ -1,17 +1,17 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { analyzeText } from '@/core/text';
 import { validateAnalysisSpans, InvalidAnalysisError, type AnalysisInput, type Issue } from '@/core/schemas';
 import { planImport } from '@/core/transfer/planImport';
-import { createDb } from './db';
-import { createRepositories, SourceImmutableError, type AnalysisPatch } from './repositories';
+import { SourceImmutableError, type AnalysisPatch } from './repositories';
+import { testRepositories } from './testRepositories';
+import { MemoryDocStore } from './docStore';
 beforeEach(() => {
   vi.stubGlobal('crypto', webcrypto);
 });
 async function setup() {
-  const db = createDb(`test-${crypto.randomUUID()}`);
-  const repo = createRepositories(db);
+  const db = new MemoryDocStore();
+  const repo = testRepositories({ store: db });
   const text = await analyzeText('One sentence. Another sentence.');
   const analysis = await repo.analyses.create({ text });
   return { db, repo, analysis };
@@ -115,7 +115,7 @@ it('EV-12 rejects stale previews and source changes even with the same hash', as
 it('EV-12 exports and imports analyses and audit events', async () => {
   const { repo, analysis } = await setup();
   const data = await repo.transfer.exportAll('1');
-  const dest = createRepositories(createDb(`test-${crypto.randomUUID()}`));
+  const dest = testRepositories();
   const plan = await dest.transfer.previewImport(data);
   expect(plan.ok).toBe(true);
   if (!plan.ok) return;
@@ -131,7 +131,7 @@ it('EV-12 skips tampered or invalid analyses and their audit while importing val
   const { repo, analysis } = await setup();
   const second = await repo.analyses.create({ text: await analyzeText('A valid second paragraph.') });
   const data = await repo.transfer.exportAll('1');
-  const dest = createRepositories(createDb(`test-${crypto.randomUUID()}`));
+  const dest = testRepositories();
   const tampered = {
     ...analysis,
     text: { ...analysis.text, sourceText: `X${analysis.text.sourceText.slice(1)}` },
@@ -252,7 +252,8 @@ it('AC-04 suppresses ungrounded issues and annotations and rejects invalid token
 it('lists newest first and counts corrupt records', async () => {
   const { db, repo, analysis } = await setup();
   await repo.analyses.update(analysis.id, { title: 'updated' });
-  await db.analyses.add({ ...analysis, id: crypto.randomUUID(), updatedAt: 'bad' });
+  const id = crypto.randomUUID();
+  await db.put('analyses', id, { ...analysis, id, updatedAt: 'bad' });
   const list = await repo.analyses.list();
   expect(list.corrupt).toBe(1);
   expect(list.items[0]?.title).toBe('updated');

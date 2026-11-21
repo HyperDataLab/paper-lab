@@ -49,9 +49,9 @@ it('copies the statement to the selected question', () => {
   state.record!.topicCheck = { ...emptyTopicCheck(), statement: 'Synthetic gap' };
   state.record!.draft.questions.push({ id: 'q-1', text: 'Question?', gap: '', papers: [] });
   render(<TopicSection />);
-  fireEvent.click(screen.getByRole('combobox', { name: 'Chọn câu hỏi' }));
+  fireEvent.click(screen.getByRole('combobox', { name: 'Chọn research question' }));
   fireEvent.click(screen.getByRole('option', { name: 'Question?' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Dùng làm khoảng trống cho câu hỏi' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Dùng làm research gap cho research question' }));
   const change = state.update.mock.calls[0]?.[0] as (d: ResearchDesign) => ResearchDesign;
   expect(change(state.record!).draft.questions[0]?.gap).toBe('Synthetic gap');
 });

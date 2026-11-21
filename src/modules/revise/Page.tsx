@@ -271,7 +271,7 @@ export default function Page() {
           </ul>
           <h3>Ràng buộc</h3>
           <Checkbox checked disabled>
-            Giữ nguyên các khẳng định
+            Giữ nguyên các claims
           </Checkbox>
           <Checkbox checked disabled>
             Giữ mức độ dè dặt
@@ -340,7 +340,7 @@ export default function Page() {
                   </details>
                 )}
               </div>
-              <h3>Cần bằng chứng từ bạn</h3>
+              <h3>Cần evidence từ bạn</h3>
               {revision.needsEvidence.length ? (
                 <ul>
                   {revision.needsEvidence.map((item, index) => (

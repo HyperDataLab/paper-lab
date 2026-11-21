@@ -4,10 +4,10 @@ import type { Finding, PaperModelSentence } from '@/core/schemas';
 import { downloadText } from '@/shared/calibration/download';
 import { Button } from '@/shared/ui/Button';
 import { Checkbox } from '@/shared/ui/Checkbox';
-import { OpenKgGraph } from './OpenKgGraph';
-import { OpenKgTriples } from './OpenKgTriples';
-import { LAYER_LABELS } from './openkgLabels';
-import styles from './openkg.module.css';
+import { OpenKgGraph } from '@/shared/ui/openkg/OpenKgGraph';
+import { OpenKgTriples } from '@/shared/ui/openkg/OpenKgTriples';
+import { LAYER_LABELS } from '@/shared/ui/openkg/labels';
+import styles from '@/shared/ui/openkg/openkg.module.css';
 
 const EXPORTS = [
   { label: 'Turtle (.ttl)', extension: 'ttl', mime: 'text/turtle', serialize: toTurtle },
@@ -60,13 +60,11 @@ export function OpenKgView({
   const salience = SALIENCE_LABELS.get(String(current?.attrs.salience));
   const lookupMissing = 'Chưa có dữ liệu OpenAlex trong Thư viện DOI.';
   const notices: Partial<Record<KgLayer, string>> = {
-    evidential: !counts.get('evidential')
-      ? 'Chưa có tài liệu tham khảo hoặc thông tin nơi xuất bản.'
-      : undefined,
+    evidential: !counts.get('evidential') ? 'Chưa có references hoặc thông tin nơi xuất bản.' : undefined,
     conceptual: !hasScg
-      ? 'Chưa chạy SCG để lấy đóng góp và nền tảng.'
+      ? 'Chưa chạy SCG để lấy contribution và nền tảng.'
       : !counts.get('conceptual')
-        ? 'Chưa có từ khóa hoặc đóng góp đã trích.'
+        ? 'Chưa có keyword hoặc contribution đã trích.'
         : undefined,
     disciplinary: !counts.get('disciplinary')
       ? hasLookup
@@ -80,8 +78,8 @@ export function OpenKgView({
       : undefined,
     normative: !counts.get('normative')
       ? hasArguments
-        ? 'Chưa có luận điểm gắn với văn bản hiện tại.'
-        : 'Chưa chạy phân tích lập luận.'
+        ? 'Chưa có claim gắn với văn bản hiện tại.'
+        : 'Chưa chạy phân tích argument.'
       : undefined,
   };
   return (
@@ -145,7 +143,7 @@ export function OpenKgView({
               <OpenKgTriples edges={selectedEdges} nodes={nodes} sentences={byKey} onLocation={onLocation} />
             </>
           ) : (
-            <p className={styles.muted}>Chọn một nút để xem các bộ ba và câu dẫn chứng.</p>
+            <p className={styles.muted}>Chọn một nút để xem các bộ ba và câu dùng làm evidence.</p>
           )}
         </aside>
       </div>

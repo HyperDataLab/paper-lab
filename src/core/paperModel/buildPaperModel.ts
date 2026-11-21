@@ -34,7 +34,7 @@ export function sectionTree(paper: Paper): PaperModelSection[] {
   });
 }
 
-function abstractOf(paper: Paper): string | null {
+export function abstractOf(paper: Paper): string | null {
   const ids = new Set(paper.sections.filter((s) => s.role === 'abstract').map((s) => s.id));
   const text = paper.paragraphs
     .filter((p) => ids.has(p.sectionId) && p.kind === 'body')

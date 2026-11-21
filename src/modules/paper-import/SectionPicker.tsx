@@ -17,8 +17,8 @@ export function SectionPicker({
   onChange,
   count,
   disabled = false,
-  legend = 'Chọn mục',
-  unit = 'đoạn',
+  legend = 'Chọn section',
+  unit = 'paragraph',
 }: {
   paper: Paper;
   value: string[];
@@ -88,7 +88,7 @@ export function SectionPicker({
       <legend>{legend}</legend>
       <div className={styles.pickerBar}>
         <span>
-          Đã chọn {chosen.length}/{useful.length} mục · {items} {unit}
+          Đã chọn {chosen.length}/{useful.length} section · {items} {unit}
         </span>
         <Button size="sm" variant="ghost" onClick={() => onChange(useful.map((section) => section.id))}>
           Chọn tất cả

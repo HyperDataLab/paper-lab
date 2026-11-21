@@ -3,11 +3,16 @@ import { GrobidStartingError } from './grobid-error';
 import { handlePublished, publishedError } from './published';
 import { handlePlans } from './plans';
 import { handleMeasure, MEASURE_PATH } from './measure';
-import { handleFactRequests, isAdmin } from './factRequests';
+import { handleFactRequests } from './factRequests';
+import { isAdmin } from './deps';
 import { handleScg, SCG_LIST_PATH, SCG_PATH } from './scg';
 import { handleOpenAlexPdf } from './openalexPdf';
 import { MAX_PDF_BYTES } from './limits';
 import { handleWorkspace } from './workspace';
+import { DATA_PATH_PREFIX, handleData } from './data/routes';
+import { handleKg } from './kg/routes';
+import { handleSciAtlas, SCIATLAS_PATH } from './sciatlas';
+import type { D1Database, KgBindings } from './kg/bindings';
 
 /** The part of an R2 bucket this worker uses, so the logic runs in tests without Cloudflare. */
 export interface Bucket {
@@ -28,7 +33,7 @@ export interface Bucket {
     },
   ): Promise<{ etag: string } | null>;
 }
-export interface Deps {
+export interface Deps extends KgBindings {
   verifyToken: (token: string) => Promise<{ uid: string; email: string }>;
   bucket: Bucket;
   allowedOrigins: string[];
@@ -45,6 +50,15 @@ export interface Deps {
   uploadProjectFile?: (projectId: string, token: string, fileName: string, body: ArrayBuffer) => Promise<string>;
   /** Fetches file bytes from the ResearchHub Files API. */
   downloadProjectFile?: (projectId: string, fileId: string, token: string) => Promise<Response>;
+  /** Project-scoped central record store. */
+  data?: D1Database;
+  kg?: KgBindings;
+  sciatlasTimeoutMs?: number;
+  /** SciAtlas API key, configured as a Worker secret. */
+  sciatlasKey?: string;
+  /** Active, owner-verified ResearchHub project for this request. */
+  projectId?: string;
+  fetch?: typeof fetch;
 }
 
 export const MAX_BYTES = MAX_PDF_BYTES;
@@ -62,7 +76,7 @@ function cors(request: Request, deps: Deps): Record<string, string> {
   if (!origin || !deps.allowedOrigins.includes(origin)) return { Vary: 'Origin' };
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, HEAD, PUT, POST',
+    'Access-Control-Allow-Methods': 'GET, HEAD, PUT, POST, DELETE',
     'Access-Control-Expose-Headers': 'X-Grobid-Cache, X-Grobid-Ms, ETag, Retry-After',
     'Access-Control-Allow-Headers': 'authorization, content-type, if-match, if-none-match, x-project-id, x-file-name',
     'Access-Control-Max-Age': '3600',
@@ -143,7 +157,8 @@ async function getProjectPdf(deps: Deps, sha: string, projectId: string, token: 
     const legacy = await deps.bucket.get(key);
     if (!legacy || !deps.uploadProjectFile) return null;
     const linked = linkedProjectIds((await deps.bucket.head(key))?.customMetadata);
-    if (linked.length > 0 && !linked.includes(projectId)) return null;
+    // Old globally stored PDFs without an explicit ResearchHub project link stay unassigned.
+    if (!linked.includes(projectId)) return null;
     const body = await new Response(legacy.body).arrayBuffer();
     if ((await sha256Hex(body)) !== sha) return null;
     const fileName = (await deps.bucket.head(key))?.customMetadata?.originalName ?? `${sha}.pdf`;
@@ -189,6 +204,8 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
 
   const requestedProjectId = request.headers.get('X-Project-Id')?.trim() ?? '';
   const projectId = requestedProjectId ? requestedProjectId.toLowerCase() : null;
+  if (isV1 && path !== '/v1/me' && !projectId)
+    return json(400, { error: 'X-Project-Id is required for ResearchHub project access' }, headers);
   if ((match || grobidMatch) && !projectId)
     return json(400, { error: 'X-Project-Id is required for project PDF access' }, headers);
   if (
@@ -196,7 +213,7 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(projectId)
   )
     return json(400, { error: 'invalid ResearchHub project id' }, headers);
-  if (projectId && (match || grobidMatch)) {
+  if (projectId && (match || grobidMatch || isV1 && path !== '/v1/me')) {
     if (!deps.getOwnedProject) return json(503, { error: 'ResearchHub project access is not configured' }, headers);
     try {
       if (!(await deps.getOwnedProject(projectId, token))) return json(404, { error: 'ResearchHub project not found' }, headers);
@@ -206,25 +223,39 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
   }
 
   if (isV1) {
+    const projectDeps: Deps = projectId ? { ...deps, projectId } : deps;
     try {
-      if (path === '/v1/me' && request.method === 'GET')
+      if (path === '/v1/me' && request.method === 'GET') {
+        if (request.headers.has('X-Project-Id')) {
+          if (!projectId || !deps.getOwnedProject)
+            return json(400, { error: 'invalid ResearchHub project id' }, headers);
+          const project = await deps.getOwnedProject(projectId, token);
+          if (!project) return json(404, { error: 'ResearchHub project not found' }, headers);
+          return json(200, { email: caller.email, admin: isAdmin(deps, caller.email), project }, headers);
+        }
         return json(200, { email: caller.email, admin: isAdmin(deps, caller.email) }, headers);
+      }
+      if (path.startsWith(DATA_PATH_PREFIX))
+        return await handleData(deps, request, path, caller.email, headers, projectId as string);
+      if (path.startsWith('/v1/kg/'))
+        return await handleKg(projectDeps, request, path, headers, projectId as string);
       if (path === '/v1/pdfs/openalex')
         return await handleOpenAlexPdf(request, headers, {
           fetch: deps.externalFetch ?? fetch,
         });
+      if (path === SCIATLAS_PATH) return await handleSciAtlas(projectDeps, request, headers);
       if (path.startsWith('/v1/workspaces/')) {
         if (!deps.getOwnedProject) return json(503, { error: 'ResearchHub project access is not configured' }, headers);
         return await handleWorkspace(request, token, { bucket: deps.bucket, getOwnedProject: deps.getOwnedProject }, headers);
       }
-      if (path === MEASURE_PATH) return await handleMeasure(deps, request, token, headers);
+      if (path === MEASURE_PATH) return await handleMeasure(projectDeps, request, token, headers);
       if (path === SCG_LIST_PATH || SCG_PATH.test(path))
-        return await handleScg(deps, request, caller.email, headers);
+        return await handleScg(projectDeps, request, caller.email, headers);
       if (path.startsWith('/v1/admin/') || path.endsWith('/experiment-facts/requests'))
-        return await handleFactRequests(deps, request, caller.email, headers);
+        return await handleFactRequests(projectDeps, request, caller.email, headers);
       return path === '/v1/projects' || path.startsWith('/v1/projects/')
-        ? await handlePlans(deps, request, caller.email, headers)
-        : await handlePublished(deps, request, caller.email, headers);
+        ? await handlePlans(projectDeps, request, caller.email, headers)
+        : await handlePublished(projectDeps, request, caller.email, headers);
     } catch {
       return publishedError(500, 'internal', 'An internal error occurred.', headers);
     }
@@ -412,7 +443,13 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
   } catch {
     // ResearchHub performs its own filename validation; keep the supplied value if encoding is malformed.
   }
-  fileName = fileName.replace(/[\\/\u0000-\u001f]/gu, '_').slice(0, 180) || `${sha}.pdf`;
+  fileName = [...fileName]
+    .map((character) => {
+      const code = character.charCodeAt(0);
+      return character === '/' || character === '\\' || code < 0x20 ? '_' : character;
+    })
+    .join('')
+    .slice(0, 180) || `${sha}.pdf`;
   try {
     const fileId = await deps.uploadProjectFile(projectId, token, fileName, body);
     await saveProjectPdfLink(deps, projectId, sha, { fileId, fileName });

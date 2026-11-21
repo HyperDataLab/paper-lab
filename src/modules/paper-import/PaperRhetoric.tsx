@@ -32,28 +32,28 @@ import { PlaceText } from './PlaceText';
 type Location = Finding['locations'][number];
 const LABELS: Record<RhetoricCategory, { name: string; help: string }> = {
   territory: { name: 'Xác lập lĩnh vực', help: 'Cho thấy lĩnh vực quan trọng hoặc đã biết gì.' },
-  niche: { name: 'Chỉ ra khoảng trống', help: 'Nêu vấn đề, câu hỏi hoặc điều còn thiếu.' },
-  occupy: { name: 'Lấp khoảng trống', help: 'Nêu bài này làm gì hoặc đóng góp gì.' },
+  niche: { name: 'Chỉ ra research gap', help: 'Nêu vấn đề, câu hỏi hoặc điều còn thiếu.' },
+  occupy: { name: 'Lấp research gap', help: 'Nêu bài này làm gì hoặc contribution là gì.' },
   result_statement: { name: 'Nhắc lại kết quả', help: 'Nêu lại phát hiện khi diễn giải.' },
   comparison: { name: 'So sánh với nghiên cứu trước', help: 'Đặt kết quả cạnh công trình khác.' },
   explanation: { name: 'Giải thích', help: 'Đưa ra lý do cho kết quả.' },
-  limitation: { name: 'Hạn chế', help: 'Tác giả nêu hạn chế của nghiên cứu.' },
+  limitation: { name: 'Limitations', help: 'Tác giả nêu limitations của nghiên cứu.' },
   implication: { name: 'Hàm ý', help: 'Ý nghĩa với thực tiễn, lý thuyết hoặc nghiên cứu sau.' },
   threat_internal: { name: 'Validity nội tại', help: 'Yếu tố làm yếu suy luận nhân quả.' },
   threat_external: { name: 'Validity ngoại tại', help: 'Giới hạn khi khái quát sang bối cảnh khác.' },
-  threat_construct: { name: 'Validity cấu trúc', help: 'Thước đo có đo đúng khái niệm không.' },
+  threat_construct: { name: 'Validity cấu trúc', help: 'Metric có đo đúng khái niệm không.' },
   threat_conclusion: { name: 'Validity kết luận', help: 'Năng lực thống kê, giả định, so sánh nhiều lần.' },
   data_availability: { name: 'Công bố dữ liệu', help: 'Dữ liệu lấy ở đâu, có công khai không.' },
   code_availability: { name: 'Công bố code', help: 'Code lấy ở đâu, có công khai không.' },
 };
 const GROUPS = {
   reporting: [
-    { title: 'Đe doạ validity tác giả nêu', categories: VALIDITY_THREATS },
+    { title: 'Threats to validity do tác giả nêu', categories: VALIDITY_THREATS },
     { title: 'Công bố dữ liệu và code', categories: AVAILABILITY },
   ],
   moves: [
-    { title: 'Moves ở Mở đầu (CARS)', categories: CARS_MOVES },
-    { title: 'Moves ở Bàn luận', categories: DISCUSSION_MOVES },
+    { title: 'Moves ở Introduction (CARS)', categories: CARS_MOVES },
+    { title: 'Moves ở Discussion', categories: DISCUSSION_MOVES },
   ],
 };
 
@@ -234,8 +234,8 @@ export function PaperRhetoric({
         {!run && <h2>Phân tích tu từ và mức độ báo cáo</h2>}
         {!run && (
           <p>
-            Một lượt phân tích cho cả moves, validity, công bố dữ liệu và độ khớp Tóm tắt. AI đề xuất, code
-            kiểm tra từng trích dẫn có thật trong bài, bạn xác nhận.
+            Một lượt phân tích cho cả moves, validity, công bố dữ liệu và độ khớp của abstract. AI đề xuất,
+            code kiểm tra từng trích dẫn có thật trong bài, bạn xác nhận.
           </p>
         )}
         <ActionBar
@@ -245,7 +245,7 @@ export function PaperRhetoric({
                 Đang phân tích… {used}/{cap || budget} lượt
               </span>
             ) : run ? (
-              `Phân tích lúc ${new Date(run.createdAt).toLocaleString('vi-VN')} · ${run.sectionIds.length} mục · ${run.callsUsed} lượt gọi`
+              `Phân tích lúc ${new Date(run.createdAt).toLocaleString('vi-VN')} · ${run.sectionIds.length} section · ${run.callsUsed} lượt gọi`
             ) : (
               'Chưa phân tích bài này.'
             )
@@ -281,7 +281,7 @@ export function PaperRhetoric({
             {run.failedSectionIds
               .map((id) => paper.sections.find((s) => s.id === id)?.heading ?? id)
               .join(', ')}
-            . Các mục này không được tính.
+            . Các section này không được tính.
           </p>
         )}
       </Card>
@@ -302,7 +302,7 @@ export function PaperRhetoric({
                       {LABELS[category].name} ({items.length})
                     </h3>
                     <p className={styles.note}>{LABELS[category].help}</p>
-                    {items.length === 0 && <p>Chưa thấy trong các mục đã đọc.</p>}
+                    {items.length === 0 && <p>Chưa thấy trong các section đã đọc.</p>}
                     <div className={styles.findings}>
                       {[...items, ...dismissed].map((item) => (
                         <FindingCard
@@ -333,14 +333,16 @@ export function PaperRhetoric({
         ))}
       {run && metrics && focus === 'moves' && (
         <Card>
-          <h2>Độ khớp Tóm tắt với nội dung</h2>
+          <h2>Độ khớp của abstract với nội dung</h2>
           {!run.abstractChecked ? (
-            <p>Chưa so sánh được, vì cần cả Tóm tắt và phần Kết quả hoặc Bàn luận trong các mục đã chọn.</p>
+            <p>
+              Chưa so sánh được, vì cần cả abstract và phần results hoặc discussion trong các section đã chọn.
+            </p>
           ) : (
             <>
               <p>
-                {metrics.supported}/{metrics.claims.length} khẳng định trong Tóm tắt tìm thấy đoạn tương ứng
-                trong phần thân. Khẳng định chưa tìm thấy không có nghĩa là sai.
+                {metrics.supported}/{metrics.claims.length} claims trong abstract tìm thấy đoạn tương ứng
+                trong phần thân. Claim chưa tìm thấy không có nghĩa là sai.
               </p>
               <div className={styles.findings}>
                 {run.abstractClaims.map((claim) => (

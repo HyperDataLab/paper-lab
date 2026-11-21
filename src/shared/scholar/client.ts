@@ -1,3 +1,4 @@
+import { harvestPageUrl } from '@/core/corpus/sampling';
 import {
   mapCrossref,
   mapEuropePmc,
@@ -234,10 +235,7 @@ export function createScholarClient(options: { email?: string | null }, deps: De
   }
   async function harvestWorks(url: string, cursor: string, signal?: AbortSignal) {
     await deps.sleep(200);
-    const query = new URL(url);
-    query.searchParams.set('per-page', '200');
-    query.searchParams.set('cursor', cursor);
-    const body = (await getJson(query.toString(), signal)) as {
+    const body = (await getJson(harvestPageUrl(url, cursor), signal)) as {
       results?: unknown[];
       meta?: { next_cursor?: string | null };
     } | null;

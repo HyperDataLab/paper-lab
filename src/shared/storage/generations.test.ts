@@ -1,15 +1,11 @@
-import 'fake-indexeddb/auto';
-import Dexie from 'dexie';
 import { webcrypto } from 'node:crypto';
 import { expect, it, vi } from 'vitest';
 import { buildGeneration } from '@/core/generation';
-import { createDb } from './db';
-import { createRepositories } from './repositories';
+import { testRepositories } from './testRepositories';
 
 it('WR-01 WR-08 accepts a generation only after failed checks are overridden and audits it', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const db = createDb(`generation-${crypto.randomUUID()}`);
-  const repo = createRepositories(db);
+  const repo = testRepositories();
   const value = buildGeneration(
     {
       mainClaim: 'Growth improved',
@@ -57,32 +53,11 @@ it('WR-01 WR-08 accepts a generation only after failed checks are overridden and
     kind: 'generated',
     generationId: safe.id,
   });
-  await db.delete();
 });
-it('WR-01 migrates version 2 without altering existing data', async () => {
-  vi.stubGlobal('crypto', webcrypto);
-  const name = `generation-migration-${crypto.randomUUID()}`;
-  const old = new Dexie(name);
-  old.version(2).stores({
-    analyses: 'id, createdAt, updatedAt, text.sourceHash',
-    auditEvents: 'id, analysisId, at',
-    revisions: 'id, sourceAnalysisId, createdAt',
-  });
-  const row = { id: crypto.randomUUID(), createdAt: 'old', updatedAt: 'old', text: { sourceHash: 'hash' } };
-  await old.table('analyses').add(row);
-  old.close();
-  const db = createDb(name);
-  expect(await db.analyses.get(row.id)).toEqual(row);
-  expect(await db.generations.count()).toBe(0);
-  await db.delete();
-});
-
 it('EV-12 exports and imports generations and their audit events, including legacy packages', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const sourceDb = createDb(`generation-export-${crypto.randomUUID()}`);
-  const targetDb = createDb(`generation-import-${crypto.randomUUID()}`);
-  const source = createRepositories(sourceDb),
-    target = createRepositories(targetDb);
+  const source = testRepositories(),
+    target = testRepositories();
   const value = buildGeneration(
     {
       mainClaim: 'Growth improved',
@@ -127,6 +102,4 @@ it('EV-12 exports and imports generations and their audit events, including lega
   void _generations;
   const oldPlan = await target.transfer.previewImport(legacy);
   expect(oldPlan.ok && oldPlan.generationsToInsert).toEqual([]);
-  await sourceDb.delete();
-  await targetDb.delete();
 });

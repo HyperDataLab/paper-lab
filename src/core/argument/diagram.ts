@@ -125,7 +125,7 @@ export function toulminDiagram(argument: Argument, orientation: Orientation = 'h
   // Only what was identified is connected; a missing slot stands alone.
   argument.data.forEach((_, index) => link(`data-${index}`, 'claim', 'Làm căn cứ cho'));
   if (argument.qualifier) link('qualifier', 'claim', 'Giới hạn', 'limit');
-  if (argument.statedWarrant || argument.inferredWarrant) link('warrant', 'claim', 'Lý lẽ nối');
+  if (argument.statedWarrant || argument.inferredWarrant) link('warrant', 'claim', 'Warrant nối');
   argument.backing.forEach((_, index) => link(`backing-${index}`, 'warrant', 'Hậu thuẫn cho'));
   argument.rebuttals.forEach((_, index) => link(`rebuttal-${index}`, 'claim', 'Trừ khi', 'conflict'));
 

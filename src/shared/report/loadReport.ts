@@ -1,5 +1,5 @@
 import { buildAnalysisReport } from '@/core/report';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 
 export async function loadReport(repo: Repositories, id: string) {
   const analysis = await repo.analyses.get(id);

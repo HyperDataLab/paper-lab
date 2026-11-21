@@ -61,6 +61,13 @@ export const PaperSchema = z.object({
   sections: z.array(SectionSchema),
   paragraphs: z.array(PaperParagraphSchema),
 });
+export const PaperSummarySchema = PaperSchema.omit({ sections: true, paragraphs: true }).extend({
+  detectedTitle: z.string().nullable(),
+  sectionCount: z.number().int().nonnegative(),
+  paragraphCount: z.number().int().nonnegative(),
+});
+export type PaperSummary = z.infer<typeof PaperSummarySchema>;
+
 export type Paper = z.infer<typeof PaperSchema>;
 export type Section = z.infer<typeof SectionSchema>;
 export type PaperParagraph = z.infer<typeof PaperParagraphSchema>;

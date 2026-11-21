@@ -4,7 +4,7 @@ import { contentEtag } from '@/core/paperModel/published';
 import { projectExperimentFacts } from '@/core/experimentFacts/project';
 import type { PapersDoc, PaperModelView } from '@/core/researchDesign/papers';
 import type { ExperimentFactsView } from '@/core/researchDesign/facts/experimentFacts';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 
 export async function loadLocalData(project: ExtractionProject, repo: Repositories) {
   const entries = await Promise.all(

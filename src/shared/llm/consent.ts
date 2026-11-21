@@ -1,8 +1,10 @@
 import { z } from 'zod';
-import { isProxyBaseUrl, type LlmConfig } from './config';
+import { criticModelFor, isProxyBaseUrl, type LlmConfig } from './config';
 import { ConsentRequiredError } from './errors';
 export const CONSENT_VERSION = 1;
 export const PAPER_CONSENT_VERSION = 2;
+const AUTORESEARCH_CONSENT_VERSION = 1;
+export type ConsentScope = 'paper' | 'autoresearch' | 'kg';
 const consentSchema = z.object({
   version: z.number(),
   provider: z.string(),
@@ -27,7 +29,7 @@ export function getConsent(): Consent | null {
     return null;
   }
 }
-export function acceptConsent(config: LlmConfig, paper = false): Consent | null {
+export function acceptConsent(config: LlmConfig, paper = false, autoresearch = false): Consent | null {
   const consent = {
     version: paper ? PAPER_CONSENT_VERSION : CONSENT_VERSION,
     provider: providerFor(config),
@@ -38,6 +40,15 @@ export function acceptConsent(config: LlmConfig, paper = false): Consent | null 
   try {
     localStorage.setItem(paper ? 'pl.paperConsent' : 'pl.consent', JSON.stringify(consent));
     if (paper) localStorage.setItem('pl.consent', JSON.stringify({ ...consent, version: CONSENT_VERSION }));
+    if (autoresearch)
+      localStorage.setItem(
+        'pl.autoresearchConsent',
+        JSON.stringify({
+          ...consent,
+          version: AUTORESEARCH_CONSENT_VERSION,
+          criticModel: criticModelFor(config),
+        }),
+      );
     return consent;
   } catch {
     return null;
@@ -47,6 +58,7 @@ export function revokeConsent(): void {
   try {
     localStorage.removeItem('pl.consent');
     localStorage.removeItem('pl.paperConsent');
+    localStorage.removeItem('pl.autoresearchConsent');
   } catch {
     /* Storage is unavailable. */
   }
@@ -80,4 +92,24 @@ export function requireConsent(config: LlmConfig): void {
 export function requirePaperConsent(config: LlmConfig): void {
   requireConsent(config);
   if (!hasPaperConsent(config)) throw new ConsentRequiredError();
+}
+export function hasAutoResearchConsent(config: LlmConfig): boolean {
+  try {
+    const record = consentSchema
+      .extend({ criticModel: z.string() })
+      .parse(JSON.parse(localStorage.getItem('pl.autoresearchConsent') || 'null'));
+    return (
+      hasValidConsent(config) &&
+      hasPaperConsent(config) &&
+      record.version === AUTORESEARCH_CONSENT_VERSION &&
+      record.baseUrl === config.baseUrl &&
+      record.model === config.model &&
+      record.criticModel === criticModelFor(config)
+    );
+  } catch {
+    return false;
+  }
+}
+export function requireAutoResearchConsent(config: LlmConfig) {
+  if (!hasAutoResearchConsent(config)) throw new ConsentRequiredError();
 }

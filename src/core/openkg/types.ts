@@ -28,6 +28,7 @@ export type KgPredicate =
   | 'contributes'
   | 'buildsOn'
   | 'relatedKeyword'
+  | 'coAuthor'
   | 'inTopic'
   | 'broader'
   | 'authoredBy'
@@ -62,6 +63,17 @@ export interface KgEdge {
   p: KgPredicate;
   o: string;
   layer: KgLayer;
+  provenance: KgProvenance;
+  evidence?: string[];
+  keywordScore?: number;
+  weight?: number;
+  supportCount?: number;
+  support?: KgSupport[];
+}
+
+export interface KgSupport {
+  paper: string;
+  sourcePaper?: string;
   provenance: KgProvenance;
   evidence?: string[];
 }

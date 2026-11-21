@@ -10,6 +10,22 @@ export function displayReason(reason: string | null): string | null {
   );
 }
 
+const checkCopy = new Map([
+  ['Trích dẫn và tài liệu tham khảo', 'Trích dẫn và references'],
+  ['Trích dẫn chưa có tài liệu tham khảo tương ứng.', 'Trích dẫn chưa có references tương ứng.'],
+  ['Tài liệu tham khảo chưa được trích dẫn.', 'Reference chưa được trích dẫn.'],
+  [
+    'Số liệu chưa được tìm thấy trong kết quả, thảo luận hoặc chú thích.',
+    'Chưa tìm thấy số liệu trong results, discussion hoặc chú thích.',
+  ],
+  [
+    'Mức khẳng định có thể mạnh hơn phần kết quả hoặc thảo luận.',
+    'Mức khẳng định có thể mạnh hơn phần results hoặc discussion.',
+  ],
+]);
+
+export const displayCheckText = (text: string) => checkCopy.get(text) ?? text;
+
 export function displayQuote(text: string, start: number, end: number): string {
   const points = Array.from(text);
   let finish = end;

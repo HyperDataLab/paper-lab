@@ -1,4 +1,6 @@
-import type { ParagraphDb } from './db';
+import type { DocStore } from './docStore';
+import type { Repositories } from './types';
+export type { Repositories } from './types';
 import { createStorageDeps } from './storageShared';
 export { SourceImmutableError } from './storageShared';
 export type { AnalysisPatch } from './analyses';
@@ -15,6 +17,7 @@ import { createCalibrationLabelsRepository } from './calibrationLabels';
 import { createCorpusProfilesRepository } from './corpusProfiles';
 import { createCorpusTopicsRepository } from './corpusTopics';
 import { createCorpusKeywordsRepository } from './corpusKeywords';
+import { createCorpusOpenKgRepository } from './corpusOpenKg';
 import { createCorporaRepository } from './corpora';
 import { createPaperReviewsRepository } from './paperReviews';
 import { createPaperProbesRepository } from './paperProbes';
@@ -23,56 +26,70 @@ import { createLibraryRepository } from './library';
 import { createStanceRepository } from './stance';
 import { createPaperInsightsRepository } from './paperInsights';
 import { createExtractionRepository } from './extractionProjects';
-import { createPdfFilesRepository } from './pdfFiles';
 import { createGrobidRepository } from './grobid';
 import { createTransferRepository } from './transfer';
 import { createResearchDesignRepository } from './researchDesigns';
 import { createScgRepository } from './scg';
+import { createAutoResearchRepository } from './autoresearch';
+import { withChangeEvents } from './changeEvents';
+import { paperStoreReads } from './paperStoreReads';
 export function createRepositories(
-  db: ParagraphDb,
+  base: DocStore,
   clock = () => new Date(),
   ids = () => crypto.randomUUID(),
-) {
+): Repositories {
+  const { store: batched, checkpointStore } = paperStoreReads(base);
+  // Remote stores have no live queries; readers such as the corpus graph refresh on these write events.
+  const { store, subscribe: changes } = withChangeEvents(batched);
   const deps = createStorageDeps(clock, ids);
   const { now, makeAudit } = deps;
-  const analyses = createAnalysesRepository(db, deps);
-  const audit = createAuditRepository(db);
-  const generations = createGenerationsRepository(db, deps);
-  const papers = createPapersRepository(db, deps);
-  const paperRuns = createPaperRunsRepository(db, deps);
-  const paperOverviews = createPaperOverviewsRepository(db, deps, analyses, papers);
-  const paperChecks = createPaperChecksRepository(db, deps, papers);
-  const paperContext = createPaperContextRepository(db);
-  const calibrationLabels = createCalibrationLabelsRepository(db, deps);
-  const corpora = createCorporaRepository(db);
-  const revisions = createRevisionsRepository(db, deps, analyses);
-  const paperReviews = createPaperReviewsRepository(db, now, makeAudit);
-  const paperProbes = createPaperProbesRepository(db, now, makeAudit);
-  const measurements = createMeasurementsRepository(db, now, makeAudit);
-  const stance = createStanceRepository(db, now, makeAudit);
-  const paperInsights = createPaperInsightsRepository(db, now, makeAudit);
-  const extraction = createExtractionRepository(db, now, makeAudit);
-  const library = createLibraryRepository(db, now, ids);
-  const pdfFiles = createPdfFilesRepository(db, now);
-  const transfer = createTransferRepository(db, clock, deps, {
-    analyses,
+  const audit = createAuditRepository(store);
+  const calibrationLabels = createCalibrationLabelsRepository(store, deps);
+  const analyses = createAnalysesRepository(
+    store,
+    deps,
+    audit.latestAt,
+    async () => (await calibrationLabels.list())[0]?.importedAt,
+  );
+  const generations = createGenerationsRepository(store, deps);
+  const library = createLibraryRepository(store, now, ids);
+  const paperRecords = createPapersRepository(store, deps);
+  const papers: typeof paperRecords = {
+    ...paperRecords,
+    // Library links are cleared separately to keep the paper deletion commit bounded.
+    async delete(id: string) {
+      await paperRecords.delete(id);
+      await library.detachPaper(id);
+    },
+  };
+  const paperRuns = createPaperRunsRepository(store, deps, checkpointStore);
+  const paperOverviews = createPaperOverviewsRepository(store, deps);
+  const paperChecks = createPaperChecksRepository(store, deps);
+  const paperContext = createPaperContextRepository(store);
+  const corpora = createCorporaRepository(store, deps);
+  const revisions = createRevisionsRepository(store, deps);
+  const paperReviews = createPaperReviewsRepository(store, now, makeAudit, audit.latestAt);
+  const paperProbes = createPaperProbesRepository(store, now, makeAudit);
+  const measurements = createMeasurementsRepository(store, now, makeAudit, checkpointStore);
+  const stance = createStanceRepository(store, now, makeAudit);
+  const paperInsights = createPaperInsightsRepository(store, now, makeAudit);
+  const extraction = createExtractionRepository(store, now, makeAudit);
+  const corpusKeywords = createCorpusKeywordsRepository(store, library, now);
+  const scg = createScgRepository(store, clock);
+  const transfer = createTransferRepository(store, clock, deps, {
     audit,
     generations,
     papers,
     paperOverviews,
-    paperChecks,
-    paperReviews,
-    paperProbes,
     measurements,
     library,
-    stance,
-    paperInsights,
     calibrationLabels,
     corpora,
   });
   return {
     analyses,
-    scg: createScgRepository(db, clock),
+    scg,
+    autoresearch: createAutoResearchRepository(store, deps),
     audit,
     revisions,
     generations,
@@ -88,15 +105,14 @@ export function createRepositories(
     paperContext,
     paperInsights,
     extraction,
-    researchDesigns: createResearchDesignRepository(db, now),
+    researchDesigns: createResearchDesignRepository(store, now),
     corpora,
-    corpusProfiles: createCorpusProfilesRepository(db),
-    corpusTopics: createCorpusTopicsRepository(db),
-    corpusKeywords: createCorpusKeywordsRepository(db, library, now),
-    pdfFiles,
-    grobid: createGrobidRepository(db),
+    corpusProfiles: createCorpusProfilesRepository(store),
+    corpusTopics: createCorpusTopicsRepository(store),
+    corpusKeywords,
+    corpusOpenKg: createCorpusOpenKgRepository(store, changes, corpusKeywords, scg),
+    grobid: createGrobidRepository(store),
     calibrationLabels,
     transfer,
   };
 }
-export type Repositories = ReturnType<typeof createRepositories>;

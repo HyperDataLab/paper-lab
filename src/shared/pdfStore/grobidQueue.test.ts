@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Paper } from '@/core/schemas';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 import { createGrobidQueue, type GrobidQueueStatus } from './grobidQueue';
 import { requestGrobid } from './grobidSync';
 

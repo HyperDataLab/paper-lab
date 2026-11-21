@@ -74,6 +74,19 @@ Rules:
 - **Labels keep their state.** Exports say how many labels are `machine`.
 - **The corpus file holds no paper text.** Evidence excerpts in a signature follow decision 6 (section 8).
 
+### Paper Fetch Hub acquisition
+
+`VITE_FETCH_HUB_URL` enables direct requests in the corpus build card. The signed-in browser sends the
+PaperLab Firebase ID token and tags each request `paperlab:corpus:<corpusId>/member:<memberId>`. The Hub
+API accepts up to 500 requests or status keys per call. DOI normalization and SHA-256 keys are checked
+against the vectors copied from `paper-fetch-hub/shared/doi-vectors.json`.
+
+**Cập nhật từ Hub** checks immediately. The visible page polls known pending requests no more than once
+per ten minutes. Hub statuses and reasons live in the open page. When the Hub hands over a completed PDF,
+PaperLab imports `paperlab/pdfs/<sha256>.pdf` through its PDF worker and records `retrieved`, `FULL_TEXT`,
+the paper ID and the PDF digest in the existing member fields. Failed or cancelled requests map to
+`not_retrieved`. See the [user workflow](datasets/FL_JOURNAL_CORPORA.md#acquire-pdfs-through-paper-fetch-hub).
+
 ## 3. Topic corpus and Extraction
 
 The corpus takes over the search and screening record; an Extraction project keeps its matrix.

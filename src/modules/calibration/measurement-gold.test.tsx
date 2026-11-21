@@ -1,16 +1,14 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { fixturePaper, fixtureRun, PAPER_ID } from '@/core/measurement/testFixture';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { MeasurementGoldCard } from './MeasurementGold';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 async function setup() {
-  const repo = createRepositories(createDb(`gold-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.papers.create(fixturePaper);
   await repo.measurements.saveRun(PAPER_ID, fixtureRun());
   render(
@@ -35,6 +33,7 @@ const upload = (files: File[]) =>
 
 it('§12 stays not measured until labels exist', async () => {
   await setup();
+  expect(screen.getByRole('columnheader', { name: 'Metric' })).toBeInTheDocument();
   expect(screen.getAllByText('Chưa đo')).toHaveLength(6);
   expect(screen.getByText('Đã đo trên 0/30 bài')).toBeInTheDocument();
 });

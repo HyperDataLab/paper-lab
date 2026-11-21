@@ -1,76 +1,205 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useAuth } from '@/shared/auth/authContext';
-import { RESEARCH_HUB_URL, SSO_BASE_URL } from '@/shared/auth/config';
-import {
-  ProjectWorkspaceError,
-  projectWorkspaceSnapshot,
-  pullProjectWorkspace,
-  pushProjectWorkspace,
-} from '@/shared/projectWorkspace';
-import { createDb, type ParagraphDb } from './db';
+import { RESEARCH_HUB_URL } from '@/shared/auth/config';
+import { PDF_WORKER_URL } from '@/shared/pdfStore';
+import { RemoteDocStore } from './remoteDocStore';
 import { createRepositories, type Repositories } from './repositories';
-import styles from './storageProvider.module.css';
-import {
-  exportProjectWorkspace,
-  hasProjectData,
-  importProjectWorkspace,
-  sameWorkspaceData,
-} from './projectWorkspace';
 
 const Context = createContext<Repositories | null>(null);
+const StoreContext = createContext<{ store: RemoteDocStore; error: string } | null>(null);
 const ProjectContext = createContext<string | null>(null);
-export type ProjectWorkspaceStatus = 'loading' | 'signed-out' | 'synced' | 'syncing' | 'error' | 'conflict';
+type ProjectWorkspaceStatus = 'loading' | 'signed-out' | 'synced' | 'syncing' | 'error' | 'conflict';
 const ProjectStatusContext = createContext<{
   projectId: string | null;
   projectName: string;
   status: ProjectWorkspaceStatus;
   error: string;
 } | null>(null);
-const LEGACY_MIGRATION_KEY = 'paperlab:researchhub-migrated-project';
-type SyncStatus = ProjectWorkspaceStatus;
+const noopSubscribe = () => () => {};
+const idle = () => 'idle' as const;
 
-const PROJECT_TABLES = new Set([
-  'analyses',
-  'papers',
-  'paperRuns',
-  'paperOverviews',
-  'paperChecks',
-  'paperReviews',
-  'paperProbes',
-  'measurements',
-  'library',
-  'stance',
-  'paperContext',
-  'paperInsights',
-  'corpora',
-  'corpusProfiles',
-  'corpusTopics',
-  'topicNames',
-  'corpusKeywords',
-  'doiKeywords',
-  'extractionProjects',
-  'researchDesigns',
-  'researchDesignBanks',
-  'scgRuns',
-  'grobid',
-]);
+export function StorageProvider({
+  children,
+  repositories,
+  projectId = null,
+  invalidProjectId = false,
+}: {
+  children: ReactNode;
+  repositories?: Repositories;
+  projectId?: string | null;
+  invalidProjectId?: boolean;
+  hideStatusBanner?: boolean;
+}) {
+  const { user, ready, error: authError, handoffFailed = false, signIn, getAccessToken, getIdToken } = useAuth();
+  // A supplied repository is an explicit in-memory/test adapter; production App never supplies one.
+  const injectedRepositories = repositories !== undefined;
+  const effectiveProjectId = projectId ?? (
+    injectedRepositories && import.meta.env.MODE === 'test'
+      ? '00000000-0000-4000-8000-000000000001'
+      : null
+  );
+  const uid = user?.uid;
+  const token = getAccessToken ?? getIdToken;
+  const [configurationError, setConfigurationError] = useState<{ store: RemoteDocStore; message: string } | null>(null);
+  const [verification, setVerification] = useState<{
+    key: string;
+    status: ProjectWorkspaceStatus;
+    name: string;
+    error: string;
+  } | null>(null);
+  const verificationKey = uid && effectiveProjectId ? `${uid}:${effectiveProjectId}` : '';
 
-async function diagnoseRejectedToken(token: string) {
-  if (!SSO_BASE_URL) return 'Không thể đối chiếu token: PaperLab chưa cấu hình SSO_BASE_URL.';
-  try {
-    const response = await fetch(new URL('/oauth/userinfo', SSO_BASE_URL), {
-      headers: { Authorization: `Bearer ${token}` },
+  const storage = useMemo(() => {
+    if (repositories || !uid || !effectiveProjectId || invalidProjectId) return null;
+    const store = new RemoteDocStore({
+      getToken: token,
+      projectId: effectiveProjectId,
+      onConfigurationError: (message) =>
+        setConfigurationError((current) => (message ? { store, message } : current?.store === store ? null : current)),
     });
-    if (response.ok) {
-      return 'SSO xác nhận token hợp lệ, nhưng PaperLab Worker từ chối token. Cần kiểm tra cấu hình SSO đang chạy trên Worker.';
-    }
-    if (response.status === 401 || response.status === 403) {
-      return `SSO cũng từ chối token (HTTP ${response.status}); PaperLab cần nhận lại phiên mới từ ResearchHub.`;
-    }
-    return `Không đối chiếu được token với SSO (HTTP ${response.status}).`;
-  } catch {
-    return 'Không kết nối được SSO để đối chiếu token; không thể kết luận token có hợp lệ hay không.';
+    return { store, repositories: createRepositories(store) };
+  }, [effectiveProjectId, invalidProjectId, repositories, token, uid]);
+
+  useEffect(() => {
+    if (injectedRepositories || invalidProjectId || !effectiveProjectId || !ready || !uid) return;
+
+    let active = true;
+    void (async () => {
+      const accessToken = await token();
+      if (!accessToken) throw new Error('Không nhận được phiên HyperDataLab SSO từ ResearchHub.');
+      const response = await fetch(`${PDF_WORKER_URL}/v1/me`, {
+        headers: { Authorization: `Bearer ${accessToken}`, 'X-Project-Id': effectiveProjectId },
+        cache: 'no-store',
+      });
+      const body: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        const detail = body && typeof body === 'object' && 'message' in body && typeof body.message === 'string'
+          ? body.message
+          : `Worker trả về HTTP ${response.status}.`;
+        throw new Error(detail);
+      }
+      const name = body && typeof body === 'object' && 'project' in body && body.project && typeof body.project === 'object' && 'name' in body.project && typeof body.project.name === 'string'
+        ? body.project.name
+        : effectiveProjectId;
+      if (active) {
+        setVerification({ key: `${uid}:${effectiveProjectId}`, status: 'synced', name, error: '' });
+      }
+    })().catch((cause: unknown) => {
+      if (!active) return;
+      setVerification({
+        key: `${uid}:${effectiveProjectId}`,
+        status: 'error',
+        name: effectiveProjectId,
+        error: cause instanceof Error ? cause.message : 'Không xác minh được quyền truy cập project ResearchHub.',
+      });
+    });
+    return () => {
+      active = false;
+    };
+  }, [injectedRepositories, invalidProjectId, effectiveProjectId, ready, token, uid]);
+
+  const status: ProjectWorkspaceStatus = injectedRepositories
+    ? 'synced'
+    : invalidProjectId || !effectiveProjectId
+    ? 'error'
+    : !ready
+      ? 'loading'
+      : !uid
+        ? 'signed-out'
+        : verification?.key === verificationKey
+          ? verification.status
+          : 'loading';
+  const projectName = verification?.key === verificationKey ? verification.name : effectiveProjectId ?? '';
+  const projectError = injectedRepositories
+    ? ''
+    : invalidProjectId
+    ? 'projectId trên liên kết ResearchHub không hợp lệ.'
+    : !effectiveProjectId
+      ? 'Hãy mở PaperLab từ một project ResearchHub.'
+      : !uid
+        ? authError
+        : verification?.key === verificationKey
+          ? verification.error
+          : '';
+
+  const error = configurationError && configurationError.store === storage?.store ? configurationError.message : '';
+  const saveState = useSyncExternalStore(
+    storage?.store.subscribe ?? noopSubscribe,
+    storage?.store.getSaveStatus ?? idle,
+  );
+  const visibleStatus = saveState === 'error' ? 'error' : saveState === 'saving' ? 'syncing' : status;
+  const projectStatus = useMemo(
+    () => ({ projectId: effectiveProjectId, projectName, status: visibleStatus, error: projectError || error }),
+    [effectiveProjectId, error, projectError, projectName, visibleStatus],
+  );
+  const retrySignIn = useCallback(() => void signIn(), [signIn]);
+
+  let gate: ReactNode = null;
+  if (invalidProjectId) {
+    gate = <section role="alert"><h1>Liên kết project không hợp lệ</h1><p>{projectError}</p></section>;
+  } else if (!effectiveProjectId) {
+    gate = (
+      <section>
+        <h1>Cần mở một project ResearchHub</h1>
+        <p>PaperLab lưu dữ liệu theo project đang làm việc. Hãy mở công cụ từ project trong ResearchHub.</p>
+        {RESEARCH_HUB_URL && <a href={`${RESEARCH_HUB_URL}/projects`}>Mở ResearchHub</a>}
+      </section>
+    );
+  } else if (!ready) {
+    gate = <p role="status">Đang kiểm tra phiên ResearchHub…</p>;
+  } else if (!user) {
+    gate = (
+      <section role="alert">
+        <h1>{handoffFailed ? 'Không nhận được phiên ResearchHub' : 'Cần phiên HyperDataLab SSO'}</h1>
+        <p>{authError || 'Mở PaperLab từ project ResearchHub để chuyển phiên hiện tại.'}</p>
+        {RESEARCH_HUB_URL && <a href={`${RESEARCH_HUB_URL}/projects/${encodeURIComponent(effectiveProjectId)}`}>Mở project ResearchHub</a>}
+        {!handoffFailed && <button type="button" onClick={retrySignIn}>Đăng nhập bằng SSO</button>}
+      </section>
+    );
+  } else if (status === 'loading') {
+    gate = <p role="status">Đang xác minh quyền truy cập project…</p>;
+  } else if (status === 'error') {
+    gate = (
+      <section role="alert">
+        <h1>Không mở được project</h1>
+        <p>{projectError}</p>
+        {RESEARCH_HUB_URL && <a href={`${RESEARCH_HUB_URL}/projects/${encodeURIComponent(effectiveProjectId)}`}>Mở project ResearchHub</a>}
+      </section>
+    );
   }
+
+  return (
+    <ProjectStatusContext.Provider value={projectStatus}>
+      <ProjectContext.Provider value={effectiveProjectId}>
+        <StoreContext.Provider value={storage ? { store: storage.store, error } : null}>
+          <Context.Provider value={repositories ?? storage?.repositories ?? null} key={`${uid ?? 'signed-out'}:${effectiveProjectId ?? 'no-project'}`}>
+          {injectedRepositories ? children : gate ?? children}
+          </Context.Provider>
+        </StoreContext.Provider>
+      </ProjectContext.Provider>
+    </ProjectStatusContext.Provider>
+  );
+}
+
+export function StorageStatus({ className }: { className?: string }) {
+  const storage = useContext(StoreContext);
+  const store = storage?.store;
+  const repo = useContext(Context);
+  const runs = useSyncExternalStore(repo?.paperRuns.subscribe ?? noopSubscribe, repo?.paperRuns.getSaveStatus ?? idle);
+  const measurements = useSyncExternalStore(
+    repo?.measurements.checkpoints.subscribe ?? noopSubscribe,
+    repo?.measurements.checkpoints.getSaveStatus ?? idle,
+  );
+  const workspace = useSyncExternalStore(store?.subscribe ?? noopSubscribe, store?.getSaveStatus ?? idle);
+  const pending = [runs, measurements, workspace];
+  const status = pending.includes('error') ? 'error' : pending.includes('saving') ? 'saving' : 'idle';
+  if (status === 'idle' && !storage?.error) return null;
+  return (
+    <div className={className} role="status">
+      {status !== 'idle' && <span>{status === 'saving' ? 'Đang lưu…' : 'Lỗi lưu'}</span>}
+      {storage?.error && <div role="alert">Kho dữ liệu project chưa được cấu hình.<details><summary>Chi tiết kỹ thuật</summary>{storage.error}</details></div>}
+    </div>
+  );
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -83,372 +212,6 @@ export function useProjectWorkspaceStatus() {
   const value = useContext(ProjectStatusContext);
   if (!value) throw new Error('StorageProvider is missing');
   return value;
-}
-
-export function StorageProvider({
-  children,
-  repositories,
-  projectId = null,
-  invalidProjectId = false,
-  hideStatusBanner = false,
-}: {
-  children: ReactNode;
-  repositories?: Repositories;
-  projectId?: string | null;
-  invalidProjectId?: boolean;
-  hideStatusBanner?: boolean;
-}) {
-  const db = useMemo(() => createDb(projectId ? `paragraph-lab-${projectId}` : undefined), [projectId]);
-  const value = useMemo(() => repositories ?? createRepositories(db), [db, repositories]);
-  const {
-    user,
-    ready: authReady,
-    error: authError,
-    handoffFailed = false,
-    signIn,
-    getAccessToken: ssoToken,
-    getIdToken,
-  } = useAuth();
-  const getAccessToken = ssoToken ?? getIdToken;
-  const [status, setStatus] = useState<SyncStatus>('loading');
-  const [projectName, setProjectName] = useState('');
-  const [syncError, setSyncError] = useState('');
-  const [sessionRejected, setSessionRejected] = useState(false);
-  const [attempt, setAttempt] = useState(0);
-  const modulesReady = useRef(false);
-  const dbCloseTimers = useRef(new Map<ParagraphDb, ReturnType<typeof setTimeout>>());
-  const visibleStatus: SyncStatus = invalidProjectId
-    ? 'error'
-    : !authReady
-      ? 'loading'
-      : handoffFailed || !user
-        ? 'signed-out'
-        : status;
-  const projectStatus = useMemo(
-    () => ({ projectId, projectName, status: visibleStatus, error: syncError }),
-    [projectId, projectName, visibleStatus, syncError],
-  );
-
-  useEffect(() => {
-    const closeTimers = dbCloseTimers.current;
-    const pendingClose = closeTimers.get(db);
-    if (pendingClose !== undefined) {
-      clearTimeout(pendingClose);
-      closeTimers.delete(db);
-    }
-    return () => {
-      const closeTimer = setTimeout(() => {
-        db.close();
-        closeTimers.delete(db);
-      }, 0);
-      closeTimers.set(db, closeTimer);
-    };
-  }, [db]);
-
-  useEffect(() => {
-    if (invalidProjectId) {
-      return;
-    }
-    if (!projectId) {
-      modulesReady.current = false;
-      return;
-    }
-    if (!authReady) {
-      return;
-    }
-    if (!user) {
-      modulesReady.current = false;
-      return;
-    }
-
-    let active = true;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let versionValue: string | null = null;
-    let pushing = false;
-    let dirtyWhilePushing = false;
-    let blocked = false;
-    modulesReady.current = false;
-
-    const runInitialSync = async () => {
-      const token = await getAccessToken();
-      if (!token) throw new ProjectWorkspaceError(401, 'Phiên SSO đã hết hạn. Hãy đăng nhập lại.');
-      let remote;
-      try {
-        remote = await pullProjectWorkspace(projectId, token);
-      } catch (cause) {
-        if (cause instanceof ProjectWorkspaceError && cause.status === 401) {
-          throw new ProjectWorkspaceError(401, `${cause.message} ${await diagnoseRejectedToken(token)}`);
-        }
-        throw cause;
-      }
-      if (!active) return;
-      setProjectName(remote.project.name);
-      versionValue = remote.version;
-      const local = await exportProjectWorkspace(db, value, projectId);
-      if (remote.snapshot) {
-        await importProjectWorkspace(db, value, remote.snapshot);
-        const merged = await exportProjectWorkspace(db, value, projectId);
-        if (!sameWorkspaceData(merged.payload, remote.snapshot.payload)) {
-          const result = await pushProjectWorkspace(
-            projectWorkspaceSnapshot(projectId, merged.payload),
-            versionValue,
-            token,
-          );
-          versionValue = result.version;
-        }
-        try {
-          localStorage.setItem(LEGACY_MIGRATION_KEY, projectId);
-        } catch {
-          /* Private browsing may disable local storage. */
-        }
-      } else if (hasProjectData(local.payload)) {
-        const result = await pushProjectWorkspace(local, null, token);
-        versionValue = result.version;
-        try {
-          localStorage.setItem(LEGACY_MIGRATION_KEY, projectId);
-        } catch {
-          /* Private browsing may disable local storage. */
-        }
-      } else {
-        let migratedTo: string | null = null;
-        try {
-          migratedTo = localStorage.getItem(LEGACY_MIGRATION_KEY);
-        } catch {
-          /* Continue without a one-time migration marker. */
-        }
-        if (!migratedTo) {
-          const legacyDb = createDb();
-          const legacyRepositories = createRepositories(legacyDb);
-          try {
-            const legacy = await exportProjectWorkspace(legacyDb, legacyRepositories, projectId);
-            if (hasProjectData(legacy.payload)) {
-              await importProjectWorkspace(db, value, legacy);
-              const migrated = await exportProjectWorkspace(db, value, projectId);
-              const result = await pushProjectWorkspace(migrated, null, token);
-              versionValue = result.version;
-            }
-            try {
-              localStorage.setItem(LEGACY_MIGRATION_KEY, projectId);
-            } catch {
-              /* Private browsing may disable local storage. */
-            }
-          } finally {
-            legacyDb.close();
-          }
-        }
-      }
-      if (!active) return;
-      modulesReady.current = true;
-      setSessionRejected(false);
-      setStatus('synced');
-    };
-
-    const pushLatest = async () => {
-      if (!active || blocked) return;
-      if (pushing) {
-        dirtyWhilePushing = true;
-        return;
-      }
-      pushing = true;
-      setStatus('syncing');
-      try {
-        const token = await getAccessToken();
-        if (!token) throw new ProjectWorkspaceError(401, 'Phiên SSO đã hết hạn. Hãy đăng nhập lại.');
-        const snapshot = await exportProjectWorkspace(db, value, projectId);
-        const result = await pushProjectWorkspace(snapshot, versionValue, token);
-        versionValue = result.version;
-        setProjectName(result.project.name);
-        setSyncError('');
-        setSessionRejected(false);
-        setStatus('synced');
-      } catch (cause) {
-        if (cause instanceof ProjectWorkspaceError && cause.status === 412) {
-          blocked = true;
-          setStatus('conflict');
-          setSyncError('Project được cập nhật ở phiên khác. Tải lại để ghép bản mới nhất.');
-        } else {
-          const rejected = cause instanceof ProjectWorkspaceError && cause.status === 401;
-          setSessionRejected(rejected);
-          setStatus('error');
-          setSyncError(cause instanceof Error ? cause.message : 'Không đồng bộ được project.');
-        }
-      } finally {
-        pushing = false;
-        if (dirtyWhilePushing && !blocked && active) {
-          dirtyWhilePushing = false;
-          timer = setTimeout(() => void pushLatest(), 500);
-        }
-      }
-    };
-
-    const schedulePush = () => {
-      if (!active || !modulesReady.current || blocked) return;
-      setStatus('syncing');
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => void pushLatest(), 900);
-    };
-
-    void Promise.resolve().then(() => {
-      if (active) {
-        setStatus('loading');
-        setSyncError('');
-      }
-      return runInitialSync();
-    }).catch((cause: unknown) => {
-      if (!active) return;
-      const rejected = cause instanceof ProjectWorkspaceError && cause.status === 401;
-      setSessionRejected(rejected);
-      setStatus(cause instanceof ProjectWorkspaceError && cause.status === 412 ? 'conflict' : 'error');
-      setSyncError(cause instanceof Error ? cause.message : 'Không tải được project từ ResearchHub.');
-    });
-
-    const subscribed = db.tables.filter((table) => PROJECT_TABLES.has(table.name));
-    for (const table of subscribed) {
-      table.hook.creating.subscribe(schedulePush);
-      table.hook.updating.subscribe(schedulePush);
-      table.hook.deleting.subscribe(schedulePush);
-    }
-    return () => {
-      active = false;
-      if (timer) clearTimeout(timer);
-      for (const table of subscribed) {
-        table.hook.creating.unsubscribe(schedulePush);
-        table.hook.updating.unsubscribe(schedulePush);
-        table.hook.deleting.unsubscribe(schedulePush);
-      }
-    };
-  }, [attempt, authReady, db, getAccessToken, invalidProjectId, projectId, user, value]);
-
-  const retry = useCallback(() => {
-    modulesReady.current = false;
-    setAttempt((current) => current + 1);
-  }, []);
-  const workspaceGate = invalidProjectId ? (
-    <section role="alert" style={{ padding: 20 }}>
-      projectId trên liên kết ResearchHub không hợp lệ.
-    </section>
-  ) : !projectId ? (
-    <section style={{ padding: 20 }}>
-      <h1>Cần mở một project ResearchHub</h1>
-      <p>PaperLab yêu cầu đăng nhập HyperDataLab SSO và một project bạn có quyền truy cập. Hãy mở PaperLab từ workspace của project trong ResearchHub.</p>
-      {RESEARCH_HUB_URL && <a href={`${RESEARCH_HUB_URL}/projects`}>Mở ResearchHub</a>}
-    </section>
-  ) : projectId && visibleStatus === 'signed-out' ? (
-    handoffFailed ? (
-      <section className={styles.sessionGate} role="alert">
-        <div className={styles.sessionHeading}>
-          <span className={styles.sessionIcon} aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 3 20 7v5c0 5-3.4 8-8 9-4.6-1-8-4-8-9V7l8-4Z" />
-              <path d="M9 12h6M12 9v6" />
-            </svg>
-          </span>
-          <div>
-            <h1>Không nhận được phiên từ ResearchHub</h1>
-            <p>PaperLab đã bỏ session cũ để tránh dùng nhầm. Mở lại công cụ từ project ResearchHub; PaperLab sẽ nhận phiên hiện tại, không chuyển bạn sang trang đăng nhập SSO.</p>
-          </div>
-        </div>
-        {authError && <p className={styles.sessionError}>{authError}</p>}
-        {RESEARCH_HUB_URL && (
-          <div className={styles.sessionActions}>
-            <a className={styles.sessionPrimary} href={RESEARCH_HUB_URL + '/projects/' + encodeURIComponent(projectId ?? '')}>
-              Mở project ResearchHub
-            </a>
-          </div>
-        )}
-      </section>
-    ) : (
-      <section style={{ padding: 20 }}>
-        <h1>Đăng nhập ResearchHub</h1>
-        <p>Đăng nhập HyperDataLab SSO để mở project này. PaperLab sẽ giữ nguyên projectId qua bước đăng nhập.</p>
-        {authError && <p role="alert">{authError}</p>}
-        <button type="button" onClick={() => void signIn()}>Đăng nhập bằng SSO</button>
-      </section>
-    )
-  ) : projectId && visibleStatus === 'loading' ? (
-    <p role="status" style={{ padding: 20 }}>Đang kiểm tra quyền và tải workspace ResearchHub…</p>
-  ) : projectId && (visibleStatus === 'error' || visibleStatus === 'conflict') ? (
-    <section role="alert" className={sessionRejected ? styles.sessionGate : undefined}>
-      {sessionRejected ? (
-        <>
-          <div className={styles.sessionHeading}>
-            <span className={styles.sessionIcon} aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="4" y="10" width="16" height="11" rx="2" />
-                <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" />
-              </svg>
-            </span>
-            <div>
-              <h1>Không xác minh được phiên ResearchHub</h1>
-              <p>PaperLab không xác minh được phiên đang dùng. Tài khoản ResearchHub vẫn giữ nguyên; hãy mở lại công cụ từ project để chuyển phiên hiện tại sang PaperLab.</p>
-            </div>
-          </div>
-          {authError && <p className={styles.sessionError}>{authError}</p>}
-          <div className={styles.sessionActions}>
-            {RESEARCH_HUB_URL && (
-              <a className={styles.sessionPrimary} href={`${RESEARCH_HUB_URL}/projects/${encodeURIComponent(projectId ?? '')}`}>
-                Mở project ResearchHub
-              </a>
-            )}
-            <button className={styles.sessionSecondary} type="button" onClick={retry}>
-              Thử lại
-            </button>
-          </div>
-          {syncError && (
-            <details className={styles.sessionDetails}>
-              <summary>Chi tiết kỹ thuật</summary>
-              <code>{syncError}</code>
-            </details>
-          )}
-        </>
-      ) : (
-        <>
-      <h1>
-        {visibleStatus === 'conflict'
-          ? 'Project có thay đổi mới'
-          : 'Không mở được project'}
-      </h1>
-      <p>{syncError}</p>
-      <button
-        type="button"
-        onClick={
-          visibleStatus === 'conflict'
-            ? () => window.location.reload()
-            : retry
-        }
-      >
-        {visibleStatus === 'conflict'
-          ? 'Tải lại và ghép dữ liệu'
-          : 'Thử lại'}
-      </button>
-        </>
-      )}
-    </section>
-  ) : null;
-
-  return (
-    <ProjectStatusContext.Provider value={projectStatus}>
-      <ProjectContext.Provider value={projectId}>
-        <Context.Provider value={value}>
-        {workspaceGate ?? (
-          <>
-            {!hideStatusBanner && projectId ? (
-              <div role="status" style={{ padding: '8px 8px', marginBottom: 'var(--space-4)', borderBottom: '1px solid var(--border)' }}>
-                ResearchHub · {projectName || projectId} · {visibleStatus === 'syncing' ? 'Đang đồng bộ…' : 'Đã đồng bộ'}
-                {visibleStatus === 'error' && syncError && ` · ${syncError}`}
-              </div>
-            ) : !hideStatusBanner ? (
-              <div role="status" style={{ padding: '8px 8px', marginBottom: 'var(--space-4)', borderBottom: '1px solid var(--border)' }}>
-                Chưa liên kết ResearchHub project · dữ liệu lưu cục bộ trên trình duyệt.
-              </div>
-            ) : null}
-            {children}
-          </>
-        )}
-        </Context.Provider>
-      </ProjectContext.Provider>
-    </ProjectStatusContext.Provider>
-  );
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

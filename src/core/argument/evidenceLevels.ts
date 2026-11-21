@@ -11,7 +11,7 @@ export const EVIDENCE_LEVEL_INFO: Record<EvidenceLevel, { label: string; definit
     label: 'None',
     definition:
       'no evidence is given: no data, citation or derivation; the claim is asserted or treated as common knowledge.',
-    vi: 'Không có bằng chứng: không dữ liệu, trích dẫn hay suy diễn.',
+    vi: 'Không có evidence: không dữ liệu, trích dẫn hay suy diễn.',
   },
   E1: {
     label: 'Illustrative',

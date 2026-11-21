@@ -71,11 +71,12 @@ export function createLabResearchClient(options: {
       if (!parsed.success) throw new LabResearchError(0, 'failed', 'Invalid tools response.');
       return parsed.data.tools;
     },
-    async callTool(name: string, input: unknown): Promise<unknown> {
+    async callTool(name: string, input: unknown, signal?: AbortSignal): Promise<unknown> {
       if (!options.baseUrl.trim())
         throw new LabResearchError(0, 'not_configured', 'Lab research server is not configured.');
       const token = await options.getToken();
       if (!token) throw new LabResearchError(401, 'signed_out', 'Not signed in.');
+      signal?.throwIfAborted();
       let response: Response;
       try {
         response = await fetcher(
@@ -84,9 +85,11 @@ export function createLabResearchClient(options: {
             method: 'POST',
             headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(input),
+            ...(signal && { signal }),
           },
         );
       } catch {
+        signal?.throwIfAborted();
         throw new LabResearchError(0, 'network', 'Network request failed.');
       }
       const parsed = responseSchema.safeParse(await response.json().catch(() => null));

@@ -2,7 +2,7 @@ import { canonicalDigest } from '@/core/corpus';
 import { buildPaperModel, SENTENCE_KEY_VERSION } from '@/core/paperModel';
 import { SEGMENTER_VERSION } from '@/core/text';
 import type { CorpusMember } from '@/core/schemas/corpus';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 
 export async function modelInputs(
   member: CorpusMember,

@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
@@ -6,15 +5,14 @@ import { expect, it, vi } from 'vitest';
 import { exampleCorpus } from '@/core/corpus/contract';
 import { exampleInsights, examplePaper, exampleStance } from '@/core/paperModel/contract';
 import type { Corpus } from '@/core/schemas/corpus';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { LabelReview } from './LabelReview';
 import { LABEL_VERSIONS, labelSections } from './labelPlan';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 it('C4b a review decision updates precision', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`label-review-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const paper = examplePaper();
   const stance = exampleStance(paper);
   const run = stance.runs[0];

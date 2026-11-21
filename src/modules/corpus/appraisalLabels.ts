@@ -8,7 +8,7 @@ import {
 
 /** Short Vietnamese paraphrases of the MMAT 2018 items; the tool's own wording is not reproduced. */
 const VI: Record<string, string> = {
-  S1: 'Câu hỏi nghiên cứu rõ ràng',
+  S1: 'Research question rõ ràng',
   S2: 'Dữ liệu trả lời được câu hỏi',
   '1.1': 'Cách tiếp cận định tính phù hợp',
   '1.2': 'Cách thu thập dữ liệu đủ',
@@ -21,15 +21,15 @@ const VI: Record<string, string> = {
   '2.4': 'Người đánh giá kết cục bị che',
   '2.5': 'Người tham gia theo đúng can thiệp',
   '3.1': 'Người tham gia đại diện',
-  '3.2': 'Đo lường phù hợp',
+  '3.2': 'Measurement phù hợp',
   '3.3': 'Dữ liệu kết cục đầy đủ',
   '3.4': 'Đã tính đến yếu tố nhiễu',
   '3.5': 'Can thiệp hoặc phơi nhiễm đúng dự định',
   '4.1': 'Cách chọn mẫu phù hợp',
   '4.2': 'Mẫu đại diện',
-  '4.3': 'Đo lường phù hợp',
+  '4.3': 'Measurement phù hợp',
   '4.4': 'Ít nguy cơ sai lệch do không trả lời',
-  '4.5': 'Phân tích thống kê phù hợp',
+  '4.5': 'Statistical analysis phù hợp',
   '5.1': 'Có lý do dùng phương pháp hỗn hợp',
   '5.2': 'Các thành phần được tích hợp',
   '5.3': 'Kết quả tích hợp được diễn giải',

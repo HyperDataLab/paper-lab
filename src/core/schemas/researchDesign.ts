@@ -13,6 +13,13 @@ export const ResearchDesignSchema = z
     bankRelease: z.string().nullable(),
     facts: z.record(z.string(), factsDocSchema),
     frozenPlans: z.array(planSchema),
+    planDeviation: z
+      .strictObject({
+        runId: z.string().min(1),
+        planVersion: z.number().int().positive(),
+        changedAt: z.iso.datetime(),
+      })
+      .optional(),
     topicCheck: TopicCheckSchema.optional(),
     /** Frozen versions the lab's server has accepted for SRD, keyed by plan version. Absent in older records. */
     publishedPlans: z
@@ -32,7 +39,15 @@ export const ResearchDesignSchema = z
         (version) => Number(version) <= record.frozenPlans.length,
       ),
     'Published plan versions must be frozen',
-  );
+  )
+  .refine((record) => {
+    const pending = record.planDeviation;
+    const plan = record.frozenPlans.at(-1);
+    return (
+      !pending ||
+      (plan?.planVersion === pending.planVersion && plan.context?.autoresearch?.runId === pending.runId)
+    );
+  }, 'Deviation must refer to the latest frozen AutoResearch plan');
 export type ResearchDesign = z.infer<typeof ResearchDesignSchema>;
 export function emptyResearchDesign(projectId: string): ResearchDesign {
   return {

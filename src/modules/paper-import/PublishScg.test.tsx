@@ -20,7 +20,7 @@ const paper = {
   source: { kind: 'pdf', fileName: 'a.pdf', pageCount: 1, sha256: `sha256:${sha}` },
 } as Paper;
 const graph = () => projectScgPaper(exampleScgRun(), `sha256-${sha}`);
-const button = () => screen.getByRole('button', { name: 'Công bố đồ thị đóng góp' });
+const button = () => screen.getByRole('button', { name: 'Công bố đồ thị contribution' });
 function setup(run: ScgPaperRun = exampleScgRun(), signedIn = true) {
   render(
     <AuthContext.Provider value={{ ...auth, user: signedIn ? auth.user : null }}>
@@ -98,7 +98,7 @@ describe('publishing a contribution graph', () => {
       );
     vi.stubGlobal('fetch', fetchMock);
     setup();
-    expect(await screen.findByText('Đồ thị đóng góp chưa được công bố.')).toBeInTheDocument();
+    expect(await screen.findByText('Đồ thị contribution chưa được công bố.')).toBeInTheDocument();
     fireEvent.click(button());
     expect(await screen.findByText('Đã công bố, khớp với bản hiện tại.')).toBeInTheDocument();
     const [, init] = fetchMock.mock.calls[1] as [string, RequestInit];

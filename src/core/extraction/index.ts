@@ -322,3 +322,4 @@ export function matrixJson(project: ExtractionProject, options: { verifiedOnly: 
 export * from './project';
 export * from './verify';
 export * from './deep';
+export * from './triage';

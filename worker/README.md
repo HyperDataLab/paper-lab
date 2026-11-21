@@ -14,7 +14,8 @@ their on-demand migration to ResearchHub.
 - `PUT` accepts only `application/pdf`, at most 25 MiB, a body starting with `%PDF-` and whose SHA-256
   equals the path. A file already stored returns 200; a new one 201.
 - CORS answers only the origins in `ALLOWED_ORIGINS` (`wrangler.toml`).
-- The bucket is reached through the R2 binding, so the Worker holds no keys or secrets.
+- The bucket is reached through the R2 binding. Worker secrets can include `SCIATLAS_API_KEY` and
+  `OPENALEX_API_KEY`.
 
 ## ResearchHub project workspaces
 
@@ -127,6 +128,27 @@ the topics worker's base URL and the route sends the draft's body sentences to i
 the caller's token; without it, or when that call fails, those features are `unavailable`. The contract,
 with an example, is `docs/contracts/draft-measure.md`.
 
+## SciAtlas related papers
+
+`POST /v1/sciatlas/search` asks SciAtlas (OpenKG, `http://sciatlas.openkg.cn/v1/search`) for papers related
+to a set of anchors: keywords and titles with a high/middle/low level, reference titles, an optional date
+range, `topK` (at most 20) and a ranking profile. SciAtlas is plain HTTP, so the browser cannot call it from
+the https app; the Worker calls it with the lab's token and returns `{ papers, requestId?, elapsedMs }`,
+always with `Cache-Control: no-store`. Results are never stored in R2 and the query is never logged, because
+the SciAtlas data licence is not stated. The contract is `docs/contracts/sciatlas-proxy.md`.
+
+The token is the Worker secret `SCIATLAS_API_KEY`. It is never a `[vars]` entry, never committed and never
+returned in a response. The owner sets it once (it asks for the value; paste the SciAtlas token there):
+
+```bash
+cd worker
+npx wrangler secret put SCIATLAS_API_KEY
+```
+
+Without it the route answers `503 sciatlas_not_configured`. SciAtlas 401/403 (a bad or disabled token) become
+`502 sciatlas_auth`, 429 (the daily quota is used up) stays `429 sciatlas_quota`, no answer within 60 seconds
+is `504 sciatlas_timeout`, and any other failure is `502 sciatlas_error`.
+
 ## GROBID full text
 
 `POST /grobid/fulltext` accepts a PDF (up to 25 MiB); `POST /grobid/fulltext/<sha256>` fetches the
@@ -137,6 +159,52 @@ idle may take 30–60 seconds to start; after 120 seconds it returns 503 with a 
 The container is billed while running, including idle time, and stops after 10 minutes of inactivity;
 R2 and Worker usage have their own charges. The CRF image is pulled from a registry without Docker.
 `npx wrangler deploy` requires the Workers Paid plan for Containers.
+
+## Lab knowledge graph
+
+Signed-in lab accounts can `POST /v1/kg/ingest` with up to 50 OpenAlex work IDs or DOIs and can read queue
+counts and recent attempts from `GET /v1/kg/ingest/status`. `POST /v1/kg/search` finds related papers in the KG
+(hybrid FTS5, keyword, title, Vectorize and graph signals, in the `/v1/sciatlas/search` shape), and
+`GET /v1/kg/papers/:id`, `GET /v1/kg/keywords/:id`, `GET /v1/kg/stats` and `GET /v1/kg/overview` read it. Every KG route returns
+`503 kg_not_configured` when any KG binding is missing. The five-minute cron drains the queue. Publishing an SCG also projects its
+contributions and enqueues its DOI when D1 is bound. See the [Lab KG contract](../docs/contracts/lab-kg.md).
+
+For first-time provisioning, run these steps on the HyperDataLab account from `worker/`.
+
+1. Run `wrangler d1 create paperlab-kg`.
+2. Put the returned ID in `wrangler.toml` in place of `TO_BE_CREATED_ON_DEPLOY`.
+3. Run `wrangler d1 migrations apply paperlab-kg --remote`.
+4. Run `wrangler vectorize create paperlab-kg-papers --dimensions=768 --metric=cosine`.
+
+Wrangler 4.161.0 accepts the placeholder during config parsing. For a deployment without the KG resources,
+comment out the `[[d1_databases]]`, `[[vectorize]]` and `[ai]` blocks. The cron can stay enabled. The worker
+uses the existing `OPENALEX_API_KEY` secret if set. `OPENALEX_MAILTO` is unset by default and can be set to a
+lab contact for OpenAlex.
+
+## Central lab store
+
+The lab's records (ADR-0007) live in the D1 database `paperlab-data` (binding `DATA`), one `doc` row per
+record, with bodies in R2 at `paperlab/data/{collection}/{id}/v{n}.json` (one immutable object per version;
+small inline collections keep their body in the row). Collections, their Zod schemas, index columns and size
+caps are in `src/core/storage/collections.ts`. Authorized requests return `503 data_not_configured` without `DATA`.
+
+- `GET /v1/data/:collection/:id` returns the body with `ETag: "v<n>"`; `If-None-Match` gives 304.
+- `PUT` needs `If-Match: "v<n>"` or `If-None-Match: *` (otherwise 428). The body is validated on the server.
+  A stale version returns `409 version_conflict` with `serverVersion`. `DELETE` with `If-Match` soft-deletes.
+- `POST /v1/data/query` filters on index columns (`projectId`, `corpusId`, `paperId`, `refId`, `doi`, `title`,
+  `kind`, `status`, `sourceSha256`) and returns summary rows, or bodies with `include: "body"`.
+- `POST /v1/data/batch-get` reads up to 100 ids. `POST /v1/data/commit` applies up to 100 puts and deletes,
+  100 read guards and 200 inline appends in one D1 batch: all of them land, or none (409 lists the conflicts).
+- `POST /v1/data/admin/import-legacy-corpora` requires a lab admin and processes up to eight legacy R2 objects.
+  It creates validated corpora that have no live row and returns `{imported, skipped, failed, cursor}`.
+  Pass a returned cursor as the `cursor` query parameter on the next request. A null cursor ends the import.
+
+Writes are stamped with the caller's email. The cron removes bodies that are no longer current after a day,
+or at once when three versions behind. To provision on the HyperDataLab account, from `worker/`:
+
+1. Run `wrangler d1 create paperlab-data`.
+2. Put the returned ID in the `DATA` block of `wrangler.toml` in place of `TO_BE_CREATED_ON_DEPLOY`.
+3. Run `wrangler d1 migrations apply paperlab-data --remote` (migrations in `migrations-data/`).
 
 ## Deploy
 

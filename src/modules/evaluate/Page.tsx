@@ -304,10 +304,10 @@ export default function Page() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Đánh giá đoạn văn"
+        title="Đánh giá paragraph"
         lead={
           !id && !result
-            ? 'Dán một đoạn văn học thuật tiếng Anh rồi phân tích từng bước. AI chỉ đưa gợi ý; bạn quyết định giữ hay bỏ.'
+            ? 'Dán một paragraph học thuật tiếng Anh rồi phân tích từng bước. AI chỉ đưa gợi ý; bạn quyết định giữ hay bỏ.'
             : undefined
         }
       >
@@ -320,7 +320,7 @@ export default function Page() {
       )}
       {generationId && (
         <p className={styles.crumb}>
-          <Link to={`/generate?id=${generationId}`}>Đoạn soạn từ luận điểm</Link>
+          <Link to={`/generate?id=${generationId}`}>Paragraph soạn từ claim</Link>
         </p>
       )}
       {parent && (
@@ -330,12 +330,12 @@ export default function Page() {
       )}
       {(!result || editing) && (!id || error) && (
         <div className={styles.compose}>
-          <section className={styles.editor} aria-label="Đoạn văn cần đánh giá">
+          <section className={styles.editor} aria-label="Paragraph cần đánh giá">
             <TextField
-              label="Dán một đoạn văn tiếng Anh"
+              label="Dán một paragraph tiếng Anh"
               multiline
               id="paragraph"
-              placeholder="Dán một đoạn văn học thuật tiếng Anh vào đây…"
+              placeholder="Dán một paragraph học thuật tiếng Anh vào đây…"
               value={text}
               disabled={!!id}
               onKeyDown={(event) => {
@@ -605,7 +605,7 @@ export default function Page() {
               aria-selected={view === 'paragraph'}
               onClick={() => setView('paragraph')}
             >
-              Cấu trúc đoạn
+              Cấu trúc paragraph
             </Button>
             <Button
               id="scores-tab"

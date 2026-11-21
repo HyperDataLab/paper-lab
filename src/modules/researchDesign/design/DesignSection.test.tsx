@@ -31,7 +31,7 @@ beforeEach(() => {
 });
 it('RD-01 chooses a design from the snapshot', async () => {
   setup();
-  fireEvent.click(screen.getByRole('button', { name: 'Chọn thiết kế' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Chọn research design' }));
   fireEvent.click(
     within(screen.getByText('Test experiment').parentElement as HTMLElement).getByRole('button', {
       name: 'Chọn',
@@ -62,10 +62,10 @@ it('RD-04 adds an offered threat without adopting the bank mitigation', async ()
 });
 it('RD-05 permits a self-described design without a snapshot', async () => {
   setup(emptyResearchDesign('project'), false);
-  fireEvent.click(screen.getByRole('button', { name: 'Chọn thiết kế' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Chọn research design' }));
   expect(screen.getByRole('link', { name: 'Writing Bank' })).toHaveAttribute('href', '/?design=bank');
-  fireEvent.change(screen.getByLabelText('Tên thiết kế'), { target: { value: 'Synthetic study' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Chọn thiết kế tự mô tả' }));
+  fireEvent.change(screen.getByLabelText('Tên research design'), { target: { value: 'Synthetic study' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Chọn research design tự mô tả' }));
   await waitFor(() => expect(state.save).toHaveBeenCalledOnce());
 });
 it('RD-09 re-pins resolvable references and retains missing references', async () => {
@@ -116,9 +116,7 @@ it('RD-03 DS-01 links an unsupported hypothesis to questions', () => {
   });
   setup(record);
   expect(screen.getByRole('link', { name: 'h-1' })).toHaveAttribute('href', '/?design=questions');
-  expect(
-    screen.getByText(/kh\u00f4ng h\u1ed7 tr\u1ee3 lo\u1ea1i nh\u1eadn \u0111\u1ecbnh n\u00e0y/),
-  ).toBeInTheDocument();
+  expect(screen.getByText(/kh\u00f4ng h\u1ed7 tr\u1ee3 loại claim n\u00e0y/)).toBeInTheDocument();
 });
 it('RD-06 DS-05 reports a missing design reference', () => {
   const record = emptyResearchDesign('project');

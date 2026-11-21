@@ -53,7 +53,7 @@ export function RequestCard({
     }
   }
 
-  const title = request.title || 'Bài chưa có tiêu đề';
+  const title = request.title || 'Bài chưa có title';
   return (
     <Card padding="md">
       <div className={styles.head}>
@@ -115,7 +115,7 @@ export function RequestCard({
               <ol>
                 <li>
                   <Link to={`/papers/${encodeURIComponent(localPaper.id)}?view=measure`}>
-                    Mở Đo lường của bài
+                    Mở measurement của bài
                   </Link>{' '}
                   và chạy, rồi xem lại dữ kiện.
                 </li>

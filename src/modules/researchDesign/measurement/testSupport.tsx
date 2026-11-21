@@ -7,12 +7,11 @@ import { snapshot } from '@/core/researchDesign/bank/testSupport';
 import { emptyDraft, type Draft } from '@/core/researchDesign/draft/schema';
 import { emptyResearchDesign } from '@/core/schemas/researchDesign';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { ToastContext } from '@/shared/ui/toastContext';
 import { ResearchDesignProvider } from '../ResearchDesignProvider';
 import MeasurementSection from '../sections/MeasurementSection';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 const id = '00000000-0000-4000-8000-000000000002';
 const at = '2026-01-01T00:00:00.000Z';
@@ -32,7 +31,7 @@ const project: ExtractionProject = {
 };
 const bytes = (text: string) => new TextEncoder().encode(text).buffer as ArrayBuffer;
 
-export const newRepo = () => createRepositories(createDb(`measurement-${crypto.randomUUID()}`));
+export const newRepo = () => testRepositories();
 
 export function renderSection(repo: ReturnType<typeof newRepo>, url = '/') {
   const toast = vi.fn();

@@ -3,7 +3,7 @@ import { runPaperChecks } from '@/core/paperChecks';
 import { GROBID_VERSION, type GrobidRecord, type GrobidResult, type Paper } from '@/core/schemas';
 import type { Repositories } from '@/shared/storage/repositories';
 import { fetchGrobidTei } from './grobid';
-import { paperSha, pdfRemote, PdfRemoteError } from './index';
+import { paperSha, PdfRemoteError } from './index';
 
 /** Why GROBID cannot be used for a paper before anything is sent, or null when it can be asked. */
 export function grobidBlocker(paper: Pick<Paper, 'source'>, signedIn: boolean): string | null {
@@ -63,11 +63,6 @@ export async function requestGrobid(
   try {
     const token = await getIdToken();
     if (!token) throw new PdfRemoteError(401);
-    const local = await repo.pdfFiles.get(sha);
-    if (local && !(await pdfRemote.exists(sha, projectId, token))) {
-      await pdfRemote.upload(sha, projectId, paper.source.fileName || `${sha}.pdf`, local.blob, token);
-      await repo.pdfFiles.markUploaded(sha);
-    }
     const result = parseGrobidTei(await fetchGrobidTei(sha, projectId, token, signal));
     if (good && !replace) {
       const old = good.result;
