@@ -318,9 +318,11 @@ async function expand(db: D1Database, from: Pick<KgNodeInfo, 'id' | 'kind'>[], p
   const plan = from.flatMap(({ id, kind }) => RELATIONS[kind].map((relation) => ({ id, relation })));
   if (!plan.length) return [];
   const projectPrefix = `@rh/${projectId}/%`;
-  const results = await db.batch<Row>(plan.map(({ id, relation }) =>
-    db.prepare(relation.sql.replaceAll('__PROJECT_PREFIX__', projectPrefix)).bind(id),
-  ));
+  const results = await db.batch<Row>(
+    plan.map(({ id, relation }) =>
+      db.prepare(relation.sql.replaceAll('__PROJECT_PREFIX__', projectPrefix)).bind(id),
+    ),
+  );
   return plan.flatMap(({ id, relation }, index) =>
     (results[index]?.results ?? []).map((row) => relation.link(row, id)),
   );
@@ -333,9 +335,10 @@ export async function readKgGraph(
 ): Promise<KgGraph | null> {
   const prefix = `@rh/${projectId}/`;
   const scopedCentre = options.centre.startsWith('10.') ? options.centre : `${prefix}${options.centre}`;
-  const centreStatement = options.kind === 'paper'
-    ? db.prepare(CENTRE_SQL[options.kind]).bind(scopedCentre, `${prefix}%`)
-    : db.prepare(CENTRE_SQL[options.kind]).bind(scopedCentre);
+  const centreStatement =
+    options.kind === 'paper'
+      ? db.prepare(CENTRE_SQL[options.kind]).bind(scopedCentre, `${prefix}%`)
+      : db.prepare(CENTRE_SQL[options.kind]).bind(scopedCentre);
   const [found] = await db.batch<Row>([centreStatement]);
   const row = found?.results[0];
   if (!row) return null;
@@ -445,7 +448,13 @@ function graphOptions(params: URLSearchParams) {
   };
 }
 
-export async function handleKgGraph(db: D1Database, request: Request, path: string, headers: Headers, projectId: string) {
+export async function handleKgGraph(
+  db: D1Database,
+  request: Request,
+  path: string,
+  headers: Headers,
+  projectId: string,
+) {
   if (request.method !== 'GET') return publishedError(405, 'bad_request', 'Use GET.', headers);
   const params = new URL(request.url).searchParams;
   if (path === '/v1/kg/trend') {
@@ -460,7 +469,11 @@ export async function handleKgGraph(db: D1Database, request: Request, path: stri
     ];
     if (!requested.length || requested.length > KG_TREND_LIMIT)
       return publishedError(400, 'bad_request', `Expected 1–${KG_TREND_LIMIT} keywords.`, headers);
-    return withEtag(request, stripProjectIds(await readKgTrend(db, requested, projectId), projectId), headers);
+    return withEtag(
+      request,
+      stripProjectIds(await readKgTrend(db, requested, projectId), projectId),
+      headers,
+    );
   }
   const options = graphOptions(params);
   if (!options)
@@ -480,8 +493,12 @@ function stripProjectIds(value: unknown, projectId: string): unknown {
   const prefix = `@rh/${projectId}/`;
   if (Array.isArray(value)) return value.map((item) => stripProjectIds(item, projectId));
   if (!value || typeof value !== 'object') return value;
-  return Object.fromEntries(Object.entries(value).map(([key, item]) => [
-    key,
-    typeof item === 'string' && item.startsWith(prefix) ? item.slice(prefix.length) : stripProjectIds(item, projectId),
-  ]));
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      typeof item === 'string' && item.startsWith(prefix)
+        ? item.slice(prefix.length)
+        : stripProjectIds(item, projectId),
+    ]),
+  );
 }

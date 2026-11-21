@@ -247,12 +247,20 @@
   min-width: 0;
 }
 @keyframes pdfSpin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 @keyframes pdfProgress {
-  0% { transform: translateX(-110%); }
-  55% { transform: translateX(190%); }
-  100% { transform: translateX(360%); }
+  0% {
+    transform: translateX(-110%);
+  }
+  55% {
+    transform: translateX(190%);
+  }
+  100% {
+    transform: translateX(360%);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .toolbar[data-loading='true']::after {

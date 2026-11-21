@@ -360,9 +360,13 @@ export async function commit(
   const { db } = env;
   const statements: D1Statement[] = [];
   for (const write of writes)
-    statements.push(guardStatement(db, write.op.collection, projectRecordId(env.projectId, write.op.id), write.prior));
+    statements.push(
+      guardStatement(db, write.op.collection, projectRecordId(env.projectId, write.op.id), write.prior),
+    );
   for (const guard of guards)
-    statements.push(guardStatement(db, guard.collection, projectRecordId(env.projectId, guard.id), rows.get(refKey(guard))));
+    statements.push(
+      guardStatement(db, guard.collection, projectRecordId(env.projectId, guard.id), rows.get(refKey(guard))),
+    );
   for (const guard of queryGuards) {
     const { conditions, values, ordering } = queryPlan(guard, false, env.projectId);
     // Compare inside the committing batch, including rows inserted after the client's query.
@@ -388,7 +392,15 @@ export async function commit(
           .prepare(
             'UPDATE doc SET version = ?, deleted_at = ?, updated_by = ?, updated_at = ?, r2_key = NULL, body_json = NULL WHERE collection = ? AND id = ? AND version = ?',
           )
-          .bind(write.version, at, env.email, at, write.op.collection, projectRecordId(env.projectId, write.op.id), write.version - 1),
+          .bind(
+            write.version,
+            at,
+            env.email,
+            at,
+            write.op.collection,
+            projectRecordId(env.projectId, write.op.id),
+            write.version - 1,
+          ),
       );
     } else if (write.prior) {
       statements.push(
@@ -435,21 +447,23 @@ export async function commit(
       ),
     );
   const writeLog = (write: (typeof writes)[number]): [string, string, number, string, string, string] => [
-      write.op.collection,
-      projectRecordId(env.projectId, write.op.id),
-      write.version,
-      write.op.op,
-      env.email,
-      at,
-    ];
-  const appendLog = ({ append }: (typeof fresh)[number]): [string, string, number, string, string, string] => [
-      append.collection,
-      projectRecordId(env.projectId, append.id),
-      1,
-      'put',
-      env.email,
-      at,
-    ];
+    write.op.collection,
+    projectRecordId(env.projectId, write.op.id),
+    write.version,
+    write.op.op,
+    env.email,
+    at,
+  ];
+  const appendLog = ({
+    append,
+  }: (typeof fresh)[number]): [string, string, number, string, string, string] => [
+    append.collection,
+    projectRecordId(env.projectId, append.id),
+    1,
+    'put',
+    env.email,
+    at,
+  ];
   const log = [...writes.map(writeLog), ...fresh.map(appendLog)];
   for (const part of chunk(log, Math.floor(MAX_PARAMS / 6)))
     statements.push(

@@ -60,8 +60,9 @@ function setup(options: { data?: boolean; wrapDb?: (db: D1Database) => D1Databas
       }),
     );
   const row = (collection: string, id: string) =>
-    sqlite.prepare('SELECT * FROM doc WHERE collection = ? AND id = ?').get(collection, projectRecordId(RH_PROJECT, id)) as
-      DocRow | undefined;
+    sqlite
+      .prepare('SELECT * FROM doc WHERE collection = ? AND id = ?')
+      .get(collection, projectRecordId(RH_PROJECT, id)) as DocRow | undefined;
   const count = (sql: string) => Number((sqlite.prepare(sql).get() as { n: number }).n);
   return {
     db,
@@ -200,14 +201,34 @@ describe('/v1/data/{col}/{id}', () => {
     expect((await call('PUT', path('doiKeywords', doi), body, { 'if-none-match': '*' })).status).toBe(201);
     const other = await call('GET', path('doiKeywords', doi), undefined, { 'X-Project-Id': OTHER_PROJECT });
     expect(other.status).toBe(404);
-    expect((await call('PUT', path('doiKeywords', doi), { ...body, fetchedAt: '2026-11-20T00:00:00.000Z' }, {
-      'if-none-match': '*', 'X-Project-Id': OTHER_PROJECT,
-    })).status).toBe(201);
+    expect(
+      (
+        await call(
+          'PUT',
+          path('doiKeywords', doi),
+          { ...body, fetchedAt: '2026-11-20T00:00:00.000Z' },
+          {
+            'if-none-match': '*',
+            'X-Project-Id': OTHER_PROJECT,
+          },
+        )
+      ).status,
+    ).toBe(201);
     expect((await call('GET', path('doiKeywords', doi))).status).toBe(200);
-    expect((await call('GET', path('doiKeywords', doi), undefined, { 'X-Project-Id': OTHER_PROJECT })).status).toBe(200);
+    expect(
+      (await call('GET', path('doiKeywords', doi), undefined, { 'X-Project-Id': OTHER_PROJECT })).status,
+    ).toBe(200);
     const unassignedDoi = '10.1234/unassigned';
-    sqlite.prepare("INSERT INTO doc (collection,id,version,r2_key,body_json,size,sha256,created_by,created_at,updated_by,updated_at,deleted_at,lab_id,visibility,summary_json) VALUES ('doiKeywords', ?, 1, NULL, ?, 2, 'x', 'a', ?, 'a', ?, NULL, 'hyperdatalab', 'lab', '{}')")
-      .run(unassignedDoi, JSON.stringify(doiKeywords(unassignedDoi)), START.toISOString(), START.toISOString());
+    sqlite
+      .prepare(
+        "INSERT INTO doc (collection,id,version,r2_key,body_json,size,sha256,created_by,created_at,updated_by,updated_at,deleted_at,lab_id,visibility,summary_json) VALUES ('doiKeywords', ?, 1, NULL, ?, 2, 'x', 'a', ?, 'a', ?, NULL, 'hyperdatalab', 'lab', '{}')",
+      )
+      .run(
+        unassignedDoi,
+        JSON.stringify(doiKeywords(unassignedDoi)),
+        START.toISOString(),
+        START.toISOString(),
+      );
     expect((await call('GET', path('doiKeywords', unassignedDoi))).status).toBe(404);
   });
 
@@ -299,7 +320,9 @@ describe('/v1/data/{col}/{id}', () => {
     });
     expect((await call('PUT', path('doiKeywords', doi), text, { 'if-none-match': '*' })).status).toBe(201);
     const key = row('doiKeywords', doi)?.r2_key as string;
-    expect(key).toMatch(/^paperlab\/data\/doiKeywords\/%40rh%2F[0-9a-f-]{36}%2F10\.1%2Frace\/v1-[0-9a-f-]{36}\.json$/u);
+    expect(key).toMatch(
+      /^paperlab\/data\/doiKeywords\/%40rh%2F[0-9a-f-]{36}%2F10\.1%2Frace\/v1-[0-9a-f-]{36}\.json$/u,
+    );
     expect(objects.has(bodyKey('doiKeywords', doi, 1))).toBe(true);
     await bucket.delete(bodyKey('doiKeywords', doi, 1));
     expect(await (await call('GET', path('doiKeywords', doi))).json()).toEqual(doiKeywords(doi));
@@ -509,9 +532,42 @@ describe('POST /v1/data/query', () => {
         hub_project_id, project_id, kind, source_sha256) VALUES (?, ?, 1, 0, '', ?, ?, ?, ?, 'hyperdatalab', ?, ?, ?, ?)`,
     );
     const at = START.toISOString();
-    insert.run('autoresearchRuns', projectRecordId(RH_PROJECT, 'run-1'), A, at, A, at, RH_PROJECT, 'project-1', null, null);
-    insert.run('corpora', projectRecordId(RH_PROJECT, 'corpus-1'), A, at, A, at, RH_PROJECT, null, 'topic', null);
-    insert.run('papers', projectRecordId(RH_PROJECT, 'paper-1'), A, at, A, at, RH_PROJECT, null, null, 'f'.repeat(64));
+    insert.run(
+      'autoresearchRuns',
+      projectRecordId(RH_PROJECT, 'run-1'),
+      A,
+      at,
+      A,
+      at,
+      RH_PROJECT,
+      'project-1',
+      null,
+      null,
+    );
+    insert.run(
+      'corpora',
+      projectRecordId(RH_PROJECT, 'corpus-1'),
+      A,
+      at,
+      A,
+      at,
+      RH_PROJECT,
+      null,
+      'topic',
+      null,
+    );
+    insert.run(
+      'papers',
+      projectRecordId(RH_PROJECT, 'paper-1'),
+      A,
+      at,
+      A,
+      at,
+      RH_PROJECT,
+      null,
+      null,
+      'f'.repeat(64),
+    );
     const ids = async (collection: string, where: Record<string, string>) =>
       (
         (await (await call('POST', '/v1/data/query', { collection, where })).json()) as {
@@ -693,7 +749,9 @@ describe('POST /v1/data/commit', () => {
       'if-none-match': '*',
     });
     bump = () =>
-      sqlite.exec(`UPDATE doc SET version = 2 WHERE collection = 'corpusKeywords' AND id = '${projectRecordId(RH_PROJECT, 'corpus-1')}'`);
+      sqlite.exec(
+        `UPDATE doc SET version = 2 WHERE collection = 'corpusKeywords' AND id = '${projectRecordId(RH_PROJECT, 'corpus-1')}'`,
+      );
     // Batch 3 is the commit's read (sees v1); batch 4 is the write, which now meets v2.
     const response = await call('POST', '/v1/data/commit', {
       ops: [

@@ -40,18 +40,25 @@ export function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const rawProjectId = new URLSearchParams(location.search).get('projectId');
-  const validProjectId = rawProjectId && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(rawProjectId)
-    ? rawProjectId
-    : null;
+  const validProjectId =
+    rawProjectId &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(rawProjectId)
+      ? rawProjectId
+      : null;
   const invalidProjectId = rawProjectId !== null && !validProjectId;
   const [lastProjectId, setLastProjectId] = useState<string | null>(validProjectId);
   // Keep the current workspace mounted while navigation restores a query param omitted by a module link.
-  const workspaceProjectId = validProjectId ?? (!invalidProjectId && rawProjectId === null ? lastProjectId : null);
+  const workspaceProjectId =
+    validProjectId ?? (!invalidProjectId && rawProjectId === null ? lastProjectId : null);
   const current = modules.find(
     (item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`),
   );
   const knownRoute =
-    modules.some((item) => location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(`${item.path}/`))) ||
+    modules.some(
+      (item) =>
+        location.pathname === item.path ||
+        (item.path !== '/' && location.pathname.startsWith(`${item.path}/`)),
+    ) ||
     location.pathname === '/compare' ||
     /^\/(?:report|papers|extraction|corpus)\/[^/]+$/u.test(location.pathname);
   // Workspaces and wide tables use the whole window; lists, forms and home stay at a readable width.
@@ -80,7 +87,16 @@ export function App() {
       query.set('projectId', lastProjectId);
       navigate(`${location.pathname}?${query.toString()}${location.hash}`, { replace: true });
     }
-  }, [invalidProjectId, lastProjectId, location.hash, location.pathname, location.search, navigate, rawProjectId, validProjectId]);
+  }, [
+    invalidProjectId,
+    lastProjectId,
+    location.hash,
+    location.pathname,
+    location.search,
+    navigate,
+    rawProjectId,
+    validProjectId,
+  ]);
   useEffect(() => {
     if (theme === 'system') delete document.documentElement.dataset.theme;
     else document.documentElement.dataset.theme = theme;
@@ -115,9 +131,7 @@ export function App() {
               <nav aria-label="Đường dẫn" className={styles.breadcrumb}>
                 <span>PaperLab</span>
                 <span aria-hidden="true">/</span>
-                <strong>
-                  {current?.label ?? 'Không tìm thấy'}
-                </strong>
+                <strong>{current?.label ?? 'Không tìm thấy'}</strong>
               </nav>
               <div className={styles.topActions}>
                 <Button

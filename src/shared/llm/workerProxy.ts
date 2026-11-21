@@ -19,7 +19,10 @@ export function createLlmWorkerFetch(
     const sourceUrl = new URL(source.url);
     if (!ROUTER_HOSTS.has(sourceUrl.hostname.toLowerCase())) return send(input, init);
     if (!projectId)
-      return Response.json({ error: 'Mở PaperLab từ một project ResearchHub trước khi gọi 9router.' }, { status: 400 });
+      return Response.json(
+        { error: 'Mở PaperLab từ một project ResearchHub trước khi gọi 9router.' },
+        { status: 400 },
+      );
     const key = /^Bearer (.+)$/u.exec(source.headers.get('Authorization') ?? '')?.[1];
     if (!key) return Response.json({ error: 'Thiếu API key 9router.' }, { status: 400 });
     const token = await getAccessToken();

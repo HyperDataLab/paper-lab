@@ -63,9 +63,11 @@ async function queryVector(kg: ConfiguredKg, text: string, projectId: string) {
   if (values?.length !== 768 || values.some((value) => !Number.isFinite(value)))
     throw new Error('embedding_failed');
   const { matches } = await kg.vectors.query(values, { topK: VECTOR_TOP_K });
-  return new Map(matches
-    .filter(({ id }) => id.startsWith(scopePrefix(projectId)))
-    .map(({ id, score }) => [id, Math.max(0, Math.min(1, score))]));
+  return new Map(
+    matches
+      .filter(({ id }) => id.startsWith(scopePrefix(projectId)))
+      .map(({ id, score }) => [id, Math.max(0, Math.min(1, score))]),
+  );
 }
 
 export async function searchKg(kg: ConfiguredKg, input: SciAtlasSearchInput, now: Date, projectId: string) {
@@ -81,7 +83,9 @@ export async function searchKg(kg: ConfiguredKg, input: SciAtlasSearchInput, now
   const useVector = mode === 'semantic' || mode === 'hybrid';
 
   const prefix = `${scopePrefix(projectId)}%`;
-  const [count] = await db.batch<{ n: number }>([db.prepare('SELECT count(*) AS n FROM paper WHERE id LIKE ?').bind(prefix)]);
+  const [count] = await db.batch<{ n: number }>([
+    db.prepare('SELECT count(*) AS n FROM paper WHERE id LIKE ?').bind(prefix),
+  ]);
   if (!count?.results[0]?.n) return { papers: [], hint: 'kg_empty' as const };
 
   // Vectorize runs alongside D1. In hybrid mode a failed embedding only drops that channel.
@@ -138,7 +142,8 @@ export async function searchKg(kg: ConfiguredKg, input: SciAtlasSearchInput, now
       );
       slots.push({ kind: 'title', anchor });
     });
-  const anchorSql = 'SELECT id FROM paper WHERE title_normalized IN (SELECT value FROM json_each(?1)) AND id LIKE ?2';
+  const anchorSql =
+    'SELECT id FROM paper WHERE title_normalized IN (SELECT value FROM json_each(?1)) AND id LIKE ?2';
   statements.push(
     db.prepare(anchorSql).bind(JSON.stringify(input.titles.map(({ title }) => normalizeText(title))), prefix),
   );

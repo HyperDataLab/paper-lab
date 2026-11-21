@@ -4,7 +4,7 @@ import { EMBEDDING_MODEL, type ConfiguredKg } from './bindings';
 import { OpenAlexError, openAlexClient } from './openAlex';
 import { kgQueue, MAX_ATTEMPTS } from './queue';
 import { kgRepo } from './repo';
-const scopeId = (projectId: string | undefined, id: string) => projectId ? `@rh/${projectId}/${id}` : id;
+const scopeId = (projectId: string | undefined, id: string) => (projectId ? `@rh/${projectId}/${id}` : id);
 
 export const REQUEST_JOBS = 1;
 /**

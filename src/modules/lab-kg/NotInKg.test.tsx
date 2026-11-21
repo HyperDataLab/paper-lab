@@ -43,7 +43,9 @@ const detail = {
 function show(fetcher: (path: string) => Response, onPresent = vi.fn()) {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (input: string) => fetcher(new URL(input, 'http://localhost').pathname.replace(/^.*\/v1\/kg/u, ''))),
+    vi.fn(async (input: string) =>
+      fetcher(new URL(input, 'http://localhost').pathname.replace(/^.*\/v1\/kg/u, '')),
+    ),
   );
   render(
     <AuthContext.Provider value={auth}>

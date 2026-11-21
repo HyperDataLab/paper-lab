@@ -30,7 +30,11 @@ type Row = Record<string, string | number | null>;
 const str = (value: unknown) => (typeof value === 'string' ? value : null);
 const num = (value: unknown) => (typeof value === 'number' ? value : null);
 
-export async function readKgPaper(db: D1Database, key: string, projectId: string): Promise<KgPaperDetail | null> {
+export async function readKgPaper(
+  db: D1Database,
+  key: string,
+  projectId: string,
+): Promise<KgPaperDetail | null> {
   const isWork = /^W\d+$/u.test(key);
   const prefix = `@rh/${projectId}/`;
   const scopedKey = `${prefix}${key}`;
@@ -151,10 +155,14 @@ export async function readKgPaper(db: D1Database, key: string, projectId: string
   };
 }
 
-export async function readKgKeyword(db: D1Database, id: string, projectId: string): Promise<KgKeywordDetail | null> {
+export async function readKgKeyword(
+  db: D1Database,
+  id: string,
+  projectId: string,
+): Promise<KgKeywordDetail | null> {
   const prefix = `@rh/${projectId}/`;
   const [found, cooccurring, perYear] = await db.batch<Row>([
-      db.prepare('SELECT id, text, frequency FROM keyword WHERE id = ? AND id LIKE ?').bind(id, `${prefix}%`),
+    db.prepare('SELECT id, text, frequency FROM keyword WHERE id = ? AND id LIKE ?').bind(id, `${prefix}%`),
     db
       .prepare(
         `SELECT k.id, k.text, c.count, c.jaccard FROM cooccur c
@@ -192,14 +200,36 @@ export async function readKgStats(db: D1Database, projectId: string): Promise<Kg
   // One row of scalar subqueries: D1 rejects a compound SELECT of more than five terms.
   const tables = [...KG_NODE_TABLES, ...KG_EDGE_TABLES];
   const scopeColumn: Record<string, string> = {
-    paper: 'id', source: 'id', keyword: 'id', author: 'id', institution: 'id', topic: 'id',
-    subfield: 'id', field: 'id', domain: 'id', contribution: 'published_paper_id', builds_on: 'published_paper_id',
-    has_keyword: 'paper_id', cites: 'paper_id', related_to: 'paper_id', authored: 'paper_id', affiliated: 'paper_id',
-    has_topic: 'paper_id', coauthor: 'left_id', cooccur: 'left_id', subfield_of: 'topic_id', field_of: 'subfield_id', domain_of: 'field_id',
+    paper: 'id',
+    source: 'id',
+    keyword: 'id',
+    author: 'id',
+    institution: 'id',
+    topic: 'id',
+    subfield: 'id',
+    field: 'id',
+    domain: 'id',
+    contribution: 'published_paper_id',
+    builds_on: 'published_paper_id',
+    has_keyword: 'paper_id',
+    cites: 'paper_id',
+    related_to: 'paper_id',
+    authored: 'paper_id',
+    affiliated: 'paper_id',
+    has_topic: 'paper_id',
+    coauthor: 'left_id',
+    cooccur: 'left_id',
+    subfield_of: 'topic_id',
+    field_of: 'subfield_id',
+    domain_of: 'field_id',
   };
   const prefix = `@rh/${projectId}/%`;
-  const sql = tables.map((table) => `(SELECT count(*) FROM ${table} WHERE ${scopeColumn[table]} LIKE ?) AS ${table}`).join(', ');
-  const [counts] = await db.batch<Record<string, number>>([db.prepare(`SELECT ${sql}`).bind(...tables.map(() => prefix))]);
+  const sql = tables
+    .map((table) => `(SELECT count(*) FROM ${table} WHERE ${scopeColumn[table]} LIKE ?) AS ${table}`)
+    .join(', ');
+  const [counts] = await db.batch<Record<string, number>>([
+    db.prepare(`SELECT ${sql}`).bind(...tables.map(() => prefix)),
+  ]);
   const row = counts?.results[0] ?? {};
   const pick = <T extends string>(names: readonly T[]) =>
     Object.fromEntries(names.map((name) => [name, Number(row[name] ?? 0)])) as Record<T, number>;
@@ -239,11 +269,18 @@ export async function readKgOverview(db: D1Database, projectId: string): Promise
   };
 }
 
-export async function handleKgRead(db: D1Database, request: Request, path: string, headers: Headers, projectId: string) {
+export async function handleKgRead(
+  db: D1Database,
+  request: Request,
+  path: string,
+  headers: Headers,
+  projectId: string,
+) {
   if (request.method !== 'GET') return publishedError(405, 'bad_request', 'Use GET.', headers);
   const publicBody = (value: unknown) => stripProjectIds(value, projectId);
   if (path === '/v1/kg/stats') return withEtag(request, await readKgStats(db, projectId), headers);
-  if (path === '/v1/kg/overview') return withEtag(request, publicBody(await readKgOverview(db, projectId)), headers);
+  if (path === '/v1/kg/overview')
+    return withEtag(request, publicBody(await readKgOverview(db, projectId)), headers);
   const paper = /^\/v1\/kg\/papers\/(.+)$/u.exec(path)?.[1];
   if (paper !== undefined) {
     let key: string | null | undefined;
@@ -278,8 +315,12 @@ function stripProjectIds(value: unknown, projectId: string): unknown {
   const prefix = `@rh/${projectId}/`;
   if (Array.isArray(value)) return value.map((item) => stripProjectIds(item, projectId));
   if (!value || typeof value !== 'object') return value;
-  return Object.fromEntries(Object.entries(value).map(([key, item]) => [
-    key,
-    typeof item === 'string' && item.startsWith(prefix) ? item.slice(prefix.length) : stripProjectIds(item, projectId),
-  ]));
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      typeof item === 'string' && item.startsWith(prefix)
+        ? item.slice(prefix.length)
+        : stripProjectIds(item, projectId),
+    ]),
+  );
 }

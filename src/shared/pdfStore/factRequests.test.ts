@@ -45,14 +45,20 @@ describe('fact requests client', () => {
   it('sends the decision with a trimmed note, and none when empty', async () => {
     const fetchMock = vi.fn(async () => Response.json({ ...request, state: 'declined' }));
     vi.stubGlobal('fetch', fetchMock);
-    expect((await decideFactRequest('t', PROJECT_ID, 'p/1', 'decline', '  out of scope ')).state).toBe('declined');
+    expect((await decideFactRequest('t', PROJECT_ID, 'p/1', 'decline', '  out of scope ')).state).toBe(
+      'declined',
+    );
     await decideFactRequest('t', PROJECT_ID, 'p/1', 'approve', '   ');
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       expect.stringMatching(/\/fact-requests\/p%2F1\/decision$/u),
       {
         method: 'POST',
-        headers: { Authorization: 'Bearer t', 'X-Project-Id': PROJECT_ID, 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: 'Bearer t',
+          'X-Project-Id': PROJECT_ID,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ decision: 'decline', note: 'out of scope' }),
       },
     );

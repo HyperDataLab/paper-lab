@@ -1,4 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import { useAuth } from '@/shared/auth/authContext';
 import { RESEARCH_HUB_URL } from '@/shared/auth/config';
 import { PDF_WORKER_URL, projectScopedUrl } from '@/shared/pdfStore';
@@ -30,17 +39,26 @@ export function StorageProvider({
   invalidProjectId?: boolean;
   hideStatusBanner?: boolean;
 }) {
-  const { user, ready, error: authError, handoffFailed = false, signIn, getAccessToken, getIdToken } = useAuth();
+  const {
+    user,
+    ready,
+    error: authError,
+    handoffFailed = false,
+    signIn,
+    getAccessToken,
+    getIdToken,
+  } = useAuth();
   // A supplied repository is an explicit in-memory/test adapter; production App never supplies one.
   const injectedRepositories = repositories !== undefined;
-  const effectiveProjectId = projectId ?? (
-    injectedRepositories && import.meta.env.MODE === 'test'
-      ? '00000000-0000-4000-8000-000000000001'
-      : null
-  );
+  const effectiveProjectId =
+    projectId ??
+    (injectedRepositories && import.meta.env.MODE === 'test' ? '00000000-0000-4000-8000-000000000001' : null);
   const uid = user?.uid;
   const token = getAccessToken ?? getIdToken;
-  const [configurationError, setConfigurationError] = useState<{ store: RemoteDocStore; message: string } | null>(null);
+  const [configurationError, setConfigurationError] = useState<{
+    store: RemoteDocStore;
+    message: string;
+  } | null>(null);
   const [verification, setVerification] = useState<{
     key: string;
     status: ProjectWorkspaceStatus;
@@ -55,7 +73,9 @@ export function StorageProvider({
       getToken: token,
       projectId: effectiveProjectId,
       onConfigurationError: (message) =>
-        setConfigurationError((current) => (message ? { store, message } : current?.store === store ? null : current)),
+        setConfigurationError((current) =>
+          message ? { store, message } : current?.store === store ? null : current,
+        ),
     });
     return { store, repositories: createRepositories(store) };
   }, [effectiveProjectId, invalidProjectId, repositories, token, uid]);
@@ -73,14 +93,22 @@ export function StorageProvider({
       });
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
-        const detail = body && typeof body === 'object' && 'message' in body && typeof body.message === 'string'
-          ? body.message
-          : `Worker trả về HTTP ${response.status}.`;
+        const detail =
+          body && typeof body === 'object' && 'message' in body && typeof body.message === 'string'
+            ? body.message
+            : `Worker trả về HTTP ${response.status}.`;
         throw new Error(detail);
       }
-      const name = body && typeof body === 'object' && 'project' in body && body.project && typeof body.project === 'object' && 'name' in body.project && typeof body.project.name === 'string'
-        ? body.project.name
-        : effectiveProjectId;
+      const name =
+        body &&
+        typeof body === 'object' &&
+        'project' in body &&
+        body.project &&
+        typeof body.project === 'object' &&
+        'name' in body.project &&
+        typeof body.project.name === 'string'
+          ? body.project.name
+          : effectiveProjectId;
       if (active) {
         setVerification({ key: `${uid}:${effectiveProjectId}`, status: 'synced', name, error: '' });
       }
@@ -90,7 +118,8 @@ export function StorageProvider({
         key: `${uid}:${effectiveProjectId}`,
         status: 'error',
         name: effectiveProjectId,
-        error: cause instanceof Error ? cause.message : 'Không xác minh được quyền truy cập project ResearchHub.',
+        error:
+          cause instanceof Error ? cause.message : 'Không xác minh được quyền truy cập project ResearchHub.',
       });
     });
     return () => {
@@ -101,42 +130,53 @@ export function StorageProvider({
   const status: ProjectWorkspaceStatus = injectedRepositories
     ? 'synced'
     : invalidProjectId || !effectiveProjectId
-    ? 'error'
-    : !ready
-      ? 'loading'
-      : !uid
-        ? 'signed-out'
-        : verification?.key === verificationKey
-          ? verification.status
-          : 'loading';
-  const projectName = verification?.key === verificationKey ? verification.name : effectiveProjectId ?? '';
+      ? 'error'
+      : !ready
+        ? 'loading'
+        : !uid
+          ? 'signed-out'
+          : verification?.key === verificationKey
+            ? verification.status
+            : 'loading';
+  const projectName = verification?.key === verificationKey ? verification.name : (effectiveProjectId ?? '');
   const projectError = injectedRepositories
     ? ''
     : invalidProjectId
-    ? 'projectId trên liên kết ResearchHub không hợp lệ.'
-    : !effectiveProjectId
-      ? 'Hãy mở PaperLab từ một project ResearchHub.'
-      : !uid
-        ? authError
-        : verification?.key === verificationKey
-          ? verification.error
-          : '';
+      ? 'projectId trên liên kết ResearchHub không hợp lệ.'
+      : !effectiveProjectId
+        ? 'Hãy mở PaperLab từ một project ResearchHub.'
+        : !uid
+          ? authError
+          : verification?.key === verificationKey
+            ? verification.error
+            : '';
 
-  const error = configurationError && configurationError.store === storage?.store ? configurationError.message : '';
+  const error =
+    configurationError && configurationError.store === storage?.store ? configurationError.message : '';
   const saveState = useSyncExternalStore(
     storage?.store.subscribe ?? noopSubscribe,
     storage?.store.getSaveStatus ?? idle,
   );
   const visibleStatus = saveState === 'error' ? 'error' : saveState === 'saving' ? 'syncing' : status;
   const projectStatus = useMemo(
-    () => ({ projectId: effectiveProjectId, projectName, status: visibleStatus, error: projectError || error }),
+    () => ({
+      projectId: effectiveProjectId,
+      projectName,
+      status: visibleStatus,
+      error: projectError || error,
+    }),
     [effectiveProjectId, error, projectError, projectName, visibleStatus],
   );
   const retrySignIn = useCallback(() => void signIn(), [signIn]);
 
   let gate: ReactNode = null;
   if (invalidProjectId) {
-    gate = <section role="alert"><h1>Liên kết project không hợp lệ</h1><p>{projectError}</p></section>;
+    gate = (
+      <section role="alert">
+        <h1>Liên kết project không hợp lệ</h1>
+        <p>{projectError}</p>
+      </section>
+    );
   } else if (!effectiveProjectId) {
     gate = (
       <section>
@@ -152,8 +192,16 @@ export function StorageProvider({
       <section role="alert">
         <h1>{handoffFailed ? 'Không nhận được phiên ResearchHub' : 'Cần phiên HyperDataLab SSO'}</h1>
         <p>{authError || 'Mở PaperLab từ project ResearchHub để chuyển phiên hiện tại.'}</p>
-        {RESEARCH_HUB_URL && <a href={`${RESEARCH_HUB_URL}/projects/${encodeURIComponent(effectiveProjectId)}`}>Mở project ResearchHub</a>}
-        {!handoffFailed && <button type="button" onClick={retrySignIn}>Đăng nhập bằng SSO</button>}
+        {RESEARCH_HUB_URL && (
+          <a href={`${RESEARCH_HUB_URL}/projects/${encodeURIComponent(effectiveProjectId)}`}>
+            Mở project ResearchHub
+          </a>
+        )}
+        {!handoffFailed && (
+          <button type="button" onClick={retrySignIn}>
+            Đăng nhập bằng SSO
+          </button>
+        )}
       </section>
     );
   } else if (status === 'loading') {
@@ -163,7 +211,11 @@ export function StorageProvider({
       <section role="alert">
         <h1>Không mở được project</h1>
         <p>{projectError}</p>
-        {RESEARCH_HUB_URL && <a href={`${RESEARCH_HUB_URL}/projects/${encodeURIComponent(effectiveProjectId)}`}>Mở project ResearchHub</a>}
+        {RESEARCH_HUB_URL && (
+          <a href={`${RESEARCH_HUB_URL}/projects/${encodeURIComponent(effectiveProjectId)}`}>
+            Mở project ResearchHub
+          </a>
+        )}
       </section>
     );
   }
@@ -172,8 +224,11 @@ export function StorageProvider({
     <ProjectStatusContext.Provider value={projectStatus}>
       <ProjectContext.Provider value={effectiveProjectId}>
         <StoreContext.Provider value={storage ? { store: storage.store, error } : null}>
-          <Context.Provider value={repositories ?? storage?.repositories ?? null} key={`${uid ?? 'signed-out'}:${effectiveProjectId ?? 'no-project'}`}>
-          {injectedRepositories ? children : gate ?? children}
+          <Context.Provider
+            value={repositories ?? storage?.repositories ?? null}
+            key={`${uid ?? 'signed-out'}:${effectiveProjectId ?? 'no-project'}`}
+          >
+            {injectedRepositories ? children : (gate ?? children)}
           </Context.Provider>
         </StoreContext.Provider>
       </ProjectContext.Provider>
@@ -185,7 +240,10 @@ export function StorageStatus({ className }: { className?: string }) {
   const storage = useContext(StoreContext);
   const store = storage?.store;
   const repo = useContext(Context);
-  const runs = useSyncExternalStore(repo?.paperRuns.subscribe ?? noopSubscribe, repo?.paperRuns.getSaveStatus ?? idle);
+  const runs = useSyncExternalStore(
+    repo?.paperRuns.subscribe ?? noopSubscribe,
+    repo?.paperRuns.getSaveStatus ?? idle,
+  );
   const measurements = useSyncExternalStore(
     repo?.measurements.checkpoints.subscribe ?? noopSubscribe,
     repo?.measurements.checkpoints.getSaveStatus ?? idle,
@@ -197,7 +255,15 @@ export function StorageStatus({ className }: { className?: string }) {
   return (
     <div className={className} role="status">
       {status !== 'idle' && <span>{status === 'saving' ? 'Đang lưu…' : 'Lỗi lưu'}</span>}
-      {storage?.error && <div role="alert">Kho dữ liệu project chưa được cấu hình.<details><summary>Chi tiết kỹ thuật</summary>{storage.error}</details></div>}
+      {storage?.error && (
+        <div role="alert">
+          Kho dữ liệu project chưa được cấu hình.
+          <details>
+            <summary>Chi tiết kỹ thuật</summary>
+            {storage.error}
+          </details>
+        </div>
+      )}
     </div>
   );
 }

@@ -34,11 +34,14 @@ function configuredClient(
   getAccessToken: (() => Promise<string | null>) | undefined,
   innerClient?: LlmClient,
 ) {
-  return innerClient ?? createLlmClient(config, {
-    fetch: createLlmWorkerFetch(config.baseUrl, projectId, getAccessToken ?? (async () => null)),
-    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-    now: () => Date.now(),
-  });
+  return (
+    innerClient ??
+    createLlmClient(config, {
+      fetch: createLlmWorkerFetch(config.baseUrl, projectId, getAccessToken ?? (async () => null)),
+      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      now: () => Date.now(),
+    })
+  );
 }
 export function LlmProvider({
   children,
@@ -65,7 +68,12 @@ export function LlmProvider({
         ? client
         : createGatedClient(
             { ...config, model: criticModelFor(config) },
-            configuredClient({ ...config, model: criticModelFor(config) }, projectId, getAccessToken, innerClient),
+            configuredClient(
+              { ...config, model: criticModelFor(config) },
+              projectId,
+              getAccessToken,
+              innerClient,
+            ),
           ),
     [config, client, innerClient, projectId, getAccessToken],
   );

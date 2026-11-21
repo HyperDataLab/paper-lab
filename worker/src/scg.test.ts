@@ -58,7 +58,12 @@ function setup(kg?: KgBindings) {
       deps,
       new Request(`https://worker.test${path}`, {
         method,
-        headers: { authorization: 'Bearer token', origin: 'https://example.org', 'X-Project-Id': PROJECT_ID, ...extra },
+        headers: {
+          authorization: 'Bearer token',
+          origin: 'https://example.org',
+          'X-Project-Id': PROJECT_ID,
+          ...extra,
+        },
         body,
       }),
     );

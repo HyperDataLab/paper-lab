@@ -41,7 +41,10 @@ function setup(
     fetch: fetcher as unknown as typeof fetch,
     ...extra,
   };
-  const call = (value: unknown = body, headers: Record<string, string> = { authorization: 'Bearer token', 'X-Project-Id': PROJECT_ID }) =>
+  const call = (
+    value: unknown = body,
+    headers: Record<string, string> = { authorization: 'Bearer token', 'X-Project-Id': PROJECT_ID },
+  ) =>
     handle(
       deps,
       new Request('https://worker.test/v1/sciatlas/search', {

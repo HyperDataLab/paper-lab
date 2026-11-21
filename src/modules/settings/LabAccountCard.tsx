@@ -14,8 +14,9 @@ export function LabAccountCard() {
         <header>
           <h2>Tài khoản ResearchHub</h2>
           <p>
-            Đăng nhập bằng HyperDataLab SSO với email đã xác minh thuộc @{LAB_DOMAIN}. Workspace mở từ ResearchHub
-            được lưu chung trên server theo project; bản PDF gốc được lưu trong kho dùng chung của lab.
+            Đăng nhập bằng HyperDataLab SSO với email đã xác minh thuộc @{LAB_DOMAIN}. Workspace mở từ
+            ResearchHub được lưu chung trên server theo project; bản PDF gốc được lưu trong kho dùng chung của
+            lab.
           </p>
         </header>
         <div className={styles.fields}>

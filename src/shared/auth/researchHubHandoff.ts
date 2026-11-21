@@ -22,7 +22,8 @@ export function getHandoffRequest(url: URL): HandoffRequest | null {
     !/^[A-Za-z0-9_-]{32,128}$/u.test(state) ||
     !projectId ||
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(projectId)
-  ) return null;
+  )
+    return null;
   return { state, projectId };
 }
 
@@ -39,7 +40,10 @@ export function requestResearchHubSession(
   timeoutMs = 15_000,
   signal?: AbortSignal,
 ): Promise<HandoffSession> {
-  if (!window.opener) return Promise.reject(new Error('Không nhận được phiên từ ResearchHub. Hãy mở PaperLab từ project trong ResearchHub.'));
+  if (!window.opener)
+    return Promise.reject(
+      new Error('Không nhận được phiên từ ResearchHub. Hãy mở PaperLab từ project trong ResearchHub.'),
+    );
   if (!SSO_BASE_URL || RESEARCH_HUB_ORIGINS.length === 0) {
     return Promise.reject(new Error('PaperLab chưa cấu hình nguồn handoff ResearchHub.'));
   }
@@ -75,15 +79,20 @@ export function requestResearchHubSession(
         typeof message.accessToken !== 'string' ||
         typeof message.expiresAt !== 'number' ||
         message.expiresAt <= Date.now()
-      ) return;
+      )
+        return;
 
       void (async () => {
         try {
           const response = await fetch(new URL('/oauth/userinfo', SSO_BASE_URL), {
             headers: { Authorization: `Bearer ${message.accessToken as string}` },
           });
-          const profile = await response.json().catch(() => ({})) as HandoffSession['profile'];
-          if (!response.ok || typeof profile.sub !== 'string' || !isAllowedOrganizationEmail(profile.email, profile.email_verified)) {
+          const profile = (await response.json().catch(() => ({}))) as HandoffSession['profile'];
+          if (
+            !response.ok ||
+            typeof profile.sub !== 'string' ||
+            !isAllowedOrganizationEmail(profile.email, profile.email_verified)
+          ) {
             throw new Error('ResearchHub gửi phiên SSO không hợp lệ. Hãy đăng nhập lại.');
           }
           finish(undefined, {
@@ -92,7 +101,9 @@ export function requestResearchHubSession(
             profile,
           });
         } catch (cause) {
-          finish(cause instanceof Error ? cause : new Error('Không xác minh được phiên ResearchHub với SSO.'));
+          finish(
+            cause instanceof Error ? cause : new Error('Không xác minh được phiên ResearchHub với SSO.'),
+          );
         }
       })();
     };
@@ -104,7 +115,10 @@ export function requestResearchHubSession(
     }
     signal?.addEventListener('abort', onAbort, { once: true });
     for (const origin of RESEARCH_HUB_ORIGINS) {
-      window.opener?.postMessage({ type: HANDOFF_REQUEST, state: request.state, projectId: request.projectId }, origin);
+      window.opener?.postMessage(
+        { type: HANDOFF_REQUEST, state: request.state, projectId: request.projectId },
+        origin,
+      );
     }
   });
 }

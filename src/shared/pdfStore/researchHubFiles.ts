@@ -20,15 +20,19 @@ async function request(path: string, projectId: string, token: string) {
   });
   if (!response.ok) {
     const body: unknown = await response.json().catch(() => null);
-    const detail = body && typeof body === 'object' && 'error' in body && typeof body.error === 'string'
-      ? body.error
-      : undefined;
+    const detail =
+      body && typeof body === 'object' && 'error' in body && typeof body.error === 'string'
+        ? body.error
+        : undefined;
     throw new PdfRemoteError(response.status, detail);
   }
   return response;
 }
 
-export async function listResearchHubProjectFiles(projectId: string, token: string): Promise<ResearchHubProjectFile[]> {
+export async function listResearchHubProjectFiles(
+  projectId: string,
+  token: string,
+): Promise<ResearchHubProjectFile[]> {
   const files: ResearchHubProjectFile[] = [];
   let cursor: string | null = null;
   do {

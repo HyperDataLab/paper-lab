@@ -86,8 +86,5 @@ export function useGrobid(paper: Paper | null, onChanged: () => void): GrobidSta
   // Until the new paper's record is read, the previous paper's state is not shown or merged.
   const own = !state.record || state.record.paperId === paperId;
   const refetch = paper ? start : null;
-  return useMemo(
-    () => (own ? { ...state, refetch } : { ...GROBID_IDLE, refetch }),
-    [own, refetch, state],
-  );
+  return useMemo(() => (own ? { ...state, refetch } : { ...GROBID_IDLE, refetch }), [own, refetch, state]);
 }

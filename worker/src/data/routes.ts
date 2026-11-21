@@ -330,7 +330,9 @@ async function batchGet(env: StoreEnv, value: unknown, headers: Headers) {
     .map((ref) => rows.get(refKey({ ...ref, id: projectRecordId(env.projectId, ref.id) })))
     .filter((row): row is DocRow => !!row && !row.deleted_at);
   const { items, deferred } = await withBodies(env, found);
-  const foundKeys = new Set(found.map((row) => refKey({ ...row, id: logicalRecordId(env.projectId, row.id) })));
+  const foundKeys = new Set(
+    found.map((row) => refKey({ ...row, id: logicalRecordId(env.projectId, row.id) })),
+  );
   const missing = unique.filter((ref) => !foundKeys.has(refKey(ref)));
   if ('refs' in input) {
     return ok(
@@ -338,7 +340,10 @@ async function batchGet(env: StoreEnv, value: unknown, headers: Headers) {
       {
         items,
         missing,
-        deferred: deferred.map(({ collection, id }) => ({ collection, id: logicalRecordId(env.projectId, id) })),
+        deferred: deferred.map(({ collection, id }) => ({
+          collection,
+          id: logicalRecordId(env.projectId, id),
+        })),
       },
       headers,
     );

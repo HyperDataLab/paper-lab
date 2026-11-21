@@ -32,11 +32,15 @@ export async function readFactRequest(deps: Deps, id: string) {
 }
 
 async function write(deps: Deps, value: FactRequest, etag?: string) {
-  return deps.bucket.put(key(deps.projectId ?? 'unassigned', value.paperId), new TextEncoder().encode(JSON.stringify(value)).buffer, {
-    httpMetadata: { contentType: 'application/json' },
-    customMetadata: { state: value.state },
-    onlyIf: etag ? { etagMatches: etag } : { etagDoesNotMatch: '*' },
-  });
+  return deps.bucket.put(
+    key(deps.projectId ?? 'unassigned', value.paperId),
+    new TextEncoder().encode(JSON.stringify(value)).buffer,
+    {
+      httpMetadata: { contentType: 'application/json' },
+      customMetadata: { state: value.state },
+      onlyIf: etag ? { etagMatches: etag } : { etagDoesNotMatch: '*' },
+    },
+  );
 }
 
 export async function completeFactRequest(deps: Deps, id: string) {
@@ -82,7 +86,9 @@ export async function handleFactRequests(deps: Deps, request: Request, email: st
         .map(async (object) => {
           const id = object.key.slice(projectPrefix.length, -5);
           const entry = await readFactRequest(deps, id);
-          const model = await deps.bucket.head(`${PUBLISHED_PREFIX(deps.projectId ?? 'unassigned')}${id}/model.json`);
+          const model = await deps.bucket.head(
+            `${PUBLISHED_PREFIX(deps.projectId ?? 'unassigned')}${id}/model.json`,
+          );
           return entry
             ? {
                 ...entry.value,
@@ -134,10 +140,18 @@ export async function handleFactRequests(deps: Deps, request: Request, email: st
     (decision && input.decision !== 'approve' && input.decision !== 'decline')
   )
     return publishedError(400, 'bad_request', 'Invalid request.', headers);
-  if (paper && !(await deps.bucket.head(`${PUBLISHED_PREFIX(deps.projectId ?? 'unassigned')}${id}/model.json`)))
+  if (
+    paper &&
+    !(await deps.bucket.head(`${PUBLISHED_PREFIX(deps.projectId ?? 'unassigned')}${id}/model.json`))
+  )
     return publishedError(404, 'not_found', `Paper ${id} was not found.`, headers);
   for (;;) {
-    if (paper && (await deps.bucket.head(`${PUBLISHED_PREFIX(deps.projectId ?? 'unassigned')}${id}/experiment-facts.json`)))
+    if (
+      paper &&
+      (await deps.bucket.head(
+        `${PUBLISHED_PREFIX(deps.projectId ?? 'unassigned')}${id}/experiment-facts.json`,
+      ))
+    )
       return publishedError(409, 'conflict', 'Facts already published.', headers);
     const existing = await readFactRequest(deps, id);
     if (decision) {
@@ -166,7 +180,11 @@ export async function handleFactRequests(deps: Deps, request: Request, email: st
       };
       if (await write(deps, value, existing?.etag)) {
         // A concurrent facts publication may have completed before this request was written.
-        if (await deps.bucket.head(`${PUBLISHED_PREFIX(deps.projectId ?? 'unassigned')}${id}/experiment-facts.json`)) {
+        if (
+          await deps.bucket.head(
+            `${PUBLISHED_PREFIX(deps.projectId ?? 'unassigned')}${id}/experiment-facts.json`,
+          )
+        ) {
           await completeFactRequest(deps, id);
           return publishedError(409, 'conflict', 'Facts already published.', headers);
         }

@@ -8,12 +8,28 @@ import { KG_DEFAULT_DEPTH } from '../../../src/core/schemas/labKg';
 type GraphRows = ReturnType<typeof mapOpenAlexWorkToKg>;
 
 const ENTITY_KEYS = new Set([
-  'id', 'paper_id', 'source_id', 'subfield_id', 'keyword_id', 'author_id', 'institution_id',
-  'topic_id', 'left_id', 'right_id', 'topic_id', 'field_id', 'domain_id', 'published_paper_id',
-  'contribution_id', 'prerequisite_id', 'target_id', 'paperId', 'contributionId', 'prerequisiteId',
+  'id',
+  'paper_id',
+  'source_id',
+  'subfield_id',
+  'keyword_id',
+  'author_id',
+  'institution_id',
+  'topic_id',
+  'left_id',
+  'right_id',
+  'topic_id',
+  'field_id',
+  'domain_id',
+  'published_paper_id',
+  'contribution_id',
+  'prerequisite_id',
+  'target_id',
+  'paperId',
+  'contributionId',
+  'prerequisiteId',
 ]);
-const scopeId = (projectId: string | undefined, id: string) =>
-  projectId ? `@rh/${projectId}/${id}` : id;
+const scopeId = (projectId: string | undefined, id: string) => (projectId ? `@rh/${projectId}/${id}` : id);
 
 function scopedGraph<T extends GraphRows | ScgPaperPublish>(graph: T, projectId?: string): T {
   if (!projectId) return graph;
@@ -23,10 +39,14 @@ function scopedGraph<T extends GraphRows | ScgPaperPublish>(graph: T, projectId?
     const row = value as Record<string, unknown>;
     return Object.fromEntries(
       Object.entries(row).map(([key, item]) => {
-        const externalBuildTarget = key === 'target_id' && (row.target_kind === 'paper' || row.target_kind === 'tool');
-        return [key, typeof item === 'string' && ENTITY_KEYS.has(key) && !externalBuildTarget
-          ? scopeId(projectId, item)
-          : visit(item)];
+        const externalBuildTarget =
+          key === 'target_id' && (row.target_kind === 'paper' || row.target_kind === 'tool');
+        return [
+          key,
+          typeof item === 'string' && ENTITY_KEYS.has(key) && !externalBuildTarget
+            ? scopeId(projectId, item)
+            : visit(item),
+        ];
       }),
     );
   };

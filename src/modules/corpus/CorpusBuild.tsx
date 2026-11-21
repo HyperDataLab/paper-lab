@@ -59,13 +59,8 @@ export function CorpusBuild({ corpus, save }: { corpus: Corpus; save: SaveAcquis
       let current = corpus;
       for (const member of current.members.filter((m) => m.retrieval === 'sought')) {
         if (controller.signal.aborted) break;
-        const updated = await acquireMember(
-          member,
-          repo,
-          projectId,
-          getIdToken,
-          controller.signal,
-          (paper) => grobid.enqueue(member.memberId, paper),
+        const updated = await acquireMember(member, repo, projectId, getIdToken, controller.signal, (paper) =>
+          grobid.enqueue(member.memberId, paper),
         );
         current = {
           ...current,

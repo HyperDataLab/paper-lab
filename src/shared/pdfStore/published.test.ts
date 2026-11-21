@@ -25,7 +25,11 @@ describe('publishPaperModel', () => {
     expect(await publishPaperModel(model, 'unused', 'test-token', 'rh-1')).toEqual(result);
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining(`/v1/papers/${result.paperId}/model`), {
       method: 'PUT',
-      headers: { Authorization: 'Bearer test-token', 'X-Project-Id': 'rh-1', 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: 'Bearer test-token',
+        'X-Project-Id': 'rh-1',
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(model),
     });
   });
@@ -35,7 +39,9 @@ describe('publishPaperModel', () => {
       'fetch',
       vi.fn(async () => new Response(null, { status })),
     );
-    await expect(publishPaperModel(noHashModel(), 'id', 'token', 'rh-1')).rejects.toBeInstanceOf(PublishPaperError);
+    await expect(publishPaperModel(noHashModel(), 'id', 'token', 'rh-1')).rejects.toBeInstanceOf(
+      PublishPaperError,
+    );
     await expect(publishPaperModel(noHashModel(), 'id', 'token', 'rh-1')).rejects.toThrow(
       status === 401 ? 'Phiên đăng nhập' : status === 403 ? 'Tài khoản' : 'Máy chủ lab',
     );
@@ -66,7 +72,11 @@ describe('publishFrozenPlan', () => {
       ),
       {
         method: 'PUT',
-        headers: { Authorization: 'Bearer test-token', 'X-Project-Id': 'rh-1', 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: 'Bearer test-token',
+          'X-Project-Id': 'rh-1',
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(plan),
       },
     );

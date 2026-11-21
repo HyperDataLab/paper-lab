@@ -50,7 +50,7 @@ export function BatchParagraphStatus({
           ·{' '}
           {analysis.scores
             ? `Điểm ${analysis.scores.overall ?? 'chưa đủ căn cứ'} / 100 · phủ ${analysis.scores.coverage.applicable}/${analysis.scores.coverage.total} · tin cậy ${analysis.scores.confidence ?? '—'} · ${analysis.scores.rubricVersion} · ${analysis.scores.contextLimited ? 'thiếu ngữ cảnh' : 'đủ ngữ cảnh'}`
-          : 'Chưa chấm điểm'}
+            : 'Chưa chấm điểm'}
         </p>
       )}
     </div>

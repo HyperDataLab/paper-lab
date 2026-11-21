@@ -106,7 +106,9 @@ function open(signedIn: boolean, path = '/admin/requests') {
   );
 }
 const calls = (fetchMock: ReturnType<typeof serve>, path: string) =>
-  fetchMock.mock.calls.filter(([input]) => new URL(String(input), 'http://localhost').pathname.endsWith(path));
+  fetchMock.mock.calls.filter(([input]) =>
+    new URL(String(input), 'http://localhost').pathname.endsWith(path),
+  );
 
 afterEach(() => {
   vi.unstubAllGlobals();

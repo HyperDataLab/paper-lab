@@ -132,9 +132,7 @@ export function usePaperNavigation() {
       if (isSpace(modeOf(tab))) setTabState(beforeSpace.current);
     } else {
       const targetMode = modeOf(view);
-      setVisitedModes((old) =>
-        old.has(targetMode) ? old : new Set([...old, targetMode]),
-      );
+      setVisitedModes((old) => (old.has(targetMode) ? old : new Set([...old, targetMode])));
       setTabState(view);
       setFocus('right');
       if (!isSpace(place)) setPanelPreference(true);

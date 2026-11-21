@@ -25,7 +25,10 @@ interface Env extends KgBindings {
 }
 
 class ResearchHubApiError extends Error {
-  constructor(readonly status: number, message: string) {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
     super(message);
   }
 }
@@ -45,7 +48,10 @@ async function getOwnedProject(env: Env, projectId: string, token: string) {
   try {
     response = await researchHubRequest(env, '/api/projects', { method: 'GET' }, token);
   } catch (error) {
-    throw new ResearchHubApiError(502, error instanceof Error ? `ResearchHub request failed: ${error.name}` : 'ResearchHub request failed');
+    throw new ResearchHubApiError(
+      502,
+      error instanceof Error ? `ResearchHub request failed: ${error.name}` : 'ResearchHub request failed',
+    );
   }
   if (!response.ok) {
     const body: unknown = await response.json().catch(() => null);
@@ -65,12 +71,23 @@ async function getOwnedProject(env: Env, projectId: string, token: string) {
     throw new ResearchHubApiError(502, 'ResearchHub returned an invalid project list');
   const project = result.items.find(
     (item): item is { id: string; name: string } =>
-      !!item && typeof item === 'object' && 'id' in item && item.id === projectId && 'name' in item && typeof item.name === 'string',
+      !!item &&
+      typeof item === 'object' &&
+      'id' in item &&
+      item.id === projectId &&
+      'name' in item &&
+      typeof item.name === 'string',
   );
   return project ?? null;
 }
 
-async function uploadResearchHubFile(env: Env, projectId: string, token: string, fileName: string, body: ArrayBuffer) {
+async function uploadResearchHubFile(
+  env: Env,
+  projectId: string,
+  token: string,
+  fileName: string,
+  body: ArrayBuffer,
+) {
   let response: Response;
   try {
     response = await researchHubRequest(
@@ -89,17 +106,29 @@ async function uploadResearchHubFile(env: Env, projectId: string, token: string,
       token,
     );
   } catch (error) {
-    throw new ResearchHubApiError(502, error instanceof Error ? `ResearchHub upload failed: ${error.name}` : 'ResearchHub upload failed');
+    throw new ResearchHubApiError(
+      502,
+      error instanceof Error ? `ResearchHub upload failed: ${error.name}` : 'ResearchHub upload failed',
+    );
   }
   if (!response.ok) {
     const bodyText = await response.text().catch(() => '');
-    throw new ResearchHubApiError(response.status, bodyText.slice(0, 240) || 'ResearchHub file upload failed');
+    throw new ResearchHubApiError(
+      response.status,
+      bodyText.slice(0, 240) || 'ResearchHub file upload failed',
+    );
   }
   const value: unknown = await response.json().catch(() => null);
-  const fileId = value && typeof value === 'object' && 'item' in value && value.item && typeof value.item === 'object' &&
-    'id' in value.item && typeof value.item.id === 'string'
-    ? value.item.id
-    : null;
+  const fileId =
+    value &&
+    typeof value === 'object' &&
+    'item' in value &&
+    value.item &&
+    typeof value.item === 'object' &&
+    'id' in value.item &&
+    typeof value.item.id === 'string'
+      ? value.item.id
+      : null;
   if (!fileId) throw new ResearchHubApiError(502, 'ResearchHub returned an invalid file response');
   return fileId;
 }
@@ -166,8 +195,10 @@ export default {
       {
         verifyToken: (token) => verifySsoToken(token, env.SSO_BASE_URL, env.ALLOWED_DOMAIN),
         getOwnedProject: (projectId, token) => getOwnedProject(env, projectId, token),
-        uploadProjectFile: (projectId, token, fileName, body) => uploadResearchHubFile(env, projectId, token, fileName, body),
-        downloadProjectFile: (projectId, fileId, token) => downloadResearchHubFile(env, projectId, fileId, token),
+        uploadProjectFile: (projectId, token, fileName, body) =>
+          uploadResearchHubFile(env, projectId, token, fileName, body),
+        downloadProjectFile: (projectId, fileId, token) =>
+          downloadResearchHubFile(env, projectId, fileId, token),
         listProjectFiles: (projectId, cursor, token) => listResearchHubFiles(env, projectId, cursor, token),
         bucket: env.BUCKET,
         allowedOrigins: env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim()),
@@ -175,7 +206,10 @@ export default {
         now: () => new Date(),
         grobid: (pdf) => processPdf(env.GROBID, pdf),
         nlpParse: nlpParse(env),
-        llmAllowedHosts: (env.LLM_ALLOWED_HOSTS ?? '').split(',').map((host) => host.trim().toLowerCase()).filter(Boolean),
+        llmAllowedHosts: (env.LLM_ALLOWED_HOSTS ?? '')
+          .split(',')
+          .map((host) => host.trim().toLowerCase())
+          .filter(Boolean),
         llmFetch: fetch,
         sciatlasKey: env.SCIATLAS_API_KEY,
         kg: env,

@@ -41,7 +41,12 @@ function setup() {
       deps,
       new Request(`https://worker.test${url}`, {
         method,
-        headers: { authorization: 'Bearer token', origin: 'https://example.org', 'X-Project-Id': id, ...headers },
+        headers: {
+          authorization: 'Bearer token',
+          origin: 'https://example.org',
+          'X-Project-Id': id,
+          ...headers,
+        },
         body: body === undefined ? undefined : JSON.stringify(body),
       }),
     );

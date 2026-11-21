@@ -43,7 +43,9 @@ export function Sidebar({
     }
   }
   return (
-    <aside className={`${styles.sidebar} ${desktop ? styles.desktopSidebar : ''} ${rail ? styles.collapsed : ''}`}>
+    <aside
+      className={`${styles.sidebar} ${desktop ? styles.desktopSidebar : ''} ${rail ? styles.collapsed : ''}`}
+    >
       <div className={styles.brand}>
         <BookOpenText className={styles.logo} size={22} aria-hidden="true" />
         {!rail && <span>PaperLab</span>}

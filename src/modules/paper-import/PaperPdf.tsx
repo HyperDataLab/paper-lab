@@ -1,12 +1,5 @@
 import { Cloud, CloudOff, HardDrive } from 'lucide-react';
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type ReactNode,
-} from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import type { Paper } from '@/core/schemas';
 import { useAuth } from '@/shared/auth/authContext';
 import { paperSha, pdfRemote, sha256Hex } from '@/shared/pdfStore';
@@ -156,7 +149,12 @@ export function PaperPdf({
         target={target}
         marks={marks}
         onMark={onMark}
-        toolbarStart={<>{toolbarStart}{back}</>}
+        toolbarStart={
+          <>
+            {toolbarStart}
+            {back}
+          </>
+        }
         toolbarEnd={
           <>
             {find}
@@ -173,7 +171,9 @@ export function PaperPdf({
               </span>
             ) : state.kind === 'ready' ? (
               <Badge icon={<HardDrive size={14} aria-hidden="true" />}>
-                <span className={styles.pdfSyncLabel}>{user ? 'Đang lưu lên ResearchHub…' : 'Chỉ trên máy này'}</span>
+                <span className={styles.pdfSyncLabel}>
+                  {user ? 'Đang lưu lên ResearchHub…' : 'Chỉ trên máy này'}
+                </span>
               </Badge>
             ) : null}
           </>

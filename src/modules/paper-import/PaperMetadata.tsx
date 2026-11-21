@@ -237,7 +237,11 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
           <p>{fullTitle}</p>
         </div>
         <Button size="sm" variant="ghost" onClick={() => void copyTitle()}>
-          {copiedTitle ? <Check size={14} aria-hidden="true" /> : <ClipboardCopy size={14} aria-hidden="true" />}
+          {copiedTitle ? (
+            <Check size={14} aria-hidden="true" />
+          ) : (
+            <ClipboardCopy size={14} aria-hidden="true" />
+          )}
           {copiedTitle ? 'Đã sao chép' : 'Sao chép'}
         </Button>
       </div>

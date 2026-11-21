@@ -49,8 +49,9 @@ function deps(
   overrides: Partial<Deps> = {},
 ): Deps & { objects: Map<string, { data: ArrayBuffer; meta: Record<string, string>; etag: string }> } {
   const { bucket, objects } = memoryBucket();
-  const downloadProjectFile = vi.fn(async (_projectId: string, _fileId: string, _token: string) =>
-    new Response(pdf, { headers: { 'Content-Type': 'application/pdf' } }),
+  const downloadProjectFile = vi.fn(
+    async (_projectId: string, _fileId: string, _token: string) =>
+      new Response(pdf, { headers: { 'Content-Type': 'application/pdf' } }),
   );
   return {
     verifyToken: async () => ({ uid: 'u1', email: 'a@hyperdatalab.org' }),
@@ -140,9 +141,12 @@ describe('R8 PDF worker', () => {
 
   it('returns a bounded upload error detail without exposing bearer tokens', async () => {
     const sha = await hex(pdf);
-    const uploadFailure = Object.assign(new Error('ResearchHub rejected Bearer secret-token\nR2 unavailable'), {
-      status: 500,
-    });
+    const uploadFailure = Object.assign(
+      new Error('ResearchHub rejected Bearer secret-token\nR2 unavailable'),
+      {
+        status: 500,
+      },
+    );
     const d = deps({
       uploadProjectFile: async () => {
         throw uploadFailure;

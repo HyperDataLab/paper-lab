@@ -5,7 +5,10 @@ import { parseLatex } from '@/shared/paper/latexParser';
 import { parseMarkdown, parsePlainText } from '@/shared/paper/markdownParser';
 import type { Repositories } from '@/shared/storage/types';
 import { pdfRemote, PdfRemoteError, sha256Hex } from '@/shared/pdfStore';
-import { downloadResearchHubProjectFile, type ResearchHubProjectFile } from '@/shared/pdfStore/researchHubFiles';
+import {
+  downloadResearchHubProjectFile,
+  type ResearchHubProjectFile,
+} from '@/shared/pdfStore/researchHubFiles';
 
 type ImportOptions = {
   projectId: string;

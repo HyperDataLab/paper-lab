@@ -5,7 +5,8 @@ import { verifyFirebaseToken } from './auth';
 
 const id = `sha256-${'a'.repeat(64)}`;
 const PROJECT_ID = '00000000-0000-4000-8000-000000000101';
-const projectPublishedKey = (paperId: string, file: string) => `paperlab/projects/${PROJECT_ID}/published/${paperId}/${file}`;
+const projectPublishedKey = (paperId: string, file: string) =>
+  `paperlab/projects/${PROJECT_ID}/published/${paperId}/${file}`;
 const model = {
   format: 'paperlab-paper-model',
   schemaVersion: 1,
@@ -50,7 +51,12 @@ function setup() {
       deps,
       new Request(`https://worker.test${path}`, {
         method,
-        headers: { authorization: 'Bearer token', origin: 'https://example.org', 'X-Project-Id': PROJECT_ID, ...extra },
+        headers: {
+          authorization: 'Bearer token',
+          origin: 'https://example.org',
+          'X-Project-Id': PROJECT_ID,
+          ...extra,
+        },
         body: body === undefined ? undefined : JSON.stringify(body),
       }),
     );

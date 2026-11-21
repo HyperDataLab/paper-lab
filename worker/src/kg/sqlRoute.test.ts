@@ -29,7 +29,11 @@ function setup() {
       deps,
       new Request('https://worker.test/v1/kg/sql', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Project-Id': projectId, ...(token && { Authorization: `Bearer ${token}` }) },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Project-Id': projectId,
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
         body: JSON.stringify(body),
       }),
     );

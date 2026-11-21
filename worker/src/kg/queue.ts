@@ -3,7 +3,7 @@ import type { D1Database } from './bindings';
 
 export const MAX_ATTEMPTS = 5;
 const LEASE_MS = 5 * 60_000;
-const scopeId = (projectId: string | undefined, id: string) => projectId ? `@rh/${projectId}/${id}` : id;
+const scopeId = (projectId: string | undefined, id: string) => (projectId ? `@rh/${projectId}/${id}` : id);
 const logicalId = (projectId: string | undefined, id: string) => {
   const prefix = projectId ? `@rh/${projectId}/` : '';
   return prefix && id.startsWith(prefix) ? id.slice(prefix.length) : id;
@@ -41,7 +41,15 @@ export function enqueueStatement(
 export function kgQueue(db: D1Database, projectId?: string) {
   return {
     async enqueue(ids: string[], depth: number, source: KgIngestSource, at: string) {
-      const [queued] = await db.batch([enqueueStatement(db, [...new Set(ids)].map((id) => scopeId(projectId, id)), depth, source, at)]);
+      const [queued] = await db.batch([
+        enqueueStatement(
+          db,
+          [...new Set(ids)].map((id) => scopeId(projectId, id)),
+          depth,
+          source,
+          at,
+        ),
+      ]);
       return queued?.meta.changes ?? 0;
     },
 
@@ -76,8 +84,15 @@ export function kgQueue(db: D1Database, projectId?: string) {
             ORDER BY next_at, enqueued_at, source = 'expansion', id LIMIT 1)
           RETURNING id, depth, attempts, claim_token`,
           )
-          .bind(leaseUntil, token, at, MAX_ATTEMPTS, ids ? JSON.stringify(ids.map((id) => scopeId(projectId, id))) : null,
-            projectId ? `@rh/${projectId}/%` : null, projectId ? `@rh/${projectId}/%` : null),
+          .bind(
+            leaseUntil,
+            token,
+            at,
+            MAX_ATTEMPTS,
+            ids ? JSON.stringify(ids.map((id) => scopeId(projectId, id))) : null,
+            projectId ? `@rh/${projectId}/%` : null,
+            projectId ? `@rh/${projectId}/%` : null,
+          ),
       ]);
       const job = result?.results[0];
       return job ? { ...job, id: logicalId(projectId, job.id) } : undefined;
@@ -90,7 +105,16 @@ export function kgQueue(db: D1Database, projectId?: string) {
       const physicalJob = { ...job, id: scopeId(projectId, job.id) };
       const statements = [
         ...(outcome.status === 'done' && outcome.targets.length
-          ? [enqueueStatement(db, outcome.targets.map((id) => scopeId(projectId, id)), job.depth - 1, 'expansion', at, physicalJob)]
+          ? [
+              enqueueStatement(
+                db,
+                outcome.targets.map((id) => scopeId(projectId, id)),
+                job.depth - 1,
+                'expansion',
+                at,
+                physicalJob,
+              ),
+            ]
           : []),
         db
           .prepare(
@@ -126,13 +150,24 @@ export function kgQueue(db: D1Database, projectId?: string) {
       const [queue, logs] = await db.batch<
         { status: KgQueueState; count: number } | KgIngestStatus['logs'][number]
       >([
-        db.prepare(`SELECT status, count(*) AS count FROM ingest_queue ${projectId ? 'WHERE id LIKE ?' : ''} GROUP BY status`)
+        db
+          .prepare(
+            `SELECT status, count(*) AS count FROM ingest_queue ${projectId ? 'WHERE id LIKE ?' : ''} GROUP BY status`,
+          )
           .bind(...(projectId ? [`@rh/${projectId}/%`] : [])),
-        db.prepare(`SELECT id, code, attempts, at FROM ingest_log ${projectId ? 'WHERE id LIKE ?' : ''} ORDER BY sequence DESC LIMIT 20`)
+        db
+          .prepare(
+            `SELECT id, code, attempts, at FROM ingest_log ${projectId ? 'WHERE id LIKE ?' : ''} ORDER BY sequence DESC LIMIT 20`,
+          )
           .bind(...(projectId ? [`@rh/${projectId}/%`] : [])),
       ]);
       for (const row of queue?.results ?? []) if ('status' in row) counts[row.status] = row.count;
-      return { counts, logs: (logs?.results ?? []).filter((row) => 'code' in row).map((row) => ({ ...row, id: logicalId(projectId, row.id) })) };
+      return {
+        counts,
+        logs: (logs?.results ?? [])
+          .filter((row) => 'code' in row)
+          .map((row) => ({ ...row, id: logicalId(projectId, row.id) })),
+      };
     },
   };
 }

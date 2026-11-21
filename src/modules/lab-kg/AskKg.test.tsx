@@ -70,7 +70,10 @@ it('semantic step 4 sends the approved question to the model, then SQL to the wo
   expect(worker).toHaveBeenCalledWith(
     expect.stringMatching(/\/v1\/kg\/sql$/u),
     expect.objectContaining({
-      headers: expect.objectContaining({ Authorization: 'Bearer test-token', 'X-Project-Id': 'rh-test-project' }),
+      headers: expect.objectContaining({
+        Authorization: 'Bearer test-token',
+        'X-Project-Id': 'rh-test-project',
+      }),
       body: JSON.stringify({ sql }),
     }),
   );

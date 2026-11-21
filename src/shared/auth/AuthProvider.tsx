@@ -191,7 +191,9 @@ async function revokeSession(session: SsoSession | null) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const isCallback = window.location.pathname === new URL(SSO_CALLBACK_URL || `${window.location.origin}/auth/callback`).pathname;
+  const isCallback =
+    window.location.pathname ===
+    new URL(SSO_CALLBACK_URL || `${window.location.origin}/auth/callback`).pathname;
   const initialUrl = new URL(window.location.href);
   const initialHandoff = getHandoffRequest(initialUrl);
   const hasHandoffParameter = initialUrl.searchParams.has('rh_handoff');
@@ -199,7 +201,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     hasHandoffParameter && !initialHandoff ? null : readSession(),
   );
   const [ready, setReady] = useState(() => !isCallback && !initialHandoff);
-  const [error, setError] = useState(() => hasHandoffParameter && !initialHandoff ? 'Liên kết handoff ResearchHub không hợp lệ. Hãy đăng nhập lại.' : '');
+  const [error, setError] = useState(() =>
+    hasHandoffParameter && !initialHandoff
+      ? 'Liên kết handoff ResearchHub không hợp lệ. Hãy đăng nhập lại.'
+      : '',
+  );
   const [handoffFailed, setHandoffFailed] = useState(() => hasHandoffParameter && !initialHandoff);
 
   useEffect(() => {
@@ -253,7 +259,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           })
           .catch((cause: unknown) => {
             if (!active) return;
-            setError(cause instanceof Error ? cause.message : 'Không nhận được phiên đăng nhập từ ResearchHub.');
+            setError(
+              cause instanceof Error ? cause.message : 'Không nhận được phiên đăng nhập từ ResearchHub.',
+            );
             sessionStorage.removeItem(SESSION_KEY);
             setSession(null);
             setHandoffFailed(true);
@@ -287,11 +295,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session]);
   const getAccessToken = useCallback(async () => readSession()?.accessToken ?? null, []);
   const user: LabUser | null = useMemo(
-    () => (session ? { uid: session.profile.sub, email: session.profile.email, name: session.profile.name ?? null } : null),
+    () =>
+      session
+        ? { uid: session.profile.sub, email: session.profile.email, name: session.profile.name ?? null }
+        : null,
     [session],
   );
   const value = useMemo(
-    () => ({ user, ready, error, handoffFailed, signIn, signOut, getAccessToken, getIdToken: getAccessToken }),
+    () => ({
+      user,
+      ready,
+      error,
+      handoffFailed,
+      signIn,
+      signOut,
+      getAccessToken,
+      getIdToken: getAccessToken,
+    }),
     [user, ready, error, handoffFailed, signIn, signOut, getAccessToken],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

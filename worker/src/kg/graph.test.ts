@@ -117,7 +117,7 @@ async function setup({ seed = true } = {}) {
       return { uid: 'test', email: 'test@example.invalid' };
     },
     allowedOrigins: ['https://example.invalid'],
-    getOwnedProject: async (id) => id === PROJECT_ID ? { id, name: 'Test project' } : null,
+    getOwnedProject: async (id) => (id === PROJECT_ID ? { id, name: 'Test project' } : null),
     now: () => new Date('2026-06-01T00:00:00.000Z'),
     kg: bindings,
   };

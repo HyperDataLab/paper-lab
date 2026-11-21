@@ -54,7 +54,10 @@ export async function handlePlans(deps: Deps, request: Request, email: string, h
       page.objects
         .filter((object) => object.key.endsWith('/project.json'))
         .map(async (object) => {
-          const projectId = object.key.slice(PREFIX(deps.projectId ?? 'unassigned').length, -'/project.json'.length);
+          const projectId = object.key.slice(
+            PREFIX(deps.projectId ?? 'unassigned').length,
+            -'/project.json'.length,
+          );
           const meta = object.customMetadata ?? {};
           const entries = await versions(deps, projectId);
           return {

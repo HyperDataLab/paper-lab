@@ -136,7 +136,11 @@ export default function Page() {
     setDetail('');
     setProgress('Đang tải tài liệu từ ResearchHub…');
     try {
-      const paper = await importResearchHubFile(file, repo, { projectId, getIdToken, onProgress: setProgress });
+      const paper = await importResearchHubFile(file, repo, {
+        projectId,
+        getIdToken,
+        onProgress: setProgress,
+      });
       navigate(`/papers/${paper.id}`);
     } catch (cause) {
       setError('Không thể nhập tài liệu từ ResearchHub.');
@@ -222,7 +226,10 @@ export default function Page() {
             ) : projectFilesError ? (
               <div className={styles.projectFilesError} role="alert">
                 <span>Không thể tải tệp từ ResearchHub.</span>
-                <details><summary>Chi tiết kỹ thuật</summary>{projectFilesError}</details>
+                <details>
+                  <summary>Chi tiết kỹ thuật</summary>
+                  {projectFilesError}
+                </details>
               </div>
             ) : projectFiles.length === 0 ? (
               <p className={styles.projectFilesEmpty}>Project chưa có PDF nào trong kho ResearchHub.</p>
@@ -230,9 +237,15 @@ export default function Page() {
               <ul className={styles.projectFileList}>
                 {projectFiles.map((file) => (
                   <li key={file.id} className={styles.projectFileRow}>
-                    <span className={styles.projectFileType} aria-hidden="true">PDF</span>
-                    <span className={styles.projectFileName} title={file.name}>{file.name}</span>
-                    <span className={styles.projectFileMeta}>{fileSize(file.size)} · {new Date(file.uploadedAt).toLocaleDateString('vi')}</span>
+                    <span className={styles.projectFileType} aria-hidden="true">
+                      PDF
+                    </span>
+                    <span className={styles.projectFileName} title={file.name}>
+                      {file.name}
+                    </span>
+                    <span className={styles.projectFileMeta}>
+                      {fileSize(file.size)} · {new Date(file.uploadedAt).toLocaleDateString('vi')}
+                    </span>
                     <Button
                       size="sm"
                       variant="primary"

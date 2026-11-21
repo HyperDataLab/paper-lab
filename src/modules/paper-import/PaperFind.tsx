@@ -83,7 +83,11 @@ export function PaperFind({
         </span>
       )}
       {openTool && (
-        <div className={styles.findPopover} role="dialog" aria-label={openTool === 'search' ? 'Tìm trong bài' : 'Mục lục bài báo'}>
+        <div
+          className={styles.findPopover}
+          role="dialog"
+          aria-label={openTool === 'search' ? 'Tìm trong bài' : 'Mục lục bài báo'}
+        >
           <IconButton label="Đóng" className={styles.findClose} onClick={() => setOpenTool(null)}>
             <X size={16} aria-hidden="true" />
           </IconButton>
@@ -103,7 +107,9 @@ export function PaperFind({
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />
-              <Button type="submit" size="sm" variant="primary">Tìm</Button>
+              <Button type="submit" size="sm" variant="primary">
+                Tìm
+              </Button>
               {searched && (
                 <span className={styles.count} role="status">
                   {hits.length ? `${index + 1}/${hits.length}` : 'Không thấy'}
@@ -111,7 +117,11 @@ export function PaperFind({
               )}
               {hits.length > 1 && (
                 <div className={styles.hitControls}>
-                  <IconButton label="Kết quả trước" size="sm" onClick={() => show((index - 1 + hits.length) % hits.length)}>
+                  <IconButton
+                    label="Kết quả trước"
+                    size="sm"
+                    onClick={() => show((index - 1 + hits.length) % hits.length)}
+                  >
                     <ChevronLeft size={16} aria-hidden="true" />
                   </IconButton>
                   <IconButton label="Kết quả sau" size="sm" onClick={() => show((index + 1) % hits.length)}>

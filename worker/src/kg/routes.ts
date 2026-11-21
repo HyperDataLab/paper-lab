@@ -32,7 +32,8 @@ export async function handleKg(
     path.startsWith('/v1/kg/keywords/')
   )
     return handleKgRead(kg.db, request, path, headers, projectScope);
-  if (path === '/v1/kg/graph' || path === '/v1/kg/trend') return handleKgGraph(kg.db, request, path, headers, projectScope);
+  if (path === '/v1/kg/graph' || path === '/v1/kg/trend')
+    return handleKgGraph(kg.db, request, path, headers, projectScope);
 
   const queue = kgQueue(kg.db, projectScope);
   if (path === '/v1/kg/ingest/status' && request.method === 'GET')
@@ -50,6 +51,12 @@ export async function handleKg(
     );
   const { ids, depth, source } = body.data;
   const queued = await queue.enqueue(ids, depth, source, deps.now().toISOString());
-  const drained = await drainKgQueue(kg, { now: deps.now, fetcher: deps.fetch, limit: REQUEST_JOBS, ids, projectId: projectScope });
+  const drained = await drainKgQueue(kg, {
+    now: deps.now,
+    fetcher: deps.fetch,
+    limit: REQUEST_JOBS,
+    ids,
+    projectId: projectScope,
+  });
   return Response.json({ queued, skipped: ids.length - queued, ...drained }, { status: 202, headers });
 }
