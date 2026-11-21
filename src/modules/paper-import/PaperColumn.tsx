@@ -50,6 +50,28 @@ export function PaperColumn({
 }) {
   const { wide, pane } = nav;
   const fullText = <PaperReader {...reader} outlineOpen={!(wide && nav.showRight)} />;
+  const analysisLabel = `Vấn đề và trích dẫn${issueCount > 0 ? ` · ${issueCount}` : ''}`;
+  // Opens and closes the right column. The PDF toolbar carries it; a text paper has it beside its tabs.
+  const analysisToggle = (
+    <Button
+      size="sm"
+      variant="ghost"
+      className={styles.analysisToggle}
+      aria-expanded={analysisOpen}
+      aria-label={analysisLabel}
+      title={analysisLabel}
+      leadingIcon={
+        analysisOpen ? (
+          <PanelRightClose size={15} aria-hidden="true" />
+        ) : (
+          <PanelRightOpen size={15} aria-hidden="true" />
+        )
+      }
+      onClick={onToggleAnalysis}
+    >
+      <span className={styles.analysisToggleText}>{analysisLabel}</span>
+    </Button>
+  );
   return (
     <section
       ref={columnRef}
@@ -66,6 +88,7 @@ export function PaperColumn({
           </Tabs>
           {progressChip}
           <RunAllCard compact {...runAll} />
+          {analysisToggle}
         </div>
       )}
       {!wide && !(pane === 'fulltext' && paper.source.kind === 'pdf') && <RunAllCard compact {...runAll} />}
@@ -88,26 +111,7 @@ export function PaperColumn({
           }
           toolbarActions={
             <>
-              <Button
-                size="sm"
-                variant="ghost"
-                className={styles.analysisToggle}
-                aria-expanded={analysisOpen}
-                aria-label={`Vấn đề và trích dẫn${issueCount > 0 ? ` · ${issueCount}` : ''}`}
-                title={`Vấn đề và trích dẫn${issueCount > 0 ? ` · ${issueCount}` : ''}`}
-                leadingIcon={
-                  analysisOpen ? (
-                    <PanelRightClose size={15} aria-hidden="true" />
-                  ) : (
-                    <PanelRightOpen size={15} aria-hidden="true" />
-                  )
-                }
-                onClick={onToggleAnalysis}
-              >
-                <span className={styles.analysisToggleText}>
-                  Vấn đề và trích dẫn{issueCount > 0 ? ` · ${issueCount}` : ''}
-                </span>
-              </Button>
+              {analysisToggle}
               <div className={styles.pdfToolbarActions}>
                 <RunAllCard compact {...runAll} />
               </div>
