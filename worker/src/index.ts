@@ -16,6 +16,7 @@ interface Env extends KgBindings {
   ALLOWED_DOMAIN: string;
   ALLOWED_ORIGINS: string;
   ADMIN_EMAILS: string;
+  LLM_ALLOWED_HOSTS?: string;
   GROBID: Parameters<typeof getContainer>[0];
   /** Base URL of the topics worker that serves POST /nlp/parse; unset → POST /v1/measure skips passive and tense. */
   NLP_URL?: string;
@@ -174,6 +175,8 @@ export default {
         now: () => new Date(),
         grobid: (pdf) => processPdf(env.GROBID, pdf),
         nlpParse: nlpParse(env),
+        llmAllowedHosts: (env.LLM_ALLOWED_HOSTS ?? '').split(',').map((host) => host.trim().toLowerCase()).filter(Boolean),
+        llmFetch: fetch,
         sciatlasKey: env.SCIATLAS_API_KEY,
         kg: env,
         data: env.DATA,

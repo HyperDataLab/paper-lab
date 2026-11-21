@@ -145,7 +145,11 @@ export async function handleData(
   if (request.method === 'GET') {
     const scoped = { collection, id: projectRecordId(projectId, id) };
     const row = (await readRows(db, [scoped])).get(refKey(scoped));
-    if (!row || row.deleted_at) return fail(404, 'not_found', 'No such record.', headers);
+    if (!row || row.deleted_at) {
+      // A paper can have no analysis record until its first run; 204 keeps this normal state out of browser error logs.
+      if (collection === 'paperInsights') return new Response(null, { status: 204, headers });
+      return fail(404, 'not_found', 'No such record.', headers);
+    }
     const etag = etagOf(row.version);
     // A weak validator matches for a GET, as on the other /v1 routes.
     if (parseEtag(request.headers.get('if-none-match')?.replace(/^W\//u, '') ?? null) === row.version)

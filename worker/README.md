@@ -16,6 +16,7 @@ their on-demand migration to ResearchHub.
 - `PUT` accepts only `application/pdf`, at most 25 MiB, a body starting with `%PDF-` and whose SHA-256
   equals the path. A file already stored returns 200; a new one 201.
 - CORS answers only the origins in `ALLOWED_ORIGINS` (`wrangler.toml`).
+- `LLM_ALLOWED_HOSTS` is the exact host allowlist for the authenticated `/v1/llm/chat/completions` relay. The browser sends its locally stored 9router key to this route; the Worker checks the SSO session and active ResearchHub project before forwarding, and does not log the key or prompt.
 - The bucket is reached through the R2 binding. Worker secrets can include `SCIATLAS_API_KEY` and
   `OPENALEX_API_KEY`.
 

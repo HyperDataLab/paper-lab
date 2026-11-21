@@ -16,6 +16,7 @@ ALLOWED_DOMAIN = "hyperdatalab.org"
 ADMIN_EMAILS = "phuong@hyperdatalab.org"
 ALLOWED_ORIGINS = "https://hyperdatalab-paragraph-lab.web.app,https://hyperdatalab-paragraph-lab.firebaseapp.com,https://paperlab.hyperdatalab.org,https://hyperdatalab-writing-bank.web.app,https://hyperdatalab-writing-bank.firebaseapp.com,https://hyperdatalab-idea2hypo.web.app,https://hyperdatalab-idea2hypo.firebaseapp.com,http://localhost:5173,http://localhost:5174"
 NLP_URL = "https://paperlab-topics-worker.hyperdatalab.workers.dev"
+LLM_ALLOWED_HOSTS = "9router.dcloud.io.vn,9router.oraltest.site"
 
 [triggers]
 crons = ["*/5 * * * *"]

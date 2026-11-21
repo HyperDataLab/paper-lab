@@ -14,7 +14,10 @@ import {
   type ConsentScope,
 } from './consent';
 import { createGatedClient } from './gatedClient';
-import type { LlmClient } from './client';
+import { createLlmClient, type LlmClient } from './client';
+import { useAuth } from '@/shared/auth/authContext';
+import { useHubProjectId } from '@/shared/storage/StorageProvider';
+import { createLlmWorkerFetch } from './workerProxy';
 type ContextValue = {
   config: LlmConfig;
   client: LlmClient;
@@ -25,6 +28,18 @@ type ContextValue = {
   revoke: () => void;
 };
 const Context = createContext<ContextValue | null>(null);
+function configuredClient(
+  config: LlmConfig,
+  projectId: string | null,
+  getAccessToken: (() => Promise<string | null>) | undefined,
+  innerClient?: LlmClient,
+) {
+  return innerClient ?? createLlmClient(config, {
+    fetch: createLlmWorkerFetch(config.baseUrl, projectId, getAccessToken ?? (async () => null)),
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    now: () => Date.now(),
+  });
+}
 export function LlmProvider({
   children,
   innerClient,
@@ -33,18 +48,26 @@ export function LlmProvider({
   /** Test seam: replaces the network client. It is still wrapped by the consent gate. */
   innerClient?: LlmClient;
 }) {
+  const { getAccessToken } = useAuth();
+  const projectId = useHubProjectId();
   const [config, setConfig] = useState(getConfig);
   const [consent, setConsent] = useState(getConsent);
   const [open, setOpen] = useState(false);
   const [scope, setScope] = useState<ConsentScope>();
   const pending = useRef<Array<(value: boolean) => void>>([]);
-  const client = useMemo(() => createGatedClient(config, innerClient), [config, innerClient]);
+  const client = useMemo(
+    () => createGatedClient(config, configuredClient(config, projectId, getAccessToken, innerClient)),
+    [config, innerClient, projectId, getAccessToken],
+  );
   const criticClient = useMemo(
     () =>
       criticModelFor(config) === config.model
         ? client
-        : createGatedClient({ ...config, model: criticModelFor(config) }, innerClient),
-    [config, client, innerClient],
+        : createGatedClient(
+            { ...config, model: criticModelFor(config) },
+            configuredClient({ ...config, model: criticModelFor(config) }, projectId, getAccessToken, innerClient),
+          ),
+    [config, client, innerClient, projectId, getAccessToken],
   );
   const ensureConsent = (requestedScope?: ConsentScope) => {
     if (

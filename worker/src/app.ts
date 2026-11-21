@@ -44,6 +44,10 @@ export interface Deps extends KgBindings {
   nlpParse?: (sentences: { key: string; text: string }[], token: string) => Promise<Response>;
   /** Outbound fetch for OpenAlex and its listed Open Access PDF mirrors. */
   externalFetch?: typeof fetch;
+  /** Hosts that may receive user-authorized 9router requests through the same-origin Worker proxy. */
+  llmAllowedHosts?: string[];
+  /** Outbound fetch for the configured 9router endpoint. */
+  llmFetch?: typeof fetch;
   /** Validates project ownership through the ResearchHub API. */
   getOwnedProject?: (projectId: string, token: string) => Promise<{ id: string; name: string } | null>;
   /** Stores file bytes in the ResearchHub project and returns the ResearchHub file ID. */
@@ -81,7 +85,7 @@ function cors(request: Request, deps: Deps): Record<string, string> {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, HEAD, PUT, POST, DELETE',
     'Access-Control-Expose-Headers': 'X-Grobid-Cache, X-Grobid-Ms, ETag, Retry-After',
-    'Access-Control-Allow-Headers': 'authorization, content-type, if-match, if-none-match, x-project-id, x-file-name',
+    'Access-Control-Allow-Headers': 'authorization, content-type, if-match, if-none-match, x-project-id, x-file-name, x-llm-api-key, x-llm-base-url',
     'Access-Control-Max-Age': '3600',
     Vary: 'Origin',
   };
@@ -298,6 +302,47 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
           const value = response.headers.get(name);
           if (value) responseHeaders.set(name, value);
         }
+        return new Response(response.body, { status: response.status, headers: responseHeaders });
+      }
+      if (path === '/v1/llm/chat/completions') {
+        if (request.method !== 'POST') return json(405, { error: 'Use POST.' }, headers);
+        const apiKey = request.headers.get('X-LLM-API-Key')?.trim();
+        const baseUrl = request.headers.get('X-LLM-Base-URL')?.trim();
+        if (!apiKey || !baseUrl) return json(400, { error: '9router configuration is missing.' }, headers);
+        let endpoint: URL;
+        try {
+          endpoint = new URL(baseUrl);
+        } catch {
+          return json(400, { error: 'Invalid 9router endpoint.' }, headers);
+        }
+        const allowedHosts = deps.llmAllowedHosts ?? [];
+        if (
+          endpoint.protocol !== 'https:' || endpoint.username || endpoint.password || endpoint.search || endpoint.hash ||
+          !allowedHosts.includes(endpoint.hostname.toLowerCase()) || endpoint.pathname.includes('..')
+        ) return json(400, { error: '9router endpoint is not allowed by this Worker.' }, headers);
+        const length = Number(request.headers.get('content-length'));
+        if (Number.isFinite(length) && length > 8 * 1024 * 1024)
+          return json(413, { error: 'The 9router request is too large.' }, headers);
+        const body = await request.arrayBuffer();
+        if (body.byteLength > 8 * 1024 * 1024)
+          return json(413, { error: 'The 9router request is too large.' }, headers);
+        endpoint.pathname = `${endpoint.pathname.replace(/\/$/u, '')}/chat/completions`;
+        let response: Response;
+        try {
+          response = await (deps.llmFetch ?? fetch)(endpoint, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            body,
+            signal: request.signal,
+          });
+        } catch {
+          return json(502, { error: 'Could not reach the configured 9router endpoint.' }, headers);
+        }
+        const responseHeaders = new Headers(headers);
+        responseHeaders.set('Cache-Control', 'no-store');
+        responseHeaders.set('Content-Type', response.headers.get('Content-Type') ?? 'application/json');
+        const retryAfter = response.headers.get('Retry-After');
+        if (retryAfter) responseHeaders.set('Retry-After', retryAfter);
         return new Response(response.body, { status: response.status, headers: responseHeaders });
       }
       if (path.startsWith(DATA_PATH_PREFIX))
