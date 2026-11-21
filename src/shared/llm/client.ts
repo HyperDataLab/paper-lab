@@ -16,6 +16,8 @@ type Options<T> = {
   schemaName: string;
   promptVersion: string;
   temperature?: number;
+  /** Ask OpenAI-compatible providers to send the completion incrementally. */
+  stream?: boolean;
   signal?: AbortSignal;
   onRequest?: () => Promise<void>;
   /** Per-request limit; defaults to 60 s. */
@@ -200,7 +202,7 @@ export function createLlmClient(config: LlmConfig, deps: Deps = defaults): LlmCl
               signal: controller.signal,
               body: JSON.stringify({
                 model: config.model,
-                stream: false,
+                stream: options.stream ?? false,
                 temperature: options.temperature ?? 0.1,
                 messages,
                 ...(responseFormat === 'json_schema'

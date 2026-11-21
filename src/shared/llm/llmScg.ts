@@ -139,6 +139,9 @@ export async function llmScg(client: LlmClient, model: PaperModel, options: ScgR
       schemaName,
       promptVersion,
       temperature: 0,
+      // SCG prompts can be large; streaming keeps the router/proxy connection active while the
+      // model generates its structured answer instead of waiting for one complete response.
+      stream: true,
       timeoutMs: TIMEOUT_MS,
       signal: options.signal,
       onRequest: async () => {
