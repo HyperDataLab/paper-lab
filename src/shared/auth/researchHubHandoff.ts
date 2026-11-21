@@ -2,16 +2,31 @@ import { isAllowedOrganizationEmail, RESEARCH_HUB_ORIGINS, SSO_BASE_URL } from '
 
 const HANDOFF_REQUEST = 'paperlab.sso.handoff.request';
 const HANDOFF_RESPONSE = 'researchhub.sso.handoff.response';
+const REFRESH_REQUEST = 'paperlab.sso.refresh.request';
+const REFRESH_RESPONSE = 'researchhub.sso.refresh.response';
+
+export interface HandoffSource {
+  state: string;
+  projectId: string;
+}
 
 export interface HandoffSession {
   accessToken: string;
   expiresAt: number;
+  handoff: HandoffSource;
   profile: { sub: string; email: string; email_verified: boolean; name?: string };
 }
 
 export interface HandoffRequest {
   state: string;
   projectId: string;
+}
+
+function randomBase64Url(bytes: number) {
+  const value = crypto.getRandomValues(new Uint8Array(bytes));
+  let binary = '';
+  for (const byte of value) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/gu, '-').replace(/\//gu, '_').replace(/=+$/u, '');
 }
 
 export function getHandoffRequest(url: URL): HandoffRequest | null {
@@ -76,11 +91,17 @@ export function requestResearchHubSession(
         message.type !== HANDOFF_RESPONSE ||
         message.state !== request.state ||
         message.projectId !== request.projectId ||
-        typeof message.accessToken !== 'string' ||
-        typeof message.expiresAt !== 'number' ||
-        message.expiresAt <= Date.now()
+        (message.error !== 'session_expired' &&
+          (typeof message.accessToken !== 'string' ||
+            typeof message.expiresAt !== 'number' ||
+            message.expiresAt <= Date.now()))
       )
         return;
+
+      if (message.error === 'session_expired') {
+        finish(new Error('Phiên SSO của ResearchHub đã hết hạn. Hãy đăng nhập lại từ ResearchHub.'));
+        return;
+      }
 
       void (async () => {
         try {
@@ -95,11 +116,16 @@ export function requestResearchHubSession(
           ) {
             throw new Error('ResearchHub gửi phiên SSO không hợp lệ. Hãy đăng nhập lại.');
           }
-          finish(undefined, {
-            accessToken: message.accessToken as string,
-            expiresAt: message.expiresAt as number,
-            profile,
-          });
+          finish(
+            undefined,
+            {
+              accessToken: message.accessToken as string,
+              expiresAt: message.expiresAt as number,
+              handoff: { state: request.state, projectId: request.projectId },
+              profile,
+            },
+            false,
+          );
         } catch (cause) {
           finish(
             cause instanceof Error ? cause : new Error('Không xác minh được phiên ResearchHub với SSO.'),
@@ -117,6 +143,72 @@ export function requestResearchHubSession(
     for (const origin of RESEARCH_HUB_ORIGINS) {
       window.opener?.postMessage(
         { type: HANDOFF_REQUEST, state: request.state, projectId: request.projectId },
+        origin,
+      );
+    }
+  });
+}
+
+export function requestResearchHubTokenRefresh(
+  handoff: HandoffSource,
+  timeoutMs = 12_000,
+  signal?: AbortSignal,
+): Promise<{ accessToken: string; expiresAt: number }> {
+  if (!window.opener) return Promise.reject(new Error('ResearchHub không còn mở để gia hạn phiên.'));
+  return new Promise((resolve, reject) => {
+    const requestId = randomBase64Url(18);
+    let settled = false;
+    const finish = (error?: Error, token?: { accessToken: string; expiresAt: number }) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      window.removeEventListener('message', onMessage);
+      signal?.removeEventListener('abort', onAbort);
+      if (error) reject(error);
+      else if (token) resolve(token);
+      else reject(new Error('ResearchHub không gửi được phiên mới.'));
+    };
+    const timeout = window.setTimeout(
+      () => finish(new Error('Hết thời gian chờ ResearchHub gia hạn phiên.')),
+      timeoutMs,
+    );
+    const onAbort = () => finish(new Error('Yêu cầu gia hạn phiên bị hủy.'));
+    const onMessage = (event: MessageEvent<unknown>) => {
+      if (!RESEARCH_HUB_ORIGINS.includes(event.origin) || event.source !== window.opener) return;
+      if (!event.data || typeof event.data !== 'object') return;
+      const message = event.data as Record<string, unknown>;
+      if (
+        message.type !== REFRESH_RESPONSE ||
+        message.state !== handoff.state ||
+        message.projectId !== handoff.projectId ||
+        message.requestId !== requestId
+      )
+        return;
+      if (message.error === 'session_expired') {
+        finish(new Error('Phiên SSO của ResearchHub đã hết hạn. Hãy đăng nhập lại từ ResearchHub.'));
+      } else if (
+        typeof message.accessToken === 'string' &&
+        typeof message.expiresAt === 'number' &&
+        message.expiresAt > Date.now()
+      ) {
+        finish(undefined, { accessToken: message.accessToken, expiresAt: message.expiresAt });
+      }
+    };
+
+    window.addEventListener('message', onMessage);
+    if (signal?.aborted) {
+      onAbort();
+      return;
+    }
+    signal?.addEventListener('abort', onAbort, { once: true });
+    for (const origin of RESEARCH_HUB_ORIGINS) {
+      window.opener?.postMessage(
+        {
+          type: REFRESH_REQUEST,
+          state: handoff.state,
+          projectId: handoff.projectId,
+          requestId,
+        },
         origin,
       );
     }

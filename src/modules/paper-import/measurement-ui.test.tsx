@@ -277,12 +277,18 @@ it('R5 decides a measurement finding from the unified list', async () => {
   const list = await screen.findByRole('region', { name: 'Issues' });
   // Cards are compact: once the measurement findings have loaded, open them to read their reasons.
   const measurementRows = () => [...list.querySelectorAll<HTMLElement>('[id^="finding-measurement:"]')];
-  await waitFor(() => expect(measurementRows().length).toBeGreaterThan(0));
-  for (const row of measurementRows()) {
-    const fold = within(row).queryByRole('button', { name: /^Mở rộng / });
-    if (fold) fireEvent.click(fold);
-  }
-  const finding = await within(list).findByText('Chưa thấy nêu seed.');
+  // Rows can arrive after the first ones render, so keep expanding any collapsed row until the reason shows.
+  await waitFor(
+    () => {
+      for (const row of measurementRows()) {
+        const fold = within(row).queryByRole('button', { name: /^Mở rộng / });
+        if (fold) fireEvent.click(fold);
+      }
+      expect(within(list).getByText('Chưa thấy nêu seed.')).toBeInTheDocument();
+    },
+    { timeout: 5000 },
+  );
+  const finding = within(list).getByText('Chưa thấy nêu seed.');
   const row = finding.closest('[id^="finding-measurement:"]');
   if (!(row instanceof HTMLElement)) throw new Error('Missing measurement finding');
   // Accepted by default: the only decision is to reject it.

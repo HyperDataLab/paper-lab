@@ -2,24 +2,18 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { AuthContext, type LabUser } from './authContext';
 import { isAllowedOrganizationEmail, SSO_BASE_URL, SSO_CALLBACK_URL, SSO_CLIENT_ID } from './config';
 import { clearHandoffFromUrl, getHandoffRequest, requestResearchHubSession } from './researchHubHandoff';
+import { refreshSsoSessionIfNeeded } from './refreshSession';
+import {
+  clearSsoSession,
+  readSsoSession,
+  SESSION_EVENT,
+  storeSsoSession,
+  type SsoProfile,
+  type SsoSession,
+} from './session';
 
-const SESSION_KEY = 'paperlab-sso-session';
 const ATTEMPT_KEY = 'paperlab-sso-attempt';
-const SESSION_EVENT = 'paperlab-sso-session-change';
 const MAX_LOGIN_AGE_MS = 10 * 60 * 1000;
-
-interface SsoProfile {
-  sub: string;
-  email: string;
-  email_verified: boolean;
-  name?: string;
-}
-
-interface SsoSession {
-  accessToken: string;
-  expiresAt: number;
-  profile: SsoProfile;
-}
 
 interface SsoAttempt {
   state: string;
@@ -29,37 +23,6 @@ interface SsoAttempt {
 }
 
 let callbackInProgress: Promise<string> | null = null;
-
-function fromSession(value: string | null): SsoSession | null {
-  if (!value) return null;
-  try {
-    const session = JSON.parse(value) as Partial<SsoSession>;
-    const profile = session.profile;
-    if (
-      typeof session.accessToken !== 'string' ||
-      typeof session.expiresAt !== 'number' ||
-      session.expiresAt <= Date.now() ||
-      !profile ||
-      typeof profile.sub !== 'string' ||
-      !isAllowedOrganizationEmail(profile.email, profile.email_verified)
-    )
-      return null;
-    return session as SsoSession;
-  } catch {
-    return null;
-  }
-}
-
-function readSession() {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    const session = fromSession(raw);
-    if (!session && raw) sessionStorage.removeItem(SESSION_KEY);
-    return session;
-  } catch {
-    return null;
-  }
-}
 
 function randomBase64Url(bytes = 32) {
   const value = crypto.getRandomValues(new Uint8Array(bytes));
@@ -144,6 +107,8 @@ async function finishCallback() {
   const tokenBody = (await tokenResponse.json().catch(() => ({}))) as {
     access_token?: unknown;
     expires_in?: unknown;
+    refresh_token?: unknown;
+    refresh_token_expires_in?: unknown;
     error?: string;
     error_description?: string;
   };
@@ -163,11 +128,15 @@ async function finishCallback() {
   const session: SsoSession = {
     accessToken: tokenBody.access_token,
     expiresAt: Date.now() + Math.max(0, expiresIn) * 1000,
+    ...(typeof tokenBody.refresh_token === 'string' ? { refreshToken: tokenBody.refresh_token } : {}),
+    ...(typeof tokenBody.refresh_token_expires_in === 'number'
+      ? { refreshExpiresAt: Date.now() + Math.max(0, tokenBody.refresh_token_expires_in) * 1000 }
+      : {}),
+    refreshClientId: SSO_CLIENT_ID,
     profile: profile as SsoProfile,
   };
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  storeSsoSession(session);
   sessionStorage.removeItem(ATTEMPT_KEY);
-  window.dispatchEvent(new Event(SESSION_EVENT));
   return safeReturnTo(attempt.returnTo);
 }
 
@@ -179,15 +148,15 @@ function finishCallbackOnce() {
 }
 
 async function revokeSession(session: SsoSession | null) {
-  if (session?.accessToken && SSO_BASE_URL) {
+  const token = session?.handoff ? null : (session?.refreshToken ?? session?.accessToken);
+  if (token && SSO_BASE_URL) {
     await fetch(new URL('/oauth/revoke', SSO_BASE_URL), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: session.accessToken }),
+      body: JSON.stringify({ token }),
     }).catch(() => undefined);
   }
-  sessionStorage.removeItem(SESSION_KEY);
-  window.dispatchEvent(new Event(SESSION_EVENT));
+  clearSsoSession();
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -198,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const initialHandoff = getHandoffRequest(initialUrl);
   const hasHandoffParameter = initialUrl.searchParams.has('rh_handoff');
   const [session, setSession] = useState<SsoSession | null>(() =>
-    hasHandoffParameter && !initialHandoff ? null : readSession(),
+    hasHandoffParameter && !initialHandoff ? null : readSsoSession(),
   );
   const [ready, setReady] = useState(() => !isCallback && !initialHandoff);
   const [error, setError] = useState(() =>
@@ -216,7 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       void finishCallbackOnce()
         .then((returnTo) => {
           if (!active) return;
-          setSession(readSession());
+          setSession(readSsoSession());
           window.location.replace(returnTo);
         })
         .catch((cause: unknown) => {
@@ -240,7 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const request = getHandoffRequest(url);
       if (!request) {
         try {
-          sessionStorage.removeItem(SESSION_KEY);
+          clearSsoSession();
         } catch {
           /* A malformed handoff still gates the app even if storage cannot be cleared. */
         }
@@ -249,8 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         void requestResearchHubSession(request, 15_000, handoffController.signal)
           .then((nextSession) => {
             if (!active) return;
-            sessionStorage.setItem(SESSION_KEY, JSON.stringify(nextSession));
-            window.dispatchEvent(new Event(SESSION_EVENT));
+            storeSsoSession(nextSession);
             setSession(nextSession);
             setError('');
             setHandoffFailed(false);
@@ -262,7 +230,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setError(
               cause instanceof Error ? cause.message : 'Không nhận được phiên đăng nhập từ ResearchHub.',
             );
-            sessionStorage.removeItem(SESSION_KEY);
+            clearSsoSession();
             setSession(null);
             setHandoffFailed(true);
             clearHandoffFromUrl();
@@ -270,7 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
       }
     }
-    const sync = () => setSession(readSession());
+    const sync = () => setSession(readSsoSession());
     window.addEventListener('storage', sync);
     window.addEventListener(SESSION_EVENT, sync);
     return () => {
@@ -293,7 +261,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await revokeSession(session);
     setSession(null);
   }, [session]);
-  const getAccessToken = useCallback(async () => readSession()?.accessToken ?? null, []);
+  const getAccessToken = useCallback(async () => {
+    const current = readSsoSession();
+    if (!current) return null;
+    try {
+      const next = await refreshSsoSessionIfNeeded(current, readSsoSession);
+      if (!next || next.accessToken !== current.accessToken) setSession(readSsoSession());
+      return next?.accessToken ?? null;
+    } catch {
+      return current.expiresAt > Date.now() ? current.accessToken : null;
+    }
+  }, []);
+  useEffect(() => {
+    if (!session) return;
+
+    let active = true;
+    let timer: number | undefined;
+    const canRefresh = (candidate: SsoSession) =>
+      candidate.handoff
+        ? Boolean(window.opener)
+        : Boolean(
+            candidate.refreshToken && candidate.refreshExpiresAt && candidate.refreshExpiresAt > Date.now(),
+          );
+    const schedule = (candidate: SsoSession) => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      if (!canRefresh(candidate)) return;
+      timer = window.setTimeout(
+        () => void refresh(),
+        Math.max(0, candidate.expiresAt - Date.now() - 5 * 60 * 1000),
+      );
+    };
+    const refresh = async () => {
+      const current = readSsoSession();
+      if (!current || !canRefresh(current)) return;
+      try {
+        const next = await refreshSsoSessionIfNeeded(current, readSsoSession);
+        if (!active) return;
+        if (!next) {
+          setSession(readSsoSession());
+          return;
+        }
+        if (next.accessToken !== current.accessToken) setSession(next);
+        schedule(next);
+      } catch {
+        if (active) timer = window.setTimeout(() => void refresh(), 30_000);
+      }
+    };
+    const refreshWhenActive = () => {
+      if (document.visibilityState === 'visible') void refresh();
+    };
+
+    schedule(session);
+    window.addEventListener('focus', refreshWhenActive);
+    document.addEventListener('visibilitychange', refreshWhenActive);
+    return () => {
+      active = false;
+      if (timer !== undefined) window.clearTimeout(timer);
+      window.removeEventListener('focus', refreshWhenActive);
+      document.removeEventListener('visibilitychange', refreshWhenActive);
+    };
+  }, [session]);
   const user: LabUser | null = useMemo(
     () =>
       session
