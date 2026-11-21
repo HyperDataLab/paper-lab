@@ -3,7 +3,8 @@ import type { ExtractionProject } from '@/core/schemas';
 import { emptyResearchDesign, type ResearchDesign } from '@/core/schemas/researchDesign';
 import type { BankDoc } from '@/core/researchDesign/bank/snapshot';
 import type { PapersDoc } from '@/core/researchDesign/papers';
-import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
+import { ResearchDesignConflictError } from '@/shared/storage/errors';
+import type { FreezeForRun } from '@/shared/storage/types';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { loadLocalData } from './localData';
 
@@ -24,6 +25,7 @@ type Actions = {
     deviation: string | null,
     papers: PapersDoc,
     appVersion: string,
+    lock?: FreezeForRun,
   ) => Promise<ResearchDesign>;
 };
 type State =
@@ -117,10 +119,19 @@ export function ResearchDesignProvider({
     [repo, project.id, withFreshVersion, patch],
   );
   const freeze = useCallback<Actions['freeze']>(
-    async (version, who, deviation, papers, appVersion) => {
+    async (version, who, deviation, papers, appVersion, lock) => {
       // Only the record version is refreshed: the plan version stays the caller's, so a mismatch surfaces.
       const design = await withFreshVersion((current) =>
-        repo.researchDesigns.freeze(project.id, current.version, version, who, deviation, papers, appVersion),
+        repo.researchDesigns.freeze(
+          project.id,
+          current.version,
+          version,
+          who,
+          deviation,
+          papers,
+          appVersion,
+          lock,
+        ),
       );
       patch({ design });
       return design;
@@ -129,6 +140,7 @@ export function ResearchDesignProvider({
   );
   const ready = !state.loading && !state.error;
   const reload = useCallback(async () => {
+    await repo.researchDesigns.discard(project.id);
     // A ready area keeps its sections mounted so open dialogs survive; after a load error everything is read again.
     if (!ready) {
       setState({ loading: true });

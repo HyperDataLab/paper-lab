@@ -35,8 +35,8 @@ export function VariableDialog({
   return (
     <Dialog
       kind="form"
-      title={item ? 'Sửa biến' : 'Thêm biến'}
-      description="Mô tả biến trong nghiên cứu."
+      title={item ? 'Sửa variable' : 'Thêm variable'}
+      description="Mô tả variable trong nghiên cứu."
       onClose={close}
     >
       <form

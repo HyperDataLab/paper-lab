@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -7,17 +6,16 @@ import { analyzeText } from '@/core/text';
 import type { Issue } from '@/core/schemas';
 import type { LlmClient } from '@/shared/llm/client';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import Evaluate from '../evaluate/Page';
 import History from '../history/Page';
 import Revise from './Page';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 it('AC-07 AC-08 AC-12 selects issues, gates consent, displays diff and requires override before applying', async () => {
   vi.stubGlobal('crypto', webcrypto);
   localStorage.clear();
-  const repo = createRepositories(createDb(`revise-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const issue: Issue = {
     id: 'issue-1',
     type: 'WEAK_MODIFIER',
@@ -100,7 +98,7 @@ it.each(['issue', 'add term', 'remove term', 'leave'])(
   async (action) => {
     vi.stubGlobal('crypto', webcrypto);
     localStorage.clear();
-    const repo = createRepositories(createDb(`stale-${crypto.randomUUID()}`));
+    const repo = testRepositories();
     const issue: Issue = {
       id: 'i',
       type: 'WEAK_MODIFIER',

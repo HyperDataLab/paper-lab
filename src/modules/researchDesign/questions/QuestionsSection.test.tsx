@@ -61,7 +61,7 @@ it('QH-02 renames a question without changing its id', async () => {
   state.update.mockResolvedValue(undefined);
   show();
   fireEvent.click(screen.getByRole('button', { name: 'Sửa' }));
-  fireEvent.change(screen.getByLabelText('Câu hỏi'), { target: { value: 'Renamed question' } });
+  fireEvent.change(screen.getByLabelText('Research question'), { target: { value: 'Renamed question' } });
   fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
   await waitFor(() => expect(state.update).toHaveBeenCalledOnce(), { timeout: 5000 });
   const change = state.update.mock.calls[0]?.[0] as (value: typeof record) => typeof record;
@@ -74,7 +74,7 @@ it('QH-03 adds a hypothesis linked to its question and QH-07 links to the bank',
   state.record = record;
   state.update.mockResolvedValue(undefined);
   show();
-  fireEvent.click(screen.getByRole('button', { name: 'Thêm giả thuyết' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm hypothesis' }));
   expect(screen.getByRole('link', { name: 'Writing Bank' })).toHaveAttribute('href', '/?design=bank');
   fireEvent.change(screen.getByLabelText('Phát biểu'), { target: { value: 'Synthetic hypothesis' } });
   fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
@@ -105,7 +105,7 @@ it('QH-06 shows a design and claim mismatch', () => {
     collections: snapshot.collections,
   });
   show();
-  expect(screen.getByText(/h-1 là nhận định Causal.*không hỗ trợ/)).toBeInTheDocument();
+  expect(screen.getByText(/h-1 là claim Causal.*không hỗ trợ/)).toBeInTheDocument();
 });
 
 it('QH-09 shows loading and empty states and QH-10 shows errors', () => {
@@ -118,14 +118,14 @@ it('QH-09 shows loading and empty states and QH-10 shows errors', () => {
       <QuestionsSection />
     </MemoryRouter>,
   );
-  expect(screen.getByText('Chưa có câu hỏi nào.')).toBeInTheDocument();
+  expect(screen.getByText('Chưa có research question nào.')).toBeInTheDocument();
   state.error = true;
   view.rerender(
     <MemoryRouter>
       <QuestionsSection />
     </MemoryRouter>,
   );
-  expect(screen.getByText('Không tải được câu hỏi và giả thuyết.')).toBeInTheDocument();
+  expect(screen.getByText('Không tải được research questions và hypotheses.')).toBeInTheDocument();
 });
 
 it('QH-11 links the hypothesis chain to measurement', () => {
@@ -166,7 +166,7 @@ it('QH-12 names unused objects in delete confirmations and shows each chain warn
   state.record = record;
   show();
   expect(screen.getAllByText('chưa có phân tích')).toHaveLength(1);
-  expect(screen.getAllByText('chưa gắn biến phụ thuộc')).toHaveLength(1);
+  expect(screen.getAllByText('chưa gắn dependent variable')).toHaveLength(1);
   for (const [index, id] of [
     [0, 'q-1'],
     [1, 'h-1'],
@@ -198,7 +198,7 @@ it('QH-03 QH-05 refuses deleting a question with hypotheses', () => {
     </MemoryRouter>,
   );
   fireEvent.click(screen.getAllByRole('button', { name: 'Xoá' })[0]!);
-  expect(screen.getByText(/còn 1 giả thuyết/)).toBeInTheDocument();
+  expect(screen.getByText(/còn 1 hypothesis/)).toBeInTheDocument();
   expect(screen.getByRole('alertdialog')).not.toHaveTextContent('Xoá q-1?');
   state.record = null;
 });
@@ -220,8 +220,8 @@ it('QH-04 QH-11 shows unattached hypotheses and the incomplete chain', () => {
       <QuestionsSection />
     </MemoryRouter>,
   );
-  expect(screen.getByText('Chưa gắn câu hỏi')).toBeInTheDocument();
-  expect(screen.getByText('chưa gắn biến phụ thuộc')).toBeInTheDocument();
+  expect(screen.getByText('Chưa gắn research question')).toBeInTheDocument();
+  expect(screen.getByText('chưa gắn dependent variable')).toBeInTheDocument();
   expect(screen.getByText('chưa có phân tích')).toBeInTheDocument();
   state.record = null;
 });
@@ -233,9 +233,9 @@ it('QH-01 saves a question and its gap through the provider', async () => {
       <QuestionsSection />
     </MemoryRouter>,
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Th\u00eam c\u00e2u h\u1ecfi' }));
-  fireEvent.change(screen.getByLabelText('C\u00e2u h\u1ecfi'), { target: { value: 'Synthetic question?' } });
-  fireEvent.change(screen.getByLabelText('Kho\u1ea3ng tr\u1ed1ng'), { target: { value: 'Synthetic gap' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm research question' }));
+  fireEvent.change(screen.getByLabelText('Research question'), { target: { value: 'Synthetic question?' } });
+  fireEvent.change(screen.getByLabelText('Research gap'), { target: { value: 'Synthetic gap' } });
   fireEvent.click(screen.getByRole('button', { name: 'L\u01b0u' }));
   await waitFor(() => expect(state.update).toHaveBeenCalledOnce());
   const update = state.update.mock.calls[0]?.[0] as (

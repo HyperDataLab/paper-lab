@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -8,10 +7,10 @@ import { DEFINITION, fixturePaper, PAPER_ID } from '@/core/measurement/testFixtu
 import { sentenceIndex } from '@/core/paperModel';
 import { downloadText } from '@/shared/calibration/download';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories, type Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import PaperMapPage from './PaperMapPage';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 vi.mock('@/shared/calibration/download', { spy: true });
 
@@ -117,7 +116,7 @@ async function seed(repo: Repositories) {
 }
 
 async function openPaper(populated: boolean) {
-  const repo = createRepositories(createDb(`openkg-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.papers.create(paper);
   if (populated) await seed(repo);
   render(
@@ -140,7 +139,7 @@ it('opens the graph tab, shows five layer counts and lets a reader inspect, filt
   const layers = within(screen.getByRole('group', { name: 'Số bộ ba theo lớp' }));
   expect(layers.getAllByRole('checkbox')).toHaveLength(5);
   for (const name of [
-    'Dẫn chứng (1)',
+    'Evidence (1)',
     'Khái niệm (2)',
     'Chuyên ngành (1)',
     'Chuyên môn (1)',
@@ -152,9 +151,10 @@ it('opens the graph tab, shows five layer counts and lets a reader inspect, filt
   fireEvent.keyDown(contribution, { key: 'Enter' });
   const panel = within(screen.getByRole('complementary', { name: 'Chi tiết nút' }));
   expect(panel.getByRole('heading', { name: 'Synthetic contribution' })).toBeInTheDocument();
+  expect(panel.getByText('có contribution')).toBeInTheDocument();
   expect(panel.getByText('Đã chấp nhận')).toBeInTheDocument();
   fireEvent.click(panel.getByRole('button', { name: 'Xem trong bài' }));
-  const drawer = screen.getByRole('dialog', { name: 'Bằng chứng trong bài' });
+  const drawer = screen.getByRole('dialog', { name: 'Evidence trong bài' });
   expect(drawer.querySelector('mark')).toHaveTextContent(DEFINITION);
   fireEvent.keyDown(drawer, { key: 'Escape' });
 
@@ -162,8 +162,8 @@ it('opens the graph tab, shows five layer counts and lets a reader inspect, filt
   expect(within(graph).queryByRole('button', { name: 'Synthetic contribution' })).not.toBeInTheDocument();
   expect(within(graph).getByRole('button', { name: 'Synthetic paper' })).toBeInTheDocument();
   fireEvent.click(screen.getByText('Danh sách bộ ba (5)'));
-  expect(await screen.findByText('có mức bằng chứng')).toBeVisible();
-  expect(screen.queryByText('có từ khóa')).not.toBeInTheDocument();
+  expect(await screen.findByText('có mức evidence')).toBeVisible();
+  expect(screen.queryByText('có keyword')).not.toBeInTheDocument();
   for (const name of ['Turtle (.ttl)', 'JSON-LD (.jsonld)', 'Báo cáo (.md)']) {
     fireEvent.click(screen.getByRole('button', { name }));
   }
@@ -191,7 +191,7 @@ it('opens from the shared view address and explains missing sources', async () =
   expect(await openPaper(false)).toHaveAttribute('aria-selected', 'true');
   const notices = within(await screen.findByRole('list', { name: 'Dữ liệu còn thiếu' }));
   expect(notices.getAllByText('Chưa có dữ liệu OpenAlex trong Thư viện DOI.')).toHaveLength(2);
-  expect(notices.getByText('Chưa chạy SCG để lấy đóng góp và nền tảng.')).toBeInTheDocument();
-  expect(notices.getByText('Chưa chạy phân tích lập luận.')).toBeInTheDocument();
+  expect(notices.getByText('Chưa chạy SCG để lấy contribution và nền tảng.')).toBeInTheDocument();
+  expect(notices.getByText('Chưa chạy phân tích argument.')).toBeInTheDocument();
   expect(screen.getByRole('checkbox', { name: 'Khái niệm (0)' })).toBeChecked();
 });

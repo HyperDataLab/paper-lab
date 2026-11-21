@@ -1,11 +1,13 @@
-import 'fake-indexeddb/auto';
 import { expect, it } from 'vitest';
-import { createDb } from './db';
 import { createCorpusTopicsRepository } from './corpusTopics';
+import { MemoryDocStore, type DocStore } from './docStore';
+import { testWorkerData } from './remoteTestSupport';
 
-it('retains snapshots by corpus and keeps names attached to each snapshot', async () => {
-  const db = createDb(`topics-${crypto.randomUUID()}`);
-  const repo = createCorpusTopicsRepository(db);
+it.each<[string, () => DocStore]>([
+  ['MemoryDocStore', () => new MemoryDocStore()],
+  ['RemoteDocStore', () => testWorkerData().connect()],
+])('retains snapshots by corpus and keeps names attached to each snapshot (%s)', async (_name, make) => {
+  const repo = createCorpusTopicsRepository(make());
   const snapshot = {
     format: 'paperlab-corpus-topics' as const,
     schemaVersion: 1 as const,
@@ -43,5 +45,4 @@ it('retains snapshots by corpus and keeps names attached to each snapshot', asyn
   });
   expect(await repo.names('two')).toEqual([]);
   expect(await repo.names('one')).toMatchObject([{ name: 'Edited', promptVersion: 'v1' }]);
-  await db.delete();
 });

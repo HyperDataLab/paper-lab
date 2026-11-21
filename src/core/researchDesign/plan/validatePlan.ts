@@ -71,6 +71,19 @@ export function validatePlan(plan: ExperimentPlan): PlanIssue[] {
   for (const item of plan.context?.constructs ?? []) need('variable', item.variable, 'context.constructs');
   for (const item of plan.context?.metricProtocols ?? [])
     need('metric', item.metric, 'context.metricProtocols');
+  const source = plan.context?.autoresearch;
+  if (source) {
+    for (const item of source.hypotheses) need('hypothesis', item.id, 'context.autoresearch.hypotheses');
+    for (const item of source.licenses) need('dataset', item.datasetId, 'context.autoresearch.licenses');
+    const mapped = new Set(source.hypotheses.map(({ id }) => id));
+    if (source.hypotheses.some(({ id }) => !plan.analyses.some((analysis) => analysis.hypothesis === id)))
+      block('PP-05', 'Each linked AutoResearch hypothesis needs a pre-specified analysis.');
+    if (
+      mapped.size !== source.hypotheses.length ||
+      duplicates(source.hypotheses.map(({ sourceId }) => sourceId)).length
+    )
+      block('PP-02', 'AutoResearch hypotheses must map uniquely to plan hypotheses.');
+  }
 
   // PP-03: the grid is what it says it is.
   const { conditions, datasets, seeds, expectedRuns } = plan.runMatrix;

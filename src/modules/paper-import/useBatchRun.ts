@@ -68,6 +68,11 @@ export function useBatchRun(paper: Paper) {
     busy.current = true;
     const analyzer = createPaperParagraphAnalyzer(client, repo, paper);
     let transitionSave = Promise.resolve();
+    const loadedItems = new Map(
+      value.items
+        .filter((item) => item.status === 'done' || item.status === 'cached')
+        .map((item) => [item.paragraphId, item.analysisId]),
+    );
     try {
       const result = await runBatch(
         value,
@@ -112,10 +117,29 @@ export function useBatchRun(paper: Paper) {
           now: () => new Date().toISOString(),
           sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
           save: async (next) => {
-            await repo.paperRuns.save(next);
-            if (next.status === 'running') setRun(next);
-            await refresh();
-            notifyStoredChanged();
+            if (next.status === 'running') {
+              await repo.paperRuns.checkpoint(next);
+              const completed = next.items.filter(
+                (item) =>
+                  (item.status === 'done' || item.status === 'cached') &&
+                  item.analysisId &&
+                  loadedItems.get(item.paragraphId) !== item.analysisId,
+              );
+              if (completed.length) {
+                const saved = await repo.analyses.getMany(
+                  completed.flatMap(({ analysisId }) => (analysisId ? [analysisId] : [])),
+                );
+                setAnalyses((current) => [
+                  ...new Map([...current, ...saved].map((item) => [item.id, item])).values(),
+                ]);
+                for (const item of completed) loadedItems.set(item.paragraphId, item.analysisId);
+              }
+              setRun(next);
+            } else {
+              await repo.paperRuns.save(next);
+              await refresh();
+              notifyStoredChanged();
+            }
           },
         },
         signal.current,
@@ -124,6 +148,11 @@ export function useBatchRun(paper: Paper) {
       setRun(result);
     } catch (cause) {
       setError(String(cause));
+      try {
+        await repo.paperRuns.flush(value.id);
+      } catch (checkpointError) {
+        setError(String(checkpointError));
+      }
     } finally {
       busy.current = false;
     }

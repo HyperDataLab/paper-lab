@@ -9,7 +9,7 @@ export const kinds: Record<DraftHypothesis['kind'], string> = {
 };
 
 export function claimLabel(id: string | null, claims: BankClaimType[]): string {
-  if (!id) return 'Chưa phân loại nhận định';
+  if (!id) return 'Chưa phân loại claim';
   const claim = claims.find((entry) => entry.id === id);
   return claim ? `${claim.name}${claim.status === 'draft' ? ' · Bản nháp' : ''}` : id;
 }

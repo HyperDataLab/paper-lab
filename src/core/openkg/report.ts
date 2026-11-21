@@ -1,6 +1,6 @@
 import type { KgPredicate, PaperKg } from './types';
 
-function markdown(text: string) {
+export function markdown(text: string) {
   return text
     .replace(/\s+/gu, ' ')
     .trim()

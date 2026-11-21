@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { drawSample, excludeRecord, harvestQuery, type Work } from './sampling';
+import { drawSample, excludeRecord, harvestPageUrl, harvestQuery, type Work } from './sampling';
 
 const buckets = [
   { from: 2020, to: 2021 },
@@ -35,6 +35,14 @@ describe('C4a journal sampling', () => {
     expect(url.searchParams.get('filter')).toContain(
       'from_publication_date:2022-01-01,to_publication_date:2022-12-31',
     );
+  });
+  it('adds the app cursor and page size without changing the harvest filter', () => {
+    const base = harvestQuery({ sourceId: 'S1', years: [2022], sort: 'cited_by_count:desc' });
+    const url = new URL(harvestPageUrl(base, 'test+/='));
+    expect(url.searchParams.get('filter')).toBe(new URL(base).searchParams.get('filter'));
+    expect(url.searchParams.get('per-page')).toBe('200');
+    expect(url.searchParams.get('cursor')).toBe('test+/=');
+    expect(url.searchParams.has('mailto')).toBe(false);
   });
   it('excludes retractions, corrections, non-articles and missing DOI', () => {
     expect(excludeRecord({ ...work(1), is_retracted: true })).toBe('retracted');

@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -7,19 +6,18 @@ import { LENSES, LensSchema } from '@/core/prompts';
 import type { Paper } from '@/core/schemas';
 import type { LlmClient } from '@/shared/llm/client';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { chooseSelectOption } from '@/test/selectOption';
 import PaperMapPage from './PaperMapPage';
 import { PaperReview } from './PaperReview';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 beforeEach(() => {
   vi.stubGlobal('crypto', webcrypto);
   localStorage.clear();
 });
 async function setup(large = false, waitForAbort = false) {
-  const repo = createRepositories(createDb(`review-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const at = '2026-01-01T00:00:00.000Z';
   const paper: Paper = {
     schemaVersion: 1,

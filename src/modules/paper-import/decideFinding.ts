@@ -1,6 +1,6 @@
 import type { PaperChecksRecord } from '@/core/schemas';
 import type { FindingStatus, PaperFinding } from '@/core/paperFindings';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 
 /** The status an issue had before the reader's own decision, read back from the audit log. */
 async function previousStatus(

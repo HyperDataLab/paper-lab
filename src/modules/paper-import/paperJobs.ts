@@ -69,8 +69,8 @@ export const RUN_ALL_PURPOSES: { label: string; description: string; jobs: JobId
     destination: 'digest',
   },
   {
-    label: 'Luận điểm & bằng chứng',
-    description: 'Xem lập luận, bằng chứng và độ vững của bài.',
+    label: 'Claim và evidence',
+    description: 'Xem argument, evidence và độ vững của bài.',
     jobs: ['arguments', 'measure', 'rhetoric'],
     destination: 'arguments',
   },
@@ -89,7 +89,7 @@ export const StoredChangedContext = createContext<() => void>(() => {});
 export const useStoredChanged = () => useContext(StoredChangedContext);
 
 export const staleLabels: Record<StaleReason, string> = {
-  scope: 'phạm vi mục đã đổi',
+  scope: 'phạm vi section đã đổi',
   prompt: 'prompt đã cập nhật',
   model: 'model khác',
 };

@@ -31,6 +31,7 @@ const EDGE_TERMS: Record<KgPredicate, string> = {
   contributes: 'pl:contributes',
   buildsOn: 'pl:buildsOn',
   relatedKeyword: 'pl:relatedKeyword',
+  coAuthor: 'pl:coAuthor',
   inTopic: 'schema:about',
   broader: 'pl:broader',
   authoredBy: 'schema:author',
@@ -68,6 +69,7 @@ function entities(kg: PaperKg): RdfEntity[] {
     ]),
   );
   const relationships = new Set<string>();
+  const supports: RdfEntity[] = [];
   const statements = kg.edges.map((edge, index): RdfEntity => {
     const predicate = EDGE_TERMS[edge.p];
     const properties = nodes.get(edge.s)?.properties;
@@ -78,20 +80,37 @@ function entities(kg: PaperKg): RdfEntity[] {
       if (targets) targets.push(ref(edge.o));
       else properties.set(predicate, [ref(edge.o)]);
     }
-    return {
-      id: `_:statement${index + 1}`,
-      type: 'rdf:Statement',
-      properties: new Map([
-        ['rdf:subject', [ref(edge.s)]],
-        ['rdf:predicate', [ref(predicate)]],
-        ['rdf:object', [ref(edge.o)]],
-        ['pl:layer', [edge.layer]],
-        ['pl:provenance', [edge.provenance]],
-        ...(edge.evidence?.length ? [['pl:evidenceSentence', edge.evidence] as const] : []),
-      ]),
-    };
+    const id = `_:statement${index + 1}`;
+    const support = (edge.support ?? []).map((origin, originIndex) => {
+      const originId = `${id}support${originIndex + 1}`;
+      const properties = new Map<string, RdfValue[]>([
+        ['pl:supportingPaper', [ref(origin.paper)]],
+        ['pl:provenance', [origin.provenance]],
+      ]);
+      if (origin.sourcePaper) properties.set('pl:evidencePaper', [ref(origin.sourcePaper)]);
+      if (origin.evidence?.length) properties.set('pl:evidenceSentence', origin.evidence);
+      supports.push({
+        id: originId,
+        type: 'pl:Support',
+        properties,
+      });
+      return ref(originId);
+    });
+    const statement = new Map<string, RdfValue[]>([
+      ['rdf:subject', [ref(edge.s)]],
+      ['rdf:predicate', [ref(predicate)]],
+      ['rdf:object', [ref(edge.o)]],
+      ['pl:layer', [edge.layer]],
+      ['pl:provenance', [edge.provenance]],
+    ]);
+    if (edge.evidence?.length) statement.set('pl:evidenceSentence', edge.evidence);
+    if (edge.keywordScore !== undefined) statement.set('pl:keywordScore', [edge.keywordScore]);
+    if (edge.weight !== undefined) statement.set('pl:weight', [edge.weight]);
+    if (edge.supportCount !== undefined) statement.set('pl:supportCount', [edge.supportCount]);
+    if (support.length) statement.set('pl:support', support);
+    return { id, type: 'rdf:Statement', properties: statement };
   });
-  return [...nodes.values(), ...statements];
+  return [...nodes.values(), ...statements, ...supports];
 }
 
 function turtleId(id: string) {

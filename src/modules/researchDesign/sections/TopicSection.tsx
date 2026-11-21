@@ -36,8 +36,11 @@ export default function TopicSection() {
   const props = { check, change };
   return (
     <>
-      <h3>Đề tài và khoảng trống</h3>
-      <p>Đề tài, khoảng trống và câu hỏi thuộc về nhà nghiên cứu; các công cụ sau này chỉ đưa ra đầu mối.</p>
+      <h3>Topic và research gaps</h3>
+      <p>
+        Đề tài, research gap và research question thuộc về nhà nghiên cứu; các công cụ sau này chỉ đưa ra đầu
+        mối.
+      </p>
       {!LAB_RESEARCH_URL && <p>Máy chủ nghiên cứu của lab chưa được cấu hình.</p>}
       <TrackPicker {...props} />
       <StatementCard {...props} />
@@ -54,8 +57,8 @@ export default function TopicSection() {
       <PlainSummaryCard {...props} />
       <ChecklistCard {...props} />
       <DecisionCard {...props} />
-      <Select label="Chọn câu hỏi" value={question} onChange={(e) => setQuestion(e.target.value)}>
-        <option value="">Chọn câu hỏi</option>
+      <Select label="Chọn research question" value={question} onChange={(e) => setQuestion(e.target.value)}>
+        <option value="">Chọn research question</option>
         {state.design.draft.questions.map((q) => (
           <option key={q.id} value={q.id}>
             {q.text}
@@ -75,10 +78,10 @@ export default function TopicSection() {
                 ),
               },
             }))
-            .catch(() => toast('Không thể lưu khoảng trống. Vui lòng thử lại.'));
+            .catch(() => toast('Không thể lưu research gap. Vui lòng thử lại.'));
         }}
       >
-        Dùng làm khoảng trống cho câu hỏi
+        Dùng làm research gap cho research question
       </Button>
     </>
   );

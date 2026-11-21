@@ -1,9 +1,25 @@
-import type { LibraryItem } from '../schemas';
+import type { LibraryItem, PaperKeyword } from '../schemas';
 import type { KgBuilder } from './build';
 import { kgIri, type KgLayer, type KgNodeType, type KgPredicate } from './types';
 
 /** OpenAlex relevance cutoffs used by PaperLab to group keywords in SciAtlas style. */
 export const KEYWORD_SALIENCE = { high: 0.6, middle: 0.4 } as const;
+
+export const keywordSalience = (score: number) =>
+  score >= KEYWORD_SALIENCE.high ? 'high' : score >= KEYWORD_SALIENCE.middle ? 'middle' : 'low';
+
+export function addKeywords(graph: KgBuilder, article: string, keywords: PaperKeyword[]) {
+  for (const { id, name, score } of keywords) {
+    const keyword = graph.node({
+      id: kgIri('keyword', id.slice('keywords/'.length)),
+      type: 'Keyword',
+      label: name,
+      layer: 'conceptual',
+      attrs: { score, salience: keywordSalience(score) },
+    });
+    graph.edge({ s: article, p: 'hasKeyword', o: keyword, layer: 'conceptual', provenance: 'openalex' });
+  }
+}
 
 export function addOpenAlex(graph: KgBuilder, article: string, library: LibraryItem) {
   const link = (layer: KgLayer, s: string, p: KgPredicate, o: string) =>
@@ -30,18 +46,7 @@ export function addOpenAlex(graph: KgBuilder, article: string, library: LibraryI
     });
     link('evidential', article, 'publishedIn', source);
   }
-  for (const { id, name, score } of library.keywords ?? []) {
-    const salience =
-      score >= KEYWORD_SALIENCE.high ? 'high' : score >= KEYWORD_SALIENCE.middle ? 'middle' : 'low';
-    const keyword = graph.node({
-      id: kgIri('keyword', id.slice('keywords/'.length)),
-      type: 'Keyword',
-      label: name,
-      layer: 'conceptual',
-      attrs: { score, salience },
-    });
-    link('conceptual', article, 'hasKeyword', keyword);
-  }
+  addKeywords(graph, article, library.keywords ?? []);
 
   const taxonomy = library.taxonomy;
   if (taxonomy) {

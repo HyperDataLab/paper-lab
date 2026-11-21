@@ -1,9 +1,7 @@
-import 'fake-indexeddb/auto';
-import Dexie from 'dexie';
 import { expect, it } from 'vitest';
 import type { ScgPaperRun } from '@/core/schemas';
-import { createDb } from './db';
-import { createRepositories } from './repositories';
+import { MemoryDocStore } from './docStore';
+import { testRepositories } from './testRepositories';
 
 const at = '2026-01-01T00:00:00.000Z';
 const P = '00000000-0000-4000-8000-0000000000a1';
@@ -39,18 +37,9 @@ const run = (paperId: string): ScgPaperRun => ({
   updatedAt: at,
 });
 
-it('upgrades a version 24 database, round trips SCG runs and deletes them with the paper', async () => {
-  const name = `scg-${crypto.randomUUID()}`;
-  const old = new Dexie(name);
-  old.version(24).stores({ papers: 'id, updatedAt, title', corpusKeywords: 'corpusId', doiKeywords: 'doi' });
-  await old.table('papers').put({ id: 'kept' });
-  await old.table('corpusKeywords').put({ corpusId: 'c1' });
-  old.close();
-  const db = createDb(name);
-  const repo = createRepositories(db, () => new Date('2026-02-01T00:00:00.000Z'));
-  expect(db.verno).toBe(25);
-  expect(await db.papers.get('kept')).toEqual({ id: 'kept' });
-  expect(await db.corpusKeywords.get('c1')).toEqual({ corpusId: 'c1' });
+it('round trips SCG runs and deletes them with the paper', async () => {
+  const store = new MemoryDocStore();
+  const repo = testRepositories({ store, clock: () => new Date('2026-02-01T00:00:00.000Z') });
   await repo.scg.save(run(P));
   await repo.scg.save(run('q'));
   expect(await repo.scg.get(P)).toEqual(run(P));
@@ -61,9 +50,8 @@ it('upgrades a version 24 database, round trips SCG runs and deletes them with t
   expect(reviewed?.contributions[0]?.review).toBe('accepted');
   expect(reviewed?.updatedAt).toBe('2026-02-01T00:00:00.000Z');
   expect(await repo.scg.setReview('missing', { contributionId: '42.c0' }, 'accepted')).toBeUndefined();
-  await db.papers.put({ id: P } as never);
+  await store.put('papers', P, { id: P });
   await repo.papers.delete(P);
   expect(await repo.scg.get(P)).toBeUndefined();
   expect(await repo.scg.get('q')).toBeDefined();
-  await db.delete();
 });

@@ -127,11 +127,11 @@ it('FR-303 shows ordered kinds, empty cells and facts', async () => {
     'TaskPaperLab chưa cung cấp',
     'Dataset',
     'Baseline',
-    'Phương pháp',
+    'Methods',
     'Metric',
-    'Thiết kếPaperLab chưa cung cấp',
+    'Research designPaperLab chưa cung cấp',
     'MẫuPaperLab chưa cung cấp',
-    'Kết quả',
+    'Results',
   ]);
   expect(screen.getAllByText('Không có').length).toBeGreaterThan(0);
   expect(screen.getAllByText('Chưa duyệt').length).toBeGreaterThan(0);
@@ -140,7 +140,7 @@ it('FR-303 shows ordered kinds, empty cells and facts', async () => {
 it('shows the no-facts line with a link to measure the paper', async () => {
   setup({ withFacts: false });
   expect(await screen.findByText(/^Chưa có dữ kiện ·/)).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Chạy Đo lường cho bài này' })).toHaveAttribute(
+  expect(screen.getByRole('link', { name: 'Chạy measurement cho bài này' })).toHaveAttribute(
     'href',
     '/papers/local-1?view=measure',
   );

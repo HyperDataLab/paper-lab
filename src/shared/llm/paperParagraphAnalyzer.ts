@@ -25,7 +25,7 @@ import { computeScores } from '@/core/scoring/computeScores';
 import { buildEvidencePackages } from '@/core/scoring/evidencePackage';
 import { DIMENSIONS, RUBRIC_VERSION } from '@/core/scoring/rubric';
 import { analyzeText } from '@/core/text/analyzeText';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 import type { LlmClient } from './client';
 import { contextFor } from '@/core/batch';
 
@@ -58,7 +58,7 @@ function refreshedCandidates(analysis: Analysis, annotations: Analysis['sentence
 
 export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Repositories, paper: Paper) {
   async function findCached(paragraph: PaperParagraph, run: PaperRun): Promise<string | null> {
-    const analyses = await repositories.analyses.listByPaper(paper.id);
+    const analyses = await repositories.analyses.listByPaper(paper.id, paragraph.textHash);
     const found = analyses.find((analysis) => {
       if (
         analysis.origin?.kind !== 'paper' ||
@@ -86,13 +86,13 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
     members: { paragraph: PaperParagraph; context: PaperContext; analysisId: string }[],
     onRequest?: () => Promise<void>,
   ): Promise<string[]> {
-    const loaded = await Promise.all(
-      members.map(async (member) => {
-        const analysis = await repositories.analyses.get(member.analysisId);
-        if (!analysis) throw new Error('Analysis not found');
-        return { ...member, analysis };
-      }),
-    );
+    const rows = await repositories.analyses.getMany(members.map(({ analysisId }) => analysisId));
+    const byId = new Map(rows.map((analysis) => [analysis.id, analysis]));
+    const loaded = members.map((member) => {
+      const analysis = byId.get(member.analysisId);
+      if (!analysis) throw new Error('Analysis not found');
+      return { ...member, analysis };
+    });
     const [first] = loaded;
     if (!first) return [];
     const requests: SyntaxBatchPart[][] = [];
@@ -156,7 +156,7 @@ export function createPaperParagraphAnalyzer(client: LlmClient, repositories: Re
     let current = analysisId ? await repositories.analyses.get(analysisId) : undefined;
     if (!current) {
       const text = await analyzeText(paragraph.text);
-      const existing = (await repositories.analyses.listByPaper(paper.id)).find(
+      const existing = (await repositories.analyses.listByPaper(paper.id, text.sourceHash)).find(
         (a) =>
           a.origin?.kind === 'paper' &&
           a.origin.paragraphId === paragraph.id &&

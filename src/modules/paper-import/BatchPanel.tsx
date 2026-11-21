@@ -17,7 +17,7 @@ import styles from './page.module.css';
 const steps: { id: BatchStep; label: string }[] = [
   { id: 'syntax', label: 'Phân tích câu' },
   { id: 'judge', label: 'Đánh giá ngữ cảnh' },
-  { id: 'structure', label: 'Cấu trúc đoạn' },
+  { id: 'structure', label: 'Cấu trúc paragraph' },
   { id: 'score', label: 'Chấm điểm' },
   { id: 'transitions', label: 'Chuyển đoạn' },
 ];
@@ -161,7 +161,7 @@ export function BatchPanel({ paper, batch }: { paper: Paper; batch: ReturnType<t
           </p>
           <progress aria-label="Tiến độ tổng" value={done} max={run.items.length || 1} />
           <details>
-            <summary>Tiến độ theo mục</summary>
+            <summary>Tiến độ theo section</summary>
             {paper.sections
               .filter((section) => run.plan.sectionIds.includes(section.id))
               .map((section) => {

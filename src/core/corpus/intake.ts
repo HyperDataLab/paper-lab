@@ -146,6 +146,9 @@ export function mergeMembers(
       libraryIds: unique([...a.libraryIds, ...b.libraryIds]),
     },
     decisions: [...target.decisions, ...source.decisions],
+    ...(target.suggestions || source.suggestions
+      ? { suggestions: { ...source.suggestions, ...target.suggestions } }
+      : {}),
     appraisal: [...target.appraisal, ...source.appraisal],
   };
   return {

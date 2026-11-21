@@ -69,7 +69,7 @@ export function AddPapers({
     setChosen([]);
     setMissingAbstractIds(missing);
     if (missing.length)
-      setMessage(`${missing.length} bài không lấy được tóm tắt; bài lỗi đã được đánh dấu trong danh sách.`);
+      setMessage(`${missing.length} bài không lấy được abstract; bài lỗi đã được đánh dấu trong danh sách.`);
     else onClose();
   }
   return (

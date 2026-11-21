@@ -1,3 +1,5 @@
 spacy==3.8.7
+# spaCy 3.8 imports click in its CLI module, and current typer no longer pulls it in.
+click==8.1.8
 # The model is a pinned wheel installed at image build time; the service never downloads at runtime.
 en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl

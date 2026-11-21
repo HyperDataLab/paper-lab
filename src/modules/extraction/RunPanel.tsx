@@ -74,7 +74,7 @@ export function RunPanel({
       label="Chạy trích xuất"
       side="right"
       title="Chạy trích xuất"
-      description="AI đọc bài và điền từng ô, kèm đoạn trích làm bằng chứng. Ô nào không tìm được nguồn sẽ để trống."
+      description="AI đọc bài và điền từng ô, kèm đoạn trích làm evidence. Ô nào không tìm được nguồn sẽ để trống."
       footer={
         <>
           <SheetNote>

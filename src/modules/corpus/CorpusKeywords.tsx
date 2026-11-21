@@ -9,7 +9,7 @@ import type { Corpus } from '@/core/schemas/corpus';
 import type { CorpusKeywords as Collection } from '@/core/schemas/corpusKeywords';
 import { createScholarClient, type ScholarClient } from '@/shared/scholar/client';
 import { getScholarEmail } from '@/shared/scholar/settings';
-import type { MemberKeywords } from '@/shared/storage/corpusKeywords';
+import type { MemberKeywords } from '@/shared/storage/types';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';

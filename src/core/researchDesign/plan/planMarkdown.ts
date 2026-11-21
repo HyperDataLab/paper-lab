@@ -50,6 +50,51 @@ export function planMarkdown(plan: ExperimentPlan): string {
       ],
     );
   }
+  const source = context?.autoresearch;
+  if (source) {
+    add(
+      'AutoResearch handoff',
+      ['Field', 'Value'],
+      [
+        ['Run', source.runId],
+        ['Design artifact', source.designHash],
+        ['Rationale', source.rationale],
+        ['Compute estimate', source.compute.estimate],
+        ['Compute budget', source.compute.budget],
+      ],
+    );
+    add(
+      'Baselines, methods and ablations',
+      ['Type', 'Name', 'Details'],
+      [
+        ...source.baselines.map((row) => [
+          'Baseline',
+          row.name,
+          [row.why, row.citeKey].filter(Boolean).join(' · '),
+        ]),
+        ...source.methods.map((row) => ['Method', row.name, list(row.hypothesisIds)]),
+        ...source.ablations.map((row) => ['Ablation', row.name, `${row.removes} · ${row.hypothesisId}`]),
+      ],
+    );
+    add(
+      'Preregistered falsification criteria',
+      ['Hypothesis', 'Outcome', 'Estimand', 'Prediction', 'Criterion', 'Threshold'],
+      source.hypotheses.map((row) => [
+        row.id,
+        row.outcome,
+        row.estimand,
+        row.prediction,
+        row.criterion,
+        row.threshold,
+      ]),
+    );
+    if (source.licenses.length)
+      add(
+        'Dataset licenses',
+        ['Dataset', 'License'],
+        source.licenses.map((row) => [row.datasetId, row.license]),
+      );
+  }
   add(
     'Variables',
     ['ID', 'Name', 'Role', 'Construct', 'Metric', 'Levels'],

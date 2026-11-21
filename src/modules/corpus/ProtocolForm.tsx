@@ -154,7 +154,7 @@ export function ProtocolForm({
       {kind === 'topic' ? (
         <>
           <TextField
-            label="Câu hỏi nghiên cứu"
+            label="Research question"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
           />

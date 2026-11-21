@@ -1,10 +1,25 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
+import { criticModelFor, getConfig } from '@/shared/llm/config';
 import { chooseSelectOption } from '@/test/selectOption';
 import Page from './Page';
 
 beforeEach(() => localStorage.clear());
 afterEach(() => vi.restoreAllMocks());
+it('AR1 saves the separate Critic model and falls back to the lead after reset', () => {
+  render(
+    <LlmProvider>
+      <Page />
+    </LlmProvider>,
+  );
+  fireEvent.change(screen.getByLabelText('Model'), { target: { value: 'demo/lead' } });
+  fireEvent.change(screen.getByLabelText('Model Critic'), { target: { value: 'demo/critic' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+  expect(getConfig()).toMatchObject({ model: 'demo/lead', criticModel: 'demo/critic' });
+  expect(criticModelFor(getConfig())).toBe('demo/critic');
+  fireEvent.click(screen.getByRole('button', { name: 'Khôi phục mặc định' }));
+  expect(criticModelFor(getConfig())).toBe(getConfig().model);
+});
 it('restores defaults, clears the key and disables key controls for relative URLs', () => {
   render(
     <LlmProvider>

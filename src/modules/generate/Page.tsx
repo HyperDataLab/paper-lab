@@ -102,7 +102,7 @@ export default function Page() {
       if (!current.signal.aborted) setGeneration(value);
     } catch (cause) {
       if (!current.signal.aborted) {
-        setError(describeLlmError(cause) ?? 'Không thể soạn đoạn.');
+        setError(describeLlmError(cause) ?? 'Không thể soạn paragraph.');
         setTechnical(String(cause));
       }
     } finally {
@@ -130,13 +130,13 @@ export default function Page() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Soạn đoạn văn"
-        lead="Viết một đoạn từ luận điểm và bằng chứng bạn đưa vào. AI không thêm số liệu hay nguồn mới."
+        title="Soạn paragraph"
+        lead="Viết một paragraph từ claim và evidence bạn đưa vào. AI không thêm số liệu hay nguồn mới."
       >
         {!id && !generation && <ParagraphModes current="/generate" />}
       </PageHeader>
       {(running || generation) && (
-        <ActionBar status={running ? <span role="status">Đang soạn đoạn…</span> : undefined}>
+        <ActionBar status={running ? <span role="status">Đang soạn paragraph…</span> : undefined}>
           {running && (
             <Button
               variant="danger"
@@ -155,9 +155,9 @@ export default function Page() {
                 onClick={() =>
                   void navigator.clipboard
                     .writeText(generation.paragraph)
-                    .then(() => toast('Đã sao chép đoạn văn'))
+                    .then(() => toast('Đã sao chép paragraph'))
                     .catch((cause: unknown) => {
-                      setError('Không thể sao chép đoạn văn.');
+                      setError('Không thể sao chép paragraph.');
                       setTechnical(String(cause));
                     })
                 }
@@ -169,7 +169,7 @@ export default function Page() {
                 disabled={accepting || running}
                 onClick={() => (failed.length ? setConfirm(true) : void accept())}
               >
-                Dùng đoạn này
+                Dùng paragraph này
               </Button>
             </>
           )}
@@ -183,7 +183,7 @@ export default function Page() {
           attempted={attempted}
           highlighted={highlighted}
           initialStep={restored ? 2 : 0}
-          finishLabel={generation ? 'Soạn lại' : 'Soạn đoạn (AI)'}
+          finishLabel={generation ? 'Soạn lại' : 'Soạn paragraph (AI)'}
           finishDisabled={running}
           finishVariant={generation ? 'secondary' : 'primary'}
           onFinish={() => void generate()}
@@ -204,7 +204,7 @@ export default function Page() {
               <li>
                 <Link2 size={16} aria-hidden="true" />
                 <span>
-                  <strong>Gắn mỗi câu với bằng chứng</strong>
+                  <strong>Gắn mỗi câu với evidence</strong>
                   <small>Rê chuột lên e1, e2… trong đoạn để thấy câu dựa vào đâu.</small>
                 </span>
               </li>
@@ -221,7 +221,7 @@ export default function Page() {
                 <PenLine size={16} aria-hidden="true" />
                 <span>
                   <strong>Bạn quyết định</strong>
-                  <small>Dùng đoạn này sẽ mở nó trong Đánh giá để phân tích tiếp.</small>
+                  <small>Dùng paragraph này sẽ mở nó trong Đánh giá để phân tích tiếp.</small>
                 </span>
               </li>
             </ul>
@@ -241,7 +241,7 @@ export default function Page() {
       )}
       {confirm && (
         <Dialog
-          title="Dùng đoạn dù kiểm tra không đạt?"
+          title="Dùng paragraph dù kiểm tra không đạt?"
           description="Hãy xem lại các kiểm tra sau trước khi xác nhận."
           onClose={() => setConfirm(false)}
         >
@@ -254,7 +254,7 @@ export default function Page() {
           </ul>
           <Button onClick={() => setConfirm(false)}>Quay lại</Button>
           <Button variant="primary" disabled={accepting} onClick={() => void accept(true)}>
-            Xác nhận dùng đoạn
+            Xác nhận dùng paragraph
           </Button>
         </Dialog>
       )}

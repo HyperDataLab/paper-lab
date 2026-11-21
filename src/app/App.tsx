@@ -7,11 +7,10 @@ import { Button } from '@/shared/ui/Button';
 import { ToastProvider } from '@/shared/ui/ToastProvider';
 import { Kbd } from '@/shared/ui/Kbd';
 import { Skeleton } from '@/shared/ui/Skeleton';
-import { StorageProvider } from '@/shared/storage/StorageProvider';
+import { StorageProvider, StorageStatus } from '@/shared/storage/StorageProvider';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { AuthProvider } from '@/shared/auth/AuthProvider';
 import { AccountButton } from './AccountButton';
-import { PdfSync } from './PdfSync';
 import { CommandPalette } from './CommandPalette';
 import { modules } from './modules';
 import { Sidebar } from './Sidebar';
@@ -19,6 +18,8 @@ import { PageEnter } from '@/shared/motion/PageEnter';
 import PaperMapPage from '@/modules/paper-import/PaperMapPage';
 import ExtractionProjectPage from '@/modules/extraction/ProjectPage';
 import CorpusDetail from '@/modules/corpus/DetailPage';
+import ReportPage from '@/modules/report/ReportPage';
+import ComparePage from '@/modules/report/ComparePage';
 import styles from './shell.module.css';
 type Theme = 'light' | 'dark' | 'system';
 const THEME_LABELS: Record<Theme, string> = { system: 'Hệ thống', light: 'Sáng', dark: 'Tối' };
@@ -49,8 +50,14 @@ export function App() {
   const current = modules.find(
     (item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`),
   );
+  const knownRoute =
+    modules.some((item) => location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(`${item.path}/`))) ||
+    location.pathname === '/compare' ||
+    /^\/(?:report|papers|extraction|corpus)\/[^/]+$/u.test(location.pathname);
   // Workspaces and wide tables use the whole window; lists, forms and home stay at a readable width.
   const wideContent =
+    location.pathname.startsWith('/report/') ||
+    location.pathname === '/compare' ||
     location.pathname.startsWith('/extraction/') ||
     location.pathname.startsWith('/corpus/') ||
     location.pathname.startsWith('/papers/');
@@ -83,6 +90,13 @@ export function App() {
       /* Storage may be unavailable. */
     }
   }, [theme]);
+  if (!knownRoute)
+    return (
+      <main>
+        <h1>Không tìm thấy trang</h1>
+        <p>Đường dẫn này không tồn tại.</p>
+      </main>
+    );
   return (
     <ToastProvider>
       <AuthProvider>
@@ -142,7 +156,7 @@ export function App() {
                 invalidProjectId={invalidProjectId}
                 hideStatusBanner={appContent}
               >
-                <PdfSync />
+                <StorageStatus className={styles.storageStatus} />
                 <LlmProvider>
                   <Suspense fallback={<Skeleton />}>
                     <PageEnter key={location.pathname}>
@@ -150,6 +164,8 @@ export function App() {
                         {modules.map((item) => (
                           <Route key={item.id} path={item.path} element={<item.page />} />
                         ))}
+                        <Route path="/report/:id" element={<ReportPage />} />
+                        <Route path="/compare" element={<ComparePage />} />
                         <Route path="/papers/:id" element={<PaperMapPage />} />
                         <Route path="/extraction/:id" element={<ExtractionProjectPage />} />
                         <Route path="/corpus/:id" element={<CorpusDetail />} />

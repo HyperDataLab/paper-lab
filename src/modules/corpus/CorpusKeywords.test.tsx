@@ -1,18 +1,16 @@
-import 'fake-indexeddb/auto';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { exampleCorpus } from '@/core/corpus/contract';
 import { addFromDois, addFromLibrary } from '@/core/corpus/intake';
 import { buildCorpusKeywords } from '@/core/corpusKeywords';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { CorpusKeywords } from './CorpusKeywords';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 const kw = (slug: string, score: number) => ({ id: `keywords/${slug}`, name: slug, score });
 
 async function seed() {
-  const repo = createRepositories(createDb(`keywords-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const { added } = await repo.library.addDois(['10.1000/one', '10.1000/two']);
   const [one, two] = added;
   if (!one || !two) throw new Error('missing items');

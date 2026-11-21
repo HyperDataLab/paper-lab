@@ -52,7 +52,7 @@ export function ReferenceAudit({
         Chỉ đối chiếu metadata. Mục chưa tìm được có thể là sách, báo cáo hoặc nguồn ngoài Crossref và cần
         kiểm tra thủ công. Kết quả không kết luận tài liệu được bịa ra.
       </p>
-      <p>Nội dung từng tài liệu tham khảo hoặc DOI sẽ được gửi tới máy chủ nghiên cứu của lab.</p>
+      <p>Nội dung từng references hoặc DOI sẽ được gửi tới máy chủ nghiên cứu của lab.</p>
       {references.length > 400 && <p>Chỉ đối chiếu 400 tài liệu đầu tiên.</p>}
       <Button disabled={tool.running || references.length === 0} onClick={() => void tool.run()}>
         Đối chiếu tài liệu với Crossref
@@ -110,7 +110,7 @@ export function ReferenceAudit({
                   {item.notes.includes('online_first_year') && <p>Có thể là năm bản online khác năm in</p>}
                   {item.notes.includes('no_doi_in_text') && <p>Tra cứu theo nội dung vì mục không có DOI.</p>}
                   {item.notes.includes('no_title_match') && <p>Nhan đề chưa khớp với bản ghi tìm được.</p>}
-                  {item.notes.includes('score_low') && <p>Chưa đủ bằng chứng để chọn bản ghi.</p>}
+                  {item.notes.includes('score_low') && <p>Chưa đủ evidence để chọn bản ghi.</p>}
                   <Checkbox
                     checked={audit.reviewed.includes(item.textHash)}
                     disabled={tool.running}

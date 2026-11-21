@@ -33,10 +33,10 @@ import { Loading } from '@/shared/ui/StateNote';
 
 const LABELS: Record<StanceCategory, { name: string; help: string }> = {
   hedges: { name: 'Rào đón (Hedges)', help: 'Giữ khoảng cách, chưa khẳng định hoàn toàn.' },
-  boosters: { name: 'Nhấn mạnh (Boosters)', help: 'Tăng mức chắc chắn của khẳng định.' },
+  boosters: { name: 'Nhấn mạnh (Boosters)', help: 'Tăng mức chắc chắn của claim.' },
   attitude_markers: { name: 'Thái độ (Attitude markers)', help: 'Đánh giá hoặc cảm nhận của tác giả.' },
   self_mention: { name: 'Tự nhắc (Self-mention)', help: 'Tác giả xuất hiện trực tiếp trong bài.' },
-  reader_pronouns: { name: 'Đại từ người đọc', help: 'Gọi hoặc kéo người đọc vào lập luận.' },
+  reader_pronouns: { name: 'Đại từ người đọc', help: 'Gọi hoặc kéo người đọc vào argument.' },
   directives: { name: 'Chỉ dẫn (Directives)', help: 'Hướng người đọc làm hoặc hiểu theo một cách.' },
   questions: { name: 'Câu hỏi', help: 'Tác giả đặt câu hỏi với người đọc.' },
   knowledge_reference: { name: 'Tri thức chung', help: 'Viện đến điều người đọc được xem là đã biết.' },
@@ -364,8 +364,8 @@ export function PaperStance({
                 </p>
                 {run.failedSectionIds.length > 0 && (
                   <p role="status">
-                    Chưa đọc được: {run.failedSectionIds.map(heading).join(', ')}. Các mục này không được tính
-                    vào số liệu.
+                    Chưa đọc được: {run.failedSectionIds.map(heading).join(', ')}. Các section này không được
+                    tính vào số liệu.
                   </p>
                 )}
                 {(selected === 'overview' || selected === 'stance') &&
@@ -377,12 +377,12 @@ export function PaperStance({
                   )}
                 {selected === 'overview' && (
                   <details className={styles.missing}>
-                    <summary>Theo từng mục ({metrics.sections.length})</summary>
+                    <summary>Theo từng section ({metrics.sections.length})</summary>
                     <div className={styles.scroll}>
                       <table className={styles.table}>
                         <thead>
                           <tr>
-                            <th>Mục</th>
+                            <th>Section</th>
                             <th>Từ</th>
                             <th>Lập trường</th>
                             <th>Tương tác</th>
@@ -417,7 +417,7 @@ export function PaperStance({
                 <h2>{LABELS[category].name}</h2>
                 <p className={styles.note}>{LABELS[category].help}</p>
                 <Select
-                  label="Lọc theo mục"
+                  label="Lọc theo section"
                   size="sm"
                   value={sectionFilter}
                   onChange={(event) => {

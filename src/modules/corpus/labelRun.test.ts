@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { exampleCorpus } from '@/core/corpus/contract';
@@ -7,11 +6,11 @@ import { exampleInsights, examplePaper, exampleStance } from '@/core/paperModel/
 import type { Paper, StanceRun } from '@/core/schemas';
 import type { Corpus, CorpusMember } from '@/core/schemas/corpus';
 import { getConfig } from '@/shared/llm/config';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories, type Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/repositories';
 import { LABEL_VERSIONS, labelSections } from './labelPlan';
 import { DEFAULT_RUNNERS, labelMember, runLabelQueue, type LabelRunners } from './labelRun';
 import { labelCoverage } from './machineLabels';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 const inputs: NonNullable<CorpusMember['inputs']> = {
   textHashes: [],
@@ -61,7 +60,7 @@ function mockedRunners(): LabelRunners & { stance: ReturnType<typeof vi.fn> } {
 let repo: Repositories;
 beforeEach(() => {
   vi.stubGlobal('crypto', webcrypto);
-  repo = createRepositories(createDb(`label-run-${crypto.randomUUID()}`));
+  repo = testRepositories();
 });
 
 describe('C4b corpus labelling run', () => {

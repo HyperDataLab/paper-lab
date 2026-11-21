@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { exampleCorpus } from '@/core/corpus/contract';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 import { acquireMember } from './acquisition';
 
 const mocks = vi.hoisted(() => ({ lookup: vi.fn(), download: vi.fn(), importFile: vi.fn() }));
@@ -8,6 +8,7 @@ vi.mock('@/shared/scholar/client', () => ({
   createScholarClient: () => ({ lookupDoi: mocks.lookup, downloadArxivPdf: mocks.download }),
 }));
 vi.mock('@/modules/paper-import', () => ({ importPaperFile: mocks.importFile }));
+const token = () => Promise.resolve('token');
 
 describe('C2 acquisition', () => {
   beforeEach(() => vi.resetAllMocks());
@@ -19,6 +20,8 @@ describe('C2 acquisition', () => {
     const result = await acquireMember(
       { ...member, identifiers: { ...member.identifiers, doi: '10.1/a' } },
       {} as Repositories,
+      'test-project',
+      token,
     );
     expect(mocks.lookup).toHaveBeenCalledWith('10.1/a', undefined);
     expect(result.retrieval).toBe('retrieved');
@@ -31,6 +34,8 @@ describe('C2 acquisition', () => {
     const result = await acquireMember(
       { ...member, identifiers: { ...member.identifiers, doi: '10.1/a' } },
       {} as Repositories,
+      'test-project',
+      token,
     );
     expect(result.retrieval).toBe('not_retrieved');
     expect(result.retrievalReason).toBeTruthy();
@@ -43,6 +48,8 @@ describe('C2 acquisition', () => {
     const result = await acquireMember(
       { ...member, identifiers: { ...member.identifiers, doi: '10.1/a' } },
       {} as Repositories,
+      'test-project',
+      token,
       undefined,
       () => {
         throw new Error('GROBID failed');

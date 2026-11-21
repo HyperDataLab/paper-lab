@@ -1,0 +1,182 @@
+.page {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.search {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.search > :first-child {
+  flex: 1 1 320px;
+}
+
+.ask,
+.askForm {
+  display: grid;
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+
+.askForm {
+  justify-items: start;
+  max-inline-size: var(--form-width);
+}
+
+.askForm > :first-child {
+  inline-size: 100%;
+}
+
+.ask p {
+  margin: 0;
+}
+
+.sql {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  font: var(--text-sm) var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.sqlTable :is(th, td) {
+  padding: var(--space-2) var(--space-3);
+  border-block-end: 1px solid var(--border-subtle);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.sqlTable th {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.results,
+.links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.results small,
+.links small {
+  color: var(--text-secondary);
+}
+
+.controls {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.section {
+  display: grid;
+  gap: var(--space-2);
+  margin-block-end: var(--space-4);
+}
+
+.section h4 {
+  margin: 0;
+  font-size: var(--text-md);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.sparkline {
+  inline-size: 100%;
+  max-inline-size: 240px;
+  block-size: var(--space-10);
+}
+
+.sparkline polyline {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.muted {
+  color: var(--text-secondary);
+}
+
+.emptyKg,
+.starts {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.steps {
+  margin: 0;
+  padding-inline-start: var(--space-6);
+  display: grid;
+  gap: var(--space-1);
+  color: var(--text-secondary);
+}
+
+.corpora {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.corpora li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.progress {
+  flex-basis: 100%;
+  color: var(--text-secondary);
+}
+
+.startGroup {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.startGroup h3 {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* The explorer's canvas is the page's main content: taller than the shared OpenKG default. */
+.canvas svg {
+  max-block-size: 80vh;
+}
+
+.canvas aside {
+  max-block-size: 80vh;
+}
+
+.nodeList ul {
+  margin: 0;
+  padding-inline-start: var(--space-4);
+}

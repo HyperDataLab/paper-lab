@@ -249,8 +249,8 @@ export function PaperReview({
               },
               {
                 id: 'sections',
-                title: 'Chọn mục',
-                summary: `${sections.length} mục`,
+                title: 'Chọn section',
+                summary: `${sections.length} section`,
                 ready: hasBody && !tooLarge,
                 content: (
                   <>
@@ -258,7 +258,7 @@ export function PaperReview({
                       paper={paper}
                       value={sections}
                       onChange={setSections}
-                      legend="Mục được gửi"
+                      legend="Section được gửi"
                       count={(section) =>
                         paper.paragraphs.filter((p) => p.sectionId === section.id && p.kind === 'body').length
                       }

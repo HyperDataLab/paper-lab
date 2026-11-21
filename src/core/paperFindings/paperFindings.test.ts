@@ -239,7 +239,7 @@ it('R2 reads five kinds of stored results into one finding shape, in the paper o
   // Evidence in a table cell has no text span, so only the located part is kept.
   expect(byId['measurement:m1']).toMatchObject({
     status: 'confirmed',
-    title: 'Khẳng định vượt quá kết quả đo',
+    title: 'Claim vượt quá kết quả đo',
   });
   expect(byId['measurement:m1']?.locations).toEqual([{ paragraphId: 'p2', start: 0, end: 8 }]);
 });
@@ -289,7 +289,7 @@ it('R2 marks the text with findings and with what the analyses described, leavin
   expect(ids).not.toContain('claim:arg2');
   expect(marks.find((mark) => mark.id === 'claim:arg1')).toMatchObject({
     criterion: 'claim',
-    label: 'Luận điểm chính',
+    label: 'Claim chính',
     findingId: null,
   });
 });

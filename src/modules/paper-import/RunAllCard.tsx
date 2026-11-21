@@ -240,7 +240,7 @@ export function RunAllCard({
   const dialog = phase.kind === 'confirm' && (
     <Dialog
       title="Phân tích bài báo?"
-      description="Mỗi phân tích gửi các mục đã chọn của bài cho AI. Kết quả AI được chấp nhận mặc định; bạn bác bỏ những gì không đúng."
+      description="Mỗi phân tích gửi các section đã chọn của bài cho AI. Kết quả AI được chấp nhận mặc định; bạn bác bỏ những gì không đúng."
       onClose={() => setPhase({ kind: 'idle' })}
     >
       <ul>
@@ -296,8 +296,8 @@ export function RunAllCard({
         <div>
           <h2>Phân tích bài báo</h2>
           <p className={styles.muted}>
-            Chạy song song các phân tích AI còn thiếu, dùng phạm vi mục đã nhớ cho bài này và giới hạn chạy
-            trong Cài đặt. Phân tích đã có kết quả được bỏ qua.
+            Chạy song song các phân tích AI còn thiếu, dùng phạm vi section đã nhớ cho bài này và giới hạn
+            chạy trong Cài đặt. Phân tích đã có kết quả được bỏ qua.
           </p>
         </div>
         {action}

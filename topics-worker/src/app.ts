@@ -7,6 +7,11 @@ export interface Bucket {
 }
 export interface Deps {
   bucket: Bucket;
+  data: {
+    prepare(sql: string): {
+      bind(id: string): { first<T>(): Promise<T | null> };
+    };
+  };
   origins: string[];
   verify(token: string): Promise<unknown>;
   container(path: string, init?: RequestInit): Promise<Response>;
@@ -23,6 +28,19 @@ const route = new RegExp(`^/corpora/(${uuid})/topics(?:/run(?:/(${uuid}))?)?$`, 
 const idPattern = new RegExp(`^${uuid}$`, 'i');
 const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
+
+async function loadCorpus({ data, bucket }: Deps, id: string): Promise<{ body: unknown } | null> {
+  const row = await data
+    .prepare("SELECT body_json, r2_key, deleted_at FROM doc WHERE collection = 'corpora' AND id = ?")
+    .bind(id)
+    .first<{ body_json: string | null; r2_key: string | null; deleted_at: string | null }>();
+  // A tombstone also takes precedence over any legacy object.
+  if (row?.deleted_at != null) return null;
+  if (row?.body_json != null) return { body: JSON.parse(row.body_json) as unknown };
+  const key = row ? row.r2_key : `paperlab/corpora/${id}`;
+  const stored = key === null ? null : await bucket.get(key);
+  return stored ? { body: (await new Response(stored.body).json()) as unknown } : null;
+}
 
 export async function handle(request: Request, deps: Deps): Promise<Response> {
   const origin = request.headers.get('origin');
@@ -92,9 +110,9 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
       const corpora = [];
       const members = [];
       for (const id of ids) {
-        const stored = await deps.bucket.get(`paperlab/corpora/${id}`);
+        const stored = await loadCorpus(deps, id);
         if (!stored) return json(404, { error: 'corpus not stored' });
-        const corpus: unknown = await new Response(stored.body).json();
+        const corpus = stored.body;
         if (
           !object(corpus) ||
           corpus.id !== id ||

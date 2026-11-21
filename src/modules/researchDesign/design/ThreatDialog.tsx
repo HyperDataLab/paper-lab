@@ -17,12 +17,12 @@ export function ThreatDialog({
   const [mitigation, setMitigation] = useState(threat?.mitigation ?? '');
   return (
     <Dialog
-      title={threat ? 'Sửa mối đe doạ' : 'Thêm mối đe doạ'}
-      description="Ghi mối đe doạ và cách giảm trong nghiên cứu này."
+      title={threat ? 'Sửa threat to validity' : 'Thêm threat to validity'}
+      description="Ghi threat to validity và cách giảm trong nghiên cứu này."
       onClose={close}
     >
       <div>
-        <TextField label="Tên mối đe doạ" value={name} onChange={(e) => setName(e.target.value)} />
+        <TextField label="Tên threat to validity" value={name} onChange={(e) => setName(e.target.value)} />
         <TextField
           multiline
           label="Cách giảm trong nghiên cứu này"

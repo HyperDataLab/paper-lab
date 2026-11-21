@@ -38,14 +38,14 @@ export function ChainLine({ draft, hypothesisId }: { draft: Draft; hypothesisId:
     <div>
       {chain.dependent.length === 0 ? (
         <div>
-          {link(hypothesisId)} → {warning('chưa gắn biến phụ thuộc')}
+          {link(hypothesisId)} → {warning('chưa gắn dependent variable')}
           {analysisLinks()}
         </div>
       ) : (
         chain.dependent.map(({ variable, metric }, index) => (
           <div key={chain.hypothesis?.dependent[index]}>
             {link(hypothesisId)} →{' '}
-            {variable ? link(variable.id, variable.name) : warning('biến phụ thuộc không tồn tại')} →{' '}
+            {variable ? link(variable.id, variable.name) : warning('dependent variable không tồn tại')} →{' '}
             {variable &&
               (metric ? (
                 <>
@@ -60,7 +60,7 @@ export function ChainLine({ draft, hypothesisId }: { draft: Draft; hypothesisId:
       )}
       {chain.independent.length > 0 && (
         <div>
-          Biến độc lập:{' '}
+          Independent variable:{' '}
           {chain.independent.map((v, index) => (
             <span key={v.id}>
               {index > 0 && ', '}

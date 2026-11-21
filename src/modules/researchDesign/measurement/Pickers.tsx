@@ -121,9 +121,7 @@ export function Pickers({
                 {word(m.family)} · {m.unit || 'không có đơn vị'} · {word(m.direction)}
               </p>
               <p>{firstSentence(m.definition)}</p>
-              <p className={styles.quiet}>
-                Nhận định mạnh nhất mà metric tự nó hỗ trợ: {claimWord(m.maxClaim)}
-              </p>
+              <p className={styles.quiet}>Claim mạnh nhất mà metric tự nó hỗ trợ: {claimWord(m.maxClaim)}</p>
               {m.doesNotSupport.map((s) => (
                 <p key={s} className={styles.quiet}>
                   Không hỗ trợ: {s}

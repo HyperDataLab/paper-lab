@@ -1,19 +1,27 @@
 import { AuditEventSchema, type AuditEvent } from '@/core/schemas';
 import { readAudit } from './storageShared';
-import type { ParagraphDb } from './db';
-export function createAuditRepository(db: ParagraphDb) {
-  const audit = {
+import type { DocStore } from './docStore';
+
+export function createAuditRepository(store: DocStore) {
+  async function list(id?: string) {
+    const { values, corrupt } = await readAudit(store, id);
+    return { items: values.sort((a, b) => a.at.localeCompare(b.at)), corrupt };
+  }
+  return {
+    async latestAt(id?: string) {
+      const [row] = await store.query('auditEvents', {
+        where: id ? { refId: id } : undefined,
+        orderBy: 'at',
+        desc: true,
+        limit: 1,
+      });
+      return row && AuditEventSchema.parse(row.doc).at;
+    },
     async append(event: AuditEvent) {
-      await db.auditEvents.add(AuditEventSchema.parse(event));
+      const value = AuditEventSchema.parse(event);
+      await store.put('auditEvents', value.id, value, null);
     },
-    async listAll() {
-      const { values, corrupt } = await readAudit(db);
-      return { items: values.sort((a, b) => a.at.localeCompare(b.at)), corrupt };
-    },
-    async listByAnalysis(id: string) {
-      const result = await audit.listAll();
-      return { ...result, items: result.items.filter((event) => event.analysisId === id) };
-    },
+    listAll: () => list(),
+    listByAnalysis: (id: string) => list(id),
   };
-  return audit;
 }

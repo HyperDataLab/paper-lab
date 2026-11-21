@@ -128,7 +128,7 @@ const line = (label: string, field: ProfileField) =>
 
 export function measurementMarkdown(profile: MeasurementProfile) {
   const out: string[] = [
-    `# Hồ sơ đo lường: ${profile.title}`,
+    `# Hồ sơ measurement: ${profile.title}`,
     '',
     `Loại bài: ${profile.paper_type}. Model: ${profile.model_id}. Prompt: ${profile.prompt_version}. Parser: ${profile.parser_version ?? 'không rõ'}.`,
     '',
@@ -152,7 +152,7 @@ export function measurementMarkdown(profile: MeasurementProfile) {
     out.push('', `### ${experiment.name}`);
     for (const key of PROTOCOL_FIELDS) out.push(line(key, experiment.protocol[key]));
   }
-  out.push('', '## Tác giả nêu: Kết quả', '');
+  out.push('', '## Tác giả nêu: Results', '');
   for (const result of profile.results) {
     const uncertainty = result.uncertainty ? ` ± ${result.uncertainty}` : '';
     const flag = result.status === 'REPORTED' ? '' : ' _(chưa kiểm chứng được)_';

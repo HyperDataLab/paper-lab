@@ -90,11 +90,18 @@ The journal form searches Writing Bank's live journal registry and reads article
 Protocol versions record the stable registry ID, its writing profile when available and the release of any selected
 article types. Manual entry and the built-in ESWA values remain available when Writing Bank cannot be reached.
 
+The corpus build card integrates with the Paper Fetch Hub lab API when `VITE_FETCH_HUB_URL` is set.
+The PaperLab client is ready for the Hub deployment. See the [PDF acquisition workflow](datasets/FL_JOURNAL_CORPORA.md#acquire-pdfs-through-paper-fetch-hub).
+
 ## Corpus topics
 
 The corpus topics service runs BERTopic and KeyBERT in a separate Cloudflare container, with snapshots
-stored in the shared R2 bucket and cached locally. Deployment is controlled through the
+stored in the shared R2 bucket and cached locally. Topic runs read corpus bodies through the
+`paperlab-data` D1 binding. Deployment is controlled through the
 `deploy/topics-worker` branch; see `topics-worker/README.md`.
+
+Lab admins can import legacy R2 corpora from Settings. The corpus detail page checks the displayed
+document version when releasing a corpus and discards failed checkpoints when reloading after a conflict.
 
 The `corpus-topics-v1` contract accepts optional nullable member fit and weak-reason fields for older
 snapshots. Weakness follows centroid fit or an unassigned topic, independently of HDBSCAN probability.
@@ -102,12 +109,23 @@ AI topic names are candidates until accepted, individually or in bulk.
 
 ## Paper OpenKG
 
-| #   | Slice                                                          | Status |
-| --- | -------------------------------------------------------------- | ------ |
-| K1  | Five-layer paper graph and Turtle, JSON-LD, and report exports | ✅     |
-| K2  | Interactive graph in paper analysis                            | ✅     |
+| #   | Slice                                                          | Status               |
+| --- | -------------------------------------------------------------- | -------------------- |
+| K1  | Five-layer paper graph and Turtle, JSON-LD, and report exports | ✅                   |
+| K2  | Interactive graph in paper analysis                            | ✅                   |
+| K3  | Corpus knowledge graph, keyword trends, and full exports       | ✅                   |
+| K4  | SciAtlas grounding                                             | Owner token required |
 
 See the [paper OpenKG contract](contracts/openkg-paper.md) and [branch plan](plans/OPENKG_PAPER_BRANCH.md).
+
+## Lab knowledge graph
+
+L1 adds the OpenAlex graph mapper, D1 schema and optional worker bindings. L2 adds ingestion from the corpus,
+Library and published SCG, plus queue status and the scheduled drain. Owner provisioning is pending. Search
+and graph reads are L3. See the [Lab KG contract](contracts/lab-kg.md) and [plan](plans/LAB_KG.md).
+
+Semantic step 4 adds a consent-gated question panel on `/lab-kg`. It runs generated read-only SQL against
+`paperlab-kg` and shows the SQL, result rows and concepts used. See the [semantic layer plan](plans/SEMANTIC_LAYER.md).
 
 ## Open decisions
 

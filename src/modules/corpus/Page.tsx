@@ -22,8 +22,7 @@ import styles from './corpus.module.css';
 
 export default function Page() {
   const repo = useRepositories();
-  const { getAccessToken: ssoToken, getIdToken } = useAuth();
-  const getAccessToken = ssoToken ?? getIdToken;
+  const { user, getIdToken } = useAuth();
   const navigate = useNavigate();
   const [items, setItems] = useState<Corpus[]>([]);
   const [creating, setCreating] = useState(false);
@@ -61,7 +60,7 @@ export default function Page() {
   async function createEswa() {
     setCreatingEswa(true);
     try {
-      const result = await searchBankJournals(getAccessToken, ESWA_JOURNAL_NAME);
+      const result = await searchBankJournals(getIdToken, ESWA_JOURNAL_NAME);
       const journal =
         result.status === 'ok'
           ? result.items.find((item) => item.kind === 'journal' && item.profile === 'jr.eswa')
@@ -100,6 +99,7 @@ export default function Page() {
       </PageHeader>
       <p>Seed cho cặp ESWA: {ESWA_SEED}</p>
       {error && <p role="alert">{error}</p>}
+      {!user && <p className={styles.muted}>Đăng nhập tài khoản lab để lưu corpus trong kho dữ liệu lab.</p>}
       {items.length === 0 ? (
         <Empty title="Chưa có corpus nào." hint="Corpus bạn tạo sẽ hiện ở đây.">
           <Button onClick={() => setCreating(true)}>Tạo corpus đầu tiên</Button>
@@ -193,7 +193,7 @@ export default function Page() {
       {removing && (
         <Dialog
           title="Xoá corpus này?"
-          description={`Corpus “${removing.title}” cùng giao thức và các bản phát hành sẽ bị xoá khỏi máy này. Bài báo trong Library không bị xoá.`}
+          description={`Corpus “${removing.title}” cùng giao thức và các bản phát hành sẽ bị xoá. Bài báo trong Library không bị xoá.`}
           onClose={() => setRemoving(null)}
         >
           <DialogActions>

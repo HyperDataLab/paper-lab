@@ -1,6 +1,6 @@
 import { generateKeyPair, SignJWT, type JWTVerifyGetKey } from 'jose';
 import { describe, expect, it, vi } from 'vitest';
-import { GROBID_CACHE_TAG, handle, MAX_BYTES, PDF_LINK_PREFIX, type Bucket, type Deps } from './app';
+import { GROBID_CACHE_TAG, handle, MAX_BYTES, PDF_LINK_PREFIX, PREFIX, type Bucket, type Deps } from './app';
 import { emailAllowed, NotAllowedError, verifyFirebaseToken } from './auth';
 import { GrobidStartingError } from './grobid-error';
 
@@ -121,6 +121,23 @@ describe('R8 PDF worker', () => {
     expect((await handle(d, request('GET', `/pdfs/${'A'.repeat(64)}`))).status).toBe(400);
   });
 
+  it('keeps an unassigned legacy PDF out of a ResearchHub project', async () => {
+    const upload = vi.fn(async () => 'unexpected-file-id');
+    const d = deps({ uploadProjectFile: upload });
+    const sha = await hex(pdf);
+    d.objects.set(`${PREFIX}${sha}.pdf`, {
+      data: pdf,
+      meta: { originalName: 'legacy.pdf' },
+      etag: 'legacy',
+    });
+
+    const response = await handle(d, request('GET', `/pdfs/${sha}`));
+
+    expect(response.status).toBe(404);
+    expect(upload).not.toHaveBeenCalled();
+    expect(d.objects.has(`${PDF_LINK_PREFIX}${PROJECT_ID}/${sha}.json`)).toBe(false);
+  });
+
   it('returns a bounded upload error detail without exposing bearer tokens', async () => {
     const sha = await hex(pdf);
     const uploadFailure = Object.assign(new Error('ResearchHub rejected Bearer secret-token\nR2 unavailable'), {
@@ -168,7 +185,7 @@ describe('R8 PDF worker', () => {
       new Request('https://worker.test/pdfs/x', { method: 'OPTIONS', headers: { origin: ORIGIN } }),
     );
     expect(allowed.status).toBe(204);
-    expect(allowed.headers.get('access-control-allow-methods')).toBe('GET, HEAD, PUT, POST');
+    expect(allowed.headers.get('access-control-allow-methods')).toBe('GET, HEAD, PUT, POST, DELETE');
     const other = await handle(
       deps(),
       new Request('https://worker.test/pdfs/x', {

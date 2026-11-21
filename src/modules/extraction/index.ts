@@ -16,5 +16,6 @@ export { AddColumns } from './AddColumns';
 export { ExtractionMatrix } from './ExtractionMatrix';
 export { CellDrawer } from './CellDrawer';
 export { RunPanel } from './RunPanel';
+export { TriageDetails, TriagePanel, type TriageFilter } from './ScreeningTriage';
 export { STATUS } from './labels';
 export { useExtractionRun } from './useExtractionRun';

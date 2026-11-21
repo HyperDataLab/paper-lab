@@ -91,7 +91,7 @@ const MEASUREMENT_TITLES: Record<string, string> = {
   protocol_incompleteness: 'Quy trình đánh giá chưa đủ chi tiết',
   aggregation_ambiguity: 'Cách tổng hợp kết quả chưa rõ',
   comparability_risk: 'Khó so sánh giữa các kết quả',
-  claim_evidence_gap: 'Khẳng định vượt quá kết quả đo',
+  claim_evidence_gap: 'Claim vượt quá kết quả đo',
 };
 const HUMAN: Record<string, FindingStatus> = {
   confirmed_by_human: 'confirmed',
@@ -273,7 +273,7 @@ export function collectMarks(
       ...span(argument.claim),
       id: `claim:${argument.id}`,
       criterion: 'claim',
-      label: argument.importance === 'main' ? 'Luận điểm chính' : 'Luận điểm phụ',
+      label: argument.importance === 'main' ? 'Claim chính' : 'Claim phụ',
       findingId: null,
       view: 'toulmin',
     });
@@ -282,7 +282,7 @@ export function collectMarks(
         ...span(datum),
         id: `data:${argument.id}:${index}`,
         criterion: 'evidence',
-        label: 'Dữ liệu cho một luận điểm',
+        label: 'Grounds cho một claim',
         findingId: null,
         view: 'toulmin',
       }),

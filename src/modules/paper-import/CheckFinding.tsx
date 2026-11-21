@@ -3,6 +3,7 @@ import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { FindingCard, ReviewActions } from '@/shared/ui/FindingCard';
 import type { CheckHandlers } from './checkTypes';
+import { displayCheckText } from './findingText';
 import styles from './page.module.css';
 import { PlaceText } from './PlaceText';
 
@@ -67,7 +68,7 @@ export function FindingRow({
           />
         }
       >
-        {!hideMessage && <p>{finding.message}</p>}
+        {!hideMessage && <p>{displayCheckText(finding.message)}</p>}
         {others.length > 0 && (
           <details>
             <summary>Xuất hiện thêm ở {others.length} vị trí</summary>

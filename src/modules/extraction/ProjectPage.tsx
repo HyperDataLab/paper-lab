@@ -5,14 +5,14 @@ import { linkTopic, promoteProject } from '@/core/corpus/topic';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Select } from '@/shared/ui/Select';
 import { Button } from '@/shared/ui/Button';
-import { ResearchDesignArea } from '@/modules/researchDesign';
+import { ProjectResearch } from './ProjectResearch';
 import { DeepResearch } from './DeepResearch';
 import styles from './extraction.module.css';
 
 export default function ProjectPage() {
   const { id } = useParams();
   const repo = useRepositories();
-  const [project, setProject] = useState<ExtractionProject | null>(null);
+  const [project, setProject] = useState<ExtractionProject | null>();
   const [error, setError] = useState('');
   const [corpora, setCorpora] = useState<Corpus[]>([]);
   const [corpusId, setCorpusId] = useState('');
@@ -29,7 +29,10 @@ export default function ProjectPage() {
       .then(setCorpora)
       .catch((cause: unknown) => setError(String(cause)));
   }, [repo]);
-  if (!project) return <p>{error ? 'Không tải được project.' : 'Đang tải…'}</p>;
+  if (!project) {
+    if (error) return <p>Không tải được project.</p>;
+    return <p>{project === null ? 'Không tìm thấy project.' : 'Đang tải…'}</p>;
+  }
   const save = async (next: ExtractionProject, event?: Parameters<typeof repo.extraction.save>[1]) => {
     try {
       setProject(await repo.extraction.save(next, event));
@@ -45,7 +48,7 @@ export default function ProjectPage() {
         </Link>
         <h1>{project.title}</h1>
         {project.researchQuestion && (
-          <p className={styles.note}>Câu hỏi nghiên cứu: {project.researchQuestion}</p>
+          <p className={styles.note}>Research question: {project.researchQuestion}</p>
         )}
       </header>
       <section>
@@ -88,8 +91,20 @@ export default function ProjectPage() {
         </Button>
       </section>
       {error && <p role="alert">Có lỗi xảy ra: {error}</p>}
-      {!project.paperId && <ResearchDesignArea project={project} />}
-      <DeepResearch project={project} onSave={save} />
+      {!project.paperId && <ProjectResearch project={project} />}
+      <DeepResearch
+        project={project}
+        onSave={save}
+        screeningStorage={{
+          checkpoint: async (next) => {
+            setProject(await repo.extraction.checkpoint(next));
+          },
+          finish: async (events) => {
+            await repo.extraction.flush(project.id);
+            await repo.extraction.recordEvents(project.id, events);
+          },
+        }}
+      />
     </div>
   );
 }

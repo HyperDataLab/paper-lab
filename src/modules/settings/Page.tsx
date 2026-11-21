@@ -27,6 +27,7 @@ export default function Page() {
   const { config, client, consent, ensureConsent, refreshConfig, revoke } = useLlm();
   const [baseUrl, setBaseUrl] = useState(config.baseUrl);
   const [model, setModel] = useState(config.model);
+  const [criticModel, setCriticModel] = useState(config.criticModel ?? '');
   const [key, setKey] = useState(config.key ?? '');
   const [show, setShow] = useState(false);
   const [message, setMessage] = useState('');
@@ -39,7 +40,7 @@ export default function Page() {
   const proxy = isProxyBaseUrl(baseUrl);
   const save = () => {
     try {
-      const next = { baseUrl: baseUrl.trim(), model: model.trim(), key };
+      const next = { baseUrl: baseUrl.trim(), model: model.trim(), criticModel: criticModel.trim(), key };
       validateConfig(next);
       saveConfig(next);
       refreshConfig();
@@ -107,6 +108,12 @@ export default function Page() {
               cho phép CORS.
             </p>
             <TextField label="Model" value={model} onChange={(e) => setModel(e.target.value)} />
+            <TextField
+              label="Model Critic"
+              value={criticModel}
+              onChange={(e) => setCriticModel(e.target.value)}
+              hint="Chọn model khác cho Critic của AutoResearch. Để trống sẽ dùng chung model ở trên."
+            />
             <div className={styles.keyRow}>
               <TextField
                 label="API key"
@@ -161,6 +168,7 @@ export default function Page() {
                     const defaults = defaultConfig();
                     setBaseUrl(defaults.baseUrl);
                     setModel(defaults.model);
+                    setCriticModel(defaults.criticModel ?? '');
                     setKey('');
                     refreshConfig();
                     setMessage('Đã khôi phục mặc định.');

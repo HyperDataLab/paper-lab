@@ -5,6 +5,7 @@ import settings from '@/modules/settings';
 import paperImport from '@/modules/paper-import';
 import extraction from '@/modules/extraction';
 import corpus from '@/modules/corpus';
+import labKg from '@/modules/lab-kg';
 import playground from '@/modules/playground';
 
 export const modules = [
@@ -12,6 +13,7 @@ export const modules = [
   paperImport,
   extraction,
   corpus,
+  labKg,
   transfer,
   playground,
   adminRequests,

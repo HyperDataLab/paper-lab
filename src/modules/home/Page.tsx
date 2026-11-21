@@ -1,11 +1,12 @@
-import { ArrowRight, FileText, Library, Plus, Search, Table2, Upload } from 'lucide-react';
+import { ArrowRight, FileText, Library, PenLine, Plus, Search, Table2, Upload } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { newProject } from '@/core/extraction';
 import { paperIdentity } from '@/core/paperIdentity';
-import type { ExtractionProject, Paper } from '@/core/schemas';
+import type { Paper } from '@/core/schemas';
 import { useAuth } from '@/shared/auth/authContext';
 import { useRepositories } from '@/shared/storage/StorageProvider';
+import type { ExtractionProjectSummary } from '@/shared/storage/extractionProjects';
 import { Button } from '@/shared/ui/Button';
 import { Loading } from '@/shared/ui/StateNote';
 import { TextField } from '@/shared/ui/TextField';
@@ -31,10 +32,10 @@ const WORKFLOWS = [
     text: 'Tìm trên OpenAlex, sàng lọc và tổng hợp.',
   },
   {
-    to: '/corpus',
-    icon: Library,
-    title: 'Tổng hợp corpus',
-    text: 'Theo dõi chủ đề và bằng chứng trên nhiều bài báo.',
+    to: '/evaluate',
+    icon: PenLine,
+    title: 'Kiểm tra paragraph của bạn',
+    text: 'Đánh giá, sửa hoặc tạo đoạn học thuật.',
   },
 ];
 const RECENT = 5;
@@ -57,14 +58,14 @@ export default function Page() {
   const { user } = useAuth();
   const [question, setQuestion] = useState('');
   const [papers, setPapers] = useState<Paper[] | null>(null);
-  const [projects, setProjects] = useState<ExtractionProject[] | null>(null);
+  const [projects, setProjects] = useState<ExtractionProjectSummary[] | null>(null);
   const [counts, setCounts] = useState<{ papers: number; projects: number; corpora: number } | null>(null);
   const [error, setError] = useState('');
   const [starting, setStarting] = useState(false);
   useEffect(() => {
     void Promise.all([
       repo.papers.list(),
-      repo.extraction.list(),
+      repo.extraction.listSummaries(),
       repo.paperContext.list(),
       repo.corpora.list().catch(() => []),
     ])
@@ -115,9 +116,7 @@ export default function Page() {
             {greeting()}
             {firstName ? `, ${firstName}` : ''}
           </h1>
-          <p className={styles.muted}>
-            Đọc bài, trích xuất dữ liệu và tổng hợp corpus trong project ResearchHub.
-          </p>
+          <p className={styles.muted}>Đọc bài, trích xuất dữ liệu và kiểm tra paragraph.</p>
         </div>
         <div className={styles.heroActions}>
           <Link to="/extraction" className={styles.secondaryLink}>
@@ -235,7 +234,7 @@ export default function Page() {
               }}
             >
               <TextField
-                label="Câu hỏi nghiên cứu"
+                label="Research question"
                 hideLabel
                 placeholder="Ví dụ: Phản biện bằng AI có kém đa dạng hơn phản biện của người không?"
                 multiline
@@ -273,9 +272,7 @@ export default function Page() {
                       <span className={styles.paperText}>
                         <strong>{project.title}</strong>
                         <small>
-                          {project.papers.length} bài,{' '}
-                          {project.fields.filter((field) => !field.hidden).length} cột, sửa{' '}
-                          {date(project.updatedAt)}
+                          {project.papers} bài, {project.visibleFields} cột, sửa {date(project.updatedAt)}
                         </small>
                       </span>
                     </Link>

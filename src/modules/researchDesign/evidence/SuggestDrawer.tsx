@@ -20,7 +20,7 @@ import { useSuggestions } from './useSuggestions';
 import styles from './evidence.module.css';
 
 const TARGETS: { value: Target; label: string }[] = [
-  { value: 'hypotheses', label: 'Giả thuyết' },
+  { value: 'hypotheses', label: 'Hypothesis' },
   { value: 'metrics', label: 'Metric' },
   { value: 'threats', label: 'Nguy cơ' },
   { value: 'analyses', label: 'Phân tích' },
@@ -142,8 +142,8 @@ export function SuggestDrawer({
         <p className={styles.hint}>Chưa có dữ kiện nào được đặt Dùng.</p>
       ) : (
         <p className={styles.hint}>
-          Sẽ gửi {result.factCount} dữ kiện đã đặt Dùng (loại, giá trị, tên bài) cùng câu hỏi và giả thuyết
-          của dự án. Không gửi câu trích hay nội dung Writing Bank.
+          Sẽ gửi {result.factCount} dữ kiện đã đặt Dùng (loại, giá trị, tên bài) cùng research questions và
+          hypotheses của dự án. Không gửi câu trích hay nội dung Writing Bank.
         </p>
       )}
       {result.state === 'consent' && (
@@ -185,12 +185,12 @@ export function SuggestDrawer({
               <div className={styles.row}>
                 {target === 'hypotheses' && (
                   <Select
-                    label="Câu hỏi"
+                    label="Research question"
                     size="sm"
                     value={questions[id] ?? ''}
                     onChange={(event) => setQuestions({ ...questions, [id]: event.target.value })}
                   >
-                    <option value="">Không gắn câu hỏi</option>
+                    <option value="">Không gắn research question</option>
                     {draft.questions.map((question) => (
                       <option key={question.id} value={question.id}>
                         {question.text}
