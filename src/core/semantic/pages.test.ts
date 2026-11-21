@@ -82,7 +82,7 @@ describe('matchPath and describePage', () => {
     ['/extraction/p-7#top', 'extraction-project'],
     ['/report/a-1', 'report'],
     ['/compare?a=x&b=y', 'compare'],
-    ['/evaluate?id=a-1', 'evaluate'],
+    ['/extraction?design=topic', 'extraction'],
     ['/admin/requests', 'admin-requests'],
   ])('describes %s as %s', (route, id) => {
     expect(describePage(route)?.id).toBe(id);

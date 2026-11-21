@@ -47,7 +47,10 @@ export interface Page {
   reads: readonly string[];
   writes: readonly string[];
   actions: readonly PageAction[];
-  /** Wrapped in the C4 `LabDataGate`: without a lab sign-in the page shows the sign-in card instead. */
+  /**
+   * Behind the shell's `StorageProvider` gate: without a ResearchHub project and a HyperDataLab SSO session the
+   * page shows the project or sign-in card instead.
+   */
   requiresSignIn: boolean;
   /** The page a person comes from (its id). */
   parent?: string;
@@ -107,117 +110,6 @@ export const PAGES: readonly Page[] = [
         labelVi: 'Bắt đầu project',
         effect: 'Tạo extraction project mới với research question đã nhập rồi mở project đó.',
         writes: ['extraction-project'],
-      },
-    ],
-  }),
-  page({
-    id: 'evaluate',
-    path: '/evaluate',
-    module: 'evaluate',
-    titleVi: 'Đánh giá paragraph',
-    name: 'Paragraph evaluation',
-    purpose:
-      'Dán một paragraph tiếng Anh và phân tích từng bước: tách câu, cấu trúc paragraph, đánh giá theo ngữ cảnh, chấm điểm. AI chỉ gợi ý; người dùng giữ hoặc bỏ từng issue.',
-    query: [{ name: 'id', concept: 'analysis' }],
-    shows: ['analysis', 'sentence', 'sentence-annotation', 'issue', 'audit-event', 'style-probe'],
-    reads: ['analysis', 'audit-event', 'paper', 'style-probe'],
-    writes: ['analysis', 'issue', 'audit-event'],
-    tabs: [
-      { id: 'text', labelVi: 'Văn bản', via: 'state' },
-      { id: 'scores', labelVi: 'Điểm', via: 'state' },
-    ],
-    actions: [
-      {
-        labelVi: 'Tách câu',
-        effect: 'Tách câu và chạy các detector trên máy, không gọi AI.',
-      },
-      {
-        labelVi: 'Phân tích câu (AI)',
-        effect: 'Gắn nhãn cú pháp cho từng câu (thì, thể, chủ ngữ).',
-        ai: true,
-      },
-      {
-        labelVi: 'Phân tích cấu trúc paragraph (AI)',
-        effect: 'Gán vai trò cho từng câu và mạch nối giữa các câu.',
-        ai: true,
-      },
-      {
-        labelVi: 'Đánh giá theo ngữ cảnh (AI)',
-        effect: 'Mô hình xét lại các ứng viên issue trong ngữ cảnh của paragraph.',
-        ai: true,
-      },
-      { labelVi: 'Chấm điểm (AI)', effect: 'Chấm điểm paragraph theo rubric.', ai: true },
-      {
-        labelVi: 'Lưu vào lịch sử',
-        effect: 'Lưu kết quả thành một bản phân tích cùng các quyết định về issue.',
-        writes: ['analysis', 'issue', 'audit-event'],
-      },
-      {
-        labelVi: 'Xác nhận / bác bỏ issue',
-        effect: 'Ghi quyết định của người dùng cho một issue, kèm audit event.',
-        writes: ['issue', 'audit-event'],
-      },
-      {
-        labelVi: 'Chỉnh sửa các gợi ý đã chọn',
-        effect: 'Mở trang Chỉnh sửa với các issue đã chọn.',
-      },
-    ],
-  }),
-  page({
-    id: 'revise',
-    path: '/revise',
-    module: 'revise',
-    titleVi: 'Chỉnh sửa',
-    name: 'Revision',
-    purpose:
-      'Sửa một paragraph đã phân tích theo các gợi ý đã chọn, so sánh bản sửa với bản gốc và kiểm tra ý nghĩa trước khi áp dụng.',
-    parent: 'evaluate',
-    query: [
-      { name: 'analysis', concept: 'analysis' },
-      { name: 'revision', concept: 'revision' },
-      { name: 'issues', concept: 'issue' },
-    ],
-    shows: ['analysis', 'issue', 'revision'],
-    reads: ['analysis', 'revision'],
-    writes: ['revision', 'analysis'],
-    actions: [
-      {
-        labelVi: 'Tạo bản sửa (AI)',
-        effect: 'Mô hình viết lại paragraph theo các issue đã chọn; bản sửa được lưu như một revision.',
-        writes: ['revision'],
-        ai: true,
-      },
-      {
-        labelVi: 'Xác nhận áp dụng',
-        effect: 'Áp dụng revision: tạo bản phân tích mới từ văn bản đã sửa rồi mở nó.',
-        writes: ['revision', 'analysis'],
-      },
-    ],
-  }),
-  page({
-    id: 'generate',
-    path: '/generate',
-    module: 'generate',
-    titleVi: 'Soạn paragraph',
-    name: 'Paragraph generation',
-    purpose:
-      'Soạn một paragraph học thuật từ main claim và evidence do người dùng nhập; người dùng xem kết quả rồi mới quyết định dùng.',
-    parent: 'evaluate',
-    query: [{ name: 'id', concept: 'generation' }],
-    shows: ['generation'],
-    reads: ['generation'],
-    writes: ['generation', 'analysis'],
-    actions: [
-      {
-        labelVi: 'Soạn paragraph (AI)',
-        effect: 'Mô hình soạn paragraph từ claim và evidence; lưu thành một generation.',
-        writes: ['generation'],
-        ai: true,
-      },
-      {
-        labelVi: 'Xác nhận dùng paragraph',
-        effect: 'Chấp nhận generation và tạo bản phân tích từ paragraph đó để đánh giá.',
-        writes: ['generation', 'analysis'],
       },
     ],
   }),
@@ -813,21 +705,6 @@ export const PAGES: readonly Page[] = [
     ],
   }),
   page({
-    id: 'history',
-    path: '/history',
-    module: 'history',
-    titleVi: 'Lịch sử',
-    name: 'History',
-    purpose: 'Các bản phân tích paragraph, bản sửa và paragraph đã soạn; mở lại, so sánh hai bản hoặc xoá.',
-    shows: ['analysis', 'revision', 'generation'],
-    reads: ['analysis', 'revision', 'generation', 'paper'],
-    writes: ['analysis'],
-    actions: [
-      { labelVi: 'So sánh', effect: 'Mở trang so sánh cho hai bản phân tích đã chọn.' },
-      { labelVi: 'Xoá bản phân tích', effect: 'Xoá bản phân tích đã chọn.', writes: ['analysis'] },
-    ],
-  }),
-  page({
     id: 'transfer',
     path: '/transfer',
     module: 'transfer',
@@ -902,27 +779,6 @@ export const PAGES: readonly Page[] = [
     ],
   }),
   page({
-    id: 'calibration',
-    path: '/calibration',
-    module: 'calibration',
-    titleVi: 'Hiệu chuẩn',
-    name: 'Calibration',
-    purpose:
-      'Nhập bộ nhãn của người đánh giá để đo độ chính xác của detector và AI, đồng thuận giữa người đánh giá và hiệu chuẩn điểm.',
-    shows: ['calibration-label-set', 'measurement'],
-    reads: ['calibration-label-set', 'paper', 'measurement'],
-    writes: ['calibration-label-set'],
-    actions: [
-      { labelVi: 'Tải mẫu nhãn', effect: 'Tải tệp JSON mẫu cho bộ nhãn.' },
-      {
-        labelVi: 'Xác nhận nhập nhãn',
-        effect: 'Nhập bộ nhãn sau khi xem trước.',
-        writes: ['calibration-label-set'],
-      },
-      { labelVi: 'Xoá bộ nhãn', effect: 'Xoá bộ nhãn đã nhập.', writes: ['calibration-label-set'] },
-    ],
-  }),
-  page({
     id: 'playground',
     path: '/playground',
     module: 'playground',
@@ -930,7 +786,6 @@ export const PAGES: readonly Page[] = [
     name: 'Playground',
     purpose:
       'Thử trực tiếp các công cụ nghiên cứu của lab (lab research server): chọn công cụ, điền input và xem kết quả. Danh sách công cụ chỉ hiện khi đã đăng nhập.',
-    requiresSignIn: false,
     shows: [],
     reads: [],
     writes: [],
@@ -965,7 +820,6 @@ export const PAGES: readonly Page[] = [
     name: 'Settings',
     purpose:
       'Kết nối AI (endpoint, model, API key), giới hạn chạy, email tra cứu bài báo, quyền riêng tư (đồng ý gửi dữ liệu cho AI) và tài khoản lab.',
-    requiresSignIn: false,
     shows: [],
     reads: [],
     writes: ['corpus'],
@@ -973,7 +827,7 @@ export const PAGES: readonly Page[] = [
       { labelVi: 'Lưu', effect: 'Lưu cấu hình AI, giới hạn chạy hoặc email tra cứu trên trình duyệt này.' },
       { labelVi: 'Kiểm tra kết nối', effect: 'Gửi một yêu cầu thử tới AI.', ai: true },
       { labelVi: 'Thu hồi đồng ý', effect: 'Thu hồi đồng ý gửi dữ liệu cho AI.' },
-      { labelVi: 'Đăng nhập / Đăng xuất', effect: 'Đăng nhập hoặc đăng xuất tài khoản lab (Google).' },
+      { labelVi: 'Đăng nhập / Đăng xuất', effect: 'Đăng nhập hoặc đăng xuất bằng HyperDataLab SSO.' },
       {
         labelVi: 'Nhập corpus cũ',
         effect: 'Chuyển các corpus cũ của tài khoản vào kho lab.',
@@ -989,7 +843,6 @@ export const PAGES: readonly Page[] = [
     name: 'Analysis report',
     purpose:
       'Bản in của một bản phân tích paragraph: văn bản gốc, câu, cấu trúc, số liệu, điểm, issues, bản sửa hoặc nguồn soạn, giới hạn và phiên bản.',
-    parent: 'evaluate',
     params: [{ name: 'id', concept: 'analysis' }],
     shows: ['analysis', 'sentence', 'sentence-annotation', 'issue', 'audit-event', 'revision', 'generation'],
     reads: ['analysis', 'audit-event', 'revision', 'generation'],
@@ -1004,7 +857,6 @@ export const PAGES: readonly Page[] = [
     name: 'Version comparison',
     purpose:
       'So sánh hai bản phân tích (thường là bản gốc và bản sửa): số liệu, điểm, issues và kiểm tra ý nghĩa.',
-    parent: 'history',
     query: [
       { name: 'a', concept: 'analysis' },
       { name: 'b', concept: 'analysis' },
