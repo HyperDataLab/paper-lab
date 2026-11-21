@@ -8,11 +8,10 @@ import styles from './shell.module.css';
 const groups = [
   { id: 'home', label: '' },
   { id: 'paper', label: 'Nghiên cứu' },
-  { id: 'analysis', label: 'Viết' },
   { id: 'data', label: 'Dữ liệu' },
   { id: 'labs', label: 'Thử nghiệm' },
-  { id: 'system', label: '' },
 ] as const;
+const systemGroup = { id: 'system', label: '' } as const;
 
 function initialCollapsed() {
   try {
@@ -22,7 +21,15 @@ function initialCollapsed() {
   }
 }
 
-export function Sidebar({ onNavigate, mobile = false }: { onNavigate?: () => void; mobile?: boolean }) {
+export function Sidebar({
+  onNavigate,
+  mobile = false,
+  desktop = false,
+}: {
+  onNavigate?: () => void;
+  mobile?: boolean;
+  desktop?: boolean;
+}) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
   const { admin } = useAdmin();
   const rail = collapsed && !mobile;
@@ -36,7 +43,9 @@ export function Sidebar({ onNavigate, mobile = false }: { onNavigate?: () => voi
     }
   }
   return (
-    <aside className={`${styles.sidebar} ${rail ? styles.collapsed : ''}`}>
+    <aside
+      className={`${styles.sidebar} ${desktop ? styles.desktopSidebar : ''} ${rail ? styles.collapsed : ''}`}
+    >
       <div className={styles.brand}>
         <BookOpenText className={styles.logo} size={22} aria-hidden="true" />
         {!rail && <span>PaperLab</span>}
@@ -56,6 +65,7 @@ export function Sidebar({ onNavigate, mobile = false }: { onNavigate?: () => voi
           <SidebarGroup key={group.id} group={group} rail={rail} admin={admin} onNavigate={onNavigate} />
         ))}
       </nav>
+      <SidebarGroup group={systemGroup} rail={rail} admin={admin} onNavigate={onNavigate} />
     </aside>
   );
 }

@@ -14,7 +14,11 @@ const localPaper = {
   source: { kind: 'pdf', fileName: 'a.pdf', pageCount: 1, sha256: `sha256:${LOCAL_SHA}` },
 } as unknown as Paper;
 const storage = vi.hoisted(() => ({ papers: { list: vi.fn() } }));
-vi.mock('@/shared/storage/StorageProvider', () => ({ useRepositories: () => storage }));
+const project = vi.hoisted(() => ({ id: '00000000-0000-4000-8000-000000000101' }));
+vi.mock('@/shared/storage/StorageProvider', () => ({
+  useRepositories: () => storage,
+  useHubProjectId: () => project.id,
+}));
 
 const base = {
   note: 'SRD needs the experiment facts',
@@ -57,13 +61,14 @@ function auth(signedIn: boolean): AuthValue {
 
 function serve(admin: boolean) {
   const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
-    const url = new URL(String(input));
-    if (url.pathname === '/v1/me') return Response.json({ email: user.email, admin });
-    if (url.pathname === '/v1/admin/fact-requests') {
+    const url = new URL(String(input), 'http://localhost');
+    const path = url.pathname.replace(/^\/paperlab-worker/u, '');
+    if (path === '/v1/me') return Response.json({ email: user.email, admin });
+    if (path === '/v1/admin/fact-requests') {
       const state = url.searchParams.get('state');
       return Response.json({ items: requests.filter((item) => item.state === state), nextCursor: null });
     }
-    const decided = /^\/v1\/admin\/fact-requests\/([^/]+)\/decision$/u.exec(url.pathname);
+    const decided = /^\/v1\/admin\/fact-requests\/([^/]+)\/decision$/u.exec(path);
     if (decided && init?.method === 'POST') {
       const body = JSON.parse(String(init.body)) as { decision: string; note?: string };
       const original = requests.find((item) => item.paperId === decodeURIComponent(decided[1] ?? ''));
@@ -101,7 +106,9 @@ function open(signedIn: boolean, path = '/admin/requests') {
   );
 }
 const calls = (fetchMock: ReturnType<typeof serve>, path: string) =>
-  fetchMock.mock.calls.filter(([input]) => new URL(String(input)).pathname === path);
+  fetchMock.mock.calls.filter(([input]) =>
+    new URL(String(input), 'http://localhost').pathname.endsWith(path),
+  );
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -146,7 +153,7 @@ describe('admin fact requests', () => {
     expect(screen.getByText(/không có trong thư viện PaperLab/u)).toBeInTheDocument();
     expect(screen.queryByText('Local synthetic study')).toBeNull();
     const listed = calls(fetchMock, '/v1/admin/fact-requests').map(([input]) =>
-      new URL(String(input)).searchParams.get('state'),
+      new URL(String(input), 'http://localhost').searchParams.get('state'),
     );
     expect(listed).toEqual(['requested', 'approved']);
     expect(calls(fetchMock, '/v1/me')).toHaveLength(1);

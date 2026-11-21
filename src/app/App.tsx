@@ -1,6 +1,6 @@
 import { Menu, Monitor, Moon, Search, Sun } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useState } from 'react';
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Drawer } from '@/shared/ui/Drawer';
 import { IconButton } from '@/shared/ui/IconButton';
 import { Button } from '@/shared/ui/Button';
@@ -11,16 +11,15 @@ import { StorageProvider, StorageStatus } from '@/shared/storage/StorageProvider
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { AuthProvider } from '@/shared/auth/AuthProvider';
 import { AccountButton } from './AccountButton';
-import { LabDataGate } from './LabDataGate';
 import { CommandPalette } from './CommandPalette';
 import { modules } from './modules';
 import { Sidebar } from './Sidebar';
 import { PageEnter } from '@/shared/motion/PageEnter';
-import ReportPage from '@/modules/report/ReportPage';
-import ComparePage from '@/modules/report/ComparePage';
 import PaperMapPage from '@/modules/paper-import/PaperMapPage';
 import ExtractionProjectPage from '@/modules/extraction/ProjectPage';
 import CorpusDetail from '@/modules/corpus/DetailPage';
+import ReportPage from '@/modules/report/ReportPage';
+import ComparePage from '@/modules/report/ComparePage';
 import styles from './shell.module.css';
 type Theme = 'light' | 'dark' | 'system';
 const THEME_LABELS: Record<Theme, string> = { system: 'Hệ thống', light: 'Sáng', dark: 'Tối' };
@@ -39,17 +38,65 @@ export function App() {
   const [theme, setTheme] = useState<Theme>(readTheme);
   const closeDrawer = useCallback(() => setDrawer(false), []);
   const location = useLocation();
+  const navigate = useNavigate();
+  const rawProjectId = new URLSearchParams(location.search).get('projectId');
+  const validProjectId =
+    rawProjectId &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(rawProjectId)
+      ? rawProjectId
+      : null;
+  const invalidProjectId = rawProjectId !== null && !validProjectId;
+  const [lastProjectId, setLastProjectId] = useState<string | null>(validProjectId);
+  // Keep the current workspace mounted while navigation restores a query param omitted by a module link.
+  const workspaceProjectId =
+    validProjectId ?? (!invalidProjectId && rawProjectId === null ? lastProjectId : null);
   const current = modules.find(
     (item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`),
   );
+  const knownRoute =
+    modules.some(
+      (item) =>
+        location.pathname === item.path ||
+        (item.path !== '/' && location.pathname.startsWith(`${item.path}/`)),
+    ) ||
+    location.pathname === '/compare' ||
+    /^\/(?:report|papers|extraction|corpus)\/[^/]+$/u.test(location.pathname);
   // Workspaces and wide tables use the whole window; lists, forms and home stay at a readable width.
   const wideContent =
-    location.pathname === '/evaluate' ||
+    location.pathname.startsWith('/report/') ||
+    location.pathname === '/compare' ||
     location.pathname.startsWith('/extraction/') ||
     location.pathname.startsWith('/corpus/') ||
     location.pathname.startsWith('/papers/');
   // A paper is a workspace: on wide screens it fills the window and its columns scroll on their own.
   const appContent = /^\/papers\/[^/]+/.test(location.pathname);
+  useEffect(() => {
+    if (invalidProjectId) {
+      // Route changes may remove projectId for one render; keep the last accepted ID for that transition.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLastProjectId(null);
+      return;
+    }
+    if (validProjectId) {
+      // This mirrors the URL handoff into render state so StorageProvider never remounts during navigation.
+      setLastProjectId(validProjectId);
+      return;
+    }
+    if (lastProjectId && !rawProjectId) {
+      const query = new URLSearchParams(location.search);
+      query.set('projectId', lastProjectId);
+      navigate(`${location.pathname}?${query.toString()}${location.hash}`, { replace: true });
+    }
+  }, [
+    invalidProjectId,
+    lastProjectId,
+    location.hash,
+    location.pathname,
+    location.search,
+    navigate,
+    rawProjectId,
+    validProjectId,
+  ]);
   useEffect(() => {
     if (theme === 'system') delete document.documentElement.dataset.theme;
     else document.documentElement.dataset.theme = theme;
@@ -59,13 +106,18 @@ export function App() {
       /* Storage may be unavailable. */
     }
   }, [theme]);
+  if (!knownRoute)
+    return (
+      <main>
+        <h1>Không tìm thấy trang</h1>
+        <p>Đường dẫn này không tồn tại.</p>
+      </main>
+    );
   return (
     <ToastProvider>
       <AuthProvider>
         <div className={styles.shell}>
-          <div className={styles.desktopSidebar}>
-            <Sidebar />
-          </div>
+          <Sidebar desktop />
           <Drawer open={drawer} onClose={closeDrawer}>
             <Sidebar mobile onNavigate={closeDrawer} />
           </Drawer>
@@ -79,14 +131,7 @@ export function App() {
               <nav aria-label="Đường dẫn" className={styles.breadcrumb}>
                 <span>PaperLab</span>
                 <span aria-hidden="true">/</span>
-                <strong>
-                  {current?.label ??
-                    (location.pathname.startsWith('/report/')
-                      ? 'Báo cáo'
-                      : location.pathname === '/compare'
-                        ? 'So sánh'
-                        : 'Không tìm thấy')}
-                </strong>
+                <strong>{current?.label ?? 'Không tìm thấy'}</strong>
               </nav>
               <div className={styles.topActions}>
                 <Button
@@ -119,67 +164,25 @@ export function App() {
             <main
               className={`${styles.content} ${wideContent ? styles.wideContent : ''} ${appContent ? styles.appContent : ''}`}
             >
-              <StorageProvider>
+              <StorageProvider
+                key={workspaceProjectId ?? 'local-workspace'}
+                projectId={workspaceProjectId}
+                invalidProjectId={invalidProjectId}
+                hideStatusBanner={appContent}
+              >
                 <StorageStatus className={styles.storageStatus} />
                 <LlmProvider>
                   <Suspense fallback={<Skeleton />}>
                     <PageEnter key={location.pathname}>
                       <Routes>
                         {modules.map((item) => (
-                          <Route
-                            key={item.id}
-                            path={item.path}
-                            element={
-                              item.id === 'settings' || item.id === 'playground' ? (
-                                <item.page />
-                              ) : (
-                                <LabDataGate>
-                                  <item.page />
-                                </LabDataGate>
-                              )
-                            }
-                          />
+                          <Route key={item.id} path={item.path} element={<item.page />} />
                         ))}
-                        <Route
-                          path="/report/:id"
-                          element={
-                            <LabDataGate>
-                              <ReportPage />
-                            </LabDataGate>
-                          }
-                        />
-                        <Route
-                          path="/compare"
-                          element={
-                            <LabDataGate>
-                              <ComparePage />
-                            </LabDataGate>
-                          }
-                        />
-                        <Route
-                          path="/papers/:id"
-                          element={
-                            <LabDataGate>
-                              <PaperMapPage />
-                            </LabDataGate>
-                          }
-                        />
-                        <Route
-                          path="/extraction/:id"
-                          element={
-                            <LabDataGate>
-                              <ExtractionProjectPage />
-                            </LabDataGate>
-                          }
-                        />
-                        <Route
-                          path="/corpus/:id"
-                          element={
-                            <LabDataGate>
-                              <CorpusDetail />
-                            </LabDataGate>
-                          }
-                        />
+                        <Route path="/report/:id" element={<ReportPage />} />
+                        <Route path="/compare" element={<ComparePage />} />
+                        <Route path="/papers/:id" element={<PaperMapPage />} />
+                        <Route path="/extraction/:id" element={<ExtractionProjectPage />} />
+                        <Route path="/corpus/:id" element={<CorpusDetail />} />
                         <Route
                           path="*"
                           element={

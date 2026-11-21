@@ -109,7 +109,8 @@ const RELATIONS: Record<KgGraphNodeKind, Relation[]> = {
       sql: `SELECT ${PAPER}, max(b.review = 'accepted') AS accepted FROM paper me
         JOIN contribution c ON c.paper_doi = me.doi ${BUILDS_ON}
         JOIN paper p ON p.doi = b.target_id
-        WHERE me.id = ?1 AND b.target_kind = 'paper' AND p.id <> me.id GROUP BY p.id ORDER BY p.id ${LIMIT}`,
+        WHERE me.id = ?1 AND c.published_paper_id LIKE '__PROJECT_PREFIX__'
+          AND b.target_kind = 'paper' AND p.id <> me.id GROUP BY p.id ORDER BY p.id ${LIMIT}`,
       link: (row, id) => toPaper(row, id, 'builds_on', true, kgEdgeWeight.buildsOn),
     },
     {
@@ -117,7 +118,8 @@ const RELATIONS: Record<KgGraphNodeKind, Relation[]> = {
         JOIN builds_on b ON b.target_kind = 'paper' AND b.target_id = me.doi
         JOIN contribution c ON c.published_paper_id = b.published_paper_id AND c.id = b.contribution_id
         JOIN paper p ON p.doi = c.paper_doi
-        WHERE me.id = ?1 AND p.id <> me.id GROUP BY p.id ORDER BY p.id ${LIMIT}`,
+        WHERE me.id = ?1 AND c.published_paper_id LIKE '__PROJECT_PREFIX__'
+          AND p.id <> me.id GROUP BY p.id ORDER BY p.id ${LIMIT}`,
       link: (row, id) => toPaper(row, id, 'builds_on', false, kgEdgeWeight.buildsOn),
     },
     {
@@ -302,7 +304,7 @@ const RELATIONS: Record<KgGraphNodeKind, Relation[]> = {
 };
 
 const CENTRE_SQL: Record<KgGraphNodeKind, string> = {
-  paper: `SELECT ${PAPER} FROM paper p WHERE p.id = ?1 OR p.doi = ?1 ORDER BY p.id LIMIT 1`,
+  paper: `SELECT ${PAPER} FROM paper p WHERE (p.id = ?1 OR p.doi = ?1) AND p.id LIKE ?2 ORDER BY p.id LIMIT 1`,
   keyword: 'SELECT id, text AS name FROM keyword WHERE id = ?1',
   author: 'SELECT id, display_name AS name FROM author WHERE id = ?1',
   institution: 'SELECT id, display_name AS name FROM institution WHERE id = ?1',
@@ -312,10 +314,15 @@ const CENTRE_SQL: Record<KgGraphNodeKind, string> = {
   domain: 'SELECT id, display_name AS name FROM domain WHERE id = ?1',
 };
 
-async function expand(db: D1Database, from: Pick<KgNodeInfo, 'id' | 'kind'>[]) {
+async function expand(db: D1Database, from: Pick<KgNodeInfo, 'id' | 'kind'>[], projectId: string) {
   const plan = from.flatMap(({ id, kind }) => RELATIONS[kind].map((relation) => ({ id, relation })));
   if (!plan.length) return [];
-  const results = await db.batch<Row>(plan.map(({ id, relation }) => db.prepare(relation.sql).bind(id)));
+  const projectPrefix = `@rh/${projectId}/%`;
+  const results = await db.batch<Row>(
+    plan.map(({ id, relation }) =>
+      db.prepare(relation.sql.replaceAll('__PROJECT_PREFIX__', projectPrefix)).bind(id),
+    ),
+  );
   return plan.flatMap(({ id, relation }, index) =>
     (results[index]?.results ?? []).map((row) => relation.link(row, id)),
   );
@@ -324,17 +331,24 @@ async function expand(db: D1Database, from: Pick<KgNodeInfo, 'id' | 'kind'>[]) {
 export async function readKgGraph(
   db: D1Database,
   options: { centre: string; kind: KgGraphNodeKind; depth: 1 | 2; layers: KgGraphLayer[]; limit: number },
+  projectId: string,
 ): Promise<KgGraph | null> {
-  const [found] = await db.batch<Row>([db.prepare(CENTRE_SQL[options.kind]).bind(options.centre)]);
+  const prefix = `@rh/${projectId}/`;
+  const scopedCentre = options.centre.startsWith('10.') ? options.centre : `${prefix}${options.centre}`;
+  const centreStatement =
+    options.kind === 'paper'
+      ? db.prepare(CENTRE_SQL[options.kind]).bind(scopedCentre, `${prefix}%`)
+      : db.prepare(CENTRE_SQL[options.kind]).bind(scopedCentre);
+  const [found] = await db.batch<Row>([centreStatement]);
   const row = found?.results[0];
   if (!row) return null;
   const centre = options.kind === 'paper' ? paperNode(row) : named(options.kind)(row);
   const layers = new Set(options.layers);
-  const first = await expand(db, [centre]);
+  const first = await expand(db, [centre], projectId);
   const hops = [first];
   if (options.depth === 2) {
     const reached = assembleKgGraph({ centre, hops, layers, limit: Number.MAX_SAFE_INTEGER });
-    hops.push(await expand(db, kgFrontier(reached.nodes)));
+    hops.push(await expand(db, kgFrontier(reached.nodes), projectId));
   }
   const graph = assembleKgGraph({ centre, hops, layers, limit: options.limit });
   let outside: string[] = [];
@@ -347,29 +361,35 @@ export async function readKgGraph(
         )
         .bind(centre.id),
     ]);
-    outside = (missing?.results ?? []).map(({ id }) => String(id));
+    outside = (missing?.results ?? []).map(({ id }) => {
+      const value = String(id);
+      const prefix = `@rh/${projectId}/`;
+      return value.startsWith(prefix) ? value.slice(prefix.length) : value;
+    });
   }
   return { centre: centre.id, depth: options.depth, layers: options.layers, ...graph, outside };
 }
 
-export async function readKgTrend(db: D1Database, requested: string[]): Promise<KgTrend> {
-  const ids = requested.filter((value) => value.startsWith('keywords/'));
+export async function readKgTrend(db: D1Database, requested: string[], projectId: string): Promise<KgTrend> {
+  const prefix = `@rh/${projectId}/`;
+  const ids = requested.filter((value) => value.startsWith('keywords/')).map((value) => `${prefix}${value}`);
   const texts = requested.filter((value) => !value.startsWith('keywords/')).map(normalizeText);
   const [found] = await db.batch<Row>([
     db
       .prepare(
         `SELECT id, text, text_normalized AS normalized, frequency FROM keyword
-        WHERE id IN (SELECT value FROM json_each(?1)) OR text_normalized IN (SELECT value FROM json_each(?2))
+        WHERE (id IN (SELECT value FROM json_each(?1)) OR text_normalized IN (SELECT value FROM json_each(?2)))
+          AND id LIKE ?3
         ORDER BY id`,
       )
-      .bind(JSON.stringify(ids), JSON.stringify(texts)),
+      .bind(JSON.stringify(ids), JSON.stringify(texts), `${prefix}%`),
   ]);
   const rows = found?.results ?? [];
   const keywords = new Map<string, { id: string; text: string; total: number }>();
   const missing: string[] = [];
   for (const value of requested) {
     const match = value.startsWith('keywords/')
-      ? rows.find(({ id }) => id === value)
+      ? rows.find(({ id }) => id === `${prefix}${value}`)
       : rows.find(({ normalized }) => normalized === normalizeText(value));
     if (!match) missing.push(value);
     else if (!keywords.has(String(match.id)))
@@ -428,7 +448,13 @@ function graphOptions(params: URLSearchParams) {
   };
 }
 
-export async function handleKgGraph(db: D1Database, request: Request, path: string, headers: Headers) {
+export async function handleKgGraph(
+  db: D1Database,
+  request: Request,
+  path: string,
+  headers: Headers,
+  projectId: string,
+) {
   if (request.method !== 'GET') return publishedError(405, 'bad_request', 'Use GET.', headers);
   const params = new URL(request.url).searchParams;
   if (path === '/v1/kg/trend') {
@@ -443,7 +469,11 @@ export async function handleKgGraph(db: D1Database, request: Request, path: stri
     ];
     if (!requested.length || requested.length > KG_TREND_LIMIT)
       return publishedError(400, 'bad_request', `Expected 1–${KG_TREND_LIMIT} keywords.`, headers);
-    return withEtag(request, await readKgTrend(db, requested), headers);
+    return withEtag(
+      request,
+      stripProjectIds(await readKgTrend(db, requested, projectId), projectId),
+      headers,
+    );
   }
   const options = graphOptions(params);
   if (!options)
@@ -453,8 +483,22 @@ export async function handleKgGraph(db: D1Database, request: Request, path: stri
       'Expected a centre (an OpenAlex ID, a DOI or a KG ID), depth 1 or 2, known layers and a positive limit.',
       headers,
     );
-  const graph = await readKgGraph(db, options);
+  const graph = await readKgGraph(db, options, projectId);
   return graph
-    ? withEtag(request, graph, headers)
+    ? withEtag(request, stripProjectIds(graph, projectId), headers)
     : publishedError(404, 'not_found', 'The centre is not in the lab KG.', headers);
+}
+
+function stripProjectIds(value: unknown, projectId: string): unknown {
+  const prefix = `@rh/${projectId}/`;
+  if (Array.isArray(value)) return value.map((item) => stripProjectIds(item, projectId));
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      typeof item === 'string' && item.startsWith(prefix)
+        ? item.slice(prefix.length)
+        : stripProjectIds(item, projectId),
+    ]),
+  );
 }

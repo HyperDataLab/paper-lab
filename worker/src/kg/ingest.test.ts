@@ -6,6 +6,8 @@ import { CRON_JOBS, drainKgQueue } from './ingest';
 import { kgQueue } from './queue';
 import { testDb } from './testDb';
 
+const PROJECT_ID = '00000000-0000-4000-8000-000000000101';
+
 function setup() {
   const { db, sqlite } = testDb();
   let clock = new Date('2026-06-01T00:00:00.000Z');
@@ -34,6 +36,7 @@ function setup() {
       return { uid: 'test', email: 'test@example.invalid' };
     },
     allowedOrigins: ['https://example.invalid'],
+    getOwnedProject: async (id) => (id === PROJECT_ID ? { id, name: 'Test project' } : null),
     now,
     fetch: fetcher,
     kg: bindings,
@@ -46,6 +49,7 @@ function setup() {
         body: JSON.stringify(body),
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'X-Project-Id': PROJECT_ID,
           Origin: 'https://example.invalid',
         },
       }),
@@ -63,8 +67,8 @@ function setup() {
     tick,
     now,
     kg,
-    queue: kgQueue(db),
-    drain: () => drainKgQueue(kg, { now, fetcher }),
+    queue: kgQueue(db, PROJECT_ID),
+    drain: () => drainKgQueue(kg, { now, fetcher, projectId: PROJECT_ID }),
   };
 }
 
@@ -122,7 +126,7 @@ it('queues 50 identifiers, processes one submitted seed immediately, and reports
   expect(run).toHaveBeenCalledWith(EMBEDDING_MODEL, { text: ['Synthetic paper\n\nSynthetic abstract.'] });
   expect(upsert).toHaveBeenCalledWith([
     {
-      id: 'W80',
+      id: `@rh/${PROJECT_ID}/W80`,
       values: expect.arrayContaining([0.5]),
       metadata: { year: 2020, subfieldId: 'subfields/30' },
     },
@@ -130,10 +134,10 @@ it('queues 50 identifiers, processes one submitted seed immediately, and reports
   expect(
     sqlite
       .prepare('SELECT source, resolved_paper_id FROM ingest_queue WHERE id = ?')
-      .get('10.1000/synthetic'),
+      .get(`@rh/${PROJECT_ID}/10.1000/synthetic`),
   ).toEqual({
     source: 'sciatlas_pointer',
-    resolved_paper_id: 'W80',
+    resolved_paper_id: `@rh/${PROJECT_ID}/W80`,
   });
   expect(
     await (await request({ ids: ['doi:10.1000/Synthetic', '10.1000/synthetic'], depth: 0 })).json(),
@@ -158,7 +162,7 @@ it('cron drains at most CRON_JOBS jobs per run', async () => {
 
 it('a run with a limit stops at it and follows references and highly cited citing works only to the requested depth', async () => {
   const { queue, now, fetcher, kg } = setup();
-  const drain = () => drainKgQueue(kg, { now, fetcher, limit: 3 });
+  const drain = () => drainKgQueue(kg, { now, fetcher, limit: 3, projectId: PROJECT_ID });
   fetcher.mockImplementation(async (input) => {
     const url = new URL(String(input));
     const target = url.pathname.split('/').at(-1);
@@ -202,7 +206,7 @@ it('backs off on 429, respects Retry-After across jobs and stops retrying after 
   expect(await drain()).toEqual({ processed: 0, errors: [] });
   expect(fetcher).toHaveBeenCalledTimes(1);
   const later = new Date(now().getTime() + 86_400_000).toISOString();
-  sqlite.prepare('UPDATE ingest_queue SET next_at = ? WHERE id = ?').run(later, 'W2');
+  sqlite.prepare('UPDATE ingest_queue SET next_at = ? WHERE id = ?').run(later, `@rh/${PROJECT_ID}/W2`);
   for (let attempt = 2; attempt <= 5; attempt++) {
     tick(1_000_000);
     await drain();
@@ -225,7 +229,9 @@ it('claims each row once and keeps a depth increase that arrives while a job is 
   if (!job) throw new Error('Job was not claimed');
   expect(job).toMatchObject({ depth: 0, attempts: 1 });
   expect(await queue.enqueue(['W1'], 2, 'seed', at)).toBe(1);
-  sqlite.prepare("INSERT INTO paper (id, title, title_normalized) VALUES ('W1', '', '')").run();
+  sqlite
+    .prepare('INSERT INTO paper (id, title, title_normalized) VALUES (?, ?, ?)')
+    .run(`@rh/${PROJECT_ID}/W1`, '', '');
   await queue.finish(job, { at, status: 'done', paperId: 'W1', targets: [] });
   expect(await queue.claim(now())).toMatchObject({ depth: 2, attempts: 1 });
 });

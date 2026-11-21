@@ -1,0 +1,11 @@
+.paperMath {
+  white-space: normal;
+}
+
+.paperMathDisplay {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  margin-block: 0.35em;
+  text-align: center;
+}

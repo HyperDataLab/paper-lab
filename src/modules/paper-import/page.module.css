@@ -1249,7 +1249,7 @@ mark.textMark {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
 }
-/* Wide screens: the paper page fills the window below the top bar; only the columns scroll. */
+/* Wide screens: the paper workspace fills the window below the top bar; each column scrolls inside its card. */
 @media (min-width: 1024px) {
   .paperPage {
     /* One gutter for header, tabs and columns: they line up on any screen, centred past the workspace width. */
@@ -1278,7 +1278,7 @@ mark.textMark {
     padding: var(--space-4) var(--gutter) var(--space-5);
   }
   .paperPage .workspace {
-    grid-template-columns: minmax(0, 1fr) clamp(360px, 30vw, 520px);
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 24vw, 360px);
   }
 
   .paperPage .column {
@@ -1286,6 +1286,366 @@ mark.textMark {
     top: auto;
     height: 100%;
     max-height: none;
+    overflow-y: auto;
+  }
+}
+
+/* The paper detail is a reading workspace: its header stays compact and the PDF owns the scroll area. */
+.paperPage {
+  min-width: 0;
+}
+.paperPage > .paperHead {
+  min-width: 0;
+  gap: var(--space-1);
+}
+.paperPage .titleRow {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.paperPage .titleRow h1 {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+  overflow: hidden;
+  font-size: var(--text-xl);
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.paperPage .backLink {
+  flex: none;
+}
+.paperPage .paperActions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.paperPage .syncBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 220px;
+  color: var(--success);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+.paperPage .syncBadge[data-status='error'] {
+  color: var(--danger);
+  font-weight: 650;
+}
+.paperPage .syncBadge[data-status='loading'],
+.paperPage .syncBadge[data-status='syncing'] {
+  color: var(--text-muted);
+}
+.paperPage .syncProject {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.paperPage .paperMeta {
+  margin: 0 0 0 var(--space-6);
+  overflow: hidden;
+  font-size: var(--text-xs);
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.paperPage .spaceTabs {
+  flex: none;
+}
+.paperPage .spaceTabs [role='tablist'] > button {
+  min-height: 36px;
+  padding-block: var(--space-1);
+}
+.paperPage .workspace,
+.paperPage .workspaceSingle {
+  min-width: 0;
+}
+.paperPage .workspaceSingle {
+  grid-template-columns: minmax(0, 1fr);
+}
+.paperPage .pdfColumn {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  container-name: pdfReader;
+  container-type: inline-size;
+  padding: 0;
+  overflow: hidden;
+  background: var(--desk);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.paperPage .pdfColumn[hidden],
+.paperPage .summaryColumn[hidden] {
+  display: none;
+}
+.paperPage .pdfColumn > :not(.viewer) {
+  min-width: 0;
+}
+.paperPage .pdfPaneTabs {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding-right: var(--space-1);
+  border-right: 1px solid var(--border);
+}
+.paperPage .pdfPaneTabs button {
+  min-height: 32px;
+  padding-inline: var(--space-2);
+}
+.paperPage .pdfPaneTabs button[aria-selected='true'] {
+  color: var(--accent);
+  background: var(--soft);
+}
+.paperPage .analysisToggle {
+  white-space: nowrap;
+}
+.paperPage .pdfToolbarActions {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+.paperPage .runAllAction {
+  justify-content: center;
+}
+.paperPage .compactFinding {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.paperPage .compactFindingHead {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 42px;
+  padding: var(--space-1) var(--space-2);
+}
+.paperPage .compactFindingTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.paperPage .compactFindingBody {
+  padding: 0 var(--space-3) var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+.paperPage .criterionFilter {
+  position: relative;
+}
+.paperPage .criterionOptions {
+  position: absolute;
+  z-index: 12;
+  top: calc(100% + 6px);
+  left: 0;
+  display: grid;
+  gap: var(--space-1);
+  min-width: 220px;
+  padding: var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+@media (min-width: 1024px) {
+  .paperPage {
+    height: 100%;
+    overflow: hidden;
+  }
+  .paperPage > .paperHead {
+    padding: var(--space-2) var(--gutter) var(--space-1);
+  }
+  .paperPage .workspace,
+  .paperPage .workspaceSingle {
+    padding: 0 var(--gutter) 0;
+  }
+  .paperPage .pdfWorkspace {
+    padding: 0;
+  }
+  .paperPage .workspace.pdfWorkspace {
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 24vw, 360px);
+    gap: 0;
+  }
+  .paperPage .column {
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 0;
+  }
+  .paperPage .workspace.pdfWorkspace > .column:not(.pdfColumn) {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-left: 1px solid var(--border);
+  }
+}
+@media (max-width: 1023px) {
+  .paperPage {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - var(--header-height) - var(--space-10));
+    min-height: 420px;
+    overflow: hidden;
+  }
+  .paperPage > .paperHead {
+    flex: none;
+    padding: var(--space-2) 0 var(--space-1);
+  }
+  .paperPage .titleRow h1 {
+    font-size: var(--text-lg);
+  }
+  .paperPage .syncProject,
+  .paperPage .syncLabel {
+    display: none;
+  }
+  .paperPage .paperMeta {
+    margin-left: var(--space-6);
+  }
+  .paperPage .spaceTabs {
+    margin: 0 calc(var(--space-4) * -1);
+    padding: 0 var(--space-4);
+  }
+  .paperPage > .paperTabs {
+    flex: none;
+  }
+  .paperPage > .workspace,
+  .paperPage > .workspaceSingle {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .paperPage .workspace,
+  .paperPage .workspaceSingle {
+    padding: 0;
+  }
+  .paperPage .workspace > [aria-label='Paper'],
+  .paperPage .workspaceSingle > [aria-label='Paper'] {
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+@container pdfReader (max-width: 1320px) {
+  .paperPage .analysisToggleText {
+    display: none;
+  }
+  .paperPage .pdfToolbarActions .runAllCompact > button {
+    display: inline-flex;
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+    justify-content: center;
+    padding-inline: 0;
+    gap: 0;
+  }
+  .paperPage .pdfToolbarActions .runAllActionLabel {
+    display: none;
+  }
+}
+@container pdfReader (max-width: 900px) {
+  .paperPage .pdfPaneTabs button {
+    padding-inline: var(--space-1);
+  }
+}
+
+/* Summary uses the full workspace and owns its scroll area like the PDF reader. */
+.paperPage .summaryWorkspace {
+  gap: 0;
+  padding: 0;
+}
+.paperPage .summaryColumn {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 var(--space-3) var(--space-5);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.paperPage .summaryColumn > .blocks {
+  gap: var(--space-2);
+}
+.paperPage .summaryColumn > .columnTabs {
+  position: sticky;
+  top: 0;
+  z-index: 16;
+  flex: none;
+  margin: 0 calc(-1 * var(--space-3));
+  padding-inline: var(--space-3);
+  background: var(--surface);
+}
+.paperPage .workspace > .summaryColumn,
+.paperPage .workspaceSingle > .summaryColumn {
+  overflow-y: auto;
+}
+.paperPage .spaceColumn {
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.paperPage .spaceColumn .spaceHead {
+  top: 0;
+}
+
+@media (max-width: 600px) {
+  .paperPage .titleRow {
+    gap: var(--space-1);
+  }
+  .paperPage .titleRow h1 {
+    font-size: var(--text-md);
+  }
+  .paperPage .paperActions {
+    gap: 2px;
+  }
+  .paperPage .paperMeta {
+    font-size: var(--text-xs);
+  }
+}
+@media (max-width: 1360px) {
+  .paperPage .analysisToggleText {
+    display: none;
+  }
+  .paperPage .pdfToolbarActions .runAllCompact > button {
+    display: inline-flex;
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+    justify-content: center;
+    padding-inline: 0;
+    gap: 0;
+  }
+  .paperPage .pdfToolbarActions .runAllActionLabel {
+    display: none;
+  }
+}
+@media (max-width: 1023px) {
+  .paperPage .analysisToggleText {
+    display: inline;
+  }
+  .paperPage .pdfToolbarActions .runAllCompact > button {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    gap: var(--space-2);
+  }
+  .paperPage .pdfToolbarActions .runAllActionLabel {
+    display: inline;
   }
 }
 .findingTools {
@@ -1310,6 +1670,78 @@ mark.textMark {
   margin-top: var(--space-2);
   color: var(--text-muted);
 }
+.projectFiles {
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.projectFilesHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.projectFilesHead h2 {
+  margin: 0;
+  font-size: var(--text-md);
+}
+.projectFilesHead p,
+.projectFilesEmpty {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.projectFileList {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.projectFileRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+}
+.projectFileType {
+  display: grid;
+  width: 36px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--danger-border, var(--border));
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+.projectFileName {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.projectFileMeta {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+.projectFilesError {
+  color: var(--danger);
+  font-size: var(--text-sm);
+}
+.projectFilesError details {
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+}
 .blockToggle svg {
   transition: transform 0.18s ease;
 }
@@ -1319,5 +1751,16 @@ mark.textMark {
 @media (max-width: 767px) {
   .headerLabel {
     display: none;
+  }
+  .projectFileRow {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .projectFileMeta {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .projectFileRow > button {
+    grid-column: 3;
+    grid-row: 1 / span 2;
   }
 }

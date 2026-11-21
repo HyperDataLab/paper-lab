@@ -26,6 +26,7 @@ export interface Deps {
   bucket: Bucket;
   allowedOrigins: string[];
   adminEmails?: string[];
+  projectId?: string;
   now: () => Date;
   grobid?: (pdf: ArrayBuffer) => Promise<Response>;
   /** POST /nlp/parse on the topics worker with the caller's token; absent when `NLP_URL` is unset. */

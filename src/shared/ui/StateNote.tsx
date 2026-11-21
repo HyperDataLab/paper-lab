@@ -6,10 +6,8 @@ import styles from './ui.module.css';
 export function Loading({ label = 'Đang tải…' }: { label?: string }) {
   return (
     <div className={styles.loading} role="status" aria-label={label}>
-      <span className={styles.skeletonBlock} aria-hidden="true" />
-      <span className={styles.skeletonBlock} aria-hidden="true" />
-      <span className={styles.skeletonBlock} aria-hidden="true" />
-      <span className={styles.srOnly}>{label}</span>
+      <span className={styles.spinner} aria-hidden="true" />
+      <span>{label}</span>
     </div>
   );
 }

@@ -52,6 +52,8 @@ const WORKS: Work[] = [
 ];
 
 const slug = (name: string) => `keywords/${name.replace(/\s+/gu, '-')}`;
+const PROJECT_ID = '00000000-0000-4000-8000-000000000101';
+const scopedId = (id: string) => `@rh/${PROJECT_ID}/${id}`;
 
 function raw(work: Work) {
   return {
@@ -83,20 +85,20 @@ function raw(work: Work) {
 async function setup({ seed = true } = {}) {
   const { db, sqlite } = testDb();
   if (seed) {
-    for (const work of WORKS) await kgRepo(db).upsertWork(mapOpenAlexWorkToKg(raw(work)));
+    for (const work of WORKS) await kgRepo(db, PROJECT_ID).upsertWork(mapOpenAlexWorkToKg(raw(work)));
     // W4's published contribution builds on W1 through a DOI reference.
     sqlite
       .prepare(
         `INSERT INTO contribution (id, published_paper_id, paper_doi, name, description, review, body)
-        VALUES ('c1', 'pub1', '10.1000/w4', 'Synthetic method', 'A synthetic contribution.', 'accepted', '{}')`,
+        VALUES (?, ?, '10.1000/w4', 'Synthetic method', 'A synthetic contribution.', 'accepted', '{}')`,
       )
-      .run();
+      .run(scopedId('c1'), scopedId('pub1'));
     sqlite
       .prepare(
         `INSERT INTO builds_on (published_paper_id, contribution_id, prerequisite_id, target_kind, target_id,
-        relation, review) VALUES ('pub1', 'c1', 'p1', 'paper', '10.1000/w1', 'reference', 'accepted')`,
+        relation, review) VALUES (?, ?, ?, 'paper', '10.1000/w1', 'reference', 'accepted')`,
       )
-      .run();
+      .run(scopedId('pub1'), scopedId('c1'), scopedId('p1'));
   }
   const bindings: KgBindings = {
     KG: db,
@@ -115,6 +117,7 @@ async function setup({ seed = true } = {}) {
       return { uid: 'test', email: 'test@example.invalid' };
     },
     allowedOrigins: ['https://example.invalid'],
+    getOwnedProject: async (id) => (id === PROJECT_ID ? { id, name: 'Test project' } : null),
     now: () => new Date('2026-06-01T00:00:00.000Z'),
     kg: bindings,
   };
@@ -128,6 +131,7 @@ async function setup({ seed = true } = {}) {
         method: init.method ?? 'GET',
         headers: {
           ...(init.token === '' ? {} : { Authorization: `Bearer ${init.token ?? 'lab'}` }),
+          'X-Project-Id': PROJECT_ID,
           ...init.headers,
         },
       }),

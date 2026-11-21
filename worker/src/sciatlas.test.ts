@@ -4,6 +4,7 @@ import { NotAllowedError } from './auth';
 import { SCIATLAS_URL } from './sciatlas';
 
 const KEY = 'test-key';
+const PROJECT_ID = '00000000-0000-4000-8000-000000000101';
 const bucket: Bucket = {
   head: async () => null,
   get: async () => null,
@@ -34,17 +35,21 @@ function setup(
     bucket,
     verifyToken: async () => ({ uid: '1', email: 'test@example.org' }),
     allowedOrigins: ['https://example.org'],
+    getOwnedProject: async (projectId) => ({ id: projectId, name: 'Test project' }),
     now: () => new Date('2026-11-18T00:00:00Z'),
     sciatlasKey: KEY,
     fetch: fetcher as unknown as typeof fetch,
     ...extra,
   };
-  const call = (value: unknown = body, headers: Record<string, string> = { authorization: 'Bearer token' }) =>
+  const call = (
+    value: unknown = body,
+    headers: Record<string, string> = { authorization: 'Bearer token', 'X-Project-Id': PROJECT_ID },
+  ) =>
     handle(
       deps,
       new Request('https://worker.test/v1/sciatlas/search', {
         method: 'POST',
-        headers: { origin: 'https://example.org', ...headers },
+        headers: { origin: 'https://example.org', 'X-Project-Id': PROJECT_ID, ...headers },
         body: JSON.stringify(value),
       }),
     );

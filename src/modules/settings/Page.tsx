@@ -104,8 +104,8 @@ export default function Page() {
               onChange={(e) => setBaseUrl(e.target.value)}
             />
             <p className={styles.hint}>
-              /llm = proxy của máy chủ (khoá nằm ở máy chủ). URL đầy đủ = gọi trực tiếp, cần khoá và endpoint
-              cho phép CORS.
+              /llm dùng proxy Vite khi phát triển. Các host 9router được cho phép sẽ đi qua PaperLab Worker;
+              endpoint khác gọi trực tiếp và cần bật CORS.
             </p>
             <TextField label="Model" value={model} onChange={(e) => setModel(e.target.value)} />
             <TextField

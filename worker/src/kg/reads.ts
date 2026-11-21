@@ -30,16 +30,23 @@ type Row = Record<string, string | number | null>;
 const str = (value: unknown) => (typeof value === 'string' ? value : null);
 const num = (value: unknown) => (typeof value === 'number' ? value : null);
 
-export async function readKgPaper(db: D1Database, key: string): Promise<KgPaperDetail | null> {
+export async function readKgPaper(
+  db: D1Database,
+  key: string,
+  projectId: string,
+): Promise<KgPaperDetail | null> {
   const isWork = /^W\d+$/u.test(key);
+  const prefix = `@rh/${projectId}/`;
+  const scopedKey = `${prefix}${key}`;
   const [found] = await db.batch<Row>([
     db
       .prepare(
         `SELECT p.id, p.doi, p.title, p.abstract, p.publication_year AS year, p.cited_by_count AS citations,
         p.type, p.source_id AS venueId, s.display_name AS venueName
-      FROM paper p LEFT JOIN source s ON s.id = p.source_id WHERE ${isWork ? 'p.id' : 'p.doi'} = ? LIMIT 1`,
+      FROM paper p LEFT JOIN source s ON s.id = p.source_id
+      WHERE p.id LIKE ? AND ${isWork ? 'p.id = ?' : 'p.doi = ?'} LIMIT 1`,
       )
-      .bind(key),
+      .bind(`${prefix}%`, isWork ? scopedKey : key),
   ]);
   const paper = found?.results[0];
   if (!paper) return null;
@@ -91,9 +98,9 @@ export async function readKgPaper(db: D1Database, key: string): Promise<KgPaperD
       .bind(id),
     db
       .prepare(
-        `SELECT id, name, description, review FROM contribution WHERE paper_doi = ? ORDER BY published_paper_id, id`,
+        `SELECT id, name, description, review FROM contribution WHERE paper_doi = ? AND published_paper_id LIKE ? ORDER BY published_paper_id, id`,
       )
-      .bind(doi ?? ''),
+      .bind(doi ?? '', `${prefix}%`),
   ]);
   const linked = (rows: Row[] | undefined) =>
     (rows ?? []).map((row) => ({ id: String(row.id), title: String(row.title), year: num(row.year) }));
@@ -148,22 +155,29 @@ export async function readKgPaper(db: D1Database, key: string): Promise<KgPaperD
   };
 }
 
-export async function readKgKeyword(db: D1Database, id: string): Promise<KgKeywordDetail | null> {
+export async function readKgKeyword(
+  db: D1Database,
+  id: string,
+  projectId: string,
+): Promise<KgKeywordDetail | null> {
+  const prefix = `@rh/${projectId}/`;
   const [found, cooccurring, perYear] = await db.batch<Row>([
-    db.prepare('SELECT id, text, frequency FROM keyword WHERE id = ?').bind(id),
+    db.prepare('SELECT id, text, frequency FROM keyword WHERE id = ? AND id LIKE ?').bind(id, `${prefix}%`),
     db
       .prepare(
         `SELECT k.id, k.text, c.count, c.jaccard FROM cooccur c
       JOIN keyword k ON k.id = CASE WHEN c.left_id = ?1 THEN c.right_id ELSE c.left_id END
-      WHERE c.left_id = ?1 OR c.right_id = ?1 ORDER BY c.jaccard DESC, c.count DESC, k.id LIMIT 30`,
+      WHERE (c.left_id = ?1 OR c.right_id = ?1) AND k.id LIKE ?2
+      ORDER BY c.jaccard DESC, c.count DESC, k.id LIMIT 30`,
       )
-      .bind(id),
+      .bind(id, `${prefix}%`),
     db
       .prepare(
         `SELECT p.publication_year AS year, count(*) AS count FROM has_keyword h JOIN paper p ON p.id = h.paper_id
-      WHERE h.keyword_id = ? AND p.publication_year IS NOT NULL GROUP BY p.publication_year ORDER BY year`,
+      WHERE h.keyword_id = ?1 AND h.keyword_id LIKE ?2 AND p.publication_year IS NOT NULL
+      GROUP BY p.publication_year ORDER BY year`,
       )
-      .bind(id),
+      .bind(id, `${prefix}%`),
   ]);
   const keyword = found?.results[0];
   if (!keyword) return null;
@@ -182,16 +196,44 @@ export async function readKgKeyword(db: D1Database, id: string): Promise<KgKeywo
   };
 }
 
-export async function readKgStats(db: D1Database): Promise<KgStats> {
+export async function readKgStats(db: D1Database, projectId: string): Promise<KgStats> {
   // One row of scalar subqueries: D1 rejects a compound SELECT of more than five terms.
   const tables = [...KG_NODE_TABLES, ...KG_EDGE_TABLES];
+  const scopeColumn: Record<string, string> = {
+    paper: 'id',
+    source: 'id',
+    keyword: 'id',
+    author: 'id',
+    institution: 'id',
+    topic: 'id',
+    subfield: 'id',
+    field: 'id',
+    domain: 'id',
+    contribution: 'published_paper_id',
+    builds_on: 'published_paper_id',
+    has_keyword: 'paper_id',
+    cites: 'paper_id',
+    related_to: 'paper_id',
+    authored: 'paper_id',
+    affiliated: 'paper_id',
+    has_topic: 'paper_id',
+    coauthor: 'left_id',
+    cooccur: 'left_id',
+    subfield_of: 'topic_id',
+    field_of: 'subfield_id',
+    domain_of: 'field_id',
+  };
+  const prefix = `@rh/${projectId}/%`;
+  const sql = tables
+    .map((table) => `(SELECT count(*) FROM ${table} WHERE ${scopeColumn[table]} LIKE ?) AS ${table}`)
+    .join(', ');
   const [counts] = await db.batch<Record<string, number>>([
-    db.prepare(`SELECT ${tables.map((table) => `(SELECT count(*) FROM ${table}) AS ${table}`).join(', ')}`),
+    db.prepare(`SELECT ${sql}`).bind(...tables.map(() => prefix)),
   ]);
   const row = counts?.results[0] ?? {};
   const pick = <T extends string>(names: readonly T[]) =>
     Object.fromEntries(names.map((name) => [name, Number(row[name] ?? 0)])) as Record<T, number>;
-  const { counts: queue } = await kgQueue(db).status();
+  const { counts: queue } = await kgQueue(db, projectId).status();
   return { nodes: pick(KG_NODE_TABLES), edges: pick(KG_EDGE_TABLES), queue };
 }
 
@@ -199,17 +241,18 @@ const OVERVIEW_PAPERS = 8;
 const OVERVIEW_KEYWORDS = 12;
 
 /** Starting points for the explorer: the most cited papers and the most frequent keywords. */
-export async function readKgOverview(db: D1Database): Promise<KgOverview> {
+export async function readKgOverview(db: D1Database, projectId: string): Promise<KgOverview> {
+  const prefix = `@rh/${projectId}/%`;
   const [papers, keywords] = await db.batch<Row>([
     db
       .prepare(
         `SELECT id, title, publication_year AS year, cited_by_count AS citations FROM paper
-      ORDER BY cited_by_count DESC, id LIMIT ?`,
+      WHERE id LIKE ? ORDER BY cited_by_count DESC, id LIMIT ?`,
       )
-      .bind(OVERVIEW_PAPERS),
+      .bind(prefix, OVERVIEW_PAPERS),
     db
-      .prepare('SELECT id, text, frequency FROM keyword ORDER BY frequency DESC, id LIMIT ?')
-      .bind(OVERVIEW_KEYWORDS),
+      .prepare('SELECT id, text, frequency FROM keyword WHERE id LIKE ? ORDER BY frequency DESC, id LIMIT ?')
+      .bind(prefix, OVERVIEW_KEYWORDS),
   ]);
   return {
     papers: (papers?.results ?? []).map((row) => ({
@@ -226,10 +269,18 @@ export async function readKgOverview(db: D1Database): Promise<KgOverview> {
   };
 }
 
-export async function handleKgRead(db: D1Database, request: Request, path: string, headers: Headers) {
+export async function handleKgRead(
+  db: D1Database,
+  request: Request,
+  path: string,
+  headers: Headers,
+  projectId: string,
+) {
   if (request.method !== 'GET') return publishedError(405, 'bad_request', 'Use GET.', headers);
-  if (path === '/v1/kg/stats') return withEtag(request, await readKgStats(db), headers);
-  if (path === '/v1/kg/overview') return withEtag(request, await readKgOverview(db), headers);
+  const publicBody = (value: unknown) => stripProjectIds(value, projectId);
+  if (path === '/v1/kg/stats') return withEtag(request, await readKgStats(db, projectId), headers);
+  if (path === '/v1/kg/overview')
+    return withEtag(request, publicBody(await readKgOverview(db, projectId)), headers);
   const paper = /^\/v1\/kg\/papers\/(.+)$/u.exec(path)?.[1];
   if (paper !== undefined) {
     let key: string | null | undefined;
@@ -239,9 +290,9 @@ export async function handleKgRead(db: D1Database, request: Request, path: strin
       key = null;
     }
     if (!key) return publishedError(400, 'bad_request', 'Expected an OpenAlex work ID or a DOI.', headers);
-    const detail = await readKgPaper(db, key);
+    const detail = await readKgPaper(db, key, projectId);
     return detail
-      ? withEtag(request, detail, headers)
+      ? withEtag(request, publicBody(detail), headers)
       : publishedError(404, 'not_found', 'The paper is not in the lab KG.', headers);
   }
   const keyword = /^\/v1\/kg\/keywords\/(.+)$/u.exec(path)?.[1];
@@ -252,10 +303,24 @@ export async function handleKgRead(db: D1Database, request: Request, path: strin
     } catch {
       return publishedError(400, 'bad_request', 'Malformed keyword ID.', headers);
     }
-    const detail = await readKgKeyword(db, id);
+    const detail = await readKgKeyword(db, `${`@rh/${projectId}/`}${id}`, projectId);
     return detail
-      ? withEtag(request, detail, headers)
+      ? withEtag(request, publicBody(detail), headers)
       : publishedError(404, 'not_found', 'The keyword is not in the lab KG.', headers);
   }
   return publishedError(400, 'bad_request', 'Invalid path or method.', headers);
+}
+
+function stripProjectIds(value: unknown, projectId: string): unknown {
+  const prefix = `@rh/${projectId}/`;
+  if (Array.isArray(value)) return value.map((item) => stripProjectIds(item, projectId));
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      typeof item === 'string' && item.startsWith(prefix)
+        ? item.slice(prefix.length)
+        : stripProjectIds(item, projectId),
+    ]),
+  );
 }

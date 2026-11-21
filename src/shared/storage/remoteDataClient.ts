@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PDF_WORKER_URL } from '@/shared/pdfStore';
+import { PDF_WORKER_URL, projectScopedUrl } from '@/shared/pdfStore';
 import {
   DataNotConfiguredError,
   RemoteStorageError,
@@ -44,6 +44,7 @@ const etag = (value: number) => `"v${value}"`;
 
 export interface RemoteDataOptions {
   getToken: () => Promise<string | null>;
+  projectId: string;
   baseUrl?: string;
   fetch?: typeof fetch;
   onConfigurationError?: (message: string | null) => void;
@@ -76,11 +77,12 @@ export class RemoteDataClient {
     const send = this.options.fetch ?? fetch;
     const payload = JSON.stringify(prepareBody ? prepareBody() : body);
     onSend?.();
-    const response = await send(`${url}/v1/data/${path}`, {
+    const response = await send(projectScopedUrl(`${url}/v1/data/${path}`, this.options.projectId), {
       method,
       cache: 'no-store',
       headers: {
         Authorization: `Bearer ${token}`,
+        'X-Project-Id': this.options.projectId,
         ...(payload === undefined ? {} : { 'Content-Type': 'application/json' }),
         ...headers,
       },
@@ -120,7 +122,7 @@ export class RemoteDataClient {
       headers: cached === undefined ? undefined : { 'If-None-Match': etag(cached) },
     });
     if (result.status === 304) return undefined;
-    if (result.status === 404) return null;
+    if (result.status === 204 || result.status === 404) return null;
     // Cloudflare weakens the ETag (W/"v1") when it compresses the response.
     const tag = /^(?:W\/)?"v([1-9]\d*)"$/u.exec(result.headers.get('ETag') ?? '');
     return { doc: (await result.json()) as unknown, version: version.parse(Number(tag?.[1])) };

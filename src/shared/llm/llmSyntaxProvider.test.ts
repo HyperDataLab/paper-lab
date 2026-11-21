@@ -98,7 +98,9 @@ it('describeLlmError maps every error class to Vietnamese, and cancellations to 
   expect(describeLlmError(new LlmHttpError(401, false))).toBe('Khoá không hợp lệ');
   expect(describeLlmError(new LlmHttpError(500, true))).toBe('Máy chủ trả lỗi HTTP 500');
   expect(describeLlmError(new LlmTimeoutError())).toBe('Hết thời gian chờ phản hồi');
-  expect(describeLlmError(new InvalidModelOutputError('x', 'y'))).toBe('Kết quả của mô hình không hợp lệ');
+  expect(describeLlmError(new InvalidModelOutputError('x', 'y'))).toBe(
+    'Model trong combo chưa trả JSON đúng schema sau 3 lần thử. Chi tiết: x',
+  );
   expect(describeLlmError(new LlmNetworkError())).toBe('Không kết nối được (kiểm tra CORS hoặc mạng)');
   expect(describeLlmError(new LlmConfigError('bad'))).toBe('Cấu hình kết nối chưa hợp lệ (xem Cài đặt)');
   expect(describeLlmError(new Error('?'))).toBe('Đã có lỗi không xác định');

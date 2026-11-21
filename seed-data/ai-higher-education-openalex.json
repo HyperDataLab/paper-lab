@@ -1,0 +1,1204 @@
+{
+  "format": "paragraph-lab-export",
+  "formatVersion": 1,
+  "exportedAt": "2026-11-18T05:24:39.660Z",
+  "appVersion": "0.1.0",
+  "analyses": [],
+  "auditEvents": [],
+  "revisions": [],
+  "generations": [],
+  "papers": [],
+  "paperOverviews": [],
+  "paperChecks": [],
+  "paperReviews": [],
+  "paperProbes": [],
+  "calibrationLabels": [],
+  "measurements": [],
+  "library": [
+    {
+      "schemaVersion": 1,
+      "id": "cf77f5d5-7810-4817-85ff-74df820c49b3",
+      "doi": "10.5430/wje.v15n2p78",
+      "addedAt": "2026-11-18T05:24:39.660Z",
+      "updatedAt": "2026-11-18T05:24:39.660Z",
+      "lookup": "done",
+      "title": "Research on Excellent Cases of \"Artificial Intelligence + Higher Education\" Application Scenarios in Chinese Universities",
+      "authors": ["Wang Qiang"],
+      "year": 2025,
+      "venue": "World Journal of Education",
+      "access": "open",
+      "oa_sources": [
+        {
+          "source": "openalex",
+          "landing_url": "https://doi.org/10.5430/wje.v15n2p78",
+          "pdf_url": "https://www.sciedupress.com/journal/index.php/wje/article/download/27965/17082",
+          "license": "cc-by",
+          "version": "publishedVersion"
+        }
+      ],
+      "arxiv_id": null,
+      "taxonomy": {
+        "domain": "Social Sciences",
+        "field": "Social Sciences",
+        "subfield": "Education",
+        "topic": "Artificial Intelligence in Education",
+        "score": 0.9990000128746033,
+        "domainId": "domains/2",
+        "fieldId": "fields/33",
+        "subfieldId": "subfields/3304"
+      },
+      "openalex_id": "https://openalex.org/W4411131152",
+      "keywords": [
+        {
+          "id": "keywords/artificial-intelligence-in-higher-education",
+          "name": "artificial intelligence in higher education",
+          "score": 0.984000027179718
+        },
+        {
+          "id": "keywords/ai-competency-framework",
+          "name": "AI competency frameworks",
+          "score": 0.7110000252723694
+        },
+        {
+          "id": "keywords/teacher-ai-competence",
+          "name": "teacher AI competence",
+          "score": 0.6930000185966492
+        },
+        {
+          "id": "keywords/digitalization-of-education",
+          "name": "digitalization of education",
+          "score": 0.6370000243186951
+        },
+        {
+          "id": "keywords/chinese-universities",
+          "name": "Chinese universities",
+          "score": 0.6700000166893005
+        }
+      ],
+      "paper_id": null,
+      "file_matches_title": null,
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "id": "4099dfe0-619c-4057-b480-3d6335311c2c",
+      "doi": "10.35575/rvucn.n62a1",
+      "addedAt": "2026-11-18T05:24:39.660Z",
+      "updatedAt": "2026-11-18T05:24:39.660Z",
+      "lookup": "done",
+      "title": "The Potential of Artificial Intelligence in Higher Education",
+      "authors": ["Helen Crompton", "Donggil Song"],
+      "year": 2021,
+      "venue": "Revista Virtual Universidad Católica del Norte",
+      "access": "open",
+      "oa_sources": [
+        {
+          "source": "openalex",
+          "landing_url": "https://doi.org/10.35575/rvucn.n62a1",
+          "pdf_url": "https://revistavirtual.ucn.edu.co/index.php/RevistaUCN/article/download/1244/1619",
+          "license": "cc-by-nc-nd",
+          "version": "publishedVersion"
+        }
+      ],
+      "arxiv_id": null,
+      "taxonomy": {
+        "domain": "Social Sciences",
+        "field": "Social Sciences",
+        "subfield": "Education",
+        "topic": "Artificial Intelligence in Education",
+        "score": 0.9990000128746033,
+        "domainId": "domains/2",
+        "fieldId": "fields/33",
+        "subfieldId": "subfields/3304"
+      },
+      "openalex_id": "https://openalex.org/W3115633673",
+      "keywords": [
+        {
+          "id": "keywords/artificial-intelligence-in-education",
+          "name": "artificial intelligence in education",
+          "score": 0.9409999847412109
+        },
+        {
+          "id": "keywords/higher-education",
+          "name": "higher education",
+          "score": 0.9869999885559082
+        },
+        {
+          "id": "keywords/intelligent-tutoring-systems",
+          "name": "intelligent tutoring systems",
+          "score": 0.8889999985694885
+        },
+        {
+          "id": "keywords/automated-grading",
+          "name": "automated grading",
+          "score": 0.8859999775886536
+        },
+        {
+          "id": "keywords/personalized-learning",
+          "name": "personalized learning",
+          "score": 0.925000011920929
+        },
+        {
+          "id": "keywords/student-collaboration",
+          "name": "student cooperation",
+          "score": 0.7049999833106995
+        },
+        {
+          "id": "keywords/ethical-implications-of-ai",
+          "name": "ethical implications of AI",
+          "score": 0.8479999899864197
+        },
+        {
+          "id": "keywords/educational-technology-trends",
+          "name": "educational technology trends",
+          "score": 0.8130000233650208
+        }
+      ],
+      "paper_id": null,
+      "file_matches_title": null,
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "id": "6b8dcdda-141e-44d0-8651-24cf59c197c8",
+      "doi": "10.5430/ijhe.v9n3p145",
+      "addedAt": "2026-11-18T05:24:39.660Z",
+      "updatedAt": "2026-11-18T05:24:39.660Z",
+      "lookup": "done",
+      "title": "The Future of Higher Education in the Light of Artificial Intelligence Transformations",
+      "authors": ["Share Aiyed M. Aldosari"],
+      "year": 2020,
+      "venue": "International Journal of Higher Education",
+      "access": "open",
+      "oa_sources": [
+        {
+          "source": "openalex",
+          "landing_url": "https://doi.org/10.5430/ijhe.v9n3p145",
+          "pdf_url": "http://www.sciedu.ca/journal/index.php/ijhe/article/download/17074/10834",
+          "license": null,
+          "version": "publishedVersion"
+        }
+      ],
+      "arxiv_id": null,
+      "taxonomy": {
+        "domain": "Social Sciences",
+        "field": "Social Sciences",
+        "subfield": "Education",
+        "topic": "Artificial Intelligence in Education",
+        "score": 0.9965999722480774,
+        "domainId": "domains/2",
+        "fieldId": "fields/33",
+        "subfieldId": "subfields/3304"
+      },
+      "openalex_id": "https://openalex.org/W3010952285",
+      "keywords": [
+        {
+          "id": "keywords/artificial-intelligence-in-education",
+          "name": "artificial intelligence in education",
+          "score": 0.902999997138977
+        },
+        {
+          "id": "keywords/higher-education",
+          "name": "higher education",
+          "score": 0.9279999732971191
+        },
+        {
+          "id": "keywords/teacher-perceptions",
+          "name": "teacher perceptions",
+          "score": 0.6069999933242798
+        },
+        {
+          "id": "keywords/prince-sattam-bin-abdulaziz-university",
+          "name": "Prince Sattam bin Abdulaziz University",
+          "score": 0.9079999923706055
+        },
+        {
+          "id": "keywords/saudi-arabia",
+          "name": "Saudi Arabia",
+          "score": 0.6000000238418579
+        },
+        {
+          "id": "keywords/future-of-higher-education",
+          "name": "future of higher education",
+          "score": 0.722000002861023
+        }
+      ],
+      "paper_id": null,
+      "file_matches_title": null,
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "id": "9d786e7e-99bd-4875-9aa4-bf43ba3929e6",
+      "doi": "10.3390/educsci9010051",
+      "addedAt": "2026-11-18T05:24:39.660Z",
+      "updatedAt": "2026-11-18T05:24:39.660Z",
+      "lookup": "done",
+      "title": "Artificial Intelligence in Higher Education: A Bibliometric Study on its Impact in the Scientific Literature",
+      "authors": [
+        "Francisco Javier Hinojo Lucena",
+        "Inmaculada Aznar Díaz",
+        "María Pilar Cáceres Reche",
+        "José María Romero Rodríguez"
+      ],
+      "year": 2019,
+      "venue": "Education Sciences",
+      "access": "open",
+      "oa_sources": [
+        {
+          "source": "openalex",
+          "landing_url": "http://dx.doi.org/10.3390/educsci9010051",
+          "pdf_url": "https://www.mdpi.com/2227-7102/9/1/51/pdf?version=1552040644",
+          "license": "cc-by",
+          "version": "publishedVersion"
+        }
+      ],
+      "arxiv_id": null,
+      "taxonomy": {
+        "domain": "Social Sciences",
+        "field": "Social Sciences",
+        "subfield": "Education",
+        "topic": "Artificial Intelligence in Education",
+        "score": 0.9970999956130981,
+        "domainId": "domains/2",
+        "fieldId": "fields/33",
+        "subfieldId": "subfields/3304"
+      },
+      "openalex_id": "https://openalex.org/W2922512717",
+      "keywords": [
+        {
+          "id": "keywords/artificial-intelligence",
+          "name": "artificial intelligence",
+          "score": 0.9190000295639038
+        },
+        {
+          "id": "keywords/higher-education",
+          "name": "higher education",
+          "score": 1
+        },
+        {
+          "id": "keywords/educational-technology",
+          "name": "educational technology",
+          "score": 0.8519999980926514
+        },
+        {
+          "id": "keywords/research-trends",
+          "name": "research trends",
+          "score": 0.7590000033378601
+        },
+        {
+          "id": "keywords/teacher-awareness",
+          "name": "teacher awareness",
+          "score": 0.46700000762939453
+        },
+        {
+          "id": "keywords/artificial-intelligence-in-education",
+          "name": "artificial intelligence in education",
+          "score": 0.38100001215934753
+        }
+      ],
+      "paper_id": null,
+      "file_matches_title": null,
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "id": "ea1005ac-7121-47d0-8ff2-270f2a677022",
+      "doi": "10.19044/ejes.v10no1a17",
+      "addedAt": "2026-11-18T05:24:39.660Z",
+      "updatedAt": "2026-11-18T05:24:39.660Z",
+      "lookup": "done",
+      "title": "The Impact of Artificial Intelligence on Higher Education: An Empirical Study",
+      "authors": ["Zouhaier Slimi"],
+      "year": 2023,
+      "venue": "European Journal of Educational Sciences",
+      "access": "open",
+      "oa_sources": [
+        {
+          "source": "openalex",
+          "landing_url": "https://doi.org/10.19044/ejes.v10no1a17",
+          "pdf_url": "https://doi.org/10.19044/ejes.v10no1a17",
+          "license": null,
+          "version": "publishedVersion"
+        }
+      ],
+      "arxiv_id": null,
+      "taxonomy": {
+        "domain": "Social Sciences",
+        "field": "Social Sciences",
+        "subfield": "Education",
+        "topic": "Artificial Intelligence in Education",
+        "score": 0.9994999766349792,
+        "domainId": "domains/2",
+        "fieldId": "fields/33",
+        "subfieldId": "subfields/3304"
+      },
+      "openalex_id": "https://openalex.org/W4381827210",
+      "keywords": [
+        {
+          "id": "keywords/artificial-intelligence-in-education",
+          "name": "artificial intelligence in education",
+          "score": 0.9350000023841858
+        },
+        {
+          "id": "keywords/higher-education",
+          "name": "higher education",
+          "score": 0.9990000128746033
+        },
+        {
+          "id": "keywords/teaching-learning-process",
+          "name": "teaching-learning process",
+          "score": 0.8240000009536743
+        },
+        {
+          "id": "keywords/automated-grading",
+          "name": "automated grading",
+          "score": 0.7770000100135803
+        },
+        {
+          "id": "keywords/ai-ethics",
+          "name": "AI ethics",
+          "score": 0.7900000214576721
+        },
+        {
+          "id": "keywords/graduate-employability",
+          "name": "graduate employability",
+          "score": 0.847000002861023
+        },
+        {
+          "id": "keywords/future-careers",
+          "name": "future professions",
+          "score": 0.5799999833106995
+        },
+        {
+          "id": "keywords/personalized-learning",
+          "name": "personalized learning",
+          "score": 0.9120000004768372
+        },
+        {
+          "id": "keywords/ai-in-curriculum",
+          "name": "AI in curriculum",
+          "score": 0.4869999885559082
+        },
+        {
+          "id": "keywords/workforce-skills",
+          "name": "employability skills",
+          "score": 0.6150000095367432
+        }
+      ],
+      "paper_id": null,
+      "file_matches_title": null,
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "id": "4ad452fa-0960-4b60-802d-00d4630d2087",
+      "doi": "10.3390/educsci13111109",
+      "addedAt": "2026-11-18T05:24:39.660Z",
+      "updatedAt": "2026-11-18T05:24:39.660Z",
+      "lookup": "done",
+      "title": "Generative Artificial Intelligence: Implications and Considerations for Higher Education Practice",
+      "authors": ["Tom Farrelly", "Nick Baker"],
+      "year": 2023,
+      "venue": "Education Sciences",
+      "access": "open",
+      "oa_sources": [
+        {
+          "source": "openalex",
+          "landing_url": "https://doi.org/10.3390/educsci13111109",
+          "pdf_url": "https://www.mdpi.com/2227-7102/13/11/1109/pdf?version=1699079828",
+          "license": "cc-by",
+          "version": "publishedVersion"
+        }
+      ],
+      "arxiv_id": null,
+      "taxonomy": {
+        "domain": "Social Sciences",
+        "field": "Social Sciences",
+        "subfield": "Education",
+        "topic": "Artificial Intelligence in Education",
+        "score": 0.9980000257492065,
+        "domainId": "domains/2",
+        "fieldId": "fields/33",
+        "subfieldId": "subfields/3304"
+      },
+      "openalex_id": "https://openalex.org/W4388333366",
+      "keywords": [
+        {
+          "id": "keywords/generative-ai",
+          "name": "generative AI",
+          "score": 0.9779999852180481
+        },
+        {
+          "id": "keywords/chatgpt",
+          "name": "ChatGPT",
+          "score": 0.8460000157356262
+        },
+        {
+          "id": "keywords/academic-integrity",
+          "name": "academic integrity",
+          "score": 0.7519999742507935
+        },
+        {
+          "id": "keywords/ai-detection-tools",
+          "name": "AI detection tools",
+          "score": 0.875
+        },
+        {
+          "id": "keywords/international-students",
+          "name": "international students",
+          "score": 0.9120000004768372
+        },
+        {
+          "id": "keywords/algorithmic-bias",
+          "name": "algorithmic bias",
+          "score": 0.8029999732971191
+        },
+        {
+          "id": "keywords/ai-based-assessment",
+          "name": "AI-assisted assessment",
+          "score": 0.7300000190734863
+        },
+        {
+          "id": "keywords/language-support",
+          "name": "language support",
+          "score": 0.6140000224113464
+        },
+        {
+          "id": "keywords/accessibility",
+          "name": "accessibility",
+          "score": 0.9710000157356262
+        },
+        {
+          "id": "keywords/ai-literacy",
+          "name": "AI literacy",
+          "score": 0.9919999837875366
+        },
+        {
+          "id": "keywords/ethical-use-of-ai",
+          "name": "ethical use of AI",
+          "score": 0.7179999947547913
+        },
+        {
+          "id": "keywords/cultural-competence",
+          "name": "cultural competence",
+          "score": 0.9079999923706055
+        },
+        {
+          "id": "keywords/ai-competency-framework",
+          "name": "AI competency frameworks",
+          "score": 0.7889999747276306
+        },
+        {
+          "id": "keywords/revised-bloom-s-taxonomy",
+          "name": "Bloom's revised taxonomy",
+          "score": 0.9139999747276306
+        },
+        {
+          "id": "keywords/higher-education",
+          "name": "higher education",
+          "score": 0.656000018119812
+        }
+      ],
+      "paper_id": null,
+      "file_matches_title": null,
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "id": "f6f24130-c6e4-4aca-85c9-5497978f2d9f",
+      "doi": "10.26803/ijlter.25.6.36",
+      "addedAt": "2026-11-18T05:24:39.660Z",
+      "updatedAt": "2026-11-18T05:24:39.660Z",
+      "lookup": "done",
+      "title": "Artificial Intelligence, Higher Education, and University Social Responsibility: A Bibliometric Mapping Study of Current Knowledge and Emerging Trends",
+      "authors": ["Hanene Essoussi", "Aziza Saïda Slimane"],
+      "year": 2026,
+      "venue": "International Journal of Learning Teaching and Educational Research",
+      "access": "open",
+      "oa_sources": [
+        {
+          "source": "openalex",
+          "landing_url": "https://doi.org/10.26803/ijlter.25.6.36",
+          "pdf_url": "https://www.ijlter.org/index.php/ijlter/article/download/17175/pdf",
+          "license": "cc-by-nc-nd",
+          "version": "publishedVersion"
+        }
+      ],
+      "arxiv_id": null,
+      "taxonomy": {
+        "domain": "Social Sciences",
+        "field": "Social Sciences",
+        "subfield": "Education",
+        "topic": "Artificial Intelligence in Education",
+        "score": 0.9663000106811523,
+        "domainId": "domains/2",
+        "fieldId": "fields/33",
+        "subfieldId": "subfields/3304"
+      },
+      "openalex_id": "https://openalex.org/W7165753606",
+      "keywords": [
+        {
+          "id": "keywords/artificial-intelligence-in-higher-education",
+          "name": "artificial intelligence in higher education",
+          "score": 0.9819999933242798
+        },
+        {
+          "id": "keywords/university-social-responsibility",
+          "name": "university social responsibility",
+          "score": 0.9990000128746033
+        },
+        {
+          "id": "keywords/responsible-ai",
+          "name": "responsible AI",
+          "score": 0.9049999713897705
+        },
+        {
+          "id": "keywords/ai-governance",
+          "name": "AI governance",
+          "score": 0.7260000109672546
+        },
+        {
+          "id": "keywords/ai-privacy",
+          "name": "AI privacy",
+          "score": 0.6359999775886536
+        },
+        {
+          "id": "keywords/academic-integrity",
+          "name": "academic integrity",
+          "score": 0.9929999709129333
+        },
+        {
+          "id": "keywords/ai-based-assessment",
+          "name": "AI-assisted assessment",
+          "score": 0.6629999876022339
+        },
+        {
+          "id": "keywords/scientific-collaboration-networks",
+          "name": "research collaboration networks",
+          "score": 0.6819999814033508
+        },
+        {
+          "id": "keywords/research-trends",
+          "name": "research trends",
+          "score": 0.49000000953674316
+        }
+      ],
+      "paper_id": null,
+      "file_matches_title": null,
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "id": "0a06e2ad-7d27-4cc0-a21f-20cf9f793341",
+      "doi": "10.3390/admsci13090196",
+      "addedAt": "2026-11-18T05:24:39.660Z",
+      "updatedAt": "2026-11-18T05:24:39.660Z",
+      "lookup": "done",
+      "title": "Managing the Strategic Transformation of Higher Education through Artificial Intelligence",
+      "authors": ["Babu P GEORGE", "Ontario S. Wooden"],
+      "year": 2023,
+      "venue": "Administrative Sciences",
+      "access": "open",
+      "oa_sources": [
+        {
+          "source": "openalex",
+          "landing_url": "https://doi.org/10.3390/admsci13090196",
+          "pdf_url": "https://www.mdpi.com/2076-3387/13/9/196/pdf?version=1693319334",
+          "license": "cc-by",
+          "version": "publishedVersion"
+        }
+      ],
+      "arxiv_id": null,
+      "taxonomy": {
+        "domain": "Social Sciences",
+        "field": "Social Sciences",
+        "subfield": "Education",
+        "topic": "Artificial Intelligence in Education",
+        "score": 0.9603999853134155,
+        "domainId": "domains/2",
+        "fieldId": "fields/33",
+        "subfieldId": "subfields/3304"
+      },
+      "openalex_id": "https://openalex.org/W4386285839",
+      "keywords": [
+        {
+          "id": "keywords/artificial-intelligence-in-higher-education",
+          "name": "artificial intelligence in higher education",
+          "score": 0.9929999709129333
+        },
+        {
+          "id": "keywords/smart-university",
+          "name": "smart university",
+          "score": 0.9769999980926514
+        },
+        {
+          "id": "keywords/strategic-change",
+          "name": "strategic change",
+          "score": 0.7620000243186951
+        },
+        {
+          "id": "keywords/quantum-technologies",
+          "name": "quantum technologies",
+          "score": 0.6449999809265137
+        },
+        {
+          "id": "keywords/personalized-learning",
+          "name": "personalized learning",
+          "score": 0.996999979019165
+        },
+        {
+          "id": "keywords/access-to-education",
+          "name": "access to education",
+          "score": 0.8259999752044678
+        },
+        {
+          "id": "keywords/educational-quality",
+          "name": "educational quality",
+          "score": 0.652999997138977
+        },
+        {
+          "id": "keywords/algorithmic-bias",
+          "name": "algorithmic bias",
+          "score": 0.8059999942779541
+        },
+        {
+          "id": "keywords/privacy-risks",
+          "name": "privacy risks",
+          "score": 0.6039999723434448
+        },
+        {
+          "id": "keywords/historically-black-colleges-and-universities",
+          "name": "historically Black colleges and universities",
+          "score": 0.9100000262260437
+        },
+        {
+          "id": "keywords/societal-impact-of-ai",
+          "name": "societal impact of AI",
+          "score": 0.7350000143051147
+        }
+      ],
+      "paper_id": null,
+      "file_matches_title": null,
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "id": "cc1cd32f-a117-427e-8f84-532391ef22a6",
+      "doi": "10.3390/educsci14010047",
+      "addedAt": "2026-11-18T05:24:39.660Z",
+      "updatedAt": "2026-11-18T05:24:39.660Z",
+      "lookup": "done",
+      "title": "Artificial Intelligence in Higher Education: An Analysis of Existing Bibliometrics",
+      "authors": [
+        "Roberto López-Chila",
+        "Joe Llerena-Izquierdo",
+        "Nicolás Armando Sumba Nacipucha",
+        "Jorge Manuel Cueva Estrada"
+      ],
+      "year": 2023,
+      "venue": "Education Sciences",
+      "access": "open",
+      "oa_sources": [
+        {
+          "source": "openalex",
+          "landing_url": "https://doi.org/10.3390/educsci14010047",
+          "pdf_url": "https://www.mdpi.com/2227-7102/14/1/47/pdf?version=1703988768",
+          "license": "cc-by",
+          "version": "publishedVersion"
+        }
+      ],
+      "arxiv_id": null,
+      "taxonomy": {
+        "domain": "Social Sciences",
+        "field": "Social Sciences",
+        "subfield": "Education",
+        "topic": "Artificial Intelligence in Education",
+        "score": 0.9970999956130981,
+        "domainId": "domains/2",
+        "fieldId": "fields/33",
+        "subfieldId": "subfields/3304"
+      },
+      "openalex_id": "https://openalex.org/W4390459706",
+      "keywords": [
+        {
+          "id": "keywords/artificial-intelligence-in-education",
+          "name": "artificial intelligence in education",
+          "score": 0.9129999876022339
+        },
+        {
+          "id": "keywords/higher-education",
+          "name": "higher education",
+          "score": 0.9990000128746033
+        },
+        {
+          "id": "keywords/research-trends",
+          "name": "research trends",
+          "score": 0.7289999723434448
+        },
+        {
+          "id": "keywords/chatgpt",
+          "name": "ChatGPT",
+          "score": 0.7540000081062317
+        },
+        {
+          "id": "keywords/machine-learning",
+          "name": "machine learning",
+          "score": 0.9520000219345093
+        },
+        {
+          "id": "keywords/research-collaboration",
+          "name": "research collaboration",
+          "score": 0.5839999914169312
+        },
+        {
+          "id": "keywords/research-output-by-country",
+          "name": "research output by country",
+          "score": 0.5799999833106995
+        }
+      ],
+      "paper_id": null,
+      "file_matches_title": null,
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "id": "fa9ca30b-a419-4e60-b08c-0b4d60083cfd",
+      "doi": "10.3390/educsci15010032",
+      "addedAt": "2026-11-18T05:24:39.660Z",
+      "updatedAt": "2026-11-18T05:24:39.660Z",
+      "lookup": "done",
+      "title": "Integration of Generative Artificial Intelligence in Higher Education: Best Practices",
+      "authors": ["Jorge Cordero", "Jonathan Fernando Torres Zambrano", "Alison Cordero-Castillo"],
+      "year": 2024,
+      "venue": "Education Sciences",
+      "access": "open",
+      "oa_sources": [
+        {
+          "source": "openalex",
+          "landing_url": "https://doi.org/10.3390/educsci15010032",
+          "pdf_url": "https://www.mdpi.com/2227-7102/15/1/32/pdf?version=1735635738",
+          "license": "cc-by",
+          "version": "publishedVersion"
+        }
+      ],
+      "arxiv_id": null,
+      "taxonomy": {
+        "domain": "Social Sciences",
+        "field": "Social Sciences",
+        "subfield": "Education",
+        "topic": "Artificial Intelligence in Education",
+        "score": 0.9994999766349792,
+        "domainId": "domains/2",
+        "fieldId": "fields/33",
+        "subfieldId": "subfields/3304"
+      },
+      "openalex_id": "https://openalex.org/W4405941286",
+      "keywords": [
+        {
+          "id": "keywords/generative-ai",
+          "name": "generative AI",
+          "score": 0.9580000042915344
+        },
+        {
+          "id": "keywords/higher-education",
+          "name": "higher education",
+          "score": 0.9290000200271606
+        },
+        {
+          "id": "keywords/ai-in-teaching-and-learning",
+          "name": "AI in teaching and learning",
+          "score": 0.7879999876022339
+        },
+        {
+          "id": "keywords/teacher-education",
+          "name": "teacher professional development",
+          "score": 0.8550000190734863
+        },
+        {
+          "id": "keywords/ai-ethics",
+          "name": "AI ethics",
+          "score": 0.5490000247955322
+        },
+        {
+          "id": "keywords/responsible-use-of-ai",
+          "name": "responsible AI use",
+          "score": 0.8569999933242798
+        },
+        {
+          "id": "keywords/ai-generated-text-detection",
+          "name": "AI-generated text detection",
+          "score": 0.7730000019073486
+        },
+        {
+          "id": "keywords/prompt-engineering",
+          "name": "prompt engineering",
+          "score": 0.7049999833106995
+        },
+        {
+          "id": "keywords/teacher-workshops",
+          "name": "teacher workshops",
+          "score": 0.6079999804496765
+        },
+        {
+          "id": "keywords/institutional-ai-policies",
+          "name": "institutional AI policies",
+          "score": 0.8489999771118164
+        },
+        {
+          "id": "keywords/chatgpt",
+          "name": "ChatGPT",
+          "score": 0.8690000176429749
+        },
+        {
+          "id": "keywords/gemini",
+          "name": "Gemini",
+          "score": 0.7120000123977661
+        },
+        {
+          "id": "keywords/claude",
+          "name": "Claude",
+          "score": 0.9810000061988831
+        }
+      ],
+      "paper_id": null,
+      "file_matches_title": null,
+      "error": null
+    }
+  ],
+  "stance": [],
+  "paperInsights": [],
+  "extractionProjects": [],
+  "researchDesigns": [],
+  "researchDesignBanks": [],
+  "corpora": [
+    {
+      "format": "paperlab-corpus",
+      "schemaVersion": 1,
+      "id": "13270380-a2cf-4225-bb41-23e204a88159",
+      "kind": "topic",
+      "title": "AI in Higher Education — OpenAlex OA papers with PDF links",
+      "createdAt": "2026-11-18T05:24:39.660Z",
+      "updatedAt": "2026-11-18T05:24:39.660Z",
+      "protocol": [
+        {
+          "version": 1,
+          "createdAt": "2026-11-18T05:24:39.660Z",
+          "body": {
+            "researchQuestion": "How is artificial intelligence being adopted and evaluated in higher education?",
+            "inclusion": [
+              "Scholarly work about artificial intelligence or generative AI in higher education",
+              "Work with a DOI and an OpenAlex-indexed Open Access PDF URL verified as a downloadable PDF"
+            ],
+            "exclusion": ["Work unrelated to post-secondary education"],
+            "years": [2019, 2020, 2021, 2023, 2024, 2025, 2026]
+          }
+        }
+      ],
+      "searches": [
+        {
+          "source": "openalex",
+          "requestUrl": "https://api.openalex.org/works?search=artificial+intelligence+higher+education&filter=is_oa%3Atrue&per-page=100&select=id%2Cdoi%2Cdisplay_name%2Cpublication_year%2Cauthorships%2Cprimary_location%2Cbest_oa_location%2Copen_access%2Cprimary_topic%2Ckeywords%2Ctype&cursor=*",
+          "requestUrls": [
+            "https://api.openalex.org/works?search=artificial+intelligence+higher+education&filter=is_oa%3Atrue&per-page=100&select=id%2Cdoi%2Cdisplay_name%2Cpublication_year%2Cauthorships%2Cprimary_location%2Cbest_oa_location%2Copen_access%2Cprimary_topic%2Ckeywords%2Ctype&cursor=*"
+          ],
+          "params": {
+            "search": "artificial intelligence higher education",
+            "filter": "is_oa:true",
+            "per-page": "100",
+            "select": "id,doi,display_name,publication_year,authorships,primary_location,best_oa_location,open_access,primary_topic,keywords,type"
+          },
+          "runAt": "2026-11-18T05:24:20.752Z",
+          "totalReported": 860721,
+          "retrieved": 100,
+          "duplicates": 0,
+          "added": 10,
+          "truncated": true,
+          "updateRound": 0,
+          "memberIds": [
+            "116f62ac-c049-42d0-9c4a-6df7e27893db",
+            "7bdc4b06-e776-4f81-89b6-b42c28c944d3",
+            "9196a222-103f-4782-bcae-938b3ee8a2d9",
+            "f494691f-db84-4399-897b-fece0968d8fb",
+            "5e91d8a4-7b71-4b6f-b065-046f52f11f60",
+            "089deb14-fa8d-44d7-a5f4-de41c27bc20a",
+            "1c0c8788-85da-4422-ab60-c5a522869680",
+            "f155d20d-caf2-4663-b157-2a098d1f54e5",
+            "938c092f-f289-42a0-a6d7-74c9d498d020",
+            "e31ab06b-8a65-4e3d-a0e0-880cdabbe50b"
+          ]
+        }
+      ],
+      "members": [
+        {
+          "memberId": "116f62ac-c049-42d0-9c4a-6df7e27893db",
+          "title": "Research on Excellent Cases of \"Artificial Intelligence + Higher Education\" Application Scenarios in Chinese Universities",
+          "identifiers": {
+            "doi": "10.5430/wje.v15n2p78",
+            "openalexId": "https://openalex.org/W4411131152",
+            "sha256": [],
+            "paperIds": [],
+            "libraryIds": ["cf77f5d5-7810-4817-85ff-74df820c49b3"]
+          },
+          "exportId": "seed-116f62ac-c049-42d0-9c4a-6df7e27893db",
+          "role": null,
+          "stratum": {
+            "year": 2025,
+            "articleType": "article"
+          },
+          "version": "publishedVersion",
+          "retrieval": "sought",
+          "textRead": "METADATA_ONLY",
+          "authorIds": [],
+          "countries": [],
+          "decisions": [],
+          "appraisal": [],
+          "inputs": null
+        },
+        {
+          "memberId": "7bdc4b06-e776-4f81-89b6-b42c28c944d3",
+          "title": "The Potential of Artificial Intelligence in Higher Education",
+          "identifiers": {
+            "doi": "10.35575/rvucn.n62a1",
+            "openalexId": "https://openalex.org/W3115633673",
+            "sha256": [],
+            "paperIds": [],
+            "libraryIds": ["4099dfe0-619c-4057-b480-3d6335311c2c"]
+          },
+          "exportId": "seed-7bdc4b06-e776-4f81-89b6-b42c28c944d3",
+          "role": null,
+          "stratum": {
+            "year": 2021,
+            "articleType": "editorial"
+          },
+          "version": "publishedVersion",
+          "retrieval": "sought",
+          "textRead": "METADATA_ONLY",
+          "authorIds": ["https://openalex.org/A5032778716", "https://openalex.org/A5007552962"],
+          "countries": [],
+          "decisions": [],
+          "appraisal": [],
+          "inputs": null
+        },
+        {
+          "memberId": "9196a222-103f-4782-bcae-938b3ee8a2d9",
+          "title": "The Future of Higher Education in the Light of Artificial Intelligence Transformations",
+          "identifiers": {
+            "doi": "10.5430/ijhe.v9n3p145",
+            "openalexId": "https://openalex.org/W3010952285",
+            "sha256": [],
+            "paperIds": [],
+            "libraryIds": ["6b8dcdda-141e-44d0-8651-24cf59c197c8"]
+          },
+          "exportId": "seed-9196a222-103f-4782-bcae-938b3ee8a2d9",
+          "role": null,
+          "stratum": {
+            "year": 2020,
+            "articleType": "article"
+          },
+          "version": "publishedVersion",
+          "retrieval": "sought",
+          "textRead": "METADATA_ONLY",
+          "authorIds": ["https://openalex.org/A5049428881"],
+          "countries": [],
+          "decisions": [],
+          "appraisal": [],
+          "inputs": null
+        },
+        {
+          "memberId": "f494691f-db84-4399-897b-fece0968d8fb",
+          "title": "Artificial Intelligence in Higher Education: A Bibliometric Study on its Impact in the Scientific Literature",
+          "identifiers": {
+            "doi": "10.3390/educsci9010051",
+            "openalexId": "https://openalex.org/W2922512717",
+            "sha256": [],
+            "paperIds": [],
+            "libraryIds": ["9d786e7e-99bd-4875-9aa4-bf43ba3929e6"]
+          },
+          "exportId": "seed-f494691f-db84-4399-897b-fece0968d8fb",
+          "role": null,
+          "stratum": {
+            "year": 2019,
+            "articleType": "article"
+          },
+          "version": "publishedVersion",
+          "retrieval": "sought",
+          "textRead": "METADATA_ONLY",
+          "authorIds": [
+            "https://openalex.org/A5000410902",
+            "https://openalex.org/A5070464672",
+            "https://openalex.org/A5074229803",
+            "https://openalex.org/A5019259626"
+          ],
+          "countries": [],
+          "decisions": [],
+          "appraisal": [],
+          "inputs": null
+        },
+        {
+          "memberId": "5e91d8a4-7b71-4b6f-b065-046f52f11f60",
+          "title": "The Impact of Artificial Intelligence on Higher Education: An Empirical Study",
+          "identifiers": {
+            "doi": "10.19044/ejes.v10no1a17",
+            "openalexId": "https://openalex.org/W4381827210",
+            "sha256": [],
+            "paperIds": [],
+            "libraryIds": ["ea1005ac-7121-47d0-8ff2-270f2a677022"]
+          },
+          "exportId": "seed-5e91d8a4-7b71-4b6f-b065-046f52f11f60",
+          "role": null,
+          "stratum": {
+            "year": 2023,
+            "articleType": "article"
+          },
+          "version": "publishedVersion",
+          "retrieval": "sought",
+          "textRead": "METADATA_ONLY",
+          "authorIds": ["https://openalex.org/A5013263007"],
+          "countries": [],
+          "decisions": [],
+          "appraisal": [],
+          "inputs": null
+        },
+        {
+          "memberId": "089deb14-fa8d-44d7-a5f4-de41c27bc20a",
+          "title": "Generative Artificial Intelligence: Implications and Considerations for Higher Education Practice",
+          "identifiers": {
+            "doi": "10.3390/educsci13111109",
+            "openalexId": "https://openalex.org/W4388333366",
+            "sha256": [],
+            "paperIds": [],
+            "libraryIds": ["4ad452fa-0960-4b60-802d-00d4630d2087"]
+          },
+          "exportId": "seed-089deb14-fa8d-44d7-a5f4-de41c27bc20a",
+          "role": null,
+          "stratum": {
+            "year": 2023,
+            "articleType": "article"
+          },
+          "version": "publishedVersion",
+          "retrieval": "sought",
+          "textRead": "METADATA_ONLY",
+          "authorIds": ["https://openalex.org/A5029400235", "https://openalex.org/A5038612228"],
+          "countries": [],
+          "decisions": [],
+          "appraisal": [],
+          "inputs": null
+        },
+        {
+          "memberId": "1c0c8788-85da-4422-ab60-c5a522869680",
+          "title": "Artificial Intelligence, Higher Education, and University Social Responsibility: A Bibliometric Mapping Study of Current Knowledge and Emerging Trends",
+          "identifiers": {
+            "doi": "10.26803/ijlter.25.6.36",
+            "openalexId": "https://openalex.org/W7165753606",
+            "sha256": [],
+            "paperIds": [],
+            "libraryIds": ["f6f24130-c6e4-4aca-85c9-5497978f2d9f"]
+          },
+          "exportId": "seed-1c0c8788-85da-4422-ab60-c5a522869680",
+          "role": null,
+          "stratum": {
+            "year": 2026,
+            "articleType": "article"
+          },
+          "version": "publishedVersion",
+          "retrieval": "sought",
+          "textRead": "METADATA_ONLY",
+          "authorIds": ["https://openalex.org/A5119800016", "https://openalex.org/A5029580054"],
+          "countries": [],
+          "decisions": [],
+          "appraisal": [],
+          "inputs": null
+        },
+        {
+          "memberId": "f155d20d-caf2-4663-b157-2a098d1f54e5",
+          "title": "Managing the Strategic Transformation of Higher Education through Artificial Intelligence",
+          "identifiers": {
+            "doi": "10.3390/admsci13090196",
+            "openalexId": "https://openalex.org/W4386285839",
+            "sha256": [],
+            "paperIds": [],
+            "libraryIds": ["0a06e2ad-7d27-4cc0-a21f-20cf9f793341"]
+          },
+          "exportId": "seed-f155d20d-caf2-4663-b157-2a098d1f54e5",
+          "role": null,
+          "stratum": {
+            "year": 2023,
+            "articleType": "article"
+          },
+          "version": "publishedVersion",
+          "retrieval": "sought",
+          "textRead": "METADATA_ONLY",
+          "authorIds": ["https://openalex.org/A5022993623", "https://openalex.org/A5017820645"],
+          "countries": [],
+          "decisions": [],
+          "appraisal": [],
+          "inputs": null
+        },
+        {
+          "memberId": "938c092f-f289-42a0-a6d7-74c9d498d020",
+          "title": "Artificial Intelligence in Higher Education: An Analysis of Existing Bibliometrics",
+          "identifiers": {
+            "doi": "10.3390/educsci14010047",
+            "openalexId": "https://openalex.org/W4390459706",
+            "sha256": [],
+            "paperIds": [],
+            "libraryIds": ["cc1cd32f-a117-427e-8f84-532391ef22a6"]
+          },
+          "exportId": "seed-938c092f-f289-42a0-a6d7-74c9d498d020",
+          "role": null,
+          "stratum": {
+            "year": 2023,
+            "articleType": "article"
+          },
+          "version": "publishedVersion",
+          "retrieval": "sought",
+          "textRead": "METADATA_ONLY",
+          "authorIds": [
+            "https://openalex.org/A5100644798",
+            "https://openalex.org/A5082142428",
+            "https://openalex.org/A5069372379",
+            "https://openalex.org/A5007351502"
+          ],
+          "countries": [],
+          "decisions": [],
+          "appraisal": [],
+          "inputs": null
+        },
+        {
+          "memberId": "e31ab06b-8a65-4e3d-a0e0-880cdabbe50b",
+          "title": "Integration of Generative Artificial Intelligence in Higher Education: Best Practices",
+          "identifiers": {
+            "doi": "10.3390/educsci15010032",
+            "openalexId": "https://openalex.org/W4405941286",
+            "sha256": [],
+            "paperIds": [],
+            "libraryIds": ["fa9ca30b-a419-4e60-b08c-0b4d60083cfd"]
+          },
+          "exportId": "seed-e31ab06b-8a65-4e3d-a0e0-880cdabbe50b",
+          "role": null,
+          "stratum": {
+            "year": 2024,
+            "articleType": "article"
+          },
+          "version": "publishedVersion",
+          "retrieval": "sought",
+          "textRead": "METADATA_ONLY",
+          "authorIds": [
+            "https://openalex.org/A5043348298",
+            "https://openalex.org/A5092997404",
+            "https://openalex.org/A5115722550"
+          ],
+          "countries": [],
+          "decisions": [],
+          "appraisal": [],
+          "inputs": null
+        }
+      ],
+      "runs": [],
+      "releases": [],
+      "aliases": []
+    }
+  ],
+  "corpusProfiles": []
+}

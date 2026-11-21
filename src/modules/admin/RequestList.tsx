@@ -8,7 +8,7 @@ import {
   type FactRequest,
   type FactRequestState,
 } from '@/shared/pdfStore/factRequests';
-import { useRepositories } from '@/shared/storage/StorageProvider';
+import { useHubProjectId, useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { Chip } from '@/shared/ui/Chip';
 import { PageHeader } from '@/shared/ui/PageHeader';
@@ -35,6 +35,7 @@ const failure = (error: unknown): Listing => ({
 /** The requests in one state, each with the paper in this browser it matches, if any. */
 export function RequestList() {
   const { getIdToken } = useAuth();
+  const projectId = useHubProjectId();
   const repo = useRepositories();
   const [filter, setFilter] = useState<FactRequestState>('requested');
   const filterRef = useRef(filter);
@@ -52,9 +53,10 @@ export function RequestList() {
     async (state: FactRequestState, cursor?: string) => {
       const token = await getIdToken();
       if (!token) throw new FactRequestError(401);
-      return listFactRequests(token, state, cursor);
+      if (!projectId) throw new FactRequestError(400);
+      return listFactRequests(token, projectId, state, cursor);
     },
-    [getIdToken],
+    [getIdToken, projectId],
   );
 
   useEffect(() => {

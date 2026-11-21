@@ -1,4 +1,4 @@
-import { PDF_WORKER_URL, PdfRemoteError } from './index';
+import { PDF_WORKER_URL, PdfRemoteError, projectScopedUrl } from './index';
 
 const TIMEOUT_MS = 180_000;
 
@@ -18,7 +18,12 @@ function delay(ms: number, signal: AbortSignal): Promise<void> {
 }
 
 /** Wait for the cold container, within a three-minute total deadline. */
-export async function fetchGrobidTei(sha: string, token: string, signal?: AbortSignal): Promise<string> {
+export async function fetchGrobidTei(
+  sha: string,
+  projectId: string,
+  token: string,
+  signal?: AbortSignal,
+): Promise<string> {
   const controller = new AbortController();
   const abort = () => controller.abort(signal?.reason);
   if (signal?.aborted) abort();
@@ -30,11 +35,14 @@ export async function fetchGrobidTei(sha: string, token: string, signal?: AbortS
   );
   try {
     for (;;) {
-      const response = await fetch(`${PDF_WORKER_URL}/grobid/fulltext/${encodeURIComponent(sha)}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        signal: controller.signal,
-      });
+      const response = await fetch(
+        projectScopedUrl(`${PDF_WORKER_URL}/grobid/fulltext/${encodeURIComponent(sha)}`, projectId),
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'X-Project-Id': projectId },
+          signal: controller.signal,
+        },
+      );
       if (response.ok) return await response.text();
       if (response.status !== 503) throw new PdfRemoteError(response.status);
       const retry = response.headers.get('Retry-After');

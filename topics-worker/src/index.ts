@@ -1,7 +1,6 @@
 import { Container, getContainer } from '@cloudflare/containers';
-import { createRemoteJWKSet, customFetch } from 'jose';
-import { handle, refreshJob, type Bucket, type Deps } from './app';
-import { SECURETOKEN_JWKS, verifyFirebaseToken } from './auth';
+import { handle, refreshJob, type Bucket } from './app';
+import { verifySsoToken } from './auth';
 
 export class TopicsContainer extends Container<Env> {
   private bucket: Bucket;
@@ -62,25 +61,18 @@ export class NlpContainer extends Container<Env> {
 }
 interface Env {
   BUCKET: Bucket;
-  DATA: Deps['data'];
   TOPICS: Parameters<typeof getContainer>[0];
   NLP: Parameters<typeof getContainer>[0];
-  FIREBASE_PROJECT_ID: string;
+  SSO_BASE_URL: string;
   ALLOWED_DOMAIN: string;
   ALLOWED_ORIGINS: string;
 }
-// A Worker's fetch goes through Cloudflare's cache, which keeps Google's key set for its ~7 h max-age; after a key
-// rotation every newly signed token would fail. jose already caches the keys in the isolate.
-const jwks = createRemoteJWKSet(new URL(SECURETOKEN_JWKS), {
-  [customFetch]: (url, options) => fetch(url, { ...options, cache: 'no-store' }),
-});
 export default {
   fetch(request: Request, env: Env) {
     return handle(request, {
       bucket: env.BUCKET,
-      data: env.DATA,
       origins: env.ALLOWED_ORIGINS.split(',').map((s) => s.trim()),
-      verify: (token) => verifyFirebaseToken(token, jwks, env.FIREBASE_PROJECT_ID, env.ALLOWED_DOMAIN),
+      verify: (token) => verifySsoToken(token, env.SSO_BASE_URL, env.ALLOWED_DOMAIN),
       container: (path, init) => getContainer(env.TOPICS).fetch(`http://container${path}`, init),
       nlp: (path, init) => getContainer(env.NLP).fetch(`http://container${path}`, init),
       refresh: async (jobId) => {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { KgGraph, KgGraphNode, KgKeywordDetail, KgPaperDetail } from '@/core/schemas/labKg';
 import { useAuth } from '@/shared/auth/authContext';
+import { useHubProjectId } from '@/shared/storage/StorageProvider';
 import { getLabKgKeyword, getLabKgPaper, LabKgError } from '@/shared/labKg/client';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
@@ -236,21 +237,22 @@ export function NodeDetails({
 }) {
   const { user, getIdToken } = useAuth();
   const uid = user?.uid;
+  const projectId = useHubProjectId();
   // Results are keyed by node, so a newly selected node never shows the previous node's details.
   const [loaded, setLoaded] = useState<{ id: string; detail?: Detail; error?: LabKgError }>();
   const remote = node.kind === 'paper' || node.kind === 'keyword';
   const { detail, error } = loaded?.id === node.id ? loaded : {};
 
   useEffect(() => {
-    if (!uid || (node.kind !== 'paper' && node.kind !== 'keyword')) return;
+    if (!uid || !projectId || (node.kind !== 'paper' && node.kind !== 'keyword')) return;
     const controller = new AbortController();
     void (async () => {
       try {
         const token = await getIdToken();
         const next: Detail =
           node.kind === 'paper'
-            ? { kind: 'paper', data: await getLabKgPaper(node.id, token, controller.signal) }
-            : { kind: 'keyword', data: await getLabKgKeyword(node.id, token, controller.signal) };
+            ? { kind: 'paper', data: await getLabKgPaper(node.id, token, projectId, controller.signal) }
+            : { kind: 'keyword', data: await getLabKgKeyword(node.id, token, projectId, controller.signal) };
         if (!controller.signal.aborted) setLoaded({ id: node.id, detail: next });
       } catch (cause) {
         if (controller.signal.aborted) return;
@@ -261,7 +263,7 @@ export function NodeDetails({
       }
     })();
     return () => controller.abort();
-  }, [uid, getIdToken, node.id, node.kind]);
+  }, [uid, projectId, getIdToken, node.id, node.kind]);
 
   return (
     <>

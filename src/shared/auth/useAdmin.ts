@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getMe } from '@/shared/pdfStore/factRequests';
+import { useHubProjectId } from '@/shared/storage/StorageProvider';
 import { useAuth } from './authContext';
 
 // One /v1/me call per signed-in account, shared by every screen that asks (the sidebar is mounted twice).
@@ -10,19 +11,20 @@ export function resetAdminCache() {
   answers.clear();
 }
 
-function askServer(uid: string, getIdToken: () => Promise<string | null>) {
-  let answer = answers.get(uid);
+function askServer(uid: string, projectId: string, getIdToken: () => Promise<string | null>) {
+  const cacheKey = `${uid}:${projectId}`;
+  let answer = answers.get(cacheKey);
   if (!answer) {
     answer = (async () => {
       const token = await getIdToken();
       if (!token) throw new Error('No token');
-      return (await getMe(token)).admin;
+      return (await getMe(token, projectId)).admin;
     })().catch(() => {
       // A failed check is "not admin" now and is asked again next time.
-      answers.delete(uid);
+      answers.delete(cacheKey);
       return false;
     });
-    answers.set(uid, answer);
+    answers.set(cacheKey, answer);
   }
   return answer;
 }
@@ -33,21 +35,22 @@ function askServer(uid: string, getIdToken: () => Promise<string | null>) {
  */
 export function useAdmin() {
   const { user, ready, getIdToken } = useAuth();
+  const projectId = useHubProjectId();
   const uid = user?.uid ?? null;
   const [answer, setAnswer] = useState<{ uid: string; admin: boolean } | null>(null);
   useEffect(() => {
-    if (!uid) {
+    if (!uid || !projectId) {
       answers.clear();
       return;
     }
     let live = true;
-    void askServer(uid, getIdToken).then((admin) => {
+    void askServer(uid, projectId, getIdToken).then((admin) => {
       if (live) setAnswer({ uid, admin });
     });
     return () => {
       live = false;
     };
-  }, [uid, getIdToken]);
+  }, [uid, projectId, getIdToken]);
   const known = uid !== null && answer?.uid === uid;
   return { admin: known && answer?.admin === true, checking: !ready || (uid !== null && !known) };
 }

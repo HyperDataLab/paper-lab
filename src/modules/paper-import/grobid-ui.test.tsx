@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runPaperChecks } from '@/core/paperChecks';
 import type { Paper } from '@/core/schemas';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
+import { PDF_WORKER_URL } from '@/shared/pdfStore';
 import type { Repositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { grobidPaper, grobidRecord, grobidTei } from '@/test/grobidFixtures';
@@ -80,9 +81,12 @@ describe('U7 GROBID in the background', () => {
     expect(
       await screen.findByText('Cấu trúc từ GROBID: đã dùng (2 tài liệu, 2 trích dẫn).'),
     ).toBeInTheDocument();
-    const calls = fetchMock.mock.calls.map(([url, init]) => `${init?.method} ${new URL(url).pathname}`);
-    // The worker reads the PDF from the lab's storage, where import already put it; nothing is sent.
-    expect(calls).toEqual([`POST /grobid/fulltext/${sha}`]);
+    const calls = fetchMock.mock.calls.map(([url, init]) => {
+      const parsed = new URL(url, window.location.origin);
+      return `${init?.method} ${parsed.pathname.slice(new URL(PDF_WORKER_URL, parsed).pathname.replace(/\/$/u, '').length)}?${parsed.search.slice(1)}`;
+    });
+    // The worker reads the PDF from the project's ResearchHub files, where import already put it; nothing is sent.
+    expect(calls).toEqual([`POST /grobid/fulltext/${sha}?projectId=00000000-0000-4000-8000-000000000001`]);
     expect((await repo.grobid.get(grobidPaper.id))?.status).toBe('ready');
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
     const after = await repo.paperChecks.get(grobidPaper.id);
@@ -168,7 +172,7 @@ describe('U7 GROBID in the background', () => {
     const { repo, view } = await setup();
     view(repo);
     expect(
-      await screen.findByText('Cấu trúc từ GROBID: không dùng được (kho của lab chưa có PDF của bài này).'),
+      await screen.findByText('Cấu trúc từ GROBID: không dùng được (ResearchHub chưa có PDF của bài này).'),
     ).toBeInTheDocument();
     expect(await repo.grobid.get(grobidPaper.id)).toMatchObject({ status: 'failed', result: null });
   });
@@ -186,7 +190,8 @@ it('U7 Thông tin xuất bản fills empty fields from GROBID and shows its stat
       </GrobidContext.Provider>
     </StorageProvider>,
   );
-  expect(await screen.findByText('A synthetic header title')).toBeInTheDocument();
+  // Once in the "Tiêu đề đầy đủ" block above the sheet and once in its Title row.
+  expect(await screen.findAllByText('A synthetic header title')).toHaveLength(2);
   expect(screen.getByText('Ann Lee, Bo Wu')).toBeInTheDocument();
   expect(screen.getByText(/Nguồn: GROBID \(đọc từ PDF\)/u)).toBeInTheDocument();
   expect(screen.getByText('Cấu trúc từ GROBID: đã dùng (2 tài liệu, 2 trích dẫn).')).toBeInTheDocument();

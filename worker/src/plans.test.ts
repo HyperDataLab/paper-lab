@@ -33,6 +33,7 @@ function setup() {
     bucket,
     verifyToken: async () => ({ uid: '1', email: 'lab@example.org' }),
     allowedOrigins: ['https://example.org'],
+    getOwnedProject: async (projectId) => ({ id: projectId, name: 'Test project' }),
     now: () => new Date('2026-11-17T00:00:00Z'),
   };
   const call = (method: string, url: string, body?: unknown, headers: Record<string, string> = {}) =>
@@ -40,7 +41,12 @@ function setup() {
       deps,
       new Request(`https://worker.test${url}`, {
         method,
-        headers: { authorization: 'Bearer token', origin: 'https://example.org', ...headers },
+        headers: {
+          authorization: 'Bearer token',
+          origin: 'https://example.org',
+          'X-Project-Id': id,
+          ...headers,
+        },
         body: body === undefined ? undefined : JSON.stringify(body),
       }),
     );
@@ -54,7 +60,7 @@ describe('published frozen plans', () => {
     const published = await call('PUT', path, plan);
     expect(published.status).toBe(201);
     const { etag } = (await published.json()) as { etag: string };
-    expect(objects.get(`paperlab/plans/${id}/1.json`)?.meta).toMatchObject({
+    expect(objects.get(`paperlab/projects/${id}/plans/${id}/1.json`)?.meta).toMatchObject({
       contentEtag: etag,
       frozenAt: plan.frozenAt,
       frozenBy: plan.frozenBy,

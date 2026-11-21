@@ -110,7 +110,7 @@ it('K4 corpus SciAtlas panel sends corpus keywords, marks members and adds a res
   const body = JSON.parse(
     String(
       (fetcher.mock.calls as unknown as [string, RequestInit][]).find(([url]) =>
-        url.endsWith('/v1/kg/search'),
+        url.endsWith('/v1/kg/search?projectId=00000000-0000-4000-8000-000000000001'),
       )?.[1].body,
     ),
   );

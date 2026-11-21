@@ -7,7 +7,10 @@ import { fixturePaper, fixtureRun } from '@/core/measurement/testFixture';
 import { contentEtag } from '@/core/paperModel/published';
 
 const storage = vi.hoisted(() => ({ measurements: { get: vi.fn() }, papers: { get: vi.fn() } }));
-vi.mock('@/shared/storage/StorageProvider', () => ({ useRepositories: () => storage }));
+vi.mock('@/shared/storage/StorageProvider', () => ({
+  useRepositories: () => storage,
+  useHubProjectId: () => 'rh-test-project',
+}));
 
 const auth: AuthValue = {
   user: { uid: 'u', email: 'test@example.org', name: null },

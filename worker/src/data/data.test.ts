@@ -6,7 +6,7 @@ import type { D1Database, D1Statement } from '../kg/bindings';
 import { testDb } from '../kg/testDb';
 import { collectOrphanBodies, GC_MAX_AGE_MS } from './gc';
 import { CORPUS_PREFIX } from './legacyCorpora';
-import { bodyKey, type DocRow } from './store';
+import { bodyKey as makeBodyKey, projectRecordId, type DocRow } from './store';
 import { memoryBucket } from './testBucket';
 
 const START = new Date('2026-11-19T00:00:00.000Z');
@@ -15,6 +15,10 @@ const B = 'b@hyperdatalab.org';
 const PAPER = '00000000-0000-4000-8000-000000000001';
 const PAPER_2 = '00000000-0000-4000-8000-000000000002';
 const ANALYSIS = '00000000-0000-4000-8000-0000000000a1';
+const RH_PROJECT = '00000000-0000-4000-8000-000000000101';
+const OTHER_PROJECT = '00000000-0000-4000-8000-000000000102';
+const bodyKey = (collection: string, id: string, version: number) =>
+  makeBodyKey(collection, projectRecordId(RH_PROJECT, id), version);
 
 function setup(options: { data?: boolean; wrapDb?: (db: D1Database) => D1Database } = {}) {
   let clock = START;
@@ -33,6 +37,7 @@ function setup(options: { data?: boolean; wrapDb?: (db: D1Database) => D1Databas
     adminEmails: [A],
     now,
     data: options.data === false ? undefined : (options.wrapDb?.(db) ?? db),
+    getOwnedProject: async (projectId) => ({ id: projectId, name: projectId }),
   };
   const call = (
     method: string,
@@ -47,6 +52,7 @@ function setup(options: { data?: boolean; wrapDb?: (db: D1Database) => D1Databas
         method,
         headers: {
           ...(token ? { authorization: `Bearer ${token}` } : {}),
+          'X-Project-Id': headers['X-Project-Id'] ?? RH_PROJECT,
           ...(body !== undefined ? { 'content-type': 'application/json' } : {}),
           ...headers,
         },
@@ -54,8 +60,9 @@ function setup(options: { data?: boolean; wrapDb?: (db: D1Database) => D1Databas
       }),
     );
   const row = (collection: string, id: string) =>
-    sqlite.prepare('SELECT * FROM doc WHERE collection = ? AND id = ?').get(collection, id) as
-      DocRow | undefined;
+    sqlite
+      .prepare('SELECT * FROM doc WHERE collection = ? AND id = ?')
+      .get(collection, projectRecordId(RH_PROJECT, id)) as DocRow | undefined;
   const count = (sql: string) => Number((sqlite.prepare(sql).get() as { n: number }).n);
   return {
     db,
@@ -187,6 +194,44 @@ describe('/v1/data/admin/import-legacy-corpora', () => {
 });
 
 describe('/v1/data/{col}/{id}', () => {
+  it('isolates identical records by ResearchHub project and hides unassigned legacy IDs', async () => {
+    const { call, sqlite } = setup();
+    const doi = '10.1234/scope';
+    const body = doiKeywords(doi);
+    expect((await call('PUT', path('doiKeywords', doi), body, { 'if-none-match': '*' })).status).toBe(201);
+    const other = await call('GET', path('doiKeywords', doi), undefined, { 'X-Project-Id': OTHER_PROJECT });
+    expect(other.status).toBe(404);
+    expect(
+      (
+        await call(
+          'PUT',
+          path('doiKeywords', doi),
+          { ...body, fetchedAt: '2026-11-20T00:00:00.000Z' },
+          {
+            'if-none-match': '*',
+            'X-Project-Id': OTHER_PROJECT,
+          },
+        )
+      ).status,
+    ).toBe(201);
+    expect((await call('GET', path('doiKeywords', doi))).status).toBe(200);
+    expect(
+      (await call('GET', path('doiKeywords', doi), undefined, { 'X-Project-Id': OTHER_PROJECT })).status,
+    ).toBe(200);
+    const unassignedDoi = '10.1234/unassigned';
+    sqlite
+      .prepare(
+        "INSERT INTO doc (collection,id,version,r2_key,body_json,size,sha256,created_by,created_at,updated_by,updated_at,deleted_at,lab_id,visibility,summary_json) VALUES ('doiKeywords', ?, 1, NULL, ?, 2, 'x', 'a', ?, 'a', ?, NULL, 'hyperdatalab', 'lab', '{}')",
+      )
+      .run(
+        unassignedDoi,
+        JSON.stringify(doiKeywords(unassignedDoi)),
+        START.toISOString(),
+        START.toISOString(),
+      );
+    expect((await call('GET', path('doiKeywords', unassignedDoi))).status).toBe(404);
+  });
+
   it('creates with If-None-Match: *, reads with an ETag and answers 304', async () => {
     const { call, row, objects } = setup();
     const doi = '10.1234/Example';
@@ -209,7 +254,7 @@ describe('/v1/data/{col}/{id}', () => {
       deleted_at: null,
     });
     expect(stored.sha256).toMatch(/^[0-9a-f]{64}$/u);
-    expect(objects.has('paperlab/data/doiKeywords/10.1234%2FExample/v1.json')).toBe(true);
+    expect(objects.has(bodyKey('doiKeywords', doi, 1))).toBe(true);
 
     const read = await call('GET', path('doiKeywords', doi));
     expect(read.status).toBe(200);
@@ -275,7 +320,9 @@ describe('/v1/data/{col}/{id}', () => {
     });
     expect((await call('PUT', path('doiKeywords', doi), text, { 'if-none-match': '*' })).status).toBe(201);
     const key = row('doiKeywords', doi)?.r2_key as string;
-    expect(key).toMatch(/^paperlab\/data\/doiKeywords\/10\.1%2Frace\/v1-[0-9a-f-]{36}\.json$/u);
+    expect(key).toMatch(
+      /^paperlab\/data\/doiKeywords\/%40rh%2F[0-9a-f-]{36}%2F10\.1%2Frace\/v1-[0-9a-f-]{36}\.json$/u,
+    );
     expect(objects.has(bodyKey('doiKeywords', doi, 1))).toBe(true);
     await bucket.delete(bodyKey('doiKeywords', doi, 1));
     expect(await (await call('GET', path('doiKeywords', doi))).json()).toEqual(doiKeywords(doi));
@@ -482,12 +529,45 @@ describe('POST /v1/data/query', () => {
     // Collections whose fixtures are large (projects, papers, corpora) are seeded as rows: the query is column-generic.
     const insert = sqlite.prepare(
       `INSERT INTO doc (collection, id, version, size, sha256, created_by, created_at, updated_by, updated_at, lab_id,
-        project_id, kind, source_sha256) VALUES (?, ?, 1, 0, '', ?, ?, ?, ?, 'hyperdatalab', ?, ?, ?)`,
+        hub_project_id, project_id, kind, source_sha256) VALUES (?, ?, 1, 0, '', ?, ?, ?, ?, 'hyperdatalab', ?, ?, ?, ?)`,
     );
     const at = START.toISOString();
-    insert.run('autoresearchRuns', 'run-1', A, at, A, at, 'project-1', null, null);
-    insert.run('corpora', 'corpus-1', A, at, A, at, null, 'topic', null);
-    insert.run('papers', 'paper-1', A, at, A, at, null, null, 'f'.repeat(64));
+    insert.run(
+      'autoresearchRuns',
+      projectRecordId(RH_PROJECT, 'run-1'),
+      A,
+      at,
+      A,
+      at,
+      RH_PROJECT,
+      'project-1',
+      null,
+      null,
+    );
+    insert.run(
+      'corpora',
+      projectRecordId(RH_PROJECT, 'corpus-1'),
+      A,
+      at,
+      A,
+      at,
+      RH_PROJECT,
+      null,
+      'topic',
+      null,
+    );
+    insert.run(
+      'papers',
+      projectRecordId(RH_PROJECT, 'paper-1'),
+      A,
+      at,
+      A,
+      at,
+      RH_PROJECT,
+      null,
+      null,
+      'f'.repeat(64),
+    );
     const ids = async (collection: string, where: Record<string, string>) =>
       (
         (await (await call('POST', '/v1/data/query', { collection, where })).json()) as {
@@ -669,7 +749,9 @@ describe('POST /v1/data/commit', () => {
       'if-none-match': '*',
     });
     bump = () =>
-      sqlite.exec(`UPDATE doc SET version = 2 WHERE collection = 'corpusKeywords' AND id = 'corpus-1'`);
+      sqlite.exec(
+        `UPDATE doc SET version = 2 WHERE collection = 'corpusKeywords' AND id = '${projectRecordId(RH_PROJECT, 'corpus-1')}'`,
+      );
     // Batch 3 is the commit's read (sees v1); batch 4 is the write, which now meets v2.
     const response = await call('POST', '/v1/data/commit', {
       ops: [

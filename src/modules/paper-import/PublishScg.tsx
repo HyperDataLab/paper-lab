@@ -3,6 +3,7 @@ import { publishedIdFor } from '@/core/paperModel/published';
 import { projectScgPaper, type ScgPaperPublish } from '@/core/scg/publish';
 import type { Paper, ScgPaperRun } from '@/core/schemas';
 import { useAuth } from '@/shared/auth/authContext';
+import { useHubProjectId } from '@/shared/storage/StorageProvider';
 import {
   PublishScgError,
   publishScg,
@@ -24,6 +25,7 @@ const STATE_TEXT: Record<ScgPublishState | 'unknown', string> = {
 export function PublishScg({ paper, run, busy }: { paper: Paper; run: ScgPaperRun; busy: boolean }) {
   const { user, getIdToken } = useAuth();
   const uid = user?.uid;
+  const projectId = useHubProjectId();
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const complete = run.status === 'complete';
@@ -40,13 +42,13 @@ export function PublishScg({ paper, run, busy }: { paper: Paper; run: ScgPaperRu
   const setState = (next: ScgPublishState | 'unknown') => graph && setChecked({ graph, state: next });
 
   useEffect(() => {
-    if (!uid || !complete || !graph) return;
+    if (!uid || !projectId || !complete || !graph) return;
     let live = true;
     void (async () => {
       try {
         const token = await getIdToken();
         if (!token) throw new PublishScgError(401);
-        const next = await scgPublishState(graph, token);
+        const next = await scgPublishState(graph, token, projectId);
         if (live) setChecked({ graph, state: next });
       } catch {
         if (live) setChecked({ graph, state: 'unknown' });
@@ -55,16 +57,16 @@ export function PublishScg({ paper, run, busy }: { paper: Paper; run: ScgPaperRu
     return () => {
       live = false;
     };
-  }, [uid, complete, graph, getIdToken]);
+  }, [uid, projectId, complete, graph, getIdToken]);
 
   async function publish() {
-    if (!graph) return;
+    if (!graph || !projectId) return;
     setSending(true);
     setError('');
     try {
       const token = await getIdToken();
       if (!token) throw new PublishScgError(401);
-      await publishScg(graph, token);
+      await publishScg(graph, token, projectId);
       setState('current');
     } catch (cause) {
       if (cause instanceof PublishScgError && cause.status === 404) setState('no_model');
@@ -86,6 +88,7 @@ export function PublishScg({ paper, run, busy }: { paper: Paper; run: ScgPaperRu
       <Button
         disabled={
           !user ||
+          !projectId ||
           !complete ||
           !graph ||
           busy ||

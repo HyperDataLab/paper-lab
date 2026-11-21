@@ -4,6 +4,7 @@ import { EMBEDDING_MODEL, type ConfiguredKg } from './bindings';
 import { OpenAlexError, openAlexClient } from './openAlex';
 import { kgQueue, MAX_ATTEMPTS } from './queue';
 import { kgRepo } from './repo';
+const scopeId = (projectId: string | undefined, id: string) => (projectId ? `@rh/${projectId}/${id}` : id);
 
 export const REQUEST_JOBS = 1;
 /**
@@ -27,11 +28,12 @@ export async function drainKgQueue(
     fetcher = fetch,
     limit = CRON_JOBS,
     ids,
-  }: { now: () => Date; fetcher?: typeof fetch; limit?: number; ids?: string[] },
+    projectId,
+  }: { now: () => Date; fetcher?: typeof fetch; limit?: number; ids?: string[]; projectId?: string },
 ): Promise<Pick<KgIngestResult, 'processed' | 'errors'>> {
   const openAlex = openAlexClient(fetcher, kg.mailto, kg.apiKey);
-  const repo = kgRepo(kg.db);
-  const queue = kgQueue(kg.db);
+  const repo = kgRepo(kg.db, projectId);
+  const queue = kgQueue(kg.db, projectId);
   let processed = 0;
   const errors: KgIngestResult['errors'] = [];
   for (let i = 0; i < limit; i++) {
@@ -55,7 +57,7 @@ export async function drainKgQueue(
         errorCode = 'vector_write_failed';
         await kg.vectors.upsert([
           {
-            id: paper.id,
+            id: scopeId(projectId, paper.id),
             values,
             metadata: {
               ...(paper.publication_year !== null ? { year: paper.publication_year } : {}),

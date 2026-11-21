@@ -12,6 +12,33 @@ export function emailAllowed(email: unknown, domain: string): email is string {
 
 export class NotAllowedError extends Error {}
 
+/** Checks a central HyperDataLab SSO access token against the provider's userinfo endpoint. */
+export async function verifySsoToken(
+  token: string,
+  ssoBaseUrl: string,
+  domain: string,
+  fetcher: typeof fetch = fetch,
+): Promise<{ uid: string; email: string }> {
+  if (!ssoBaseUrl.trim()) throw new Error('SSO_BASE_URL is not configured');
+  let response: Response;
+  try {
+    response = await fetcher(new URL('/oauth/userinfo', ssoBaseUrl), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    throw new Error('SSO userinfo endpoint is unavailable');
+  }
+  if (response.status === 401 || response.status === 403) throw new Error('invalid SSO access token');
+  if (!response.ok) throw new Error('Could not verify the SSO access token');
+  const profile: unknown = await response.json().catch(() => null);
+  if (!profile || typeof profile !== 'object') throw new Error('invalid SSO profile');
+  const value = profile as { sub?: unknown; email?: unknown; email_verified?: unknown };
+  if (typeof value.sub !== 'string' || value.email_verified !== true)
+    throw new Error('SSO profile is missing a verified identity');
+  if (!emailAllowed(value.email, domain)) throw new NotAllowedError('domain not allowed');
+  return { uid: value.sub, email: value.email };
+}
+
 /**
  * Checks a Firebase ID token: Google's signature, this project as issuer and audience, a verified Google
  * account. A good token from another domain is `NotAllowedError` (403); anything else throws (401).

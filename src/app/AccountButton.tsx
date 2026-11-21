@@ -11,7 +11,7 @@ export function AccountButton() {
   if (!user)
     return (
       <Button variant="ghost" size="sm" onClick={() => void signIn()}>
-        <LogIn size={16} aria-hidden="true" /> Đăng nhập lab
+        <LogIn size={16} aria-hidden="true" /> Đăng nhập SSO
       </Button>
     );
   return (

@@ -5,8 +5,13 @@ import { parseLatex } from '@/shared/paper/latexParser';
 import { parseMarkdown, parsePlainText } from '@/shared/paper/markdownParser';
 import type { Repositories } from '@/shared/storage/types';
 import { pdfRemote, PdfRemoteError, sha256Hex } from '@/shared/pdfStore';
+import {
+  downloadResearchHubProjectFile,
+  type ResearchHubProjectFile,
+} from '@/shared/pdfStore/researchHubFiles';
 
 type ImportOptions = {
+  projectId: string;
   getIdToken: () => Promise<string | null>;
   title?: string | null;
   onProgress?: (message: string) => void;
@@ -30,10 +35,22 @@ export async function importStoredPdf(
   const token = await options.getIdToken();
   signal?.throwIfAborted();
   if (!token) throw new PdfRemoteError(401);
-  const file = await pdfRemote.download(sha256, token, signal);
+  const file = await pdfRemote.download(sha256, options.projectId, token, signal);
   if (!file) throw new Error('Chưa tìm thấy PDF trong kho lab.');
   if (file.size !== sizeBytes) throw new Error('Kích thước PDF trong kho lab không khớp.');
   return importFile(file, fileName, repo, options, { sha256, signal });
+}
+
+/** Imports an existing project file without uploading a duplicate copy to ResearchHub. */
+export async function importResearchHubFile(
+  projectFile: ResearchHubProjectFile,
+  repo: Repositories,
+  options: ImportOptions,
+): Promise<Paper> {
+  const token = await options.getIdToken();
+  if (!token) throw new PdfRemoteError(401);
+  const file = await downloadResearchHubProjectFile(projectFile.id, options.projectId, token);
+  return importFile(file, projectFile.name, repo, { ...options, reuseExisting: true }, { skipUpload: true });
 }
 
 async function importFile(
@@ -41,7 +58,7 @@ async function importFile(
   fileName: string,
   repo: Repositories,
   options: ImportOptions,
-  storedPdf?: { sha256: string; signal?: AbortSignal },
+  storedPdf?: { sha256?: string; signal?: AbortSignal; skipUpload?: boolean },
 ): Promise<Paper> {
   guardPaperSize(file.size);
   const ext = fileName.split('.').pop()?.toLowerCase();
@@ -49,15 +66,15 @@ async function importFile(
     throw new Error('Định dạng tệp không được hỗ trợ.');
   const data = await file.arrayBuffer();
   const digest = await sha256Hex(data);
-  if (storedPdf && storedPdf.sha256 !== digest)
+  if (storedPdf?.sha256 && storedPdf.sha256 !== digest)
     throw new Error('Mã SHA-256 của PDF trong kho lab không khớp.');
   const sha256 = `sha256:${digest}`;
   const existing = options.reuseExisting ? await repo.papers.findBySourceHash(sha256) : undefined;
-  if (ext === 'pdf' && !storedPdf) {
+  if (ext === 'pdf' && !storedPdf?.skipUpload && !storedPdf?.sha256) {
     const token = await options.getIdToken();
     if (!token) throw new PdfRemoteError(401);
     options.onProgress?.('Đang lưu PDF vào kho lab…');
-    await pdfRemote.upload(digest, file, token);
+    await pdfRemote.upload(digest, options.projectId, fileName, file, token);
   }
   if (existing) return existing;
   let parsed: Awaited<ReturnType<typeof segmentPaper>>;

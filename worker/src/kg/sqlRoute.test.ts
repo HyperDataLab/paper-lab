@@ -5,6 +5,7 @@ import { testDb } from './testDb';
 
 function setup() {
   const { db, sqlite } = testDb();
+  const projectId = '00000000-0000-4000-8000-000000000101';
   sqlite.exec("INSERT INTO author (id, display_name) VALUES ('A1', 'Synthetic author')");
   const deps: Deps = {
     verifyToken: async (token) => {
@@ -19,6 +20,7 @@ function setup() {
       put: async () => null,
     },
     allowedOrigins: [],
+    getOwnedProject: async (requestedId) => ({ id: requestedId, name: 'Test project' }),
     now: () => new Date(),
     kg: { KG: db },
   };
@@ -27,7 +29,11 @@ function setup() {
       deps,
       new Request('https://worker.test/v1/kg/sql', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Project-Id': projectId,
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
         body: JSON.stringify(body),
       }),
     );
@@ -42,25 +48,18 @@ it('semantic step 4 requires a signed-in lab user for SQL', async () => {
 });
 
 it.each([
-  [{ sql: 'SELECT * FROM doc' }, 'sql_table'],
-  [{ sql: 'SELECT missing FROM author' }, 'sql_execution'],
-  [{ sql: 'SELECT id FROM author', limit: 0 }, 'bad_request'],
-])('semantic step 4 returns 400 with a code for %j', async (body, error) => {
+  { sql: 'SELECT * FROM doc' },
+  { sql: 'SELECT missing FROM author' },
+  { sql: 'SELECT id FROM author', limit: 0 },
+])('semantic step 4 blocks unscoped SQL for %j', async (body) => {
   const response = await setup()(body);
-  expect(response.status).toBe(400);
-  expect(await response.json()).toEqual({ error, message: expect.any(String) });
+  expect(response.status).toBe(404);
+  expect(await response.json()).toMatchObject({ error: 'not_found' });
 });
 
 it('semantic step 4 returns 200 and SQL data from the KG binding alone', async () => {
   const sql = 'SELECT display_name FROM author';
   const response = await setup()({ sql });
-  expect(response.status).toBe(200);
-  expect(response.headers.get('Cache-Control')).toBe('no-store');
-  expect(await response.json()).toEqual({
-    sql,
-    columns: ['display_name'],
-    rows: [['Synthetic author']],
-    truncated: false,
-    concepts: ['kg-author'],
-  });
+  expect(response.status).toBe(404);
+  expect(await response.json()).toMatchObject({ error: 'not_found' });
 });

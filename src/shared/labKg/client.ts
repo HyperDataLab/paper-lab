@@ -17,7 +17,7 @@ import {
   type KgIngestResult,
   type KgIngestSource,
 } from '@/core/schemas/labKg';
-import { PDF_WORKER_URL } from '@/shared/pdfStore';
+import { PDF_WORKER_URL, projectScopedUrl } from '@/shared/pdfStore';
 
 export class LabKgError extends Error {
   constructor(
@@ -64,15 +64,21 @@ export function labKgIds(records: Iterable<{ openalexId?: string | null; doi?: s
   ];
 }
 
-async function request(path: string, token: string | null, init?: RequestInit): Promise<unknown> {
+async function request(
+  path: string,
+  token: string | null,
+  projectId: string,
+  init?: RequestInit,
+): Promise<unknown> {
   if (!token) throw new LabKgError('Hãy đăng nhập bằng tài khoản lab để dùng KG.');
-  const url = `${PDF_WORKER_URL}/v1/kg${path}`;
+  if (!projectId) throw new LabKgError('Hãy mở PaperLab từ một project ResearchHub để dùng KG.');
+  const url = projectScopedUrl(`${PDF_WORKER_URL}/v1/kg${path}`, projectId);
   const send = async (cache?: RequestCache) => {
     try {
       return await fetch(url, {
         ...init,
         ...(cache ? { cache } : {}),
-        headers: { Authorization: `Bearer ${token}`, ...init?.headers },
+        headers: { Authorization: `Bearer ${token}`, 'X-Project-Id': projectId, ...init?.headers },
       });
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
@@ -104,13 +110,14 @@ async function request(path: string, token: string | null, init?: RequestInit): 
 export async function enqueueLabKg(
   ids: string[],
   token: string | null,
+  projectId: string,
   source: KgIngestSource = 'seed',
   /** Called after each batch with the combined result so far and how many ids were sent. */
   onProgress?: (result: KgIngestResult, sent: number) => void,
 ) {
   const result: KgIngestResult = { queued: 0, processed: 0, skipped: 0, errors: [] };
   for (let i = 0; i < ids.length; i += KG_INGEST_LIMIT) {
-    const raw = await request('/ingest', token, {
+    const raw = await request('/ingest', token, projectId, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -131,15 +138,17 @@ export async function enqueueLabKg(
   return result;
 }
 
-export async function getLabKgOverview(token: string | null, signal?: AbortSignal) {
-  const parsed = KgOverviewSchema.safeParse(await request('/overview', token, { signal }));
+export async function getLabKgOverview(token: string | null, projectId: string, signal?: AbortSignal) {
+  const parsed = KgOverviewSchema.safeParse(await request('/overview', token, projectId, { signal }));
   if (!parsed.success)
     throw new LabKgError('Không đọc được điểm bắt đầu trong KG của lab.', 'Invalid overview response.');
   return parsed.data;
 }
 
-export async function getLabKgStatus(token: string | null, signal?: AbortSignal) {
-  const parsed = KgIngestStatusSchema.safeParse(await request('/ingest/status', token, { signal }));
+export async function getLabKgStatus(token: string | null, projectId: string, signal?: AbortSignal) {
+  const parsed = KgIngestStatusSchema.safeParse(
+    await request('/ingest/status', token, projectId, { signal }),
+  );
   if (!parsed.success)
     throw new LabKgError('Không đọc được trạng thái KG của lab.', 'Invalid ingest status.');
   return parsed.data;
@@ -149,10 +158,11 @@ export async function getLabKgStatus(token: string | null, signal?: AbortSignal)
 export async function searchLabKg(
   request_: SciAtlasSearchRequest,
   token: string | null,
+  projectId: string,
   signal?: AbortSignal,
 ) {
   const parsed = KgSearchResponseSchema.safeParse(
-    await request('/search', token, {
+    await request('/search', token, projectId, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request_),
@@ -164,8 +174,8 @@ export async function searchLabKg(
   return parsed.data;
 }
 
-export async function getLabKgStats(token: string | null, signal?: AbortSignal) {
-  const parsed = KgStatsSchema.safeParse(await request('/stats', token, { signal }));
+export async function getLabKgStats(token: string | null, projectId: string, signal?: AbortSignal) {
+  const parsed = KgStatsSchema.safeParse(await request('/stats', token, projectId, { signal }));
   if (!parsed.success) throw new LabKgError('Không đọc được số liệu KG của lab.', 'Invalid stats response.');
   return parsed.data;
 }
@@ -174,6 +184,7 @@ export async function getLabKgStats(token: string | null, signal?: AbortSignal) 
 export async function getLabKgGraph(
   options: { centre: string; depth: 1 | 2; layers: readonly KgGraphLayer[]; limit?: number },
   token: string | null,
+  projectId: string,
   signal?: AbortSignal,
 ) {
   const query = new URLSearchParams({
@@ -182,39 +193,58 @@ export async function getLabKgGraph(
     layers: options.layers.join(','),
   });
   if (options.limit) query.set('limit', String(options.limit));
-  const parsed = KgGraphSchema.safeParse(await request(`/graph?${query.toString()}`, token, { signal }));
+  const parsed = KgGraphSchema.safeParse(
+    await request(`/graph?${query.toString()}`, token, projectId, { signal }),
+  );
   if (!parsed.success) throw new LabKgError('Không đọc được đồ thị KG của lab.', 'Invalid graph response.');
   return parsed.data;
 }
 
-export async function getLabKgTrend(keywords: string[], token: string | null, signal?: AbortSignal) {
+export async function getLabKgTrend(
+  keywords: string[],
+  token: string | null,
+  projectId: string,
+  signal?: AbortSignal,
+) {
   const query = new URLSearchParams({ keywords: keywords.join(',') });
-  const parsed = KgTrendSchema.safeParse(await request(`/trend?${query.toString()}`, token, { signal }));
+  const parsed = KgTrendSchema.safeParse(
+    await request(`/trend?${query.toString()}`, token, projectId, { signal }),
+  );
   if (!parsed.success) throw new LabKgError('Không đọc được xu hướng keyword.', 'Invalid trend response.');
   return parsed.data;
 }
 
-export async function getLabKgPaper(id: string, token: string | null, signal?: AbortSignal) {
+export async function getLabKgPaper(
+  id: string,
+  token: string | null,
+  projectId: string,
+  signal?: AbortSignal,
+) {
   const parsed = KgPaperDetailSchema.safeParse(
-    await request(`/papers/${encodeURIComponent(id)}`, token, { signal }),
+    await request(`/papers/${encodeURIComponent(id)}`, token, projectId, { signal }),
   );
   if (!parsed.success)
     throw new LabKgError('Không đọc được bài trong KG của lab.', 'Invalid paper response.');
   return parsed.data;
 }
 
-export async function getLabKgKeyword(id: string, token: string | null, signal?: AbortSignal) {
+export async function getLabKgKeyword(
+  id: string,
+  token: string | null,
+  projectId: string,
+  signal?: AbortSignal,
+) {
   const parsed = KgKeywordDetailSchema.safeParse(
-    await request(`/keywords/${encodeURIComponent(id)}`, token, { signal }),
+    await request(`/keywords/${encodeURIComponent(id)}`, token, projectId, { signal }),
   );
   if (!parsed.success)
     throw new LabKgError('Không đọc được keyword trong KG của lab.', 'Invalid keyword response.');
   return parsed.data;
 }
 
-export async function queryLabKg(sql: string, token: string, signal?: AbortSignal) {
+export async function queryLabKg(sql: string, token: string, projectId: string, signal?: AbortSignal) {
   const parsed = KgSqlResultSchema.safeParse(
-    await request('/sql', token, {
+    await request('/sql', token, projectId, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sql }),

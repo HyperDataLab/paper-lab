@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { useAuth } from '@/shared/auth/authContext';
+import { useHubProjectId } from '@/shared/storage/StorageProvider';
 import { RemoteDataClient } from '@/shared/storage/remoteDataClient';
 import { Button } from '@/shared/ui/Button';
 import styles from './page.module.css';
 
 const emptyCounts = { imported: 0, skipped: 0, failed: 0 };
 
-export function LegacyCorporaImport({ uid }: { uid: string }) {
+export function LegacyCorporaImport() {
   const { getIdToken } = useAuth();
+  const projectId = useHubProjectId() ?? '';
   const [busy, setBusy] = useState(false);
   const [counts, setCounts] = useState<typeof emptyCounts>();
   const [error, setError] = useState('');
@@ -16,7 +18,7 @@ export function LegacyCorporaImport({ uid }: { uid: string }) {
     setBusy(true);
     setError('');
     setCounts(undefined);
-    const client = new RemoteDataClient({ getToken: () => getIdToken(uid) });
+    const client = new RemoteDataClient({ getToken: () => getIdToken(), projectId });
     let total = emptyCounts;
     let cursor: string | null = null;
     try {

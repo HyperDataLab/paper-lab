@@ -191,7 +191,8 @@ it('queues selected Library papers and shows the lab KG status', async () => {
   const repo = testRepositories();
   await repo.library.addDois(['10.1000/open', '10.1000/closed']);
   const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    if (String(input).endsWith('/kg/ingest')) {
+    // Worker URLs carry the ResearchHub project in the query.
+    if (String(input).endsWith('/kg/ingest?projectId=00000000-0000-4000-8000-000000000001')) {
       expect(JSON.parse(String(init?.body))).toEqual({ ids: ['10.1000/open'] });
       return Response.json({ queued: 1, processed: 1, skipped: 0, errors: [] });
     }

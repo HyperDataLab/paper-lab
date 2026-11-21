@@ -23,6 +23,7 @@ import {
 } from './paperPlaces';
 
 const WIDE = '(min-width: 1024px)';
+const READER_PANEL_KEY = 'paperlab:reader-panel-open';
 /** True on screens wide enough to show the paper and its analysis as two columns. */
 function useWide() {
   const [wide, setWide] = useState(
@@ -39,9 +40,9 @@ function useWide() {
 }
 function readSplit() {
   try {
-    return localStorage.getItem('paper-split') !== 'false';
+    return sessionStorage.getItem(READER_PANEL_KEY) === 'true';
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -73,6 +74,10 @@ export function usePaperNavigation() {
   const [tab, setTabState] = useState<ViewId>(() =>
     initial && !isPane(placeOf(initial)) ? initial : DEFAULT_VIEW.issues,
   );
+  const [visitedModes, setVisitedModes] = useState<Set<Mode>>(() => {
+    const start = initial && !isPane(placeOf(initial)) ? initial : DEFAULT_VIEW.issues;
+    return new Set([modeOf(start)]);
+  });
   const [pane, setPaneState] = useState<Pane>(() => {
     const asked = query.get('pane');
     if (asked === 'fulltext' || asked === 'summary') return asked;
@@ -80,7 +85,7 @@ export function usePaperNavigation() {
     return isPane(place) ? place : 'fulltext';
   });
   const [focus, setFocus] = useState<'centre' | 'right'>(() =>
-    initial && !isPane(placeOf(initial)) ? 'right' : 'centre',
+    initial && !isPane(placeOf(initial)) ? 'right' : readSplit() ? 'right' : 'centre',
   );
   // An AI panel stays mounted once opened, so its run keeps going while the reader looks elsewhere.
   const [opened, setOpened] = useState<JobId[]>(RUN_ALL);
@@ -102,7 +107,7 @@ export function usePaperNavigation() {
   const [splitWanted, setSplitWanted] = useState(readSplit);
 
   /** Opens a view in its column and records it in the address, so a reload or a shared link lands there. */
-  const setTab = (view: ViewId) => {
+  const setTab = (view: ViewId, options: { scrollToBlock?: boolean } = {}) => {
     const place = placeOf(view);
     // Going anywhere but the paper ends the way back.
     if (view !== 'map') setReturnTo(null);
@@ -115,23 +120,31 @@ export function usePaperNavigation() {
         .map((id) => BLOCKS[id].job)
         .filter((job): job is JobId => job !== undefined);
     const kept = [...jobsOf(modeOf(tab)), ...(isPane(place) ? jobsOf('summary') : jobsOf(place))];
-    setOpened((old) => [...new Set([...old, ...kept])]);
+    setOpened((old) => {
+      if (kept.every((job) => old.includes(job))) return old;
+      return [...new Set([...old, ...kept])];
+    });
     if (isPane(place)) {
       setPaneState(place);
       setFocus('centre');
+      setPanelPreference(false);
       // Choosing the paper leaves a space: the right column comes back as it was.
       if (isSpace(modeOf(tab))) setTabState(beforeSpace.current);
     } else {
+      const targetMode = modeOf(view);
+      setVisitedModes((old) => (old.has(targetMode) ? old : new Set([...old, targetMode])));
       setTabState(view);
       setFocus('right');
+      if (!isSpace(place)) setPanelPreference(true);
     }
     if (block) {
       setOpenBlocks((old) => (old.includes(block) ? old : [...old, block]));
-      setBlockView((old) => ({ ...old, [block]: view }));
-      window.setTimeout(
-        () => document.getElementById(`block-${block}`)?.scrollIntoView?.({ block: 'start' }),
-        0,
-      );
+      setBlockView((old) => (old[block] === view ? old : { ...old, [block]: view }));
+      if (options.scrollToBlock !== false)
+        window.setTimeout(
+          () => document.getElementById(`block-${block}`)?.scrollIntoView?.({ block: 'start' }),
+          0,
+        );
     }
     setQuery(
       (old) => {
@@ -152,15 +165,15 @@ export function usePaperNavigation() {
   const showRight = !wide || splitWanted || inSpace;
   const centreVisible = !inSpace && (wide || focus === 'centre');
 
-  const toggleSplit = () => {
-    const next = !splitWanted;
-    setSplitWanted(next);
+  const setPanelPreference = (open: boolean) => {
+    setSplitWanted(open);
     try {
-      localStorage.setItem('paper-split', String(next));
+      sessionStorage.setItem(READER_PANEL_KEY, String(open));
     } catch {
       /* Storage may be unavailable. */
     }
   };
+  const toggleSplit = () => setPanelPreference(!splitWanted);
   const remember = (view: ViewId, label: string, column: HTMLElement | null) =>
     setReturnTo({ view, label, scroll: scrollOf(column) });
   /** A source opened from a space or the summary shows the paper, with a way back to where it was opened. */
@@ -207,7 +220,7 @@ export function usePaperNavigation() {
   const openMode = (target: Mode) => {
     // A tab reopens the view the reader last had in it; a tab with no blocks has just its own view.
     const first = BLOCK_IDS.find((id) => BLOCKS[id].place === target);
-    setTab((first && blockView[first]) ?? DEFAULT_VIEW[target]);
+    setTab((first && blockView[first]) ?? DEFAULT_VIEW[target], { scrollToBlock: false });
     if (!splitWanted && wide) toggleSplit();
   };
   const openBlock = (id: BlockId) => setOpenBlocks((old) => (old.includes(id) ? old : [...old, id]));
@@ -232,12 +245,14 @@ export function usePaperNavigation() {
     centreVisible,
     wide,
     splitWanted,
+    visitedModes,
     returnTo,
     openBlocks,
     rightColumn,
     centreColumn,
     setTab,
     toggleSplit,
+    setPanelPreference,
     enterReader,
     showFulltext,
     focusFulltext,

@@ -1,21 +1,63 @@
 # paperlab-pdf-worker
 
-Keeps PaperLab's original PDFs in the lab's R2 bucket (`paper-fetch`, under `paperlab/pdfs/<sha256>`).
+Stores ResearchHub project workspaces in the lab's R2 bucket (`paper-fetch`). PDF originals live in ResearchHub's
+Files store; R2 keeps project/SHA-to-file-ID links and the derived GROBID cache. Legacy PDF copies remain only during
+their on-demand migration to ResearchHub.
 
-- `GET`/`HEAD`/`PUT /pdfs/<64 hex sha256>`. Every request needs `Authorization: Bearer <Firebase ID token>`
-  from the `hyperdatalab-paragraph-lab` project, for a verified Google account on `@hyperdatalab.org`.
+- `GET`/`HEAD`/`PUT /pdfs/<64 hex sha256>`. Every request needs `Authorization: Bearer <HyperDataLab SSO access token>`
+  for a verified account on `@hyperdatalab.org` and the active ResearchHub project. Clients send the project ID in
+  `X-Project-Id` and as the `projectId` query parameter so project scope survives intermediaries that remove custom
+  headers. If both are present, they must match. The Worker
+  verifies project access, uploads new bytes to ResearchHub's `POST /api/files`, and stores only the returned file ID
+  in an R2 link record. Downloads and GROBID read the bytes back through ResearchHub's `GET /api/files/{id}`.
+  PDFs left in the old PaperLab R2 path are copied to ResearchHub the first time their project opens them; the old
+  R2 copy is retained as a migration backup.
   Otherwise 401 (no or bad token) or 403 (another domain).
 - `PUT` accepts only `application/pdf`, at most 25 MiB, a body starting with `%PDF-` and whose SHA-256
   equals the path. A file already stored returns 200; a new one 201.
 - CORS answers only the origins in `ALLOWED_ORIGINS` (`wrangler.toml`).
+- `LLM_ALLOWED_HOSTS` is the exact host allowlist for the authenticated `/v1/llm/chat/completions` relay. The browser sends its locally stored 9router key to this route; the Worker checks the SSO session and active ResearchHub project before forwarding, and does not log the key or prompt.
 - The bucket is reached through the R2 binding. Worker secrets can include `SCIATLAS_API_KEY` and
   `OPENALEX_API_KEY`.
 
+## ResearchHub project workspaces
+
+`GET` and `PUT /v1/workspaces/<projectId>` store PaperLab data for one ResearchHub project in a single R2 JSON
+object at `paperlab/workspaces/<projectId>.json`. The browser sends its SSO access token. The Worker validates it
+through `SSO_BASE_URL`, then calls the ResearchHub Files API through the `RESEARCH_HUB` service binding and accepts
+only a matching owned project. ResearchHub currently exposes owner projects through `GET /api/projects`; project
+membership for collaborators is not available yet. The service binding avoids calling another Cloudflare Worker
+through its public `workers.dev` URL, which Cloudflare restricts for Worker-to-Worker fetches.
+
+Set `RESEARCH_HUB_API_URL` in this Worker to the deployed ResearchHub Files API base URL. Use the same URL
+configured as ResearchHub's `NEXT_PUBLIC_FILE_API_URL`; if unset, workspace requests return 503. The SPA needs a
+registered OIDC client ID and callback in `VITE_HYPERDATALAB_SSO_BASE_URL`,
+`VITE_HYPERDATALAB_SSO_CLIENT_ID`, and `VITE_HYPERDATALAB_SSO_CALLBACK_URL`. Register the callback and allow the
+PaperLab origins in the SSO provider. `projectId` is preserved through OIDC state and is never sent in the token URL.
+
+`PUT` requires `If-None-Match: *` when creating a workspace or `If-Match: <ETag>` when updating it. A stale
+version returns 412 and the app asks the user to reload. Payloads are capped at 25 MiB. The snapshot contains
+papers, extraction projects, corpora, and paper-level analysis; standalone paragraph-writing records are omitted.
+Legacy local data is copied once into the first linked ResearchHub project on this browser if the project has no
+server workspace.
+
+PaperLab reads existing ResearchHub project files through `GET /v1/researchhub/files?cursor=<cursor>` and streams
+selected files through `GET /v1/researchhub/files/{fileId}`. Both routes require the active project ID and verify
+project access before calling the ResearchHub Files API. The file list contains metadata only; PaperLab imports and
+parses a PDF into the project workspace only after the user chooses to open it for analysis.
+
+## OpenAlex PDF acquisition
+
+`POST /v1/pdfs/openalex` accepts `{ "doi": "10.../...", "pdfUrl": "https://..." }` from an authenticated lab account.
+The browser obtains the URL from OpenAlex's Open Access metadata and sends that URL to the Worker, avoiding a
+second OpenAlex lookup from Cloudflare. The Worker accepts only public HTTPS URLs, validates every redirect,
+requires a `%PDF-` signature and limits the file to 25 MiB. The PDF is validated in memory and is not stored in
+R2. Add local dev origins to `ALLOWED_ORIGINS` before using the route from Vite.
+
 ## Published paper models
 
-All `/v1` routes require the same verified Google account and domain as the PDF routes. The optional
-`ACCEPTED_PROJECT_IDS` variable is a comma-separated list of accepted Firebase project IDs; when absent,
-only `FIREBASE_PROJECT_ID` is accepted. Errors are JSON with `error` and `message` fields.
+All `/v1` routes require a valid HyperDataLab SSO access token for the configured organization domain. Errors are
+JSON with `error` and `message` fields.
 
 - `PUT /v1/papers/:paperId/model` publishes JSON up to 10 MiB. For example, put
   `{"format":"paperlab-paper-model","schemaVersion":1,"generatedAt":"2026-01-01T00:00:00Z","document":{"metadata":{"title":"Synthetic study"},"source":{"sha256":null}},"sentences":[]}`
@@ -60,8 +102,8 @@ approval does not start any measurement automatically.
 
 ## Frozen experiment plans
 
-All signed-in lab accounts may read and publish any project; PaperLab projects have no member list.
-These routes use the same Firebase token verification and `ACCEPTED_PROJECT_IDS` as the paper routes.
+All signed-in lab accounts may read and publish any frozen experiment plan; these routes are separate from
+ResearchHub workspace authorization and use the same SSO token verification as the paper routes.
 Project IDs are lowercase UUIDs, and versions are positive integers. The plan's `title` supplies the
 project title. Plan JSON is limited to 5 MiB; its schema and freeze gate are checked before publication.
 Validation failures return `422 plan_invalid` with `issues`. A version is immutable: an identical body
@@ -117,9 +159,10 @@ is `504 sciatlas_timeout`, and any other failure is `502 sciatlas_error`.
 
 ## GROBID full text
 
-`POST /grobid/fulltext` accepts a PDF (up to 25 MiB); `POST /grobid/fulltext/<sha256>` reads an
-existing PDF from R2. Both require the same sign-in and return TEI XML, with `X-Grobid-Cache` and
-`X-Grobid-Ms` headers. TEI is cached in R2 by PDF hash and GROBID version. The first request after
+`POST /grobid/fulltext` accepts a PDF (up to 25 MiB); `POST /grobid/fulltext/<sha256>` fetches the
+existing PDF from ResearchHub using the project/SHA-to-file-ID link. PaperLab sends `X-Project-Id` so the Worker verifies the active project.
+Both require the same sign-in and return TEI XML, with `X-Grobid-Cache` and `X-Grobid-Ms` headers. TEI is cached
+in R2 by PDF hash and GROBID version. The first request after
 idle may take 30–60 seconds to start; after 120 seconds it returns 503 with a retry hint.
 The container is billed while running, including idle time, and stops after 10 minutes of inactivity;
 R2 and Worker usage have their own charges. The CRF image is pulled from a registry without Docker.
@@ -181,8 +224,8 @@ npx wrangler deploy
 
 The app uses `https://paperlab-pdf-worker.hyperdatalab.workers.dev`; set `VITE_PDF_WORKER_URL` to use another URL.
 
-Google sign-in must be enabled once in Firebase Console: Authentication → Sign-in method → Google
-(project `hyperdatalab-paragraph-lab`). The app's hosting domains are authorised there by default.
+Configure the PaperLab OIDC public client in HyperDataLab SSO before using sign-in. Firebase is used for static
+Hosting deployment only; it does not authenticate PaperLab users.
 
 ## Test
 

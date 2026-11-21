@@ -4,6 +4,7 @@ import { passStage } from '@/core/autoresearch/validation';
 import { newCorpus } from '@/core/corpus';
 import { addMember } from '@/core/corpus/intake';
 import { newProject } from '@/core/extraction';
+import { PDF_WORKER_URL } from '@/shared/pdfStore';
 import { createScholarClient } from '@/shared/scholar/client';
 import { collectCandidates } from './collection';
 
@@ -39,6 +40,7 @@ const deps = () => ({
   localAbstract: async () => null,
   scholar: createScholarClient({}),
   getLabToken: async () => 'fake-token',
+  hubProjectId: 'rh-1',
   check: vi.fn(),
   now: () => at,
 });
@@ -53,10 +55,10 @@ it('S4 searches the lab KG, OpenAlex and then the Project corpus, deduping by DO
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, options: RequestInit) => {
-      if (url.endsWith('/v1/kg/search')) {
+      if (url === `${PDF_WORKER_URL}/v1/kg/search?projectId=rh-1`) {
         seen.push('lab_kg');
         expect(options.method).toBe('POST');
-        expect(options.headers).toMatchObject({ Authorization: 'Bearer fake-token' });
+        expect(options.headers).toMatchObject({ Authorization: 'Bearer fake-token', 'X-Project-Id': 'rh-1' });
         const params: unknown = JSON.parse(String(options.body));
         expect(params).toMatchObject({ after: '2020-01-01', before: '2025-12-31' });
         return Response.json({ papers: rows, elapsedMs: 0 });
@@ -120,7 +122,7 @@ it.each(['empty', 'not_configured'] as const)(
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) => {
-        if (url.endsWith('/v1/kg/search'))
+        if (url === `${PDF_WORKER_URL}/v1/kg/search?projectId=rh-1`)
           return status === 'empty'
             ? Response.json({ papers: [], elapsedMs: 0, hint: 'kg_empty' })
             : Response.json({ error: 'kg_not_configured' }, { status: 503 });

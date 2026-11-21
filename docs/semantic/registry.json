@@ -5492,216 +5492,6 @@
       "tabs": []
     },
     {
-      "id": "evaluate",
-      "path": "/evaluate",
-      "module": "evaluate",
-      "titleVi": "Đánh giá paragraph",
-      "name": "Paragraph evaluation",
-      "purpose": "Dán một paragraph tiếng Anh và phân tích từng bước: tách câu, cấu trúc paragraph, đánh giá theo ngữ cảnh, chấm điểm. AI chỉ gợi ý; người dùng giữ hoặc bỏ từng issue.",
-      "params": [],
-      "query": [
-        {
-          "name": "id",
-          "concept": "analysis"
-        }
-      ],
-      "shows": [
-        "analysis",
-        "sentence",
-        "sentence-annotation",
-        "issue",
-        "audit-event",
-        "style-probe"
-      ],
-      "reads": [
-        "analysis",
-        "audit-event",
-        "paper",
-        "style-probe"
-      ],
-      "writes": [
-        "analysis",
-        "issue",
-        "audit-event"
-      ],
-      "actions": [
-        {
-          "labelVi": "Tách câu",
-          "effect": "Tách câu và chạy các detector trên máy, không gọi AI.",
-          "writes": [],
-          "ai": false
-        },
-        {
-          "labelVi": "Phân tích câu (AI)",
-          "effect": "Gắn nhãn cú pháp cho từng câu (thì, thể, chủ ngữ).",
-          "writes": [],
-          "ai": true
-        },
-        {
-          "labelVi": "Phân tích cấu trúc paragraph (AI)",
-          "effect": "Gán vai trò cho từng câu và mạch nối giữa các câu.",
-          "writes": [],
-          "ai": true
-        },
-        {
-          "labelVi": "Đánh giá theo ngữ cảnh (AI)",
-          "effect": "Mô hình xét lại các ứng viên issue trong ngữ cảnh của paragraph.",
-          "writes": [],
-          "ai": true
-        },
-        {
-          "labelVi": "Chấm điểm (AI)",
-          "effect": "Chấm điểm paragraph theo rubric.",
-          "writes": [],
-          "ai": true
-        },
-        {
-          "labelVi": "Lưu vào lịch sử",
-          "effect": "Lưu kết quả thành một bản phân tích cùng các quyết định về issue.",
-          "writes": [
-            "analysis",
-            "issue",
-            "audit-event"
-          ],
-          "ai": false
-        },
-        {
-          "labelVi": "Xác nhận / bác bỏ issue",
-          "effect": "Ghi quyết định của người dùng cho một issue, kèm audit event.",
-          "writes": [
-            "issue",
-            "audit-event"
-          ],
-          "ai": false
-        },
-        {
-          "labelVi": "Chỉnh sửa các gợi ý đã chọn",
-          "effect": "Mở trang Chỉnh sửa với các issue đã chọn.",
-          "writes": [],
-          "ai": false
-        }
-      ],
-      "requiresSignIn": true,
-      "parent": null,
-      "tabs": [
-        {
-          "id": "text",
-          "labelVi": "Văn bản",
-          "via": "state"
-        },
-        {
-          "id": "scores",
-          "labelVi": "Điểm",
-          "via": "state"
-        }
-      ]
-    },
-    {
-      "id": "revise",
-      "path": "/revise",
-      "module": "revise",
-      "titleVi": "Chỉnh sửa",
-      "name": "Revision",
-      "purpose": "Sửa một paragraph đã phân tích theo các gợi ý đã chọn, so sánh bản sửa với bản gốc và kiểm tra ý nghĩa trước khi áp dụng.",
-      "params": [],
-      "query": [
-        {
-          "name": "analysis",
-          "concept": "analysis"
-        },
-        {
-          "name": "revision",
-          "concept": "revision"
-        },
-        {
-          "name": "issues",
-          "concept": "issue"
-        }
-      ],
-      "shows": [
-        "analysis",
-        "issue",
-        "revision"
-      ],
-      "reads": [
-        "analysis",
-        "revision"
-      ],
-      "writes": [
-        "revision",
-        "analysis"
-      ],
-      "actions": [
-        {
-          "labelVi": "Tạo bản sửa (AI)",
-          "effect": "Mô hình viết lại paragraph theo các issue đã chọn; bản sửa được lưu như một revision.",
-          "writes": [
-            "revision"
-          ],
-          "ai": true
-        },
-        {
-          "labelVi": "Xác nhận áp dụng",
-          "effect": "Áp dụng revision: tạo bản phân tích mới từ văn bản đã sửa rồi mở nó.",
-          "writes": [
-            "revision",
-            "analysis"
-          ],
-          "ai": false
-        }
-      ],
-      "requiresSignIn": true,
-      "parent": "evaluate",
-      "tabs": []
-    },
-    {
-      "id": "generate",
-      "path": "/generate",
-      "module": "generate",
-      "titleVi": "Soạn paragraph",
-      "name": "Paragraph generation",
-      "purpose": "Soạn một paragraph học thuật từ main claim và evidence do người dùng nhập; người dùng xem kết quả rồi mới quyết định dùng.",
-      "params": [],
-      "query": [
-        {
-          "name": "id",
-          "concept": "generation"
-        }
-      ],
-      "shows": [
-        "generation"
-      ],
-      "reads": [
-        "generation"
-      ],
-      "writes": [
-        "generation",
-        "analysis"
-      ],
-      "actions": [
-        {
-          "labelVi": "Soạn paragraph (AI)",
-          "effect": "Mô hình soạn paragraph từ claim và evidence; lưu thành một generation.",
-          "writes": [
-            "generation"
-          ],
-          "ai": true
-        },
-        {
-          "labelVi": "Xác nhận dùng paragraph",
-          "effect": "Chấp nhận generation và tạo bản phân tích từ paragraph đó để đánh giá.",
-          "writes": [
-            "generation",
-            "analysis"
-          ],
-          "ai": false
-        }
-      ],
-      "requiresSignIn": true,
-      "parent": "evaluate",
-      "tabs": []
-    },
-    {
       "id": "papers",
       "path": "/papers",
       "module": "paper-import",
@@ -6770,49 +6560,6 @@
       "tabs": []
     },
     {
-      "id": "history",
-      "path": "/history",
-      "module": "history",
-      "titleVi": "Lịch sử",
-      "name": "History",
-      "purpose": "Các bản phân tích paragraph, bản sửa và paragraph đã soạn; mở lại, so sánh hai bản hoặc xoá.",
-      "params": [],
-      "query": [],
-      "shows": [
-        "analysis",
-        "revision",
-        "generation"
-      ],
-      "reads": [
-        "analysis",
-        "revision",
-        "generation",
-        "paper"
-      ],
-      "writes": [
-        "analysis"
-      ],
-      "actions": [
-        {
-          "labelVi": "So sánh",
-          "effect": "Mở trang so sánh cho hai bản phân tích đã chọn.",
-          "writes": [],
-          "ai": false
-        },
-        {
-          "labelVi": "Xoá bản phân tích",
-          "effect": "Xoá bản phân tích đã chọn.",
-          "writes": [
-            "analysis"
-          ],
-          "ai": false
-        }
-      ],
-      "requiresSignIn": true,
-      "parent": null,
-      "tabs": []
-    },
-    {
       "id": "transfer",
       "path": "/transfer",
       "module": "transfer",
@@ -6903,55 +6650,6 @@
       "tabs": []
     },
     {
-      "id": "calibration",
-      "path": "/calibration",
-      "module": "calibration",
-      "titleVi": "Hiệu chuẩn",
-      "name": "Calibration",
-      "purpose": "Nhập bộ nhãn của người đánh giá để đo độ chính xác của detector và AI, đồng thuận giữa người đánh giá và hiệu chuẩn điểm.",
-      "params": [],
-      "query": [],
-      "shows": [
-        "calibration-label-set",
-        "measurement"
-      ],
-      "reads": [
-        "calibration-label-set",
-        "paper",
-        "measurement"
-      ],
-      "writes": [
-        "calibration-label-set"
-      ],
-      "actions": [
-        {
-          "labelVi": "Tải mẫu nhãn",
-          "effect": "Tải tệp JSON mẫu cho bộ nhãn.",
-          "writes": [],
-          "ai": false
-        },
-        {
-          "labelVi": "Xác nhận nhập nhãn",
-          "effect": "Nhập bộ nhãn sau khi xem trước.",
-          "writes": [
-            "calibration-label-set"
-          ],
-          "ai": false
-        },
-        {
-          "labelVi": "Xoá bộ nhãn",
-          "effect": "Xoá bộ nhãn đã nhập.",
-          "writes": [
-            "calibration-label-set"
-          ],
-          "ai": false
-        }
-      ],
-      "requiresSignIn": true,
-      "parent": null,
-      "tabs": []
-    },
-    {
       "id": "playground",
       "path": "/playground",
       "module": "playground",
@@ -6971,7 +6669,7 @@
           "ai": false
         }
       ],
-      "requiresSignIn": false,
+      "requiresSignIn": true,
       "parent": null,
       "tabs": []
     },
@@ -7044,7 +6742,7 @@
         },
         {
           "labelVi": "Đăng nhập / Đăng xuất",
-          "effect": "Đăng nhập hoặc đăng xuất tài khoản lab (Google).",
+          "effect": "Đăng nhập hoặc đăng xuất bằng HyperDataLab SSO.",
           "writes": [],
           "ai": false
         },
@@ -7057,7 +6755,7 @@
           "ai": false
         }
       ],
-      "requiresSignIn": false,
+      "requiresSignIn": true,
       "parent": null,
       "tabs": []
     },
@@ -7100,7 +6798,7 @@
         }
       ],
       "requiresSignIn": true,
-      "parent": "evaluate",
+      "parent": null,
       "tabs": []
     },
     {
@@ -7133,7 +6831,7 @@
       "writes": [],
       "actions": [],
       "requiresSignIn": true,
-      "parent": "history",
+      "parent": null,
       "tabs": []
     }
   ]

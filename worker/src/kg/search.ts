@@ -52,15 +52,25 @@ async function readBody(request: Request) {
   }
 }
 
-async function queryVector(kg: ConfiguredKg, text: string) {
+const scopePrefix = (projectId: string) => `@rh/${projectId}/`;
+const logicalId = (projectId: string, id: string) => {
+  const prefix = scopePrefix(projectId);
+  return id.startsWith(prefix) ? id.slice(prefix.length) : id;
+};
+
+async function queryVector(kg: ConfiguredKg, text: string, projectId: string) {
   const values = (await kg.ai.run(EMBEDDING_MODEL, { text: [text] })).data?.[0];
   if (values?.length !== 768 || values.some((value) => !Number.isFinite(value)))
     throw new Error('embedding_failed');
   const { matches } = await kg.vectors.query(values, { topK: VECTOR_TOP_K });
-  return new Map(matches.map(({ id, score }) => [id, Math.max(0, Math.min(1, score))]));
+  return new Map(
+    matches
+      .filter(({ id }) => id.startsWith(scopePrefix(projectId)))
+      .map(({ id, score }) => [id, Math.max(0, Math.min(1, score))]),
+  );
 }
 
-export async function searchKg(kg: ConfiguredKg, input: SciAtlasSearchInput, now: Date) {
+export async function searchKg(kg: ConfiguredKg, input: SciAtlasSearchInput, now: Date, projectId: string) {
   const { db } = kg;
   const mode = input.mode;
   const ranking = input.ranking ?? 'balanced';
@@ -72,12 +82,15 @@ export async function searchKg(kg: ConfiguredKg, input: SciAtlasSearchInput, now
   const useTitle = mode === 'title' || mode === 'hybrid';
   const useVector = mode === 'semantic' || mode === 'hybrid';
 
-  const [count] = await db.batch<{ n: number }>([db.prepare('SELECT count(*) AS n FROM paper')]);
+  const prefix = `${scopePrefix(projectId)}%`;
+  const [count] = await db.batch<{ n: number }>([
+    db.prepare('SELECT count(*) AS n FROM paper WHERE id LIKE ?').bind(prefix),
+  ]);
   if (!count?.results[0]?.n) return { papers: [], hint: 'kg_empty' as const };
 
   // Vectorize runs alongside D1. In hybrid mode a failed embedding only drops that channel.
   const vectorPromise = useVector
-    ? queryVector(kg, text).catch((error: unknown) => {
+    ? queryVector(kg, text, projectId).catch((error: unknown) => {
         if (mode === 'semantic') throw error;
         return new Map<string, number>();
       })
@@ -92,9 +105,9 @@ export async function searchKg(kg: ConfiguredKg, input: SciAtlasSearchInput, now
       db
         .prepare(
           `SELECT p.id AS id, bm25(paper_fts) AS rank FROM paper_fts JOIN paper p ON p.rowid = paper_fts.rowid
-        WHERE paper_fts MATCH ?1 AND ${YEAR_SQL} ORDER BY rank LIMIT ${POOL}`,
+        WHERE paper_fts MATCH ?1 AND ${YEAR_SQL} AND p.id LIKE ?4 ORDER BY rank LIMIT ${POOL}`,
         )
-        .bind(fts, ...years(range)),
+        .bind(fts, ...years(range), prefix),
     );
     slots.push({ kind: 'fts' });
   }
@@ -106,12 +119,12 @@ export async function searchKg(kg: ConfiguredKg, input: SciAtlasSearchInput, now
         .prepare(
           // Exact matches come first so a one-word anchor keeps its own keyword under the limit.
           `SELECT id, max(exact) AS exact FROM (
-          SELECT k.id AS id, 1 AS exact FROM keyword k WHERE k.text_normalized = ?1
+          SELECT k.id AS id, 1 AS exact FROM keyword k WHERE k.text_normalized = ?1 AND k.id LIKE ?3
           UNION ALL SELECT k.id, 0 FROM keyword_fts JOIN keyword k ON k.rowid = keyword_fts.rowid
-          WHERE keyword_fts MATCH ?2
+          WHERE keyword_fts MATCH ?2 AND k.id LIKE ?3
         ) GROUP BY id ORDER BY exact DESC, id LIMIT 5`,
         )
-        .bind(normalizeText(keyword.text), phrase),
+        .bind(normalizeText(keyword.text), phrase, prefix),
     );
     slots.push({ kind: 'keyword', anchor });
   });
@@ -123,18 +136,19 @@ export async function searchKg(kg: ConfiguredKg, input: SciAtlasSearchInput, now
         db
           .prepare(
             `SELECT p.id AS id FROM paper_fts JOIN paper p ON p.rowid = paper_fts.rowid
-          WHERE paper_fts MATCH ?1 AND ${YEAR_SQL} ORDER BY bm25(paper_fts) LIMIT 50`,
+          WHERE paper_fts MATCH ?1 AND ${YEAR_SQL} AND p.id LIKE ?4 ORDER BY bm25(paper_fts) LIMIT 50`,
           )
-          .bind(query, ...years(range)),
+          .bind(query, ...years(range), prefix),
       );
       slots.push({ kind: 'title', anchor });
     });
-  const anchorSql = 'SELECT id FROM paper WHERE title_normalized IN (SELECT value FROM json_each(?1))';
+  const anchorSql =
+    'SELECT id FROM paper WHERE title_normalized IN (SELECT value FROM json_each(?1)) AND id LIKE ?2';
   statements.push(
-    db.prepare(anchorSql).bind(JSON.stringify(input.titles.map(({ title }) => normalizeText(title)))),
+    db.prepare(anchorSql).bind(JSON.stringify(input.titles.map(({ title }) => normalizeText(title))), prefix),
   );
   slots.push({ kind: 'anchors' });
-  statements.push(db.prepare(anchorSql).bind(JSON.stringify(input.references.map(normalizeText))));
+  statements.push(db.prepare(anchorSql).bind(JSON.stringify(input.references.map(normalizeText)), prefix));
   slots.push({ kind: 'references' });
 
   const phase1 = await db.batch<{ id: string; rank?: number }>(statements);
@@ -241,9 +255,9 @@ export async function searchKg(kg: ConfiguredKg, input: SciAtlasSearchInput, now
       .prepare(
         `SELECT p.id, p.title, p.doi, p.abstract, p.publication_year AS year, p.cited_by_count AS citations,
         s.display_name AS venue FROM paper p LEFT JOIN source s ON s.id = p.source_id
-      WHERE p.id IN (SELECT value FROM json_each(?1)) AND ${YEAR_SQL}`,
+      WHERE p.id IN (SELECT value FROM json_each(?1)) AND ${YEAR_SQL} AND p.id LIKE ?4`,
       )
-      .bind(JSON.stringify(ids), ...years(range)),
+      .bind(JSON.stringify(ids), ...years(range), prefix),
   ]);
   const byId = new Map((rows?.results ?? []).map((row) => [row.id, row]));
   const candidates: KgCandidate[] = [...byId.values()].map((row) => {
@@ -285,9 +299,9 @@ export async function searchKg(kg: ConfiguredKg, input: SciAtlasSearchInput, now
         citations: row.citations,
         venue: row.venue,
         authors: authors.get(row.id) ?? [],
-        id: row.id,
+        id: logicalId(projectId, row.id),
         ...(row.doi ? { doi: row.doi } : {}),
-        openalexId: row.id,
+        openalexId: logicalId(projectId, row.id),
         ...(row.abstract ? { abstract: row.abstract.slice(0, ABSTRACT_LIMIT) } : {}),
       },
     ];
@@ -301,6 +315,7 @@ export async function handleKgSearch(
   request: Request,
   headers: Record<string, string>,
   now: () => Date,
+  projectId: string,
 ) {
   const reply = { ...headers, 'Cache-Control': 'no-store' };
   const fail = (status: number, error: string, message: string) =>
@@ -319,7 +334,7 @@ export async function handleKgSearch(
   const start = Date.now();
   let result: Awaited<ReturnType<typeof searchKg>>;
   try {
-    result = await searchKg(kg, input.data, now());
+    result = await searchKg(kg, input.data, now(), projectId);
   } catch {
     return fail(502, 'kg_error', 'The lab KG search failed.');
   }

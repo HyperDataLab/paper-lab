@@ -5,7 +5,7 @@ import { modules } from './modules';
 beforeEach(() => localStorage.clear());
 it('renders groups, entries, disabled upcoming items and the active page', () => {
   render(
-    <MemoryRouter initialEntries={['/evaluate']}>
+    <MemoryRouter initialEntries={['/lab-kg']}>
       <Sidebar />
     </MemoryRouter>,
   );
@@ -21,11 +21,11 @@ it('renders groups, entries, disabled upcoming items and the active page', () =>
 });
 it('marks the active link and persists collapse', () => {
   const view = render(
-    <MemoryRouter initialEntries={['/evaluate']}>
+    <MemoryRouter initialEntries={['/corpus']}>
       <Sidebar />
     </MemoryRouter>,
   );
-  expect(screen.getByRole('link', { name: 'Paragraph' })).toHaveAttribute('aria-current', 'page');
+  expect(screen.getByRole('link', { name: 'Corpus' })).toHaveAttribute('aria-current', 'page');
   fireEvent.click(screen.getByRole('button', { name: 'Thu gọn thanh bên' }));
   expect(localStorage.getItem('sidebar-collapsed')).toBe('true');
   view.unmount();
@@ -53,13 +53,15 @@ it('continues when storage throws', () => {
   get.mockRestore();
   set.mockRestore();
 });
-it('shows paragraph work as one entry that stays active on its related screens', () => {
+it('has no entry for the retired paragraph screens and keeps a module active on its own screens', () => {
+  // Production's ResearchHub workspace no longer routes Paragraph, Chỉnh sửa, Soạn paragraph, Lịch sử or
+  // Hiệu chuẩn, so the sidebar must not link to them.
   render(
-    <MemoryRouter initialEntries={['/generate']}>
+    <MemoryRouter initialEntries={['/papers/synthetic-paper']}>
       <Sidebar />
     </MemoryRouter>,
   );
-  expect(screen.queryByRole('link', { name: /Chỉnh sửa/ })).toBeNull();
-  expect(screen.queryByRole('link', { name: /Soạn paragraph/ })).toBeNull();
-  expect(screen.getByRole('link', { name: 'Paragraph' }).className).toMatch(/active/);
+  for (const name of [/^Paragraph$/u, /Chỉnh sửa/u, /Soạn paragraph/u, /Lịch sử/u, /Hiệu chuẩn/u])
+    expect(screen.queryByRole('link', { name })).toBeNull();
+  expect(screen.getByRole('link', { name: 'Bài báo' }).className).toMatch(/active/);
 });

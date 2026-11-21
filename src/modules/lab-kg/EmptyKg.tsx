@@ -3,9 +3,8 @@ import { Link } from 'react-router-dom';
 import { KG_INGEST_LIMIT, type KgIngestResult } from '@/core/schemas/labKg';
 import { useAuth } from '@/shared/auth/authContext';
 import { asLabKgError, enqueueLabKg, labKgIds, type LabKgError } from '@/shared/labKg/client';
-import { useRepositories } from '@/shared/storage/StorageProvider';
+import { useHubProjectId, useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
-import { Empty } from '@/shared/ui/StateNote';
 import { ErrorNote } from './ErrorNote';
 import styles from './labKg.module.css';
 
@@ -21,6 +20,7 @@ type Progress = { corpusId: string; total: number; sent: number; result?: KgInge
 /** The KG holds no paper yet: say how it fills, and send a local corpus to the ingest queue. */
 export function EmptyKg({ queue, onQueued }: { queue: number; onQueued: () => void }) {
   const { getIdToken } = useAuth();
+  const projectId = useHubProjectId();
   const repo = useRepositories();
   const [corpora, setCorpora] = useState<CorpusChoice[]>();
   const [progress, setProgress] = useState<Progress>();
@@ -52,7 +52,8 @@ export function EmptyKg({ queue, onQueued }: { queue: number; onQueued: () => vo
     setProgress({ corpusId: corpus.id, total: corpus.ids.length, sent: 0, done: false });
     try {
       const token = await getIdToken();
-      const result = await enqueueLabKg(corpus.ids, token, 'seed', (partial, sent) =>
+      if (!projectId) throw new Error('Mở một project ResearchHub để thêm vào KG.');
+      const result = await enqueueLabKg(corpus.ids, token, projectId, 'seed', (partial, sent) =>
         setProgress({ corpusId: corpus.id, total: corpus.ids.length, sent, result: partial, done: false }),
       );
       setProgress({
@@ -72,18 +73,26 @@ export function EmptyKg({ queue, onQueued }: { queue: number; onQueued: () => vo
   const busy = progress !== undefined && !progress.done;
   return (
     <section className={styles.emptyKg} aria-labelledby="lab-kg-empty">
-      <Empty
-        title="KG của lab chưa có bài nào"
-        hint={`Các bài được lấy từ OpenAlex trong nền, vài phút một lượt.${queue ? ` Đang có ${queue} bài chờ xử lý.` : ''}`}
-      />
+      <div className={styles.emptyIntro}>
+        <div>
+          <h2 id="lab-kg-empty" className={styles.heading}>
+            KG của lab chưa có bài nào
+          </h2>
+          <p className={styles.muted}>
+            Bắt đầu bằng một corpus. Paper và các tài liệu tham khảo sẽ được đưa vào hàng đợi xử lý nền.
+          </p>
+        </div>
+        {queue > 0 && <span className={styles.queueBadge}>{queue} bài đang chờ</span>}
+      </div>
       <ol className={styles.steps}>
-        <li>Chọn một corpus bên dưới, hoặc gõ DOI của một bài vào ô tìm rồi bấm “Đưa bài này vào KG”.</li>
-        <li>Máy chủ lab lấy từng bài cùng references và các bài dẫn nó từ OpenAlex.</li>
-        <li>Số liệu ở trên tự cập nhật; khi KG có bài, chọn một điểm bắt đầu để xem đồ thị.</li>
+        <li>Chọn corpus bên dưới hoặc nhập DOI vào ô tìm phía trên.</li>
+        <li>Worker bổ sung references và bài liên quan từ OpenAlex.</li>
+        <li>Số liệu cập nhật khi xử lý xong; bạn có thể khám phá đồ thị ngay sau đó.</li>
       </ol>
-      <h2 id="lab-kg-empty" className={styles.heading}>
-        Chọn corpus để đưa vào KG
-      </h2>
+      <div className={styles.corpusHeading}>
+        <h3>Chọn corpus để đưa vào KG</h3>
+        <span className={styles.muted}>Chỉ các bài có DOI hoặc OpenAlex ID được gửi.</span>
+      </div>
       {!corpora ? (
         <p className={styles.muted}>Đang tải corpus…</p>
       ) : !corpora.length ? (

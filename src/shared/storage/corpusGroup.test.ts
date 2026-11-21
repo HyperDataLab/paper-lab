@@ -160,7 +160,7 @@ describe('C3 corpus group on the lab store', () => {
     expect(await other.query('library')).toHaveLength(1);
     expect(await other.query('calibrationLabels')).toHaveLength(1);
     // The label's audit event went in the same commit as the label.
-    const commits = worker.requests.filter((request) => request.url.endsWith('/commit'));
+    const commits = worker.requests.filter((request) => new URL(request.url).pathname.endsWith('/commit'));
     const bodies = (await Promise.all(commits.map((request) => request.json()))) as {
       ops: { collection: string }[];
       audit: { collection: string }[];

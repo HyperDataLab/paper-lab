@@ -81,6 +81,7 @@ type CollectionDeps = {
   localAbstract: (paperIds: string[]) => Promise<{ text: string; paperId: string } | null>;
   scholar: ScholarClient;
   getLabToken?: () => Promise<string | null>;
+  hubProjectId: string | null;
   check: () => void;
   now: () => string;
   signal?: AbortSignal;
@@ -110,7 +111,7 @@ export async function collectCandidates(
   plan: StageContent['S3'],
   deps: CollectionDeps,
 ): Promise<StageContent['S4']> {
-  const { check, now, signal, scholar } = deps;
+  const { check, now, signal, scholar, hubProjectId } = deps;
   const queries = searchQueries(plan);
   const { from, to } = plan.yearFilter;
   const records: RecordEntry[] = [];
@@ -157,7 +158,7 @@ export async function collectCandidates(
       errors: [{ queryId: null, message: 'token_unavailable' }],
     });
   }
-  if (token) {
+  if (token && hubProjectId) {
     const labToken = token;
     await search('lab_kg', async (q) => {
       const { papers } = await searchLabKg(
@@ -169,6 +170,7 @@ export async function collectCandidates(
           topK: RESULTS_PER_QUERY,
         },
         labToken,
+        hubProjectId,
         signal,
       );
       return papers.map((paper) => kgEntry(paper, q.id));

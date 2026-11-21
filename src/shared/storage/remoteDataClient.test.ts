@@ -4,6 +4,7 @@ import { RemoteDataClient } from './remoteDataClient';
 const client = (etag: string) =>
   new RemoteDataClient({
     getToken: async () => 'synthetic-token',
+    projectId: '00000000-0000-4000-8000-000000000001',
     baseUrl: 'https://worker.test',
     fetch: async () =>
       new Response(JSON.stringify({ id: 'c1' }), {

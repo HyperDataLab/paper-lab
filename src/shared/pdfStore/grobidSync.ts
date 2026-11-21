@@ -1,7 +1,7 @@
 import { parseGrobidTei } from '@/core/grobid/parseTei';
 import { runPaperChecks } from '@/core/paperChecks';
 import { GROBID_VERSION, type GrobidRecord, type GrobidResult, type Paper } from '@/core/schemas';
-import type { Repositories } from '@/shared/storage/types';
+import type { Repositories } from '@/shared/storage/repositories';
 import { fetchGrobidTei } from './grobid';
 import { paperSha, PdfRemoteError } from './index';
 
@@ -14,7 +14,7 @@ export function grobidBlocker(paper: Pick<Paper, 'source'>, signedIn: boolean): 
 
 function reasonOf(cause: unknown): string {
   if (cause instanceof PdfRemoteError)
-    return cause.status === 404 ? 'kho của lab chưa có PDF của bài này' : cause.message.replace(/\.$/u, '');
+    return cause.status === 404 ? 'ResearchHub chưa có PDF của bài này' : cause.message.replace(/\.$/u, '');
   if (cause instanceof DOMException && cause.name === 'TimeoutError')
     return 'GROBID không trả lời trong 3 phút';
   if (cause instanceof TypeError) return 'không kết nối được máy chủ GROBID';
@@ -32,11 +32,13 @@ async function refreshChecks(repo: Repositories, paperId: string, grobid: Grobid
 }
 
 /**
- * Asks the lab's GROBID to read the PDF from R2 and stores the result or the reason it failed.
+ * Asks the lab's GROBID for the paper's structure and stores the result, or the reason it failed. The PDF is
+ * sent to ResearchHub first when only this browser has it, since the Worker reads it from there.
  */
 export async function requestGrobid(
   repo: Repositories,
   paper: Paper,
+  projectId: string,
   getIdToken: () => Promise<string | null>,
   signal?: AbortSignal,
   replace = false,
@@ -61,7 +63,7 @@ export async function requestGrobid(
   try {
     const token = await getIdToken();
     if (!token) throw new PdfRemoteError(401);
-    const result = parseGrobidTei(await fetchGrobidTei(sha, token, signal));
+    const result = parseGrobidTei(await fetchGrobidTei(sha, projectId, token, signal));
     if (good && !replace) {
       const old = good.result;
       const fewer = (next: number, before: number) => before >= 2 && next < before / 2;

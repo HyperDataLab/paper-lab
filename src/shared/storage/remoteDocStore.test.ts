@@ -53,7 +53,9 @@ it('retries a conflicting commit once and never applies writes from a failed bat
   expect(fn).toHaveBeenCalledTimes(2);
   expect(await store.get('autoresearchRuns', runId)).toBeNull();
   expect((await store.get(collection, projectId))?.doc).toMatchObject({ title: 'Project' });
-  expect(worker.requests.filter((request) => request.url.endsWith('/commit'))).toHaveLength(2);
+  expect(worker.requests.filter((request) => new URL(request.url).pathname.endsWith('/commit'))).toHaveLength(
+    2,
+  );
 });
 
 it('retries when a matching row is inserted between the query and commit', async () => {
@@ -126,6 +128,7 @@ it('picks the latest checkpoint when token refresh delays a PUT', async () => {
     baseUrl: 'https://worker.test',
     fetch: worker.dispatch,
     getToken: async () => (++calls === 2 ? token : 'lab-test'),
+    projectId: '00000000-0000-4000-8000-000000000001',
   });
   await store.checkpoint(collection, projectId, () => project);
   await store.checkpoint(collection, projectId, () => ({ ...project, title: 'Queued during refresh' }));
@@ -147,6 +150,7 @@ it('discards a pending checkpoint that is still waiting for authentication', asy
     baseUrl: 'https://worker.test',
     fetch: worker.dispatch,
     getToken: async () => (++calls === 2 ? token : 'lab-test'),
+    projectId: '00000000-0000-4000-8000-000000000001',
   });
   await store.checkpoint(collection, projectId, () => project);
   expect(calls).toBe(2);
@@ -189,6 +193,7 @@ it('reports an unconfigured worker as an error, every time, with no fallback', a
     baseUrl: 'https://worker.test',
     fetch: worker.dispatch,
     getToken: async () => 'lab-test',
+    projectId: '00000000-0000-4000-8000-000000000001',
     onConfigurationError: (message) => messages.push(message),
   });
   await expect(store.put(collection, projectId, project, null)).rejects.toBeInstanceOf(

@@ -6,7 +6,7 @@ import type { HubPaperStatus } from '@/core/schemas/fetchHub';
 import { importStoredPdf } from '@/modules/paper-import';
 import { useAuth } from '@/shared/auth/authContext';
 import { createFetchHubClient, FETCH_HUB_URL } from '@/shared/fetchHub/client';
-import { useRepositories } from '@/shared/storage/StorageProvider';
+import { useHubProjectId, useRepositories } from '@/shared/storage/StorageProvider';
 import { doiPdfName, retrievedMember } from './acquisition';
 
 const POLL_INTERVAL = 10 * 60_000;
@@ -29,7 +29,8 @@ export function useCorpusHub({
   onImported: (memberId: string, paper: Paper) => void;
 }) {
   const repo = useRepositories();
-  const { user, getIdToken } = useAuth();
+  const projectId = useHubProjectId() ?? '';
+  const { getIdToken } = useAuth();
   const [statuses, setStatuses] = useState<Record<string, MemberStatus>>({});
   const [counts, setCounts] = useState<{ created: number; joined: number; invalid: number }>();
   const [error, setError] = useState<Error>();
@@ -39,7 +40,7 @@ export function useCorpusHub({
   useEffect(() => () => active.current?.abort(), []);
 
   const configured = Boolean(FETCH_HUB_URL);
-  const getToken = () => getIdToken(user?.uid);
+  const getToken = () => getIdToken();
   const eligible = corpus.members.flatMap(({ memberId, title, identifiers: { doi }, retrieval }) =>
     doi && retrieval !== 'retrieved' ? [{ memberId, title, doi }] : [],
   );
@@ -126,6 +127,7 @@ export function useCorpusHub({
               doiPdfName(first.doi),
               repo,
               {
+                projectId,
                 getIdToken: getToken,
                 title: first.title,
                 reuseExisting: true,

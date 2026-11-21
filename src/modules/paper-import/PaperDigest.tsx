@@ -14,6 +14,7 @@ import { useReportJob, useStoredChanged } from './paperJobs';
 import styles from './digest.module.css';
 import { uniquePageSources } from './digestSources';
 import { PdfLocationButton } from './PdfLocationButton';
+import { MathText } from './MathText';
 
 const FLAGS = {
   no_source: 'Không rõ nguồn',
@@ -125,26 +126,34 @@ export function PaperDigest({
   return (
     <Card padding="md">
       <article className={styles.digest} aria-label="Paper summary">
-        <h2>{run.headline}</h2>
+        <h2>
+          <MathText text={run.headline} />
+        </h2>
         <p>
-          {run.overview.text} {sources(run.overview)}
+          <MathText text={run.overview.text} /> {sources(run.overview)}
         </p>
         {run.sections.map((section, index) => (
           <section key={`${index}-${section.heading}`} aria-label={section.heading}>
-            <h3>{section.heading}</h3>
+            <h3>
+              <MathText text={section.heading} />
+            </h3>
             {section.blocks.map((block, blockIndex) => (
               <div key={blockIndex} className={styles.block}>
                 {block.text && (
                   <p>
-                    {block.text.text} {sources(block.text)}
+                    <MathText text={block.text.text} /> {sources(block.text)}
                   </p>
                 )}
                 {block.items.length > 0 && (
                   <ul>
                     {block.items.map((item, itemIndex) => (
                       <li key={itemIndex}>
-                        {item.lead && <strong>{item.lead}: </strong>}
-                        {item.text} {sources(item)}
+                        {item.lead && (
+                          <strong>
+                            <MathText text={item.lead} />:{' '}
+                          </strong>
+                        )}
+                        <MathText text={item.text} /> {sources(item)}
                       </li>
                     ))}
                   </ul>

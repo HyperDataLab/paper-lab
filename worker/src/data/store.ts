@@ -32,6 +32,7 @@ export interface DocRow {
   deleted_at: string | null;
   lab_id: string;
   visibility: string;
+  hub_project_id: string | null;
   project_id: string | null;
   corpus_id: string | null;
   paper_id: string | null;
@@ -55,6 +56,12 @@ export const parseEtag = (value: string | null) => {
 export function bodyKey(collection: string, id: string, version: number, suffix?: string) {
   return `${DATA_PREFIX}${collection}/${encodeURIComponent(id)}/v${version}${suffix ? `-${suffix}` : ''}.json`;
 }
+/** Physical IDs isolate project records while leaving legacy unassigned rows untouched. */
+export const projectRecordId = (projectId: string, id: string) => `@rh/${projectId}/${id}`;
+export const logicalRecordId = (projectId: string, id: string) => {
+  const prefix = `@rh/${projectId}/`;
+  return id.startsWith(prefix) ? id.slice(prefix.length) : id;
+};
 /** Inverse of `bodyKey`; null for keys this store did not write. */
 export function parseBodyKey(key: string) {
   const match = /^paperlab\/data\/([A-Za-z]+)\/([^/]+)\/v(\d+)(?:-[0-9a-f-]+)?\.json$/u.exec(key);
@@ -179,6 +186,7 @@ export interface StoreEnv {
   bucket: Bucket;
   now: () => Date;
   email: string;
+  projectId: string;
 }
 
 /** The statement a version guard runs: it inserts a 0, which the CHECK rejects, when the doc changed. */
@@ -211,6 +219,7 @@ const DOC_COLUMNS = [
   'deleted_at',
   'lab_id',
   'visibility',
+  'hub_project_id',
   ...INDEX_FIELDS.map((field) => INDEX_COLUMN[field]),
   'summary_json',
 ] as const;
@@ -285,7 +294,16 @@ export async function commit(
     appendChecks.push({ append, check });
   }
 
-  const rows = await readRows(env.db, [...ops, ...guards, ...appends]);
+  const physicalRef = <T extends { collection: string; id: string }>(ref: T) => ({
+    ...ref,
+    id: projectRecordId(env.projectId, ref.id),
+  });
+  const physicalRows = await readRows(env.db, [...ops, ...guards, ...appends].map(physicalRef));
+  const rows = new Map<string, DocRow>();
+  for (const ref of [...ops, ...guards, ...appends]) {
+    const row = physicalRows.get(refKey(physicalRef(ref)));
+    if (row) rows.set(refKey(ref), row);
+  }
   const conflicts: Conflict[] = [];
   for (const ref of [...ops, ...guards]) {
     const serverVersion = liveVersion(rows.get(refKey(ref)));
@@ -315,7 +333,7 @@ export async function commit(
       const live = prior && !prior.deleted_at;
       const values: Record<(typeof DOC_COLUMNS)[number], SqlValue> = {
         collection: op.collection,
-        id: op.id,
+        id: projectRecordId(env.projectId, op.id),
         version,
         r2_key: r2Key,
         body_json: r2Key ? null : (op.text as string),
@@ -328,6 +346,7 @@ export async function commit(
         deleted_at: null,
         lab_id: LAB_ID,
         visibility: 'lab',
+        hub_project_id: env.projectId,
         ...indexValues(check.index),
         summary_json: check.summary,
       };
@@ -341,11 +360,15 @@ export async function commit(
   const { db } = env;
   const statements: D1Statement[] = [];
   for (const write of writes)
-    statements.push(guardStatement(db, write.op.collection, write.op.id, write.prior));
+    statements.push(
+      guardStatement(db, write.op.collection, projectRecordId(env.projectId, write.op.id), write.prior),
+    );
   for (const guard of guards)
-    statements.push(guardStatement(db, guard.collection, guard.id, rows.get(refKey(guard))));
+    statements.push(
+      guardStatement(db, guard.collection, projectRecordId(env.projectId, guard.id), rows.get(refKey(guard))),
+    );
   for (const guard of queryGuards) {
-    const { conditions, values, ordering } = queryPlan(guard);
+    const { conditions, values, ordering } = queryPlan(guard, false, env.projectId);
     // Compare inside the committing batch, including rows inserted after the client's query.
     statements.push(
       db
@@ -355,7 +378,11 @@ export async function commit(
           (SELECT id, version FROM doc WHERE ${conditions.join(' AND ')} ORDER BY ${ordering} LIMIT ?))
           <> json(?)`,
         )
-        .bind(...values, guard.limit ?? -1, JSON.stringify(guard.rows)),
+        .bind(
+          ...values,
+          guard.limit ?? -1,
+          JSON.stringify(guard.rows.map(([id, version]) => [projectRecordId(env.projectId, id), version])),
+        ),
     );
   }
   for (const write of writes) {
@@ -365,7 +392,15 @@ export async function commit(
           .prepare(
             'UPDATE doc SET version = ?, deleted_at = ?, updated_by = ?, updated_at = ?, r2_key = NULL, body_json = NULL WHERE collection = ? AND id = ? AND version = ?',
           )
-          .bind(write.version, at, env.email, at, write.op.collection, write.op.id, write.version - 1),
+          .bind(
+            write.version,
+            at,
+            env.email,
+            at,
+            write.op.collection,
+            projectRecordId(env.projectId, write.op.id),
+            write.version - 1,
+          ),
       );
     } else if (write.prior) {
       statements.push(
@@ -376,7 +411,7 @@ export async function commit(
           .bind(
             ...MUTABLE_COLUMNS.map((column) => write.values[column]),
             write.op.collection,
-            write.op.id,
+            projectRecordId(env.projectId, write.op.id),
             write.prior.version,
           ),
       );
@@ -391,7 +426,7 @@ export async function commit(
         db,
         {
           collection: append.collection,
-          id: append.id,
+          id: projectRecordId(env.projectId, append.id),
           version: 1,
           r2_key: null,
           body_json: append.text,
@@ -404,16 +439,32 @@ export async function commit(
           deleted_at: null,
           lab_id: LAB_ID,
           visibility: 'lab',
+          hub_project_id: env.projectId,
           ...indexValues(check.index),
           summary_json: check.summary,
         },
         ' ON CONFLICT (collection, id) DO NOTHING',
       ),
     );
-  const log = [
-    ...writes.map((write) => [write.op.collection, write.op.id, write.version, write.op.op, env.email, at]),
-    ...fresh.map(({ append }) => [append.collection, append.id, 1, 'put', env.email, at]),
+  const writeLog = (write: (typeof writes)[number]): [string, string, number, string, string, string] => [
+    write.op.collection,
+    projectRecordId(env.projectId, write.op.id),
+    write.version,
+    write.op.op,
+    env.email,
+    at,
   ];
+  const appendLog = ({
+    append,
+  }: (typeof fresh)[number]): [string, string, number, string, string, string] => [
+    append.collection,
+    projectRecordId(env.projectId, append.id),
+    1,
+    'put',
+    env.email,
+    at,
+  ];
+  const log = [...writes.map(writeLog), ...fresh.map(appendLog)];
   for (const part of chunk(log, Math.floor(MAX_PARAMS / 6)))
     statements.push(
       db
@@ -429,7 +480,12 @@ export async function commit(
     const message = error instanceof Error ? error.message : String(error);
     if (/version_conflict|UNIQUE constraint failed: doc\.collection, doc\.id/u.test(message)) {
       await removeBodies(env.bucket, owned);
-      const now = await readRows(db, [...ops, ...guards]);
+      const nowPhysical = await readRows(db, [...ops, ...guards].map(physicalRef));
+      const now = new Map<string, DocRow>();
+      for (const ref of [...ops, ...guards]) {
+        const row = nowPhysical.get(refKey(physicalRef(ref)));
+        if (row) now.set(refKey(ref), row);
+      }
       return {
         ok: false,
         status: 409,
@@ -510,12 +566,13 @@ async function putBody(
     onlyIf: { etagDoesNotMatch: '*' },
   };
   const body = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-  const key = bodyKey(op.collection, op.id, version);
+  const scopedId = projectRecordId(env.projectId, op.id);
+  const key = bodyKey(op.collection, scopedId, version);
   if (await env.bucket.put(key, body, options)) {
     owned.push(key);
     return key;
   }
-  const unique = bodyKey(op.collection, op.id, version, crypto.randomUUID());
+  const unique = bodyKey(op.collection, scopedId, version, crypto.randomUUID());
   if (!(await env.bucket.put(unique, body, options))) throw new Error('Could not store the record body.');
   owned.push(unique);
   return unique;
@@ -538,10 +595,10 @@ export async function readBody(bucket: Bucket, row: DocRow) {
 }
 
 /** The public shape of a doc row (camelCase, summary parsed). */
-export function docMeta(row: DocRow) {
+export function docMeta(row: DocRow, projectId: string) {
   return {
     collection: row.collection,
-    id: row.id,
+    id: logicalRecordId(projectId, row.id),
     version: row.version,
     size: row.size,
     sha256: row.sha256,

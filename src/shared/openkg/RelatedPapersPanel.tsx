@@ -8,6 +8,7 @@ import {
 } from '@/core/openkg';
 import type { KgIngestResult, KgSearchResponse, KgStats } from '@/core/schemas/labKg';
 import { useAuth } from '@/shared/auth/authContext';
+import { useHubProjectId } from '@/shared/storage/StorageProvider';
 import { enqueueLabKg, getLabKgStats, labKgIds, LabKgError, searchLabKg } from '@/shared/labKg/client';
 import { Button } from '@/shared/ui/Button';
 import { Checkbox } from '@/shared/ui/Checkbox';
@@ -64,6 +65,7 @@ export function RelatedPapersPanel({
   const heading = useId();
   const { user, getIdToken } = useAuth();
   const uid = user?.uid;
+  const projectId = useHubProjectId();
   const [anchors, setAnchors] = useState(initial);
   const [limitYears, setLimitYears] = useState(Boolean(initial.years));
   const [from, setFrom] = useState(String(initial.years?.from ?? ''));
@@ -94,11 +96,11 @@ export function RelatedPapersPanel({
   useEffect(() => () => controller.current?.abort(), []);
 
   useEffect(() => {
-    if (!uid) return;
+    if (!uid || !projectId) return;
     const current = new AbortController();
     void (async () => {
       try {
-        const next = await getLabKgStats(await getIdToken(), current.signal);
+        const next = await getLabKgStats(await getIdToken(), projectId, current.signal);
         if (!current.signal.aborted) {
           setStats(next);
           setStatsFailed(false);
@@ -108,7 +110,7 @@ export function RelatedPapersPanel({
       }
     })();
     return () => current.abort();
-  }, [uid, getIdToken, refresh]);
+  }, [uid, projectId, getIdToken, refresh]);
 
   const ready = anchors.keywords.length + anchors.titles.length > 0;
   const fromYear = yearOf(from);
@@ -133,7 +135,8 @@ export function RelatedPapersPanel({
     setBusy(true);
     setError(undefined);
     try {
-      const response = await searchLabKg(request(), await getIdToken(), current.signal);
+      if (!projectId) throw new LabKgError('Mở một project ResearchHub để tìm trong KG.');
+      const response = await searchLabKg(request(), await getIdToken(), projectId, current.signal);
       if (!current.signal.aborted) setResult(response);
     } catch (cause) {
       if (current.signal.aborted) return;
@@ -151,10 +154,11 @@ export function RelatedPapersPanel({
     setPointer(undefined);
     try {
       const token = await getIdToken();
+      if (!projectId) throw new LabKgError('Mở một project ResearchHub để thêm vào KG.');
       // Only the identifiers leave this call; titles, abstracts and scores from SciAtlas are dropped here.
-      const ids = labKgIds((await searchSciAtlas(request(), token)).papers);
+      const ids = labKgIds((await searchSciAtlas(request(), token, projectId)).papers);
       const queued = ids.length
-        ? await enqueueLabKg(ids, token, 'sciatlas_pointer')
+        ? await enqueueLabKg(ids, token, projectId, 'sciatlas_pointer')
         : { queued: 0, processed: 0, skipped: 0, errors: [] };
       setPointer({ ids: ids.length, queued });
     } catch (cause) {

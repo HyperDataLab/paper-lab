@@ -1,5 +1,7 @@
 import type { ComponentProps, ReactNode, RefObject } from 'react';
 import type { Finding, Paper } from '@/core/schemas';
+import { PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { Button } from '@/shared/ui/Button';
 import { Tabs } from '@/shared/ui/Tabs';
 import { PaneTab } from './PaneTab';
 import { PaperDigest } from './PaperDigest';
@@ -17,6 +19,10 @@ export function PaperColumn({
   columnRef,
   paper,
   progressChip,
+  issueCount,
+  analysisOpen,
+  onToggleAnalysis,
+  keepReaderVisible = false,
   runAll,
   error,
   pdf,
@@ -29,6 +35,10 @@ export function PaperColumn({
   paper: Paper;
   /** What is running, beside the column's tabs. */
   progressChip: ReactNode;
+  issueCount: number;
+  analysisOpen: boolean;
+  onToggleAnalysis: () => void;
+  keepReaderVisible?: boolean;
   runAll: Omit<ComponentProps<typeof RunAllCard>, 'compact'>;
   /** Why the paper could not be processed, if it could not. */
   error: ReactNode;
@@ -40,14 +50,36 @@ export function PaperColumn({
 }) {
   const { wide, pane } = nav;
   const fullText = <PaperReader {...reader} outlineOpen={!(wide && nav.showRight)} />;
+  const analysisLabel = `Vấn đề và trích dẫn${issueCount > 0 ? ` · ${issueCount}` : ''}`;
+  // Opens and closes the right column. The PDF toolbar carries it; a text paper has it beside its tabs.
+  const analysisToggle = (
+    <Button
+      size="sm"
+      variant="ghost"
+      className={styles.analysisToggle}
+      aria-expanded={analysisOpen}
+      aria-label={analysisLabel}
+      title={analysisLabel}
+      leadingIcon={
+        analysisOpen ? (
+          <PanelRightClose size={15} aria-hidden="true" />
+        ) : (
+          <PanelRightOpen size={15} aria-hidden="true" />
+        )
+      }
+      onClick={onToggleAnalysis}
+    >
+      <span className={styles.analysisToggleText}>{analysisLabel}</span>
+    </Button>
+  );
   return (
     <section
       ref={columnRef}
-      className={wide ? styles.column : undefined}
+      className={`${wide ? styles.column : ''} ${pane === 'fulltext' && paper.source.kind === 'pdf' ? styles.pdfColumn : ''} ${pane === 'summary' ? styles.summaryColumn : ''}`}
       aria-label="Paper"
-      hidden={nav.inSpace || !nav.centreVisible}
+      hidden={nav.inSpace || (!nav.centreVisible && !keepReaderVisible)}
     >
-      {wide && (
+      {wide && !(pane === 'fulltext' && paper.source.kind === 'pdf') && (
         <div className={styles.columnTabs}>
           <Tabs label="Paper">
             {PANES.map((item) => (
@@ -56,13 +88,36 @@ export function PaperColumn({
           </Tabs>
           {progressChip}
           <RunAllCard compact {...runAll} />
+          {analysisToggle}
         </div>
       )}
-      {!wide && <RunAllCard compact {...runAll} />}
+      {!wide && !(pane === 'fulltext' && paper.source.kind === 'pdf') && <RunAllCard compact {...runAll} />}
       {pane === 'fulltext' && error}
       {/* A PDF paper is read as its PDF; the parsed text is only shown when the PDF is not here. */}
       {pane === 'fulltext' && paper.source.kind === 'pdf' && (
-        <PaperPdf paper={paper} {...pdf} fallback={fullText} />
+        <PaperPdf
+          paper={paper}
+          {...pdf}
+          fallback={fullText}
+          toolbarStart={
+            <div className={styles.pdfPaneTabs} role="tablist" aria-label="Nội dung bài báo">
+              <Button role="tab" aria-selected={pane === 'fulltext'} onClick={() => nav.setTab('map')}>
+                PDF
+              </Button>
+              <Button role="tab" aria-selected={false} onClick={() => nav.setTab('profile')}>
+                Tóm tắt
+              </Button>
+            </div>
+          }
+          toolbarActions={
+            <>
+              {analysisToggle}
+              <div className={styles.pdfToolbarActions}>
+                <RunAllCard compact {...runAll} />
+              </div>
+            </>
+          }
+        />
       )}
       {pane === 'fulltext' && paper.source.kind !== 'pdf' && pdf.back}
       {pane === 'fulltext' && paper.source.kind !== 'pdf' && fullText}

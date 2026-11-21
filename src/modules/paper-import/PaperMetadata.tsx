@@ -1,4 +1,4 @@
-import { FileCode2, FileJson, Info, Pencil, Search } from 'lucide-react';
+import { Check, ClipboardCopy, FileCode2, FileJson, Info, Pencil, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { normalizeDoi } from '@/core/library/doi';
 import { paperBibtex, paperRis } from '@/core/extraction';
@@ -65,6 +65,7 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
   const [message, setMessage] = useState('');
   const [draft, setDraft] = useState<MetadataDraft | null>(null);
   const [formError, setFormError] = useState('');
+  const [copiedTitle, setCopiedTitle] = useState(false);
   const grobidRecord = useGrobidState().record;
   const grobid = useMemo(() => usableGrobid(grobidRecord), [grobidRecord]);
   const counts = useMemo(
@@ -208,6 +209,16 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
     ...rows.filter(([, value]) => value === null).map(([label]) => label),
     ...(metadata?.doi ? [] : ['DOI']),
   ];
+  const fullTitle = metadata?.title ?? paper.title;
+  async function copyTitle() {
+    try {
+      await navigator.clipboard.writeText(fullTitle);
+      setCopiedTitle(true);
+      window.setTimeout(() => setCopiedTitle(false), 1400);
+    } catch {
+      setMessage('Không thể sao chép tiêu đề.');
+    }
+  }
   return (
     <div className={styles.metadata}>
       <p className={styles.sourceLine} role={running ? 'status' : undefined}>
@@ -219,6 +230,21 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
             : 'Chưa có metadata. Chỉ DOI được gửi tới OpenAlex.'}
       </p>
       <GrobidStatus />
+
+      <div className={styles.fullTitle}>
+        <div>
+          <strong>Tiêu đề đầy đủ</strong>
+          <p>{fullTitle}</p>
+        </div>
+        <Button size="sm" variant="ghost" onClick={() => void copyTitle()}>
+          {copiedTitle ? (
+            <Check size={14} aria-hidden="true" />
+          ) : (
+            <ClipboardCopy size={14} aria-hidden="true" />
+          )}
+          {copiedTitle ? 'Đã sao chép' : 'Sao chép'}
+        </Button>
+      </div>
 
       <SheetSection title="Tra cứu theo DOI">
         <form

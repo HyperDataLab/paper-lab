@@ -3,6 +3,7 @@ import { PROMPT_VERSIONS } from '@/core/prompts';
 import { KgSqlOutputSchema, type KgSqlOutput, type KgSqlResult } from '@/core/schemas/kgSql';
 import { buildKgSqlPrompt, KG_TABLE_CONCEPTS } from '@/core/semantic/kgSchema';
 import { useAuth } from '@/shared/auth/authContext';
+import { useHubProjectId } from '@/shared/storage/StorageProvider';
 import { LabKgError, queryLabKg } from '@/shared/labKg/client';
 import { requireConsent } from '@/shared/llm/consent';
 import { describeLlmError } from '@/shared/llm/describeError';
@@ -18,6 +19,7 @@ const conceptNames = new Map(KG_TABLE_CONCEPTS.map(({ id, name }) => [id, name])
 
 export function AskKg() {
   const { user, getIdToken } = useAuth();
+  const projectId = useHubProjectId();
   const { client, config, ensureConsent } = useLlm();
   const [question, setQuestion] = useState('');
   const [busy, setBusy] = useState(false);
@@ -40,7 +42,7 @@ export function AskKg() {
       setGenerated(undefined);
       setResult(undefined);
       setError(undefined);
-      const token = await getIdToken(user.uid);
+      const token = await getIdToken();
       if (signal.aborted) return;
       if (!token) throw new LabKgError('Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.');
       const { data } = await client.completeJson({
@@ -54,7 +56,8 @@ export function AskKg() {
       });
       if (signal.aborted) return;
       setGenerated(data);
-      const answer = await queryLabKg(data.sql, token, signal);
+      if (!projectId) throw new LabKgError('Mở một project ResearchHub để truy vấn KG.');
+      const answer = await queryLabKg(data.sql, token, projectId, signal);
       if (!signal.aborted) setResult(answer);
     } catch (cause) {
       if (signal.aborted) return;
@@ -71,15 +74,18 @@ export function AskKg() {
 
   return (
     <section className={styles.ask} aria-labelledby="ask-kg-heading">
-      <h2 id="ask-kg-heading" className={styles.heading}>
-        Hỏi KG bằng câu hỏi
-      </h2>
+      <div className={styles.panelHeading}>
+        <h2 id="ask-kg-heading" className={styles.heading}>
+          Hỏi KG bằng câu hỏi
+        </h2>
+        <p className={styles.muted}>Đặt câu hỏi bằng tiếng Việt hoặc tiếng Anh để truy vấn dữ liệu.</p>
+      </div>
       <form className={styles.askForm} onSubmit={(event) => void ask(event)}>
         <TextField
           multiline
           rows={2}
           label="Câu hỏi về KG"
-          hint="Nhập câu hỏi bằng tiếng Việt hoặc tiếng Anh."
+          hint="Câu trả lời được tạo từ dữ liệu hiện có trong KG."
           maxLength={MAX_QUESTION_LENGTH}
           value={question}
           onChange={(event) => setQuestion(event.target.value)}

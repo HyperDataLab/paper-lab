@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, expect, it, vi } from 'vitest';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
 import { StorageProvider, useRepositories } from '@/shared/storage/StorageProvider';
+import { testRepositories } from '@/shared/storage/testRepositories';
 import { LabDataGate } from './LabDataGate';
 
 const auth = (signedIn: boolean, ready = true): AuthValue => ({
@@ -14,7 +15,6 @@ const auth = (signedIn: boolean, ready = true): AuthValue => ({
   getIdToken: vi.fn(async () => (signedIn ? 'token' : null)),
 });
 
-/** A data screen: it reads the repositories as soon as it mounts. */
 function DataScreen() {
   const repo = useRepositories();
   void repo.papers.listSummaries();
@@ -25,7 +25,7 @@ function mount(value: AuthValue) {
   return render(
     <MemoryRouter>
       <AuthContext.Provider value={value}>
-        <StorageProvider>
+        <StorageProvider repositories={testRepositories()} projectId="00000000-0000-4000-8000-000000000101">
           <LabDataGate>
             <DataScreen />
           </LabDataGate>
@@ -37,7 +37,7 @@ function mount(value: AuthValue) {
 
 afterEach(() => vi.unstubAllGlobals());
 
-it('C4 signed out, a data screen asks for the lab sign-in and never mounts, reads or writes', () => {
+it('signed out, a data screen asks for SSO and never mounts or fetches data', () => {
   const fetchMock = vi.fn();
   vi.stubGlobal('fetch', fetchMock);
   const indexedDb = vi.fn();
@@ -45,25 +45,22 @@ it('C4 signed out, a data screen asks for the lab sign-in and never mounts, read
   const value = auth(false);
   mount(value);
   expect(screen.getByRole('heading', { name: 'Cần đăng nhập lab' })).toBeInTheDocument();
-  expect(screen.getByText(/Đăng nhập bằng tài khoản lab/)).toBeInTheDocument();
-  screen.getByRole('button', { name: 'Đăng nhập lab' }).click();
+  expect(screen.getByText(/Đăng nhập bằng tài khoản lab/u)).toBeInTheDocument();
+  screen.getByRole('button', { name: 'Đăng nhập SSO' }).click();
   expect(value.signIn).toHaveBeenCalled();
   expect(screen.queryByRole('heading', { name: 'Dữ liệu lab' })).toBeNull();
   expect(fetchMock).not.toHaveBeenCalled();
   expect(indexedDb).not.toHaveBeenCalled();
 });
 
-it('C4 waits for the account check before deciding', () => {
+it('waits for the account check before deciding', () => {
   mount(auth(false, false));
   expect(screen.getByText('Đang kiểm tra tài khoản lab…')).toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: 'Cần đăng nhập lab' })).toBeNull();
 });
 
-it('C4 signed in, the data screen mounts over the lab store', () => {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async () => Response.json({ items: [], nextCursor: null })),
-  );
+it('signed in, the data screen mounts over the injected repository', () => {
+  vi.stubGlobal('fetch', vi.fn());
   mount(auth(true));
   expect(screen.getByRole('heading', { name: 'Dữ liệu lab' })).toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: 'Cần đăng nhập lab' })).toBeNull();

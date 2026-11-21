@@ -73,7 +73,8 @@ describe('R17a Publication info: metadata form and paper model', () => {
       doi: null,
     });
     expect(saved?.paperDoi).toBeNull();
-    expect(screen.getByText('Edited synthetic title')).toBeInTheDocument();
+    // Once in the "Tiêu đề đầy đủ" block above the sheet and once in its Title row.
+    expect(screen.getAllByText('Edited synthetic title')).toHaveLength(2);
 
     fireEvent.click(screen.getByRole('button', { name: 'Tải paper-model.json' }));
     await waitFor(() => expect(downloadJson).toHaveBeenCalledTimes(1));

@@ -31,9 +31,17 @@ export const queryGuardSchema = z.strictObject({
 });
 export type QueryGuard = z.output<typeof queryGuardSchema>;
 
-export function queryPlan(request: Omit<QueryGuard, 'rows' | 'limit'>, includeDeleted = false) {
+export function queryPlan(
+  request: Omit<QueryGuard, 'rows' | 'limit'>,
+  includeDeleted = false,
+  projectId?: string,
+) {
   const conditions = ['collection = ?'];
   const values: SqlValue[] = [request.collection];
+  if (projectId) {
+    conditions.push('hub_project_id = ?');
+    values.push(projectId);
+  }
   if (!includeDeleted) conditions.push('deleted_at IS NULL');
   for (const [field, expected] of Object.entries(request.where) as [
     keyof typeof INDEX_COLUMN,

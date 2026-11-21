@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
 import { NotInKg } from './NotInKg';
 
+vi.mock('@/shared/storage/StorageProvider', () => ({ useHubProjectId: () => 'rh-1' }));
+
 const auth: AuthValue = {
   user: { uid: 'u-1', email: 'tester@example.test', name: null },
   ready: true,
@@ -41,7 +43,9 @@ const detail = {
 function show(fetcher: (path: string) => Response, onPresent = vi.fn()) {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (input: string) => fetcher(new URL(input).pathname.replace(/^.*\/v1\/kg/u, ''))),
+    vi.fn(async (input: string) =>
+      fetcher(new URL(input, 'http://localhost').pathname.replace(/^.*\/v1\/kg/u, '')),
+    ),
   );
   render(
     <AuthContext.Provider value={auth}>

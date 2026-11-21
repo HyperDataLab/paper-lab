@@ -7,6 +7,52 @@ import { KG_DEFAULT_DEPTH } from '../../../src/core/schemas/labKg';
 
 type GraphRows = ReturnType<typeof mapOpenAlexWorkToKg>;
 
+const ENTITY_KEYS = new Set([
+  'id',
+  'paper_id',
+  'source_id',
+  'subfield_id',
+  'keyword_id',
+  'author_id',
+  'institution_id',
+  'topic_id',
+  'left_id',
+  'right_id',
+  'topic_id',
+  'field_id',
+  'domain_id',
+  'published_paper_id',
+  'contribution_id',
+  'prerequisite_id',
+  'target_id',
+  'paperId',
+  'contributionId',
+  'prerequisiteId',
+]);
+const scopeId = (projectId: string | undefined, id: string) => (projectId ? `@rh/${projectId}/${id}` : id);
+
+function scopedGraph<T extends GraphRows | ScgPaperPublish>(graph: T, projectId?: string): T {
+  if (!projectId) return graph;
+  const visit = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(visit);
+    if (!value || typeof value !== 'object') return value;
+    const row = value as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.entries(row).map(([key, item]) => {
+        const externalBuildTarget =
+          key === 'target_id' && (row.target_kind === 'paper' || row.target_kind === 'tool');
+        return [
+          key,
+          typeof item === 'string' && ENTITY_KEYS.has(key) && !externalBuildTarget
+            ? scopeId(projectId, item)
+            : visit(item),
+        ];
+      }),
+    );
+  };
+  return visit(graph) as T;
+}
+
 function upserts(db: D1Database, table: string, keys: string[], rows: Record<string, SqlValue>[]) {
   const first = rows[0];
   if (!first) return [];
@@ -33,9 +79,10 @@ function upserts(db: D1Database, table: string, keys: string[], rows: Record<str
   return statements;
 }
 
-export function kgRepo(db: D1Database) {
+export function kgRepo(db: D1Database, projectId?: string) {
   return {
     async upsertWork({ nodes, edges }: GraphRows) {
+      ({ nodes, edges } = scopedGraph({ nodes, edges }, projectId));
       const { paper, ...otherNodes } = nodes;
       const statements = Object.entries(otherNodes).flatMap(([table, rows]) =>
         upserts(db, table, ['id'], rows),
@@ -82,6 +129,7 @@ export function kgRepo(db: D1Database) {
     },
 
     async upsertScg(graph: ScgPaperPublish, doi: string | null, at: string) {
+      graph = scopedGraph(graph, projectId);
       const { paperId, contributions } = graph;
       const statements = [
         db.prepare('DELETE FROM builds_on WHERE published_paper_id = ?').bind(paperId),
@@ -158,7 +206,7 @@ export function kgRepo(db: D1Database) {
           links,
         ),
       );
-      if (doi) statements.push(enqueueStatement(db, [doi], KG_DEFAULT_DEPTH, 'seed', at));
+      if (doi) statements.push(enqueueStatement(db, [scopeId(projectId, doi)], KG_DEFAULT_DEPTH, 'seed', at));
       await db.batch(statements);
     },
   };

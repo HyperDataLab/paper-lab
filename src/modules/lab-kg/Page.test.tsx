@@ -17,7 +17,7 @@ vi.mock('@/shared/storage/StorageProvider', () => {
     },
     corpora: { list: async () => corpora.list },
   };
-  return { useRepositories: () => repo };
+  return { useRepositories: () => repo, useHubProjectId: () => 'rh-1' };
 });
 
 const signedIn: AuthValue = {
@@ -177,11 +177,17 @@ const calls = (path: string) =>
   fetcher.mock.calls
     .map(([url]) => new URL(url, 'https://worker.test'))
     .filter(({ pathname }) => pathname.endsWith(path));
+/** The first request to a KG path; worker URLs carry the ResearchHub project in the query. */
+const firstCall = (path: string) =>
+  fetcher.mock.calls.find(([url]) => {
+    const parsed = new URL(url, 'https://worker.test');
+    return parsed.pathname.endsWith(path) && parsed.searchParams.get('projectId') === 'rh-1';
+  }) ?? [];
 
 async function openCentre() {
   show();
   fireEvent.change(await screen.findByLabelText('Tìm tâm đồ thị'), { target: { value: 'synthetic graphs' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Tìm' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tìm trong KG' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Synthetic centre paper' }));
   return screen.findByRole('group', { name: 'Đồ thị KG của lab quanh tâm đã chọn' });
 }
@@ -198,7 +204,7 @@ describe('L4 lab KG explorer', () => {
     paperCount = 0;
     show();
     expect(await screen.findByText('KG của lab chưa có bài nào')).toBeTruthy();
-    expect(screen.getByText(/Đưa bài này vào KG/u)).toBeTruthy();
+    expect(screen.getByText(/nhập DOI vào ô tìm/u)).toBeTruthy();
     expect(await screen.findByRole('link', { name: 'Mở Corpus' })).toBeTruthy();
     expect(screen.getByLabelText('Tìm tâm đồ thị')).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Hỏi KG bằng câu hỏi' })).toBeInTheDocument();
@@ -224,7 +230,7 @@ describe('L4 lab KG explorer', () => {
     fireEvent.click(within(list).getByRole('button', { name: 'Đưa 61 bài vào KG' }));
     expect(await within(list).findByText(/Đã gửi 61\/61 \(50 bài một lượt\) · Đã xếp 61/u)).toBeTruthy();
     const bodies = fetcher.mock.calls
-      .filter(([url]) => String(url).endsWith('/ingest'))
+      .filter(([url]) => new URL(url, 'https://worker.test').pathname.endsWith('/ingest'))
       .map(([, init]) => JSON.parse(String(init?.body)) as { ids: string[] });
     expect(bodies.map(({ ids }) => ids.length)).toEqual([50, 11]);
     expect(bodies[1]?.ids.at(-1)).toBe('10.1000/extra');
@@ -268,12 +274,12 @@ describe('L4 lab KG explorer', () => {
     overrides['/papers/'] = () => (present ? json(paperDetail) : json({ error: 'not_found' }, 404));
     show();
     fireEvent.change(await screen.findByLabelText('Tìm tâm đồ thị'), { target: { value: doi } });
-    fireEvent.click(screen.getByRole('button', { name: 'Tìm' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tìm trong KG' }));
     expect(await screen.findByText('Bài này chưa có trong KG của lab')).toBeTruthy();
     expect(calls('/search')).toHaveLength(0);
     fireEvent.click(screen.getByRole('button', { name: 'Đưa bài này vào KG' }));
     expect(await screen.findByRole('group', { name: 'Đồ thị KG của lab quanh tâm đã chọn' })).toBeTruthy();
-    const [, init] = fetcher.mock.calls.find(([url]) => String(url).endsWith('/ingest')) ?? [];
+    const [, init] = firstCall('/ingest');
     expect(JSON.parse(String(init?.body))).toEqual({ ids: [doi] });
     expect(calls('/graph').at(-1)?.searchParams.get('center')).toBe(doi);
     expect(screen.queryByText('Bài này chưa có trong KG của lab')).toBeNull();
@@ -285,11 +291,11 @@ describe('L4 lab KG explorer', () => {
     fireEvent.change(await screen.findByLabelText('Tìm tâm đồ thị'), {
       target: { value: 'keywords/graph-neural-networks' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Tìm' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tìm trong KG' }));
     expect(await screen.findByText('Keyword này chưa có trong KG của lab')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Tìm “graph neural networks”' }));
     await waitFor(() => expect(calls('/search')).toHaveLength(1));
-    const [, init] = fetcher.mock.calls.find(([url]) => String(url).endsWith('/search')) ?? [];
+    const [, init] = firstCall('/search');
     expect(JSON.parse(String(init?.body))).toMatchObject({ query: 'graph neural networks' });
   });
 
@@ -354,7 +360,7 @@ describe('L4 lab KG explorer', () => {
     await openCentre();
     fireEvent.click(screen.getByRole('button', { name: 'Đưa 1 bài được dẫn vào KG' }));
     expect(await screen.findByText(/Đã xếp 1/u)).toBeTruthy();
-    const [, init] = fetcher.mock.calls.find(([url]) => String(url).endsWith('/ingest')) ?? [];
+    const [, init] = firstCall('/ingest');
     expect(JSON.parse(String(init?.body))).toEqual({ ids: ['W9'], source: 'expansion', depth: 0 });
   });
 

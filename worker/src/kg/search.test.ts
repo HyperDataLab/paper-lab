@@ -63,6 +63,8 @@ const WORKS: Work[] = [
 ];
 
 const slug = (name: string) => `keywords/${name.replace(/\s+/gu, '-')}`;
+const PROJECT_ID = '00000000-0000-4000-8000-000000000101';
+const scopedId = (id: string) => `@rh/${PROJECT_ID}/${id}`;
 
 function raw(work: Work) {
   return {
@@ -94,7 +96,7 @@ function raw(work: Work) {
 
 async function setup({ seed = true, matches = [] as { id: string; score: number }[] } = {}) {
   const { db, sqlite } = testDb();
-  if (seed) for (const work of WORKS) await kgRepo(db).upsertWork(mapOpenAlexWorkToKg(raw(work)));
+  if (seed) for (const work of WORKS) await kgRepo(db, PROJECT_ID).upsertWork(mapOpenAlexWorkToKg(raw(work)));
   const run = vi.fn(async () => ({ data: [Array.from({ length: 768 }, () => 0.1)] }));
   const query = vi.fn(async () => ({ matches }));
   const bindings: KgBindings = { KG: db, KG_VECTORS: { upsert: async () => ({}), query }, AI: { run } };
@@ -111,6 +113,7 @@ async function setup({ seed = true, matches = [] as { id: string; score: number 
       return { uid: 'test', email: 'test@example.invalid' };
     },
     allowedOrigins: ['https://example.invalid'],
+    getOwnedProject: async (id) => (id === PROJECT_ID ? { id, name: 'Test project' } : null),
     now: () => new Date('2026-06-01T00:00:00.000Z'),
     kg: bindings,
   };
@@ -125,6 +128,7 @@ async function setup({ seed = true, matches = [] as { id: string; score: number 
         body: init.body === undefined ? undefined : JSON.stringify(init.body),
         headers: {
           ...(init.token === '' ? {} : { Authorization: `Bearer ${init.token ?? 'lab'}` }),
+          'X-Project-Id': PROJECT_ID,
           ...init.headers,
         },
       }),
@@ -249,9 +253,9 @@ describe('L3 POST /v1/kg/search', () => {
   it('L3 semantic mode embeds the query with bge-base and ranks Vectorize matches', async () => {
     const { search, run, query } = await setup({
       matches: [
-        { id: 'W3', score: 0.9 },
-        { id: 'W2', score: 0.5 },
-        { id: 'W404', score: 0.95 },
+        { id: scopedId('W3'), score: 0.9 },
+        { id: scopedId('W2'), score: 0.5 },
+        { id: scopedId('W404'), score: 0.95 },
       ],
     });
     const result = await search({
@@ -297,9 +301,9 @@ describe('L3 KG reads', () => {
     sqlite
       .prepare(
         `INSERT INTO contribution (id, published_paper_id, paper_doi, name, description, review, body)
-        VALUES ('c1', 'pub1', NULL, 'Synthetic method', 'A method', 'accepted', '{}')`,
+        VALUES (?, ?, NULL, 'Synthetic method', 'A method', 'accepted', '{}')`,
       )
-      .run();
+      .run(scopedId('c1'), scopedId('pub1'));
     const response = await call('/v1/kg/papers/W1');
     expect(response.status).toBe(200);
     const etag = response.headers.get('ETag');
@@ -337,13 +341,13 @@ describe('L3 KG reads', () => {
 
   it('L3 links contributions by DOI', async () => {
     const { call, sqlite } = await setup();
-    sqlite.prepare(`UPDATE paper SET doi = '10.1000/synthetic' WHERE id = 'W4'`).run();
+    sqlite.prepare(`UPDATE paper SET doi = '10.1000/synthetic' WHERE id = ?`).run(scopedId('W4'));
     sqlite
       .prepare(
         `INSERT INTO contribution (id, published_paper_id, paper_doi, name, description, review, body)
-        VALUES ('c1', 'pub1', '10.1000/synthetic', 'Synthetic method', 'A method', 'candidate', '{}')`,
+        VALUES (?, ?, '10.1000/synthetic', 'Synthetic method', 'A method', 'candidate', '{}')`,
       )
-      .run();
+      .run(scopedId('c1'), scopedId('pub1'));
     const byDoi = await call(`/v1/kg/papers/${encodeURIComponent('https://doi.org/10.1000/Synthetic')}`);
     expect(byDoi.status).toBe(200);
     const detail = KgPaperDetailSchema.parse(await byDoi.json());

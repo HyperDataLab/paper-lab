@@ -20,6 +20,7 @@ describe('C2 acquisition', () => {
     const result = await acquireMember(
       { ...member, identifiers: { ...member.identifiers, doi: '10.1/a' } },
       {} as Repositories,
+      'test-project',
       token,
     );
     expect(mocks.lookup).toHaveBeenCalledWith('10.1/a', undefined);
@@ -33,6 +34,7 @@ describe('C2 acquisition', () => {
     const result = await acquireMember(
       { ...member, identifiers: { ...member.identifiers, doi: '10.1/a' } },
       {} as Repositories,
+      'test-project',
       token,
     );
     expect(result.retrieval).toBe('not_retrieved');
@@ -46,6 +48,7 @@ describe('C2 acquisition', () => {
     const result = await acquireMember(
       { ...member, identifiers: { ...member.identifiers, doi: '10.1/a' } },
       {} as Repositories,
+      'test-project',
       token,
       undefined,
       () => {

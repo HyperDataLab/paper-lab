@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { paperIdentity } from '@/core/paperIdentity';
 import { type Paper, type Section, type Finding, type PaperMetadata as Metadata } from '@/core/schemas';
@@ -52,7 +54,52 @@ function BatchWorkspace({
   return <>{children(batch)}</>;
 }
 
+const paperQueryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 45_000,
+      gcTime: 2 * 60_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      retry: false,
+    },
+  },
+});
+
+async function analyzePaperMetrics(
+  paper: Paper,
+  isActive: () => boolean,
+  onComplete: (result: {
+    counts: { sentences: number; words: number };
+    candidateCounts: Record<string, number>;
+  }) => void,
+) {
+  const candidateCounts: Record<string, number> = {};
+  let sentences = 0;
+  let words = 0;
+  for (const paragraph of paper.paragraphs) {
+    if (paragraph.kind !== 'body') continue;
+    // The fallback yields between paragraphs so browsers without module workers remain responsive.
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+    if (!isActive()) return;
+    const analysis = await analyzeText(paragraph.text);
+    sentences += analysis.sentences.length;
+    words += analysis.tokens.filter((token) => token.kind === 'word').length;
+    candidateCounts[paragraph.id] = detectCandidates(analysis, null).length;
+  }
+  if (isActive()) onComplete({ counts: { sentences, words }, candidateCounts });
+}
+
 export default function PaperMapPage() {
+  return (
+    <QueryClientProvider client={paperQueryClient}>
+      <PaperMapPageContent />
+      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />}
+    </QueryClientProvider>
+  );
+}
+
+function PaperMapPageContent() {
   const { id } = useParams();
   const [query] = useSearchParams();
   const repo = useRepositories();
@@ -84,7 +131,6 @@ export default function PaperMapPage() {
     id,
     paper,
     doneJobs: JOB_IDS.filter((job) => jobFacts[job]?.done).join(','),
-    place: `${pane}:${mode}`,
     onError: setError,
   });
   // Asked in the background once the paper is open; the parsed text is used alone until (or unless) it arrives.
@@ -113,6 +159,7 @@ export default function PaperMapPage() {
   }, [pane, selected, highlight]);
   useEffect(() => {
     let active = true;
+    let metricsWorker: Worker | null = null;
     if (!id) return;
     void repo.papers
       .get(id)
@@ -154,29 +201,58 @@ export default function PaperMapPage() {
           focusFulltext();
         }
         setLoading(false);
-        if (value)
-          void Promise.all(
-            value.paragraphs
-              .filter((p) => p.kind === 'body')
-              .map(async (p) => ({ id: p.id, text: await analyzeText(p.text) })),
-          )
-            .then((analyses) => {
-              if (active) {
-                setCounts({
-                  sentences: analyses.reduce((n, a) => n + a.text.sentences.length, 0),
-                  words: analyses.reduce(
-                    (n, a) => n + a.text.tokens.filter((t) => t.kind === 'word').length,
-                    0,
-                  ),
+        if (value) {
+          const completeMetrics = (result: {
+            counts: { sentences: number; words: number };
+            candidateCounts: Record<string, number>;
+          }) => {
+            if (!active) return;
+            setCounts(result.counts);
+            setCandidateCounts(result.candidateCounts);
+          };
+          if (typeof Worker === 'function') {
+            try {
+              metricsWorker = new Worker(new URL('./paperMetrics.worker.ts', import.meta.url), {
+                type: 'module',
+              });
+              metricsWorker.onmessage = (
+                event: MessageEvent<{
+                  paperId: string;
+                  counts: { sentences: number; words: number };
+                  candidateCounts: Record<string, number>;
+                }>,
+              ) => {
+                if (!active || event.data.paperId !== value.id) return;
+                completeMetrics(event.data);
+                metricsWorker?.terminate();
+                metricsWorker = null;
+              };
+              metricsWorker.onerror = () => {
+                metricsWorker?.terminate();
+                metricsWorker = null;
+                void analyzePaperMetrics(value, () => active, completeMetrics).catch((cause: unknown) => {
+                  if (active) setError(String(cause));
                 });
-                setCandidateCounts(
-                  Object.fromEntries(analyses.map((a) => [a.id, detectCandidates(a.text, null).length])),
-                );
-              }
-            })
-            .catch((cause: unknown) => {
+              };
+              metricsWorker.postMessage({
+                paperId: value.id,
+                paragraphs: value.paragraphs
+                  .filter((paragraph) => paragraph.kind === 'body')
+                  .map(({ id: paragraphId, text }) => ({ id: paragraphId, text })),
+              });
+            } catch {
+              metricsWorker?.terminate();
+              metricsWorker = null;
+              void analyzePaperMetrics(value, () => active, completeMetrics).catch((cause: unknown) => {
+                if (active) setError(String(cause));
+              });
+            }
+          } else {
+            void analyzePaperMetrics(value, () => active, completeMetrics).catch((cause: unknown) => {
               if (active) setError(String(cause));
             });
+          }
+        }
       })
       .catch((cause: unknown) => {
         if (active) {
@@ -186,6 +262,7 @@ export default function PaperMapPage() {
       });
     return () => {
       active = false;
+      metricsWorker?.terminate();
     };
   }, [id, repo, linkP, linkS, linkE, focusFulltext]);
   async function editRole(role: Section['role']) {
@@ -231,10 +308,15 @@ export default function PaperMapPage() {
   };
   const openLocation = (location: Finding['locations'][number]) => {
     const paragraph = paper.paragraphs.find((item) => item.id === location.paragraphId);
-    if (!paragraph || !nav.centreVisible) return setEvidence(location);
+    if (!paragraph) return setEvidence(location);
+    if (nav.inSpace) return setEvidence(location);
     setFilter(null);
     setSelected(paragraph.sectionId);
     setHighlight(location);
+    if (!nav.centreVisible && !wide) {
+      nav.setPanelPreference(false);
+      nav.focusFulltext();
+    }
     nav.showFulltext();
     showPassage(paragraph, location);
   };
@@ -315,6 +397,18 @@ export default function PaperMapPage() {
   };
   const jobLabels = Object.fromEntries(JOB_IDS.map((job) => [job, JOBS[job].label])) as Record<JobId, string>;
   const runningJobs = JOB_IDS.filter((job) => jobFacts[job]?.running);
+  const analysisOpen = wide ? nav.showRight : nav.focus === 'right' && !nav.inSpace;
+  const pdfReader = pane === 'fulltext' && paper.source.kind === 'pdf';
+  const toggleAnalysis = () => {
+    if (wide) nav.toggleSplit();
+    else if (analysisOpen) {
+      nav.setPanelPreference(false);
+      nav.focusFulltext();
+    } else {
+      nav.setPanelPreference(true);
+      nav.openMode(mode === 'citations' ? 'citations' : 'issues');
+    }
+  };
   const progressChip = (
     <JobProgress
       running={runningJobs.map((job) => JOBS[job].label)}
@@ -359,8 +453,8 @@ export default function PaperMapPage() {
             void repo.paperContext.get(paper.id).then((context) => setMetadata(context?.metadata ?? null));
           }}
           side="right"
-          label="Thông tin xuất bản"
-          title="Thông tin xuất bản"
+          label="Thông tin bài báo"
+          title="Thông tin bài báo"
         >
           {infoOpen && <PaperMetadata paper={paper} />}
         </Drawer>
@@ -413,19 +507,17 @@ export default function PaperMapPage() {
                   onOpenReader={openInReader}
                 />
                 <div
-                  className={
-                    wide
-                      ? nav.showRight && !nav.inSpace && nav.centreVisible
-                        ? styles.workspace
-                        : styles.workspaceSingle
-                      : undefined
-                  }
+                  className={`${wide && nav.showRight && !nav.inSpace && nav.centreVisible ? styles.workspace : styles.workspaceSingle} ${pdfReader ? styles.pdfWorkspace : ''} ${pane === 'summary' ? styles.summaryWorkspace : ''}`}
                 >
                   <PaperColumn
                     nav={nav}
                     columnRef={centreColumn}
                     paper={paper}
                     progressChip={progressChip}
+                    issueCount={findings.length}
+                    analysisOpen={analysisOpen}
+                    onToggleAnalysis={toggleAnalysis}
+                    keepReaderVisible={!wide && analysisOpen}
                     runAll={{
                       jobs,
                       facts: jobFacts,
@@ -473,25 +565,60 @@ export default function PaperMapPage() {
                       if (!jobFacts.snapshot?.done) void jobs.current.snapshot?.start?.();
                     }}
                   />
-                  <AnalysisColumn
-                    nav={nav}
-                    columnRef={rightColumn}
-                    paper={paper}
-                    kit={kit}
-                    issues={issues}
-                    focusFinding={focusFinding}
-                    batch={batch}
-                    checks={checks}
-                    stored={stored}
-                    onLocation={openLocation}
-                    onFilter={(ids) => {
-                      setFilter(ids);
-                      const first = paper.paragraphs.find((paragraph) => ids.includes(paragraph.id));
-                      if (first) setSelected(first.sectionId);
-                      showPage(first?.pageStart);
-                      setTab('map');
-                    }}
-                  />
+                  {wide || nav.inSpace ? (
+                    <AnalysisColumn
+                      nav={nav}
+                      columnRef={rightColumn}
+                      paper={paper}
+                      kit={kit}
+                      issues={issues}
+                      focusFinding={focusFinding}
+                      batch={batch}
+                      checks={checks}
+                      stored={stored}
+                      onLocation={openLocation}
+                      onFilter={(ids) => {
+                        setFilter(ids);
+                        const first = paper.paragraphs.find((paragraph) => ids.includes(paragraph.id));
+                        if (first) setSelected(first.sectionId);
+                        showPage(first?.pageStart);
+                        setTab('map');
+                      }}
+                    />
+                  ) : (
+                    <Drawer
+                      open={analysisOpen}
+                      onClose={() => {
+                        nav.setPanelPreference(false);
+                        nav.focusFulltext();
+                      }}
+                      side="right"
+                      size="lg"
+                      label="Vấn đề và trích dẫn"
+                      title="Vấn đề và trích dẫn"
+                    >
+                      <AnalysisColumn
+                        nav={nav}
+                        columnRef={rightColumn}
+                        paper={paper}
+                        kit={kit}
+                        issues={issues}
+                        focusFinding={focusFinding}
+                        batch={batch}
+                        checks={checks}
+                        stored={stored}
+                        onLocation={openLocation}
+                        onFilter={(ids) => {
+                          setFilter(ids);
+                          const first = paper.paragraphs.find((paragraph) => ids.includes(paragraph.id));
+                          if (first) setSelected(first.sectionId);
+                          showPage(first?.pageStart);
+                          setTab('map');
+                        }}
+                        inDrawer
+                      />
+                    </Drawer>
+                  )}
                 </div>
               </JobsContext.Provider>
             )}

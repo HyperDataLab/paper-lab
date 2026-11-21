@@ -7,6 +7,8 @@ import { acceptConsent, revokeConsent } from '@/shared/llm/consent';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { AskKg } from './AskKg';
 
+vi.mock('@/shared/storage/StorageProvider', () => ({ useHubProjectId: () => 'rh-test-project' }));
+
 const sql = 'SELECT title FROM paper ORDER BY cited_by_count DESC';
 const signedIn: AuthValue = {
   user: { uid: 'u-1', email: 'tester@example.test', name: null },
@@ -66,9 +68,12 @@ it('semantic step 4 sends the approved question to the model, then SQL to the wo
     expect.objectContaining({ user: question, promptVersion: 'kg-sql-1' }),
   );
   expect(worker).toHaveBeenCalledWith(
-    expect.stringMatching(/\/v1\/kg\/sql$/u),
+    expect.stringMatching(/\/v1\/kg\/sql\?projectId=rh-test-project$/u),
     expect.objectContaining({
-      headers: expect.objectContaining({ Authorization: 'Bearer test-token' }),
+      headers: expect.objectContaining({
+        Authorization: 'Bearer test-token',
+        'X-Project-Id': 'rh-test-project',
+      }),
       body: JSON.stringify({ sql }),
     }),
   );

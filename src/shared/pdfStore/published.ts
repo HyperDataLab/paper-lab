@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { publishedPaperId } from '@/core/paperModel/published';
 import type { ExperimentFacts, PaperModel } from '@/core/schemas';
-import { PDF_WORKER_URL } from './index';
+import { PDF_WORKER_URL, projectScopedUrl } from './index';
 
 const PublishResultSchema = z.object({
   paperId: z.string(),
@@ -29,13 +29,25 @@ export class PublishPaperError extends Error {
   }
 }
 
-export async function publishPaperModel(model: PaperModel, localPaperId: string, token: string) {
+export async function publishPaperModel(
+  model: PaperModel,
+  localPaperId: string,
+  token: string,
+  projectId: string,
+) {
   const id = publishedPaperId(model, localPaperId);
-  const response = await fetch(`${PDF_WORKER_URL}/v1/papers/${encodeURIComponent(id)}/model`, {
-    method: 'PUT',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(model),
-  });
+  const response = await fetch(
+    projectScopedUrl(`${PDF_WORKER_URL}/v1/papers/${encodeURIComponent(id)}/model`, projectId),
+    {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-Project-Id': projectId,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(model),
+    },
+  );
   if (!response.ok) throw new PublishPaperError(response.status);
   return PublishResultSchema.parse(await response.json());
 }
@@ -76,13 +88,21 @@ export async function publishFrozenPlan(
   title: string,
   plan: { planVersion: number },
   token: string,
+  hubProjectId: string,
 ) {
   const version = plan.planVersion;
   const response = await fetch(
-    `${PDF_WORKER_URL}/v1/projects/${encodeURIComponent(projectId)}/plans/${version}?title=${encodeURIComponent(title)}`,
+    projectScopedUrl(
+      `${PDF_WORKER_URL}/v1/projects/${encodeURIComponent(projectId)}/plans/${version}?title=${encodeURIComponent(title)}`,
+      hubProjectId,
+    ),
     {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-Project-Id': hubProjectId,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(plan),
     },
   );
@@ -94,12 +114,19 @@ export async function publishFrozenPlan(
   };
 }
 
-export async function publishExperimentFacts(facts: ExperimentFacts, token: string) {
+export async function publishExperimentFacts(facts: ExperimentFacts, token: string, projectId: string) {
   const response = await fetch(
-    `${PDF_WORKER_URL}/v1/papers/${encodeURIComponent(facts.paperId)}/experiment-facts`,
+    projectScopedUrl(
+      `${PDF_WORKER_URL}/v1/papers/${encodeURIComponent(facts.paperId)}/experiment-facts`,
+      projectId,
+    ),
     {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-Project-Id': projectId,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(facts),
     },
   );

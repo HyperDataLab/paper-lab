@@ -5,7 +5,8 @@ import { newProject } from '@/core/extraction';
 import { paperIdentity } from '@/core/paperIdentity';
 import type { Paper } from '@/core/schemas';
 import { useAuth } from '@/shared/auth/authContext';
-import { useRepositories } from '@/shared/storage/StorageProvider';
+import { useHubProjectId, useRepositories } from '@/shared/storage/StorageProvider';
+import { listResearchHubProjectFiles } from '@/shared/pdfStore/researchHubFiles';
 import type { ExtractionProjectSummary } from '@/shared/storage/extractionProjects';
 import { Button } from '@/shared/ui/Button';
 import { Loading } from '@/shared/ui/StateNote';
@@ -55,13 +56,15 @@ function greeting(now = new Date()) {
 export default function Page() {
   const repo = useRepositories();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, getIdToken } = useAuth();
+  const projectId = useHubProjectId() ?? '';
   const [question, setQuestion] = useState('');
   const [papers, setPapers] = useState<Paper[] | null>(null);
   const [projects, setProjects] = useState<ExtractionProjectSummary[] | null>(null);
   const [counts, setCounts] = useState<{ papers: number; projects: number; corpora: number } | null>(null);
   const [error, setError] = useState('');
   const [starting, setStarting] = useState(false);
+  const [projectPdfCount, setProjectPdfCount] = useState<number | null>(null);
   useEffect(() => {
     void Promise.all([
       repo.papers.list(),
@@ -86,6 +89,31 @@ export default function Page() {
       })
       .catch((cause: unknown) => setError(String(cause)));
   }, [repo]);
+  useEffect(() => {
+    let active = true;
+    void getIdToken()
+      .then((token) => {
+        if (!token) throw new Error('No active ResearchHub session');
+        return listResearchHubProjectFiles(projectId, token);
+      })
+      .then((files) => {
+        if (active) {
+          setProjectPdfCount(
+            files.filter(
+              (file) =>
+                file.contentType.toLowerCase() === 'application/pdf' ||
+                file.name.toLowerCase().endsWith('.pdf'),
+            ).length,
+          );
+        }
+      })
+      .catch(() => {
+        if (active) setProjectPdfCount(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [getIdToken, projectId]);
   async function start() {
     const text = question.trim();
     if (!text || starting) return;
@@ -186,6 +214,16 @@ export default function Page() {
           </div>
           {!papers ? (
             <Loading label="Đang tải…" />
+          ) : papers.length === 0 && projectPdfCount ? (
+            <Link to="/papers" className={styles.importCta}>
+              <span className={styles.taskIcon} aria-hidden="true">
+                <Upload size={20} />
+              </span>
+              <span>
+                <strong>{projectPdfCount} PDF trong project ResearchHub.</strong> Mở danh sách để phân tích
+                <small>File gốc đã nằm trong kho project; chọn từng PDF trong mục Bài báo để bắt đầu.</small>
+              </span>
+            </Link>
           ) : papers.length === 0 ? (
             <Link to="/papers" className={styles.importCta}>
               <span className={styles.taskIcon} aria-hidden="true">

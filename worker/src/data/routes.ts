@@ -11,6 +11,8 @@ import {
   readBody,
   readRows,
   refKey,
+  projectRecordId,
+  logicalRecordId,
   type CommitResult,
   type DocRow,
   type StoreEnv,
@@ -97,12 +99,13 @@ export async function handleData(
   path: string,
   email: string,
   headers: Headers,
+  projectId: string,
 ) {
   if (path === IMPORT_LEGACY_CORPORA_PATH && !isAdmin(deps, email))
     return fail(403, 'forbidden', 'Forbidden.', headers);
   const db = deps.data;
   if (!db) return fail(503, 'data_not_configured', 'The lab data store is unavailable.', headers);
-  const env: StoreEnv = { db, bucket: deps.bucket, now: deps.now, email };
+  const env: StoreEnv = { db, bucket: deps.bucket, now: deps.now, email, projectId };
 
   if (path === IMPORT_LEGACY_CORPORA_PATH) {
     if (request.method !== 'POST') return fail(405, 'bad_request', 'Use POST.', headers);
@@ -140,8 +143,13 @@ export async function handleData(
   if (!isCollectionName(collection)) return fail(404, 'unknown_collection', 'Unknown collection.', headers);
 
   if (request.method === 'GET') {
-    const row = (await readRows(db, [{ collection, id }])).get(refKey({ collection, id }));
-    if (!row || row.deleted_at) return fail(404, 'not_found', 'No such record.', headers);
+    const scoped = { collection, id: projectRecordId(projectId, id) };
+    const row = (await readRows(db, [scoped])).get(refKey(scoped));
+    if (!row || row.deleted_at) {
+      // A paper can have no analysis record until its first run; 204 keeps this normal state out of browser error logs.
+      if (collection === 'paperInsights') return new Response(null, { status: 204, headers });
+      return fail(404, 'not_found', 'No such record.', headers);
+    }
     const etag = etagOf(row.version);
     // A weak validator matches for a GET, as on the other /v1 routes.
     if (parseEtag(request.headers.get('if-none-match')?.replace(/^W\//u, '') ?? null) === row.version)
@@ -243,7 +251,7 @@ async function withBodies(env: StoreEnv, rows: DocRow[]) {
   const items = await Promise.all(
     included.map(async (row) => {
       const text = await readBody(env.bucket, row);
-      return { ...docMeta(row), body: text === null ? null : (JSON.parse(text) as unknown) };
+      return { ...docMeta(row, env.projectId), body: text === null ? null : (JSON.parse(text) as unknown) };
     }),
   );
   return { items, deferred: rows.slice(included.length) };
@@ -275,7 +283,7 @@ async function query(env: StoreEnv, value: unknown, headers: Headers) {
     return fail(400, 'bad_request', `Invalid query: ${parsed.error.issues[0]?.message ?? ''}`, headers);
   const request = parsed.data;
   const limit = request.include === 'body' ? Math.min(request.limit, MAX_BODY_ROWS) : request.limit;
-  const { conditions, values, order, ordering } = queryPlan(request, request.includeDeleted);
+  const { conditions, values, order, ordering } = queryPlan(request, request.includeDeleted, env.projectId);
   if (request.cursor) {
     const cursor = decodeCursor(request.cursor);
     if (!cursor) return fail(400, 'bad_request', 'Invalid cursor.', headers);
@@ -300,7 +308,7 @@ async function query(env: StoreEnv, value: unknown, headers: Headers) {
       page = page.slice(0, loaded.items.length);
       more = true;
     }
-  } else items = page.map(docMeta);
+  } else items = page.map((row) => docMeta(row, env.projectId));
   const last = page.at(-1);
   return ok(
     200,
@@ -316,23 +324,37 @@ async function batchGet(env: StoreEnv, value: unknown, headers: Headers) {
   const input = parsed.data;
   const refs = 'refs' in input ? input.refs : input.ids.map((id) => ({ collection: input.collection, id }));
   const unique = [...new Map(refs.map((ref) => [refKey(ref), ref])).values()];
-  const rows = await readRows(env.db, unique);
+  const physicalRefs = unique.map((ref) => ({ ...ref, id: projectRecordId(env.projectId, ref.id) }));
+  const rows = await readRows(env.db, physicalRefs);
   const found = unique
-    .map((ref) => rows.get(refKey(ref)))
+    .map((ref) => rows.get(refKey({ ...ref, id: projectRecordId(env.projectId, ref.id) })))
     .filter((row): row is DocRow => !!row && !row.deleted_at);
   const { items, deferred } = await withBodies(env, found);
-  const foundKeys = new Set(found.map(refKey));
+  const foundKeys = new Set(
+    found.map((row) => refKey({ ...row, id: logicalRecordId(env.projectId, row.id) })),
+  );
   const missing = unique.filter((ref) => !foundKeys.has(refKey(ref)));
   if ('refs' in input) {
     return ok(
       200,
-      { items, missing, deferred: deferred.map(({ collection, id }) => ({ collection, id })) },
+      {
+        items,
+        missing,
+        deferred: deferred.map(({ collection, id }) => ({
+          collection,
+          id: logicalRecordId(env.projectId, id),
+        })),
+      },
       headers,
     );
   }
   return ok(
     200,
-    { items, missing: missing.map(({ id }) => id), deferred: deferred.map(({ id }) => id) },
+    {
+      items,
+      missing: missing.map(({ id }) => id),
+      deferred: deferred.map(({ id }) => logicalRecordId(env.projectId, id)),
+    },
     headers,
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { checkpoint, doiExport, isStale, startQueue } from '@/core/corpus/queue';
 import type { Corpus } from '@/core/schemas/corpus';
-import { useRepositories } from '@/shared/storage/StorageProvider';
+import { useHubProjectId, useRepositories } from '@/shared/storage/StorageProvider';
 import { useAuth } from '@/shared/auth/authContext';
 import { useGrobidQueue } from '@/shared/pdfStore/useGrobidQueue';
 import { GrobidQueueStatus, GrobidQueueSummary } from '@/shared/pdfStore/GrobidQueueStatus';
@@ -15,7 +15,8 @@ import { useCorpusHub, type SaveAcquisition } from './useCorpusHub';
 
 export function CorpusBuild({ corpus, save }: { corpus: Corpus; save: SaveAcquisition }) {
   const repo = useRepositories();
-  const { user, getIdToken } = useAuth();
+  const projectId = useHubProjectId() ?? '';
+  const { getIdToken } = useAuth();
   const grobid = useGrobidQueue();
   const [busy, setBusy] = useState(false);
   const hub = useCorpusHub({ corpus, save, disabled: busy, onImported: grobid.enqueue });
@@ -58,12 +59,8 @@ export function CorpusBuild({ corpus, save }: { corpus: Corpus; save: SaveAcquis
       let current = corpus;
       for (const member of current.members.filter((m) => m.retrieval === 'sought')) {
         if (controller.signal.aborted) break;
-        const updated = await acquireMember(
-          member,
-          repo,
-          () => getIdToken(user?.uid),
-          controller.signal,
-          (paper) => grobid.enqueue(member.memberId, paper),
+        const updated = await acquireMember(member, repo, projectId, getIdToken, controller.signal, (paper) =>
+          grobid.enqueue(member.memberId, paper),
         );
         current = {
           ...current,

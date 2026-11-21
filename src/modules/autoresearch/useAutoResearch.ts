@@ -20,13 +20,14 @@ import { budgetFor } from '@/shared/llm/runDefaults';
 import { createScholarClient } from '@/shared/scholar/client';
 import { getScholarEmail } from '@/shared/scholar/settings';
 import { AutoResearchConflictError } from '@/shared/storage/errors';
-import { useRepositories } from '@/shared/storage/StorageProvider';
+import { useHubProjectId, useRepositories } from '@/shared/storage/StorageProvider';
 
 const now = () => new Date().toISOString();
 type Task = { controller: AbortController; stop: boolean };
 
 export function useAutoResearch(project: ExtractionProject, bank: BankDoc | null, initialRunId?: string) {
   const repo = useRepositories();
+  const hubProjectId = useHubProjectId();
   const { user, getIdToken } = useAuth();
   const llm = useLlm();
   const [runs, setRuns] = useState<Run[] | null>(null);
@@ -110,6 +111,7 @@ export function useAutoResearch(project: ExtractionProject, bank: BankDoc | null
           signal,
           requireConsent,
           getLabToken: user ? getIdToken : undefined,
+          hubProjectId,
           now,
           getRun: () => latest,
           scholar: createScholarClient({ email: getScholarEmail() }),

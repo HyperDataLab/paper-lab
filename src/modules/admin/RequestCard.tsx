@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import type { Paper } from '@/core/schemas';
 import { useAuth } from '@/shared/auth/authContext';
+import { useHubProjectId } from '@/shared/storage/StorageProvider';
 import { decideFactRequest, FactRequestError, type FactRequest } from '@/shared/pdfStore/factRequests';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
@@ -26,6 +27,7 @@ export function RequestCard({
   onConflict: () => void;
 }) {
   const { getIdToken } = useAuth();
+  const projectId = useHubProjectId();
   const [declining, setDeclining] = useState(false);
   const [reason, setReason] = useState('');
   const [sending, setSending] = useState(false);
@@ -37,9 +39,11 @@ export function RequestCard({
     try {
       const token = await getIdToken();
       if (!token) throw new FactRequestError(401);
+      if (!projectId) throw new FactRequestError(400);
       onDecided(
         await decideFactRequest(
           token,
+          projectId,
           request.paperId,
           decision,
           decision === 'decline' ? reason : undefined,

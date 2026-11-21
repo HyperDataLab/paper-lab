@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import type { ExperimentPlan } from '@/core/researchDesign/plan/schema';
 import type { ResearchDesign } from '@/core/schemas/researchDesign';
 import { useAuth } from '@/shared/auth/authContext';
+import { useHubProjectId } from '@/shared/storage/StorageProvider';
 import { publishFrozenPlan, PublishPlanError } from '@/shared/pdfStore/published';
 
 export type PublishOutcome = { ok: boolean; text: string; detail: string };
@@ -17,15 +18,16 @@ export function usePlanPublisher(
   update: (change: (design: ResearchDesign) => ResearchDesign) => Promise<ResearchDesign>,
 ) {
   const { user, ready, getIdToken } = useAuth();
+  const hubProjectId = useHubProjectId();
   const signedIn = ready && Boolean(user);
   const publish = useCallback(
     async (plan: ExperimentPlan): Promise<PublishOutcome> => {
-      if (!signedIn) return { ok: false, text: NOT_SIGNED_IN, detail: '' };
+      if (!signedIn || !hubProjectId) return { ok: false, text: NOT_SIGNED_IN, detail: '' };
       const version = plan.planVersion;
       try {
         const token = await getIdToken();
         if (!token) throw new PublishPlanError(401, version);
-        const result = await publishFrozenPlan(projectId, plan.title, plan, token);
+        const result = await publishFrozenPlan(projectId, plan.title, plan, token, hubProjectId);
         // A failed mark is harmless: resending the same version is answered as unchanged and marks it then.
         await update((design) => ({
           ...design,
@@ -53,7 +55,7 @@ export function usePlanPublisher(
         };
       }
     },
-    [signedIn, getIdToken, projectId, update],
+    [signedIn, hubProjectId, getIdToken, projectId, update],
   );
   return { signedIn, publish };
 }

@@ -1,7 +1,8 @@
 import { ArrowLeft } from 'lucide-react';
-import type { RefObject } from 'react';
+import { useLayoutEffect, useMemo, useRef, type RefObject } from 'react';
 import type { Finding, Paper, PaperChecksRecord } from '@/core/schemas';
-import type { FindingInputs } from '@/core/paperFindings';
+import type { FindingInputs, FindingStatus, PaperFinding } from '@/core/paperFindings';
+import type { Criterion } from './criteria';
 import { Button } from '@/shared/ui/Button';
 import { Tabs } from '@/shared/ui/Tabs';
 import { ArgumentsSpace } from './ArgumentsSpace';
@@ -23,6 +24,8 @@ import type { PaperNavigation } from './usePaperNavigation';
 import { WritingSpace } from './WritingSpace';
 import styles from './page.module.css';
 
+const CITATION_CRITERIA: Criterion[] = ['context'];
+
 /**
  * The right column: the tab the reader has open (Issues, Citations, Paper info), or, full width, one of the
  * spaces behind the paper.
@@ -39,6 +42,7 @@ export function AnalysisColumn({
   stored,
   onLocation,
   onFilter,
+  inDrawer = false,
 }: {
   nav: PaperNavigation;
   columnRef: RefObject<HTMLElement | null>;
@@ -52,14 +56,36 @@ export function AnalysisColumn({
   stored: Pick<FindingInputs, 'insights' | 'measurements'>;
   onLocation: (location: Finding['locations'][number]) => void;
   onFilter: (ids: string[]) => void;
+  inDrawer?: boolean;
 }) {
-  const { mode, inSpace, wide } = nav;
+  const { mode, inSpace, wide, visitedModes } = nav;
+  const latestIssues = useRef(issues);
+  useLayoutEffect(() => {
+    latestIssues.current = issues;
+  }, [issues]);
+  const issueActions = useMemo(
+    () => ({
+      onLocation: (location: Finding['locations'][number]) => latestIssues.current.onLocation(location),
+      onOpenSource: (view: string) => latestIssues.current.onOpenSource(view as ViewId),
+      onDecide: (finding: PaperFinding, status: FindingStatus) =>
+        latestIssues.current.onDecide(finding, status),
+      onRunChecks: () => latestIssues.current.onRunChecks(),
+    }),
+    [],
+  );
+  const stableIssues = useMemo(
+    () => ({ paper: issues.paper, findings: issues.findings, ...issueActions }),
+    [issues.paper, issues.findings, issueActions],
+  );
+  // Navigation records visited modes in its event handler so this panel avoids a render-phase state update.
+  const keepIssues = visitedModes.has('issues');
+  const keepCitations = visitedModes.has('citations');
   return (
     <section
       ref={columnRef}
-      className={wide ? styles.column : undefined}
+      className={`${wide && !inDrawer ? styles.column : ''} ${inSpace && !inDrawer ? styles.spaceColumn : ''}`}
       aria-label={inSpace ? (SPACES.find((item) => item.id === mode)?.label ?? 'Space') : 'Analysis'}
-      hidden={wide ? !nav.showRight : nav.focus !== 'right'}
+      hidden={inDrawer ? false : wide ? !nav.showRight : nav.focus !== 'right'}
     >
       {inSpace ? (
         <div className={styles.spaceHead}>
@@ -76,7 +102,7 @@ export function AnalysisColumn({
         </div>
       ) : (
         <>
-          {wide && (
+          {(wide || inDrawer) && (
             <div className={styles.columnTabs}>
               <Tabs label="Analysis">
                 {MODES.map((item) => (
@@ -88,18 +114,18 @@ export function AnalysisColumn({
         </>
       )}
       <div hidden={mode !== 'issues'} className={styles.blocks}>
-        {/* Rendered only while showing: hidden copies of its labels would shadow the blocks below. */}
-        {mode === 'issues' && (
+        {/* Kept mounted after first visit so filters and expanded issue rows persist across tabs. */}
+        {keepIssues && (
           <>
             <OrphanedChecks record={checks} />
             <FindingsList
               paper={paper}
               findings={issues.findings}
               focusId={focusFinding}
-              onLocation={onLocation}
-              onOpenSource={(view) => issues.onOpenSource(view as ViewId)}
-              onDecide={issues.onDecide}
-              onRunChecks={issues.onRunChecks}
+              onLocation={issueActions.onLocation}
+              onOpenSource={issueActions.onOpenSource}
+              onDecide={issueActions.onDecide}
+              onRunChecks={issueActions.onRunChecks}
             />
           </>
         )}
@@ -107,17 +133,18 @@ export function AnalysisColumn({
       <div hidden={mode !== 'citations'} className={styles.blocks}>
         <IssuesBlock
           id="citationIssues"
-          only={['context']}
-          visible={mode === 'citations'}
+          only={CITATION_CRITERIA}
+          visible={keepCitations}
           kit={kit}
-          issues={issues}
+          issues={stableIssues}
+          idPrefix="citation-"
         />
         <PaperBlock id="references" kit={kit}>
-          {mode === 'citations' && kit.openBlocks.includes('references') && (
-            <PaperReferences paper={paper} onLocation={onLocation} />
+          {keepCitations && kit.openBlocks.includes('references') && (
+            <PaperReferences paper={paper} onLocation={issueActions.onLocation} />
           )}
         </PaperBlock>
-        {mode === 'citations' && (
+        {keepCitations && (
           <SpaceOverview
             paper={paper}
             analyses={batch.analyses}

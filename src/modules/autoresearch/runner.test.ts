@@ -153,6 +153,7 @@ it('AR3 walks S1–S12 through storage, supervisors and human gates, then record
   const tools = projectTools({
     project,
     repo,
+    hubProjectId: 'rh-test',
     getRun: () => run,
     requireConsent,
     bank,
