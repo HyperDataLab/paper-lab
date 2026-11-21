@@ -17,7 +17,7 @@ it('prefers a usable OpenAlex ID, falls back to DOI and removes duplicate identi
 
 it('sends at most 50 identifiers per authenticated POST and combines the results', async () => {
   const fetcher = vi.fn(async (url: string, request: RequestInit) => {
-    expect(url).toMatch(/\/v1\/kg\/ingest$/u);
+    expect(url).toMatch(/\/v1\/kg\/ingest\?projectId=rh-1$/u);
     expect(request).toMatchObject({
       method: 'POST',
       headers: { Authorization: 'Bearer lab', 'X-Project-Id': 'rh-1' },

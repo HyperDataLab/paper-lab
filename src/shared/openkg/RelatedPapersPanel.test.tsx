@@ -76,16 +76,22 @@ const papers = [
 ];
 
 type Route = (init: RequestInit) => Response;
+/** Worker URLs carry the ResearchHub project in the query; the routes match on the path before it. */
+const path = (url: string) => {
+  const [base = '', search = ''] = url.split('?', 2);
+  expect(new URLSearchParams(search).get('projectId')).toBe('rh-1');
+  return base;
+};
 /** A fetch mock answering by path suffix; stats answer by default. */
 function mockWorker(routes: Record<string, Route>) {
   const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
     const all: Record<string, Route> = { '/v1/kg/stats': () => json(200, stats), ...routes };
-    const route = Object.entries(all).find(([suffix]) => url.endsWith(suffix));
+    const route = Object.entries(all).find(([suffix]) => path(url).endsWith(suffix));
     return route ? route[1](init) : json(404, { error: 'not_found' });
   });
   vi.stubGlobal('fetch', fetcher);
   const calls = (suffix: string) =>
-    (fetcher.mock.calls as unknown as [string, RequestInit][]).filter(([url]) => url.endsWith(suffix));
+    (fetcher.mock.calls as unknown as [string, RequestInit][]).filter(([url]) => path(url).endsWith(suffix));
   return { fetcher, calls };
 }
 

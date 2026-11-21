@@ -68,7 +68,11 @@ describe('publishFrozenPlan', () => {
     });
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringMatching(
-        new RegExp(`/v1/projects/Proj%201/plans/${plan.planVersion}\\?title=T%C3%AAn%20%26%20k`, 'u'),
+        // The project-scoped URL re-encodes the query, so spaces in the title become `+`.
+        new RegExp(
+          `/v1/projects/Proj%201/plans/${plan.planVersion}\\?title=T%C3%AAn\\+%26\\+k.*&projectId=rh-1$`,
+          'u',
+        ),
       ),
       {
         method: 'PUT',

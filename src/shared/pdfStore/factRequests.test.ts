@@ -3,6 +3,8 @@ import { decideFactRequest, FactRequestError, getMe, listFactRequests } from './
 
 afterEach(() => vi.unstubAllGlobals());
 const PROJECT_ID = '00000000-0000-4000-8000-000000000101';
+/** Every worker URL carries the project in its query too, in case a proxy drops the header. */
+const SCOPE = `projectId=${PROJECT_ID}`;
 const request = {
   paperId: `sha256-${'a'.repeat(64)}`,
   state: 'requested',
@@ -19,7 +21,7 @@ describe('fact requests client', () => {
     const fetchMock = vi.fn(async () => Response.json({ email: 'admin@example.org', admin: true }));
     vi.stubGlobal('fetch', fetchMock);
     expect(await getMe('test-token', PROJECT_ID)).toMatchObject({ admin: true });
-    expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/\/v1\/me$/u), {
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(new RegExp(`/v1/me\\?${SCOPE}$`, 'u')), {
       headers: { Authorization: 'Bearer test-token', 'X-Project-Id': PROJECT_ID },
     });
   });
@@ -36,7 +38,7 @@ describe('fact requests client', () => {
     expect(page.items).toHaveLength(2);
     expect(page.nextCursor).toBe('c2');
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringMatching(/\/v1\/admin\/fact-requests\?state=approved&cursor=c1$/u),
+      expect.stringMatching(new RegExp(`/v1/admin/fact-requests\\?state=approved&cursor=c1&${SCOPE}$`, 'u')),
       expect.anything(),
     );
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ headers: { 'X-Project-Id': PROJECT_ID } });
@@ -51,7 +53,7 @@ describe('fact requests client', () => {
     await decideFactRequest('t', PROJECT_ID, 'p/1', 'approve', '   ');
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      expect.stringMatching(/\/fact-requests\/p%2F1\/decision$/u),
+      expect.stringMatching(new RegExp(`/fact-requests/p%2F1/decision\\?${SCOPE}$`, 'u')),
       {
         method: 'POST',
         headers: {
