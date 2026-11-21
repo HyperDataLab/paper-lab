@@ -1,0 +1,259 @@
+import { webcrypto } from 'node:crypto';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { newProject } from '@/core/extraction';
+import { newRun } from '@/core/autoresearch/run';
+import { emptyResearchDesign } from '@/core/schemas/researchDesign';
+import { MemoryDocStore, type DocStore } from './docStore';
+import { AutoResearchConflictError, ResearchDesignConflictError, StorageConflictError } from './errors';
+import { testRepositories } from './testRepositories';
+import { testId, testWorkerData } from './remoteTestSupport';
+
+beforeEach(() => vi.stubGlobal('crypto', webcrypto));
+
+const at = '2026-11-19T00:00:00.000Z';
+const [a, b, c] = [testId(1), testId(2), testId(3)] as const;
+const [p1, p2] = [testId(4), testId(5)] as const;
+const run = (id: string, projectId: string, createdAt: string, status = 'running') => ({
+  ...newRun(projectId, id, 10, createdAt),
+  status,
+});
+
+const stores: [string, () => DocStore][] = [
+  ['MemoryDocStore', () => new MemoryDocStore()],
+  ['RemoteDocStore', () => testWorkerData().connect()],
+];
+
+describe.each(stores)('%s contract', (_name, make) => {
+  it('puts and gets documents with versions and guards', async () => {
+    const store = make();
+    expect(await store.get('autoresearchRuns', a)).toBeNull();
+    const first = await store.put('autoresearchRuns', a, run(a, p1, at), null);
+    const row = await store.get('autoresearchRuns', a);
+    expect(row).toEqual({ doc: run(a, p1, at), version: first });
+    await expect(store.put('autoresearchRuns', a, run(a, p1, at), null)).rejects.toBeInstanceOf(
+      StorageConflictError,
+    );
+    await expect(store.put('autoresearchRuns', a, run(a, p1, at), first + 5)).rejects.toMatchObject({
+      collection: 'autoresearchRuns',
+      id: a,
+      serverVersion: first,
+    });
+    const second = await store.put('autoresearchRuns', a, run(a, p2, at), first);
+    expect(second).toBeGreaterThan(first);
+    expect(await store.getMany('autoresearchRuns', [a, 'missing'])).toEqual([
+      { doc: run(a, p2, at), version: second },
+      null,
+    ]);
+    await store.remove('autoresearchRuns', a, second);
+    expect(await store.get('autoresearchRuns', a)).toBeNull();
+  });
+
+  it('queries by index with order, limit and summaries', async () => {
+    const store = make();
+    await store.put('autoresearchRuns', b, run(b, p1, '2026-01-02T00:00:00.000Z'));
+    await store.put('autoresearchRuns', a, run(a, p1, '2026-01-01T00:00:00.000Z'));
+    await store.put('autoresearchRuns', c, run(c, p2, '2026-01-03T00:00:00.000Z'));
+    const ids = (rows: { id: string }[]) => rows.map((row) => row.id);
+    expect(ids(await store.query('autoresearchRuns', { where: { projectId: p1 } }))).toEqual([a, b]);
+    expect(ids(await store.query('autoresearchRuns', { orderBy: 'createdAt', desc: true }))).toEqual([
+      c,
+      b,
+      a,
+    ]);
+    expect(ids(await store.query('autoresearchRuns', { orderBy: 'createdAt', limit: 1 }))).toEqual([a]);
+    const [summary] = await store.query('autoresearchRuns', {
+      where: { projectId: p2 },
+      select: 'summary',
+    });
+    expect(summary?.doc).toMatchObject({
+      id: c,
+      projectId: p2,
+      status: 'running',
+      createdAt: '2026-01-03T00:00:00.000Z',
+      updatedAt: '2026-01-03T00:00:00.000Z',
+    });
+  });
+
+  it('commits a unit of work at once, sees its own writes, and drops everything on error', async () => {
+    const store = make();
+    await store.put('autoresearchRuns', a, run(a, p1, at));
+    const seen = await store.unitOfWork(async (tx) => {
+      await tx.put('autoresearchRuns', b, run(b, p1, at), null);
+      await tx.remove('autoresearchRuns', a);
+      return (await tx.query('autoresearchRuns', { where: { projectId: p1 } })).map((row) => row.id);
+    });
+    expect(seen).toEqual([b]);
+    expect(await store.get('autoresearchRuns', a)).toBeNull();
+    await expect(
+      store.unitOfWork(async (tx) => {
+        await tx.put('autoresearchRuns', c, run(c, p1, at));
+        throw new Error('stop');
+      }),
+    ).rejects.toThrow('stop');
+    expect(await store.get('autoresearchRuns', c)).toBeNull();
+  });
+});
+
+it('paper deletion removes review n-grams stored under their registry ids', async () => {
+  const store = new MemoryDocStore();
+  const repo = testRepositories({ store });
+  const paper = await repo.papers.create({
+    schemaVersion: 1,
+    id: crypto.randomUUID(),
+    title: 'Paper',
+    createdAt: at,
+    updatedAt: at,
+    source: { kind: 'text', fileName: 'a.txt', pageCount: null, sha256: 'sha256:abc' },
+    sections: [],
+    paragraphs: [],
+  });
+  await store.put('reviewNgrams', `${paper.id}:h1`, { hash: 'h1', paperId: paper.id });
+  expect((await store.get('reviewNgrams', `${paper.id}:h1`))?.doc).toEqual({ hash: 'h1', paperId: paper.id });
+  await repo.papers.delete(paper.id);
+  expect(await store.query('reviewNgrams')).toHaveLength(0);
+});
+
+describe('MemoryDocStore conflicts', () => {
+  it('retries a unit of work once when a read document changed, then gives up', async () => {
+    const store = new MemoryDocStore();
+    await store.put('autoresearchRuns', a, run(a, p1, at));
+    let attempts = 0;
+    await store.unitOfWork(async (tx) => {
+      attempts++;
+      const row = await tx.get('autoresearchRuns', a);
+      if (attempts === 1) await store.put('autoresearchRuns', a, run(a, p1, at, 'waiting'));
+      await tx.put('autoresearchRuns', a, { ...(row!.doc as object), status: 'ended' });
+    });
+    expect(attempts).toBe(2);
+    expect((await store.get('autoresearchRuns', a))?.doc).toMatchObject({ status: 'ended' });
+
+    await expect(
+      store.unitOfWork(async (tx) => {
+        await tx.get('autoresearchRuns', a);
+        await store.put('autoresearchRuns', a, run(a, p1, at));
+        await tx.put('autoresearchRuns', a, run(a, p1, at, 'ended'));
+      }),
+    ).rejects.toMatchObject({ collection: 'autoresearchRuns', id: a });
+  });
+
+  it('commits a query-only unit of work at once when nothing changed', async () => {
+    const store = new MemoryDocStore();
+    await store.put('autoresearchRuns', b, run(b, p1, at));
+    await store.put('autoresearchRuns', a, run(a, p1, at));
+    let attempts = 0;
+    await store.unitOfWork(async (tx) => {
+      attempts++;
+      await tx.query('autoresearchRuns', { where: { projectId: p1 } });
+      await tx.query('autoresearchRuns', { orderBy: 'createdAt', desc: true, limit: 1 });
+      await tx.put('autoresearchRuns', c, run(c, p2, at));
+    });
+    expect(attempts).toBe(1);
+  });
+
+  it('treats a new document matching a query as a conflict', async () => {
+    const store = new MemoryDocStore();
+    let attempts = 0;
+    await store.unitOfWork(async (tx) => {
+      attempts++;
+      await tx.query('autoresearchRuns', { where: { projectId: p1 } });
+      if (attempts === 1) await store.put('autoresearchRuns', testId(6), run(testId(6), p1, at));
+    });
+    expect(attempts).toBe(2);
+  });
+});
+
+const repositories: [string, () => ReturnType<typeof testRepositories>][] = [
+  ['MemoryDocStore', () => testRepositories()],
+  ['RemoteDocStore', () => testRepositories({ store: testWorkerData().connect() })],
+];
+
+describe.each(repositories)('project repositories over %s', (_name, make) => {
+  async function project(repo: ReturnType<typeof make>, paperId: string | null = null) {
+    return repo.extraction.save({
+      ...newProject({ id: crypto.randomUUID(), title: 'Project', researchQuestion: 'Why?', now: at }),
+      paperId,
+    });
+  }
+
+  it('finds a project by paper and lists newest first', async () => {
+    const repo = make();
+    const paperId = crypto.randomUUID();
+    const first = await project(repo);
+    const second = await project(repo, paperId);
+    expect((await repo.extraction.forPaper(paperId))?.id).toBe(second.id);
+    expect(await repo.extraction.forPaper(crypto.randomUUID())).toBeUndefined();
+    expect((await repo.extraction.list()).map((item) => item.id)).toContain(first.id);
+  });
+
+  it('keeps one active AutoResearch run per project and removes runs with the project', async () => {
+    const repo = make();
+    const value = await project(repo);
+    const created = await repo.autoresearch.create(value.id, 10);
+    await expect(repo.autoresearch.create(value.id, 10)).rejects.toBeInstanceOf(AutoResearchConflictError);
+    await expect(repo.autoresearch.create(crypto.randomUUID(), 10)).rejects.toThrow('Project not found');
+    const saved = await repo.autoresearch.save(created);
+    expect(saved.revision).toBe(created.revision + 1);
+    await expect(repo.autoresearch.save(created)).rejects.toBeInstanceOf(StorageConflictError);
+    expect((await repo.autoresearch.list(value.id)).map((item) => item.id)).toEqual([created.id]);
+    await repo.extraction.remove(value.id);
+    expect(await repo.autoresearch.list(value.id)).toEqual([]);
+    expect(await repo.extraction.get(value.id)).toBeUndefined();
+  });
+
+  it('finds a paper by its file hash and deletes it with its runs', async () => {
+    const repo = make();
+    const paper = await repo.papers.create({
+      schemaVersion: 1,
+      id: crypto.randomUUID(),
+      title: 'Paper',
+      createdAt: at,
+      updatedAt: at,
+      source: { kind: 'text', fileName: 'a.txt', pageCount: null, sha256: 'sha256:abc' },
+      sections: [],
+      paragraphs: [],
+    });
+    expect((await repo.papers.findBySourceHash('sha256:abc'))?.id).toBe(paper.id);
+    expect(await repo.papers.findBySourceHash('sha256:other')).toBeUndefined();
+    const run = await repo.paperRuns.create({
+      schemaVersion: 1,
+      id: crypto.randomUUID(),
+      paperId: paper.id,
+      createdAt: at,
+      updatedAt: at,
+      status: 'idle',
+      plan: {
+        sectionIds: [],
+        steps: [],
+        budget: 0,
+        paragraphs: [],
+        skipped: [],
+        calls: { syntax: 0, judge: 0, structure: 0, score: 0 },
+        total: 0,
+        withinBudget: true,
+      },
+      budget: 0,
+      callsUsed: 0,
+      promptVersions: {},
+      model: 'm',
+      items: [],
+    });
+    expect(await repo.paperRuns.listByPaper(paper.id)).toHaveLength(1);
+    await repo.papers.delete(paper.id);
+    expect(await repo.papers.get(paper.id)).toBeUndefined();
+    expect(await repo.paperRuns.get(run.id)).toBeUndefined();
+  });
+
+  it('guards research design versions', async () => {
+    const repo = make();
+    const value = await project(repo);
+    const design = emptyResearchDesign(value.id);
+    const saved = await repo.researchDesigns.save(design, design.version);
+    expect(saved.version).toBe(design.version + 1);
+    await expect(repo.researchDesigns.save(design, design.version)).rejects.toBeInstanceOf(
+      ResearchDesignConflictError,
+    );
+    expect((await repo.researchDesigns.get(value.id))?.version).toBe(saved.version);
+    await repo.extraction.remove(value.id);
+    expect(await repo.researchDesigns.get(value.id)).toBeUndefined();
+  });
+});

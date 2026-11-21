@@ -7,9 +7,9 @@ import { RunAllCard } from './RunAllCard';
 const labels = {
   digest: 'Summary',
   snapshot: 'Snapshot',
-  measure: 'Đo lường',
+  measure: 'Evidence & measurement',
   rhetoric: 'Validity và Moves',
-  arguments: 'Lập luận',
+  arguments: 'Argument',
   batch: 'Chất lượng viết',
   stance: 'Giọng văn',
   probe: 'Độ bền điểm',
@@ -119,8 +119,8 @@ it('U1 continues after an incomplete analysis and lists the partial result', asy
   fireEvent.click(screen.getByRole('button', { name: 'Phân tích bài báo' }));
   fireEvent.click(screen.getByRole('button', { name: 'Chạy 7 phân tích' }));
   await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Xong một phần'));
-  expect(screen.getByRole('button', { name: 'Xem Luận điểm & bằng chứng' })).toBeEnabled();
-  fireEvent.click(screen.getByRole('button', { name: 'Xem Luận điểm & bằng chứng' }));
+  expect(screen.getByRole('button', { name: 'Xem Claim và evidence' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Xem Claim và evidence' }));
   expect(onOpen).toHaveBeenCalledWith('arguments');
   expect(order).toEqual(RUN_ALL);
 });

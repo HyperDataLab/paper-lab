@@ -8,13 +8,18 @@ export async function downloadOpenAlexPdf(
   doi: string,
   pdfUrl: string,
   token: string,
+  projectId: string,
   signal?: AbortSignal,
 ): Promise<ArrayBuffer> {
   let response: Response;
   try {
     response = await fetch(`${PDF_WORKER_URL}/v1/pdfs/openalex`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-Project-Id': projectId,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ doi, pdfUrl }),
       signal,
     });

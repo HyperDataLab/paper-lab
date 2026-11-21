@@ -1,4 +1,4 @@
-import type { LibraryItem, Paper, PaperMetadata } from './schemas';
+import type { LibraryItem, Paper, PaperMetadata, PaperSummary } from './schemas';
 
 export interface PaperIdentity {
   title: string;
@@ -31,14 +31,14 @@ export function detectTitle(paper: Paper): string | null {
 
 /** Title, authors and year to show for a paper: looked-up metadata first, the file name last. */
 export function paperIdentity(
-  paper: Paper,
+  paper: Paper | PaperSummary,
   known: {
     metadata?: Pick<PaperMetadata, 'title' | 'authors' | 'year' | 'venue'> | null;
     library?: LibraryItem | null;
   } = {},
 ): PaperIdentity {
   const { metadata, library } = known;
-  const detected = detectTitle(paper);
+  const detected = 'detectedTitle' in paper ? paper.detectedTitle : detectTitle(paper);
   const [title, titleSource]: [string, PaperIdentity['titleSource']] = metadata?.title
     ? [metadata.title, 'metadata']
     : library?.title

@@ -3,7 +3,7 @@ import type { BankDoc } from '@/core/researchDesign/bank/snapshot';
 import { bankRefs } from '@/core/researchDesign/draft/bankRefs';
 import { useAuth } from '@/shared/auth/authContext';
 import { BankApiError, type BankClient } from '@/shared/bank/bankApi';
-import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
+import { ResearchDesignConflictError } from '@/shared/storage/errors';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 
 export const MAX_SNAPSHOT_BYTES = 2 * 1024 * 1024;

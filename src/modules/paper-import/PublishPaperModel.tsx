@@ -4,7 +4,7 @@ import { contentEtag, publishedPaperId } from '@/core/paperModel/published';
 import type { PaperModel } from '@/core/schemas';
 import { useAuth } from '@/shared/auth/authContext';
 import { publishExperimentFacts, publishPaperModel, PublishPaperError } from '@/shared/pdfStore/published';
-import { useRepositories } from '@/shared/storage/StorageProvider';
+import { useHubProjectId, useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import styles from './snapshot.module.css';
 
@@ -16,13 +16,14 @@ export function PublishPaperModel({
   buildModel: () => Promise<PaperModel>;
 }) {
   const { user, getIdToken } = useAuth();
+  const projectId = useHubProjectId();
   const repo = useRepositories();
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState('');
   const [detail, setDetail] = useState('');
 
   async function publish() {
-    if (!user || running) return;
+    if (!user || !projectId || running) return;
     setRunning(true);
     setMessage('');
     setDetail('');
@@ -30,7 +31,7 @@ export function PublishPaperModel({
       const token = await getIdToken();
       if (!token) throw new PublishPaperError(401);
       const model = await buildModel();
-      const result = await publishPaperModel(model, paperId, token);
+      const result = await publishPaperModel(model, paperId, token, projectId);
       const modelMessage = result.unchanged
         ? 'Không có thay đổi so với bản đã công bố'
         : `Đã công bố (mã ${result.etag.slice(0, 8)}) lúc ${new Date(result.updatedAt).toLocaleString('vi-VN')}`;
@@ -50,7 +51,7 @@ export function PublishPaperModel({
             paper,
             now: new Date(),
           });
-          await publishExperimentFacts(facts, token);
+          await publishExperimentFacts(facts, token, projectId);
           setMessage(
             `${modelMessage}, kèm ${facts.facts.length} dữ kiện thí nghiệm (${facts.facts.filter((fact) => fact.status === 'accepted').length} đã duyệt).`,
           );
@@ -74,7 +75,7 @@ export function PublishPaperModel({
 
   return (
     <>
-      <Button disabled={!user || running} onClick={() => void publish()}>
+      <Button disabled={!user || !projectId || running} onClick={() => void publish()}>
         {running ? 'Đang công bố…' : 'Công bố lên máy chủ lab'}
       </Button>
       {!user && <p className={styles.note}>Đăng nhập tài khoản lab để công bố paper model.</p>}

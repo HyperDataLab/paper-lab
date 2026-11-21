@@ -3,6 +3,7 @@ import { publishedIdFor } from '@/core/paperModel/published';
 import { projectScgPaper, type ScgPaperPublish } from '@/core/scg/publish';
 import type { Paper, ScgPaperRun } from '@/core/schemas';
 import { useAuth } from '@/shared/auth/authContext';
+import { useHubProjectId } from '@/shared/storage/StorageProvider';
 import {
   PublishScgError,
   publishScg,
@@ -13,8 +14,8 @@ import { Button } from '@/shared/ui/Button';
 import styles from './scg.module.css';
 
 const STATE_TEXT: Record<ScgPublishState | 'unknown', string> = {
-  no_model: 'Cần công bố paper model của bài (mục Thông tin bài) trước khi công bố đồ thị đóng góp.',
-  none: 'Đồ thị đóng góp chưa được công bố.',
+  no_model: 'Cần công bố paper model của bài (mục Thông tin bài) trước khi công bố đồ thị contribution.',
+  none: 'Đồ thị contribution chưa được công bố.',
   current: 'Đã công bố, khớp với bản hiện tại.',
   outdated: 'Bản đã công bố đã cũ so với kết quả duyệt hiện tại.',
   unknown: 'Không kiểm tra được bản đã công bố.',
@@ -24,6 +25,7 @@ const STATE_TEXT: Record<ScgPublishState | 'unknown', string> = {
 export function PublishScg({ paper, run, busy }: { paper: Paper; run: ScgPaperRun; busy: boolean }) {
   const { user, getIdToken } = useAuth();
   const uid = user?.uid;
+  const projectId = useHubProjectId();
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const complete = run.status === 'complete';
@@ -40,13 +42,13 @@ export function PublishScg({ paper, run, busy }: { paper: Paper; run: ScgPaperRu
   const setState = (next: ScgPublishState | 'unknown') => graph && setChecked({ graph, state: next });
 
   useEffect(() => {
-    if (!uid || !complete || !graph) return;
+    if (!uid || !projectId || !complete || !graph) return;
     let live = true;
     void (async () => {
       try {
         const token = await getIdToken();
         if (!token) throw new PublishScgError(401);
-        const next = await scgPublishState(graph, token);
+        const next = await scgPublishState(graph, token, projectId);
         if (live) setChecked({ graph, state: next });
       } catch {
         if (live) setChecked({ graph, state: 'unknown' });
@@ -55,27 +57,27 @@ export function PublishScg({ paper, run, busy }: { paper: Paper; run: ScgPaperRu
     return () => {
       live = false;
     };
-  }, [uid, complete, graph, getIdToken]);
+  }, [uid, projectId, complete, graph, getIdToken]);
 
   async function publish() {
-    if (!graph) return;
+    if (!graph || !projectId) return;
     setSending(true);
     setError('');
     try {
       const token = await getIdToken();
       if (!token) throw new PublishScgError(401);
-      await publishScg(graph, token);
+      await publishScg(graph, token, projectId);
       setState('current');
     } catch (cause) {
       if (cause instanceof PublishScgError && cause.status === 404) setState('no_model');
-      setError(cause instanceof PublishScgError ? cause.message : 'Không công bố được đồ thị đóng góp.');
+      setError(cause instanceof PublishScgError ? cause.message : 'Không công bố được đồ thị contribution.');
     } finally {
       setSending(false);
     }
   }
 
   const note = !user
-    ? 'Đăng nhập tài khoản lab để công bố đồ thị đóng góp.'
+    ? 'Đăng nhập tài khoản lab để công bố đồ thị contribution.'
     : !complete
       ? 'Chạy xong ba giai đoạn rồi mới công bố được.'
       : !graph
@@ -86,6 +88,7 @@ export function PublishScg({ paper, run, busy }: { paper: Paper; run: ScgPaperRu
       <Button
         disabled={
           !user ||
+          !projectId ||
           !complete ||
           !graph ||
           busy ||
@@ -96,7 +99,7 @@ export function PublishScg({ paper, run, busy }: { paper: Paper; run: ScgPaperRu
         }
         onClick={() => void publish()}
       >
-        {sending ? 'Đang công bố…' : 'Công bố đồ thị đóng góp'}
+        {sending ? 'Đang công bố…' : 'Công bố đồ thị contribution'}
       </Button>
       {note && (
         <span className={styles.muted} role="status">

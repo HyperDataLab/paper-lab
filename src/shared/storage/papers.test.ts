@@ -1,26 +1,9 @@
-import 'fake-indexeddb/auto';
-import Dexie from 'dexie';
 import { webcrypto } from 'node:crypto';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { createDb } from './db';
-import { createRepositories } from './repositories';
+import { testRepositories } from './testRepositories';
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
-it('migrates version 3 and stores, exports and imports papers with audit', async () => {
-  const name = `paper-${crypto.randomUUID()}`;
-  const old = new Dexie(name);
-  old.version(3).stores({
-    analyses: 'id, createdAt, updatedAt, text.sourceHash',
-    auditEvents: 'id, analysisId, at',
-    revisions: 'id, sourceAnalysisId, createdAt',
-    generations: 'id, createdAt',
-  });
-  await old.open();
-  await old.table('generations').add({ id: 'existing', createdAt: '2020-01-01T00:00:00.000Z' });
-  old.close();
-  const db = createDb(name);
-  const repo = createRepositories(db);
-  expect(await db.generations.get('existing')).toBeDefined();
-  await db.generations.delete('existing');
+it('stores, exports and imports papers with audit', async () => {
+  const repo = testRepositories();
   const at = new Date().toISOString();
   const paper = {
     schemaVersion: 1 as const,
@@ -40,7 +23,7 @@ it('migrates version 3 and stores, exports and imports papers with audit', async
   const data = await repo.transfer.exportAll('1');
   expect(data.papers).toEqual([paper]);
   expect(data.paperOverviews).toEqual([overview]);
-  const dest = createRepositories(createDb(`paper-${crypto.randomUUID()}`));
+  const dest = testRepositories();
   const plan = await dest.transfer.previewImport(data);
   if (!plan.ok) throw new Error(plan.error);
   await dest.transfer.applyImport(plan);
@@ -58,7 +41,7 @@ it('migrates version 3 and stores, exports and imports papers with audit', async
   ]);
 });
 it('imports newer paper role edits, skips old or different sources and rejects stale previews', async () => {
-  const repo = createRepositories(createDb(`paper-conflicts-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const at = '2024-01-01T00:00:00.000Z';
   const paper = {
     schemaVersion: 1 as const,

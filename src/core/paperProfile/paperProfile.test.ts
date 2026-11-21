@@ -165,7 +165,7 @@ describe('D0 paper profile', () => {
     expect(ready.state).toBe('ready');
     expect(ready.value('main_claims')).toBe('2');
     expect(ready.value('with_data')).toBe('1/2');
-    expect(ready.attention).toContain('1 luận điểm');
+    expect(ready.attention).toContain('1 claim');
     expect(
       find(buildPaperProfile({ paper, analyses: [], insights: insights(['i']) }), 'argument').state,
     ).toBe('partial');

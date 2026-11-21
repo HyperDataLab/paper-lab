@@ -5,8 +5,31 @@ import {
   type Issue,
   AuditEventSchema,
 } from '@/core/schemas';
-import { checkedAnalysis, readAnalyses, SourceImmutableError, type StorageDeps } from './storageShared';
-import type { ParagraphDb } from './db';
+import {
+  appendAudit,
+  checkedAnalysis,
+  readAnalyses,
+  SourceImmutableError,
+  type StorageDeps,
+} from './storageShared';
+import { z } from 'zod';
+import type { DocReader, DocStore } from './docStore';
+
+export async function getAnalysis(reader: DocReader, id: string) {
+  const row = await reader.get('analyses', id);
+  return row ? checkedAnalysis(row.doc) : undefined;
+}
+const summarySchema = z.object({
+  id: z.uuid(),
+  title: z.string().optional(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+  preview: z.string(),
+  sentenceCount: z.number(),
+  issueCount: z.number(),
+  sourceHash: z.string(),
+  paperId: z.uuid().nullable(),
+});
 export type AnalysisPatch = Partial<
   Pick<
     Analysis,
@@ -22,7 +45,12 @@ export type AnalysisPatch = Partial<
     | 'scores'
   >
 >;
-export function createAnalysesRepository(db: ParagraphDb, deps: StorageDeps) {
+export function createAnalysesRepository(
+  store: DocStore,
+  deps: StorageDeps,
+  latestAuditAt: (id: string) => Promise<string | undefined>,
+  latestLabelAt: () => Promise<string | undefined>,
+) {
   const { now, ids, makeAudit } = deps;
   const analyses = {
     async reviewIssue(
@@ -30,51 +58,59 @@ export function createAnalysesRepository(db: ParagraphDb, deps: StorageDeps) {
       issueId: string,
       change: { status?: Issue['status']; severity?: Issue['severity'] },
     ) {
-      return db.transaction('rw', db.analyses, db.auditEvents, db.calibrationLabels, async () => {
-        const current = await analyses.get(id);
-        if (!current) throw new Error('Analysis not found');
-        const issue = current.issues.find((item) => item.id === issueId);
-        if (!issue) throw new Error('Issue not found');
-        let updated = issue;
-        for (const field of ['status', 'severity'] as const) {
-          const next = change[field];
-          if (next === undefined || next === updated[field]) continue;
-          const action =
-            field === 'severity'
-              ? 'edit_severity'
-              : next === 'confirmed_by_human'
-                ? 'confirm'
-                : next === 'dismissed_by_human'
-                  ? 'dismiss'
-                  : 'reopen';
-          const lastAudit = await db.auditEvents.orderBy('at').last();
-          const lastLabel = await db.calibrationLabels.orderBy('importedAt').last();
-          const at = new Date(
-            Math.max(
-              Date.parse(now()),
-              Date.parse(lastAudit?.at ?? '1970-01-01T00:00:00.000Z') + 1,
-              Date.parse(lastLabel?.importedAt ?? '1970-01-01T00:00:00.000Z') + 1,
-            ),
-          ).toISOString();
-          await db.auditEvents.add(
-            AuditEventSchema.parse({
-              ...makeAudit(id, action, 'human'),
-              at,
-              issueId,
-              before: { [field]: updated[field] },
-              after: { [field]: next },
-            }),
+      const [lastAudit, lastLabel] = await Promise.all([latestAuditAt(id), latestLabelAt()]);
+      return store.unitOfWork(
+        async (tx) => {
+          const current = await getAnalysis(tx, id);
+          if (!current) throw new Error('Analysis not found');
+          const issue = current.issues.find((item) => item.id === issueId);
+          if (!issue) throw new Error('Issue not found');
+          let updated = issue;
+          let lastDecision = Math.max(
+            Date.parse(current.updatedAt),
+            Date.parse(lastAudit ?? '1970-01-01T00:00:00.000Z'),
           );
-          updated = { ...updated, [field]: next };
-        }
-        const value = checkedAnalysis({
-          ...current,
-          updatedAt: now(),
-          issues: current.issues.map((item) => (item.id === issueId ? updated : item)),
-        });
-        await db.analyses.put(value);
-        return value;
-      });
+          for (const field of ['status', 'severity'] as const) {
+            const next = change[field];
+            if (next === undefined || next === updated[field]) continue;
+            const action =
+              field === 'severity'
+                ? 'edit_severity'
+                : next === 'confirmed_by_human'
+                  ? 'confirm'
+                  : next === 'dismissed_by_human'
+                    ? 'dismiss'
+                    : 'reopen';
+            const at = new Date(
+              Math.max(
+                Date.parse(now()),
+                lastDecision + 1,
+                Date.parse(lastLabel ?? '1970-01-01T00:00:00.000Z') + 1,
+              ),
+            ).toISOString();
+            lastDecision = Date.parse(at);
+            await appendAudit(
+              tx,
+              AuditEventSchema.parse({
+                ...makeAudit(id, action, 'human'),
+                at,
+                issueId,
+                before: { [field]: updated[field] },
+                after: { [field]: next },
+              }),
+            );
+            updated = { ...updated, [field]: next };
+          }
+          const value = checkedAnalysis({
+            ...current,
+            updatedAt: now(),
+            issues: current.issues.map((item) => (item.id === issueId ? updated : item)),
+          });
+          await tx.put('analyses', value.id, value);
+          return value;
+        },
+        ['analyses'],
+      );
     },
     async create(input: {
       text: TextAnalysis;
@@ -110,81 +146,79 @@ export function createAnalysesRepository(db: ParagraphDb, deps: StorageDeps) {
         parentAnalysisId: null,
         origin: input.origin ?? null,
       });
-      await db.transaction('rw', db.analyses, db.auditEvents, async () => {
-        await db.analyses.add(value);
-        await db.auditEvents.add(makeAudit(value.id, 'create_analysis', 'human'));
-      });
+      await store.unitOfWork(
+        async (tx) => {
+          await tx.put('analyses', value.id, value, null);
+          await appendAudit(tx, makeAudit(value.id, 'create_analysis', 'human'));
+        },
+        ['analyses'],
+      );
       return value;
     },
     async get(id: string) {
-      const row = await db.analyses.get(id);
-      if (!row) return undefined;
-      return checkedAnalysis(row);
+      return getAnalysis(store, id);
     },
-    async listByPaper(paperId: string) {
-      const { values } = await readAnalyses(db);
-      return values.filter((value) => value.origin?.kind === 'paper' && value.origin.paperId === paperId);
+    async getMany(ids: readonly string[]) {
+      return (await store.getMany('analyses', ids)).flatMap((row) => (row ? [checkedAnalysis(row.doc)] : []));
+    },
+    async listByPaper(paperId: string, sourceHash?: string) {
+      return (await readAnalyses(store, paperId, sourceHash)).values;
     },
     async list() {
-      const { values, corrupt } = await readAnalyses(db);
-      return {
-        items: values
-          .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-          .map((a) => ({
-            id: a.id,
-            title: a.title,
-            createdAt: a.createdAt,
-            updatedAt: a.updatedAt,
-            preview: Array.from(a.text.sourceText).slice(0, 120).join(''),
-            sentenceCount: a.text.sentences.length,
-            issueCount: a.issues.length,
-            sourceHash: a.text.sourceHash,
-            paperId: a.origin?.kind === 'paper' ? a.origin.paperId : null,
-          })),
-        corrupt,
-      };
+      const rows = await store.query('analyses', { select: 'summary', orderBy: 'updatedAt', desc: true });
+      const items = rows.flatMap(({ doc }) => {
+        const result = summarySchema.safeParse(doc);
+        return result.success ? [result.data] : [];
+      });
+      return { items, corrupt: rows.length - items.length };
     },
     async update(id: string, patch: AnalysisPatch) {
-      return db.transaction('rw', db.analyses, async () => {
-        const allowed = new Set([
-          'title',
-          'context',
-          'contextLimited',
-          'versions',
-          'sentenceAnnotations',
-          'paragraph',
-          'flowLinks',
-          'paragraphMetrics',
-          'scores',
-          'issues',
-        ]);
-        if ('text' in patch) throw new SourceImmutableError('Source text is immutable');
-        if (Object.keys(patch).some((key) => !allowed.has(key))) throw new Error('Invalid analysis patch');
-        const current = await analyses.get(id);
-        if (!current) throw new Error('Analysis not found');
-        const clearsScores =
-          'sentenceAnnotations' in patch ||
-          'paragraph' in patch ||
-          'flowLinks' in patch ||
-          'paragraphMetrics' in patch;
-        const value = checkedAnalysis({
-          ...current,
-          ...patch,
-          ...(clearsScores && !('scores' in patch) ? { scores: null } : {}),
-          id,
-          updatedAt: now(),
-        });
-        await db.analyses.put(value);
-        return value;
-      });
+      return store.unitOfWork(
+        async (tx) => {
+          const allowed = new Set([
+            'title',
+            'context',
+            'contextLimited',
+            'versions',
+            'sentenceAnnotations',
+            'paragraph',
+            'flowLinks',
+            'paragraphMetrics',
+            'scores',
+            'issues',
+          ]);
+          if ('text' in patch) throw new SourceImmutableError('Source text is immutable');
+          if (Object.keys(patch).some((key) => !allowed.has(key))) throw new Error('Invalid analysis patch');
+          const current = await getAnalysis(tx, id);
+          if (!current) throw new Error('Analysis not found');
+          const clearsScores =
+            'sentenceAnnotations' in patch ||
+            'paragraph' in patch ||
+            'flowLinks' in patch ||
+            'paragraphMetrics' in patch;
+          const value = checkedAnalysis({
+            ...current,
+            ...patch,
+            ...(clearsScores && !('scores' in patch) ? { scores: null } : {}),
+            id,
+            updatedAt: now(),
+          });
+          await tx.put('analyses', value.id, value);
+          return value;
+        },
+        ['analyses'],
+      );
     },
     async delete(id: string) {
-      await db.transaction('rw', db.analyses, db.auditEvents, async () => {
-        if (await db.analyses.get(id)) {
-          await db.analyses.delete(id);
-          await db.auditEvents.add(makeAudit(id, 'delete_analysis', 'human'));
-        }
-      });
+      await store.unitOfWork(
+        async (tx) => {
+          if (await tx.get('analyses', id)) {
+            await tx.remove('analyses', id);
+            await appendAudit(tx, makeAudit(id, 'delete_analysis', 'human'));
+          }
+        },
+        ['analyses'],
+      );
     },
   };
   return analyses;

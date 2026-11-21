@@ -1,26 +1,14 @@
-import 'fake-indexeddb/auto';
-import Dexie from 'dexie';
 import { webcrypto } from 'node:crypto';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { summariseProbe } from '@/core/probe';
 import { buildAnalysisReport } from '@/core/report/buildAnalysisReport';
 import { probeAt, probeFixture } from '@/test/probeFixtures';
 import { createStyleProbeRun } from '@/shared/llm/llmStyleProbe';
-import { createDb } from './db';
-import { createRepositories } from './repositories';
+import { testRepositories } from './testRepositories';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
-it('P6 migrates version 8 and saves, exports, imports and deletes probes with the paper', async () => {
-  const name = `probe-${crypto.randomUUID()}`;
-  const old = new Dexie(name);
-  old.version(8).stores({ papers: 'id, updatedAt, title', paperReviews: 'paperId' });
-  await old.open();
-  await old.table('paperReviews').add({ paperId: 'existing' });
-  old.close();
-  const db = createDb(name);
-  expect(await db.paperReviews.get('existing')).toBeDefined();
-  await db.paperReviews.delete('existing');
-  const repo = createRepositories(db);
+it('P6 saves, exports, imports and deletes probes with the paper', async () => {
+  const repo = testRepositories();
   const { paper, analyses } = await probeFixture();
   await repo.papers.create(paper);
   const run = createStyleProbeRun(paper, analyses, {
@@ -57,7 +45,7 @@ it('P6 migrates version 8 and saves, exports, imports and deletes probes with th
   ).not.toContain(secret);
   const data = await repo.transfer.exportAll('1');
   expect(data.paperProbes[0]?.runs[0]?.items[0]?.rewrittenText).toBe(secret);
-  const dest = createRepositories(createDb(`probe-dest-${crypto.randomUUID()}`));
+  const dest = testRepositories();
   const plan = await dest.transfer.previewImport(data);
   if (!plan.ok) throw new Error(plan.error);
   await dest.transfer.applyImport(plan);

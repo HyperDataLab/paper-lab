@@ -161,6 +161,14 @@ Two of these hues match `--hl-word` and `--hl-flow` above. The two sets never sh
 ## 5. Copy and states
 
 - Vietnamese UI copy, sentence case, short verbs ("Phân tích", "Xác nhận", "Bỏ qua", "Áp dụng bản sửa").
+- **Academic terms stay in English.** Keep sentences, buttons, hints and states in Vietnamese,
+  with academic terms in English within them. Use the glossary capitalisation in labels and headings,
+  and lowercase in sentences. Examples: "Thêm hypothesis", "Chưa có research question nào."
+  - Paper structure: Abstract, Introduction, Related work, Background, Methods / Methodology, Results,
+    Discussion, Conclusion, Limitations, References, Appendix, Acknowledgements, Keywords, Title.
+  - Research design: Research question, Hypothesis, Research gap, Contribution, Claim, Argument, Evidence,
+    Warrant, Qualifier, Rebuttal (Toulmin), Threats to validity, Variable, Metric, Dataset, Baseline, Ablation,
+    Research design (the design type), Measurement, Statistical analysis, Paragraph, Section, Move, Step.
 - Scores always carry their context: never a bare number without coverage / confidence / rubric version.
 - Findings wording follows the PRD distinction: "Ứng viên cần xem lại" (review candidate), "Gợi ý văn phong"
   (stylistic suggestion), "Vi phạm đã xác nhận" (confirmed). Default to the weakest label when unsure.
@@ -374,7 +382,7 @@ The profile has five dimensions (Khoa học, Lập luận, Diễn ngôn, Viết 
 - The PDF scrolls with its column: there is one scrollbar. The sticky toolbar holds, in order: the way back (when there is one), page field, previous/next, zoom, fit width and the storage badge; on its second row "Tìm trong bài" (Enter searches the paper's text and outlines the first match; ‹ › step through matches, with "2/7") and "Mục" (jumps to a section's first page). The page field moves the PDF on Enter or when it is left, not on every keystroke.
 - **A way back.** A source opened from Summary, or from a space through the drawer's "Mở trong PDF", shows "← Quay lại Summary" (or the space's name) at the start of the toolbar; it returns to that tab at the same scroll position. Going anywhere else ends it.
 - A mark pressed while the analysis is hidden shows the right column again with its finding.
-- The PDF is kept in this browser (IndexedDB, keyed by the file's SHA-256). With a lab account (Google, @hyperdatalab.org only) it is also kept in the lab's storage, so other members can open it on any machine. Without an account it stays on this machine, and the screen says so with a badge: "Chỉ trên máy này", "Đang lưu lên kho lab…" or "Đã lưu trong kho lab".
+- The PDF lives in the lab's storage (R2, keyed by the file's SHA-256). It is sent there when the paper is imported or the file is attached, and read back from there, held in memory for the session only. Opening it needs a lab account (Google, @hyperdatalab.org only). The toolbar badge reads "Đã lưu trong kho lab".
 - A paper imported before PDFs were kept offers "Gắn PDF gốc". The file is accepted only when its hash matches the one recorded at import.
 - What was found in the paper is drawn on the PDF too: a translucent box in the criterion's colour over the words, with the same underline style as in Text (solid, double, dotted, dashed). Findings to review are stronger than analysis marks. Pressing a box opens what it stands for. Claims, Evidence and Sources are drawn; Writing marks are not, since they would cover the page. A passage opened from Issues gets an accent outline that pulses once and is scrolled into the upper part of the view. Passages are matched to the PDF text with the paragraph's text around them, never guessed; when one cannot be found, the page opens and the toolbar says so.
 - Analysis never needs the account; it only decides where the original file is kept. Privacy copy on import screens says exactly this.
@@ -423,6 +431,13 @@ authors, venue, year and DOI. Parser counts belong in Minh bạch.
 - The detail screen groups intake, member status, protocol history and releases in separate cards. Intake shows matching counts and asks a person to resolve title-and-year matches. The table can be filtered by retrieval status.
 - A release displays its digest and calls out an unchanged digest; the manifest download contains the validated corpus without paper text.
 - Keywords sits after Chủ đề. It counts the OpenAlex keywords of the members (only DOIs leave the browser) and shows a word cloud (size by number of papers, colour from `--text-muted` to `--accent-strong` by mean score) or a co-occurrence graph (top 40 keywords on a ring, Jaccard edges); the sortable table below is the text alternative, with a year filter. Pressing a keyword lists its papers. "Lấy keywords cho N bài còn thiếu" fetches missing keywords three at a time; a collection built from other members than the current ones reads "Đã cũ".
+- Đồ thị tri thức (OpenKG) sits after Lộ trình đóng góp. It reports local coverage and lets readers toggle layers with counted chips. Its concentric diagram shows up to 120 nodes by degree, with a searchable text list and the same inspector available for every node. Selecting a node shows its relationships and supporting papers. The trend table counts the 15 most frequent keywords by year, and the export menu uses the entire corpus graph.
+
+# Lab knowledge graph
+
+- The Lab KG page leads with two task surfaces: explore the graph by paper/keyword/DOI, or ask a natural-language question. Keep them side by side on desktop and stack them below 980 px.
+- Show project KG counts as a compact responsive strip. When the graph has no papers, explain the next step and list local corpora with explicit enqueue actions; do not use a large decorative empty-state illustration.
+- Once a centre is selected, keep graph controls, node inspector, text node list, trend table, and export actions available as progressive details around the graph.
 
 # Paper page patterns
 

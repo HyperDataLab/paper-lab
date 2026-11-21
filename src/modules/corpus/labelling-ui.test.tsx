@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
@@ -8,17 +7,16 @@ import { examplePaper, exampleStance } from '@/core/paperModel/contract';
 import type { Paper } from '@/core/schemas';
 import type { Corpus } from '@/core/schemas/corpus';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { CorpusLabelling } from './CorpusLabelling';
 import { LABEL_VERSIONS, labelSections } from './labelPlan';
 import { DEFAULT_RUNNERS, loadLabelPaper, type LabelRunners } from './labelRun';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 it('C4b asks for consent once, runs the members and records the run', async () => {
   vi.stubGlobal('crypto', webcrypto);
   localStorage.clear();
-  const repo = createRepositories(createDb(`labelling-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const paper = examplePaper();
   await repo.papers.create(paper);
   const base = exampleCorpus();

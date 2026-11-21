@@ -1,13 +1,13 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { AuthContext } from '@/shared/auth/authContext';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories, type Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { chooseSelectOption } from '@/test/selectOption';
 import { LibraryPanel } from './LibraryPanel';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 const works: Record<string, unknown> = {
@@ -53,7 +53,7 @@ beforeEach(() => {
   );
 });
 async function setup() {
-  const repo: Repositories = createRepositories(createDb(`library-ui-${crypto.randomUUID()}`));
+  const repo: Repositories = testRepositories();
   render(
     <MemoryRouter>
       <StorageProvider repositories={repo}>
@@ -174,7 +174,7 @@ it('F2 offers arXiv for preprints instead of an outside link', async () => {
 });
 
 it('F1 resumes unfinished lookups after a reload', async () => {
-  const repo: Repositories = createRepositories(createDb(`library-ui-${crypto.randomUUID()}`));
+  const repo: Repositories = testRepositories();
   await repo.library.addDois(['10.1000/open']);
   render(
     <MemoryRouter>
@@ -185,4 +185,41 @@ it('F1 resumes unfinished lookups after a reload', async () => {
   );
   fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục tra cứu (1)' }));
   expect(await screen.findByRole('link', { name: 'Open paper about learning' })).toBeInTheDocument();
+});
+
+it('queues selected Library papers and shows the lab KG status', async () => {
+  const repo = testRepositories();
+  await repo.library.addDois(['10.1000/open', '10.1000/closed']);
+  const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).endsWith('/kg/ingest')) {
+      expect(JSON.parse(String(init?.body))).toEqual({ ids: ['10.1000/open'] });
+      return Response.json({ queued: 1, processed: 1, skipped: 0, errors: [] });
+    }
+    return Response.json({ counts: { pending: 0, processing: 0, done: 1, failed: 0 }, logs: [] });
+  });
+  vi.stubGlobal('fetch', fetcher);
+  render(
+    <MemoryRouter>
+      <AuthContext.Provider
+        value={{
+          user: { uid: 'lab', email: 'lab@example.invalid', name: null },
+          ready: true,
+          error: '',
+          getIdToken: async () => 'token',
+          signIn: async () => {},
+          signOut: async () => {},
+        }}
+      >
+        <StorageProvider repositories={repo}>
+          <LibraryPanel />
+        </StorageProvider>
+      </AuthContext.Provider>
+    </MemoryRouter>,
+  );
+  const row = (await screen.findByText('10.1000/open')).closest('tr');
+  if (!row) throw new Error('Missing Library row');
+  fireEvent.click(within(row).getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Đưa vào KG của lab' }));
+  expect(await screen.findByText(/Đã xếp 1/)).toBeInTheDocument();
+  expect(await screen.findByText(/KG của lab · Chờ 0 · Đang xử lý 0 · Đã xử lý 1/)).toBeInTheDocument();
 });

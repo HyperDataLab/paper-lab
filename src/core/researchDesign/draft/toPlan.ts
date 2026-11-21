@@ -21,9 +21,10 @@ export function draftToPlan(
     schemaVersion: PLAN_SCHEMA_VERSION,
     ...metadata,
     generator: { app: 'research-design', version: appVersion },
-    hypotheses: draft.hypotheses.map(({ question, claim, ...h }) => {
+    hypotheses: draft.hypotheses.map(({ question, claim, autoresearch, ...h }) => {
       void question;
       void claim;
+      void autoresearch;
       return h;
     }),
     variables: draft.variables.map(({ construct, ...v }) => {
@@ -39,6 +40,7 @@ export function draftToPlan(
     runMatrix: { ...draft.runMatrix, expectedRuns: runCount(draft.runMatrix) },
     analyses: draft.analyses,
     context: {
+      autoresearch: draft.autoresearchDesign?.context,
       questions: draft.questions.map((q) => ({
         id: q.id,
         text: q.text,

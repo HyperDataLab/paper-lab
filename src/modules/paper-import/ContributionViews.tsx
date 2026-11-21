@@ -47,11 +47,11 @@ export function ContributionViews({ model, onLocation }: Props) {
   return (
     <div className={styles.views}>
       <SegmentedControl
-        label="Cách xem đóng góp"
+        label="Cách xem contribution"
         value={view}
         onChange={setView}
         options={[
-          { value: 'flow', label: 'Dòng đóng góp' },
+          { value: 'flow', label: 'Dòng contribution' },
           { value: 'graph', label: 'Đồ thị tri thức' },
         ]}
       />
@@ -85,7 +85,7 @@ export function ContributionViews({ model, onLocation }: Props) {
             <p>
               Chỉ hiển thị 20 nút có nhiều liên kết nhất.{' '}
               <Button variant="ghost" size="sm" onClick={() => setView('flow')}>
-                Xem tất cả trong Dòng đóng góp
+                Xem tất cả trong Dòng contribution
               </Button>
               .
             </p>

@@ -12,5 +12,5 @@ const module: ModuleDefinition = {
   page: lazy(() => import('./Page')),
 };
 export default module;
-export { ROLE_LABELS } from './paperLabels';
-export { importPaperFile } from './importPaperFile';
+export { SECTION_ROLE_LABELS as ROLE_LABELS } from './sectionRoles';
+export { importPaperFile, importStoredPdf } from './importPaperFile';

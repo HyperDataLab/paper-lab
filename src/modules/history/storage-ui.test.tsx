@@ -1,19 +1,17 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { vi } from 'vitest';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { analyzeText } from '@/core/text';
 import Evaluate from '../evaluate/Page';
 import History from './Page';
 import Transfer from '../transfer/Page';
+import { testRepositories } from '@/shared/storage/testRepositories';
 it('AC-08 removes deleted analyses from comparison selection and allows another selection', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`history-selection-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const first = await repo.analyses.create({ text: await analyzeText('First sentence.') });
   await repo.analyses.create({ text: await analyzeText('Second sentence.') });
   await repo.analyses.create({ text: await analyzeText('Third sentence.') });
@@ -45,7 +43,7 @@ it('AC-08 removes deleted analyses from comparison selection and allows another 
 });
 it('U5 history search narrows the list and the page keeps a single h1', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`history-search-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   await repo.analyses.create({ text: await analyzeText('Alpha sentence.') });
   await repo.analyses.create({ text: await analyzeText('Beta sentence.') });
   render(
@@ -68,7 +66,7 @@ it('U5 history search narrows the list and the page keeps a single h1', async ()
 });
 it('EV-11 saves an evaluation and deletes it from history', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   render(
     <MemoryRouter initialEntries={['/evaluate']}>
       <StorageProvider repositories={repo}>
@@ -81,7 +79,7 @@ it('EV-11 saves an evaluation and deletes it from history', async () => {
       </StorageProvider>
     </MemoryRouter>,
   );
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), {
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), {
     target: { value: 'A scientific sentence.' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
@@ -103,7 +101,7 @@ it('EV-11 saves an evaluation and deletes it from history', async () => {
 });
 it('EV-11 shows a not-found state for an unknown analysis', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   render(
     <MemoryRouter initialEntries={[`/evaluate?id=${crypto.randomUUID()}`]}>
       <StorageProvider repositories={repo}>
@@ -118,10 +116,10 @@ it('EV-11 shows a not-found state for an unknown analysis', async () => {
 });
 it('EV-12 previews and imports a JSON package', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const source = createRepositories(createDb(`ui-${crypto.randomUUID()}`));
+  const source = testRepositories();
   await source.analyses.create({ text: await analyzeText('Imported sentence.') });
   const data = await source.transfer.exportAll('1');
-  const repo = createRepositories(createDb(`ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   render(
     <MemoryRouter>
       <StorageProvider repositories={repo}>

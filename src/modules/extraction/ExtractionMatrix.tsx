@@ -218,7 +218,7 @@ export function ExtractionMatrix({
                     ),
                 },
                 {
-                  label: 'JSON kèm bằng chứng',
+                  label: 'JSON kèm evidence',
                   onSelect: () =>
                     downloadJson(`${exportName}.json`, matrixJson(project, { verifiedOnly: false })),
                 },

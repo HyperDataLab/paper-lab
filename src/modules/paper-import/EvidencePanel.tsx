@@ -25,9 +25,9 @@ export function EvidencePanel({
     <Drawer
       open={Boolean(location && paragraph)}
       onClose={onClose}
-      label="Bằng chứng trong bài"
+      label="Evidence trong bài"
       side="right"
-      title="Bằng chứng trong bài"
+      title="Evidence trong bài"
       description={paragraph ? <PlaceText paper={paper} paragraphId={paragraph.id} /> : undefined}
       footer={
         location ? (

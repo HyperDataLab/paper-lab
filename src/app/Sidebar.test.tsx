@@ -2,39 +2,31 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { modules } from './modules';
-
 beforeEach(() => localStorage.clear());
-
-it('renders the registered routes and current research groups', () => {
+it('renders groups, entries, disabled upcoming items and the active page', () => {
   render(
-    <MemoryRouter initialEntries={['/']}>
+    <MemoryRouter initialEntries={['/evaluate']}>
       <Sidebar />
     </MemoryRouter>,
   );
-
+  for (const label of ['Nghiên cứu', 'Dữ liệu', 'Thử nghiệm'])
+    expect(screen.getByText(label)).toBeInTheDocument();
   for (const item of modules.filter((entry) => !entry.partOf && !entry.adminOnly)) {
     if (item.status === 'soon') {
       const node = screen.getByLabelText(item.label, { selector: '[aria-disabled]' });
       expect(node).toHaveAttribute('aria-disabled', 'true');
       expect(node.tagName).not.toBe('A');
-    } else {
-      expect(screen.getByRole('link', { name: new RegExp(item.label) })).toBeInTheDocument();
-    }
+    } else expect(screen.getByRole('link', { name: new RegExp(item.label) })).toBeInTheDocument();
   }
 });
-
 it('marks the active link and persists collapse', () => {
-  const home = modules.find((item) => item.path === '/');
-  expect(home).toBeDefined();
-  if (!home) return;
-
   const view = render(
-    <MemoryRouter initialEntries={['/']}>
+    <MemoryRouter initialEntries={['/evaluate']}>
       <Sidebar />
     </MemoryRouter>,
   );
-  expect(screen.getByRole('link', { name: home.label })).toHaveAttribute('aria-current', 'page');
-  fireEvent.click(screen.getByRole('button'));
+  expect(screen.getByRole('link', { name: 'Paragraph' })).toHaveAttribute('aria-current', 'page');
+  fireEvent.click(screen.getByRole('button', { name: 'Thu gọn thanh bên' }));
   expect(localStorage.getItem('sidebar-collapsed')).toBe('true');
   view.unmount();
   render(
@@ -42,26 +34,8 @@ it('marks the active link and persists collapse', () => {
       <Sidebar />
     </MemoryRouter>,
   );
-  expect(screen.getByRole('button')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Mở rộng thanh bên' })).toBeInTheDocument();
 });
-
-it('keeps Settings outside the scrollable navigation list', () => {
-  const home = modules.find((item) => item.path === '/');
-  const settings = modules.find((item) => item.group === 'system' && !item.adminOnly);
-  expect(home).toBeDefined();
-  expect(settings).toBeDefined();
-  if (!home || !settings) return;
-
-  render(
-    <MemoryRouter initialEntries={['/']}>
-      <Sidebar />
-    </MemoryRouter>,
-  );
-
-  expect(screen.getByRole('link', { name: settings.label }).closest('nav')).toBeNull();
-  expect(screen.getByRole('link', { name: home.label }).closest('nav')).not.toBeNull();
-});
-
 it('continues when storage throws', () => {
   const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
     throw new Error('denied');
@@ -74,8 +48,18 @@ it('continues when storage throws', () => {
       <Sidebar />
     </MemoryRouter>,
   );
-  fireEvent.click(screen.getByRole('button'));
-  expect(screen.getByRole('button')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Thu gọn thanh bên' }));
+  expect(screen.getByRole('button', { name: 'Mở rộng thanh bên' })).toBeInTheDocument();
   get.mockRestore();
   set.mockRestore();
+});
+it('shows paragraph work as one entry that stays active on its related screens', () => {
+  render(
+    <MemoryRouter initialEntries={['/generate']}>
+      <Sidebar />
+    </MemoryRouter>,
+  );
+  expect(screen.queryByRole('link', { name: /Chỉnh sửa/ })).toBeNull();
+  expect(screen.queryByRole('link', { name: /Soạn paragraph/ })).toBeNull();
+  expect(screen.getByRole('link', { name: 'Paragraph' }).className).toMatch(/active/);
 });

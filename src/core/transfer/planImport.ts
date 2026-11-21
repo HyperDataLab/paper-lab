@@ -170,6 +170,7 @@ export function planImport(
     extractionProjects: parsed.data.extractionProjects,
     researchDesigns: parsed.data.researchDesigns,
     researchDesignBanks: parsed.data.researchDesignBanks,
+    autoresearchRuns: parsed.data.autoresearchRuns,
     corpora: parsed.data.corpora,
     corpusProfiles: parsed.data.corpusProfiles,
     skipped,

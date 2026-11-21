@@ -55,9 +55,9 @@ export function GenerationForm({
   const ready = Boolean(input.mainClaim.trim()) && evidence.every((item) => item.text.trim());
   return (
     <Card>
-      <h2 className={styles.formTitle}>Thiết lập soạn đoạn</h2>
+      <h2 className={styles.formTitle}>Thiết lập soạn paragraph</h2>
       <Wizard
-        label="Các bước soạn đoạn"
+        label="Các bước soạn paragraph"
         initialStep={initialStep}
         finishLabel={finishLabel}
         finishDisabled={finishDisabled}
@@ -66,28 +66,28 @@ export function GenerationForm({
         note={
           ready
             ? 'Ước tính: 1 lượt gọi AI (có thể phát sinh khi thử lại hoặc sửa kết quả).'
-            : 'Cần có luận điểm và nội dung cho mọi bằng chứng để tiếp tục.'
+            : 'Cần có claim và nội dung cho mọi evidence để tiếp tục.'
         }
         steps={[
           {
             id: 'claim',
-            title: 'Luận điểm và bằng chứng',
-            summary: `${evidence.length} bằng chứng`,
+            title: 'Claim và evidence',
+            summary: `${evidence.length} evidence`,
             ready,
             content: (
               <div className={styles.stack}>
                 <TextField
                   multiline
                   rows={3}
-                  label="Luận điểm chính"
-                  hint="Một câu nói điều đoạn văn cần chứng minh."
+                  label="Claim chính"
+                  hint="Một câu nói điều paragraph cần chứng minh."
                   placeholder="Ví dụ: Drought reduces carbon use efficiency in grassland soils."
                   value={input.mainClaim}
                   onChange={(e) => update({ mainClaim: e.target.value })}
-                  error={attempted && !input.mainClaim.trim() ? 'Hãy nhập luận điểm.' : undefined}
+                  error={attempted && !input.mainClaim.trim() ? 'Hãy nhập claim.' : undefined}
                 />
                 <div className={styles.sectionHead}>
-                  <h3>Bằng chứng</h3>
+                  <h3>Evidence</h3>
                   <span>{evidence.length}/12 · AI chỉ dùng những gì bạn đưa vào đây</span>
                 </div>
                 <ol className={styles.evidenceList}>
@@ -98,7 +98,7 @@ export function GenerationForm({
                       >
                         <div className={styles.itemHead}>
                           <strong className={styles.tag}>{item.id}</strong>
-                          <span>Bằng chứng {index + 1}</span>
+                          <span>Evidence {index + 1}</span>
                           <div className={styles.itemActions}>
                             <IconButton
                               size="sm"
@@ -142,7 +142,7 @@ export function GenerationForm({
                               ),
                             })
                           }
-                          error={attempted && !item.text.trim() ? 'Hãy nhập bằng chứng.' : undefined}
+                          error={attempted && !item.text.trim() ? 'Hãy nhập evidence.' : undefined}
                         />
                         <TextField
                           size="sm"
@@ -171,7 +171,7 @@ export function GenerationForm({
                   }}
                 >
                   <Plus size={16} aria-hidden="true" />
-                  Thêm bằng chứng
+                  Thêm evidence
                 </Button>
               </div>
             ),
@@ -201,9 +201,9 @@ export function GenerationForm({
                   </Select>
                 </div>
                 <div className={styles.field}>
-                  <span className={styles.fieldLabel}>Cấu trúc đoạn</span>
+                  <span className={styles.fieldLabel}>Cấu trúc paragraph</span>
                   <SegmentedControl
-                    label="Cấu trúc đoạn"
+                    label="Cấu trúc paragraph"
                     value={input.structure}
                     options={[
                       { value: 'auto', label: 'Tự chọn' },
@@ -263,7 +263,7 @@ export function GenerationForm({
             content: (
               <div className={styles.stack}>
                 <div className={styles.review}>
-                  <h3>Luận điểm</h3>
+                  <h3>Claim</h3>
                   <p className={styles.claim}>{input.mainClaim}</p>
                 </div>
                 <dl className={styles.settings}>
@@ -285,7 +285,7 @@ export function GenerationForm({
                   </div>
                 </dl>
                 <div className={styles.review}>
-                  <h3>Bằng chứng ({evidence.length})</h3>
+                  <h3>Evidence ({evidence.length})</h3>
                   <ol className={styles.evidenceList}>
                     {evidence.map((item) => (
                       <li key={item.id}>

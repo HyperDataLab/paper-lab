@@ -10,7 +10,7 @@ import {
 import type { Paper } from '@/core/schemas';
 import { useAuth } from '@/shared/auth/authContext';
 import { paperSha, pdfRemote, sha256Hex } from '@/shared/pdfStore';
-import { useHubProjectId, useRepositories } from '@/shared/storage/StorageProvider';
+import { useHubProjectId } from '@/shared/storage/StorageProvider';
 import { Badge } from '@/shared/ui/Badge';
 import type { PdfMark } from './pdfMarks';
 import { PdfViewer, type PdfTarget } from './PdfViewer';
@@ -51,7 +51,6 @@ export function PaperPdf({
   /** Analysis and run actions placed at the right of the compact PDF toolbar. */
   toolbarActions?: ReactNode;
 }) {
-  const repo = useRepositories();
   const projectId = useHubProjectId();
   const { user, getIdToken, signIn } = useAuth();
   const sha = paperSha(paper);
@@ -70,10 +69,9 @@ export function PaperPdf({
       const token = await getIdToken();
       if (!token) return false;
       await pdfRemote.upload(sha, projectId, paper.source.fileName || `${sha}.pdf`, blob, token);
-      await repo.pdfFiles.markUploaded(sha);
       return true;
     },
-    [sha, projectId, paper.source.fileName, getIdToken, repo],
+    [sha, projectId, paper.source.fileName, getIdToken],
   );
 
   useEffect(() => {
@@ -81,30 +79,11 @@ export function PaperPdf({
     if (!sha) return;
     void (async () => {
       try {
-        const local = await repo.pdfFiles.get(sha);
-        if (local) {
-          if (!active) return;
-          setState({ kind: 'ready', blob: local.blob, uploaded: false });
-          if (user && projectId)
-            void getIdToken()
-              .then(async (token) => {
-                if (!token) return false;
-                if (await pdfRemote.exists(sha, projectId, token)) return true;
-                return upload(local.blob);
-              })
-              .then((sent) => sent && active && setState({ kind: 'ready', blob: local.blob, uploaded: true }))
-              .catch((cause: unknown) => active && setUploadError(String(cause)));
+        const token = user && projectId ? await getIdToken() : null;
+        const remote = token && projectId ? await pdfRemote.download(sha, projectId, token) : null;
+        if (remote) {
+          if (active) setState({ kind: 'ready', blob: remote, uploaded: true });
           return;
-        }
-        const token = user ? await getIdToken() : null;
-        if (token) {
-          const remote = projectId ? await pdfRemote.download(sha, projectId, token) : null;
-          if (remote) {
-            // A full browser store only costs the local copy; the ResearchHub copy remains available.
-            if (active) setState({ kind: 'ready', blob: remote, uploaded: true });
-            await repo.pdfFiles.put(sha, remote, true).catch(() => undefined);
-            return;
-          }
         }
         if (active)
           setState({
@@ -123,7 +102,7 @@ export function PaperPdf({
     return () => {
       active = false;
     };
-  }, [sha, projectId, repo, user, getIdToken, upload, attempt]);
+  }, [sha, projectId, user, getIdToken, attempt]);
 
   const retry = () => {
     setLoadError('');
@@ -144,7 +123,6 @@ export function PaperPdf({
       return;
     }
     const blob = new Blob([data], { type: 'application/pdf' });
-    await repo.pdfFiles.put(sha, blob);
     setMessage('');
     setState({ kind: 'ready', blob, uploaded: false });
     if (user)

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { checkPlan } from '@/core/researchDesign/draft/checkPlan';
 import { gridCells, setRunMatrix } from '@/core/researchDesign/draft/planOps';
 import { runCount, type DraftRunMatrix } from '@/core/researchDesign/draft/schema';
-import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
+import { ResearchDesignConflictError } from '@/shared/storage/errors';
 import { Badge } from '@/shared/ui/Badge';
 import { Card } from '@/shared/ui/Card';
 import { useResearchDesign } from '../ResearchDesignProvider';

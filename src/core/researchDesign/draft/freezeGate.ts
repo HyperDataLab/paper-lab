@@ -7,6 +7,8 @@ import { draftToPlan } from './toPlan';
 export type Missing = {
   code:
     | 'no_hypotheses'
+    | 'candidate_hypothesis'
+    | 'candidate_design'
     | 'no_variables'
     | 'no_metrics'
     | 'no_datasets'
@@ -59,6 +61,19 @@ export function freezeGate(
   papers: PapersDoc | undefined,
   previous: ExperimentPlan | null,
 ): Gate {
+  const candidates: Missing[] = [
+    ...draft.hypotheses
+      .filter((h) => h.autoresearch?.status === 'candidate')
+      .map(({ id }) => ({ code: 'candidate_hypothesis' as const, subject: id })),
+    ...(draft.autoresearchDesign?.candidates ?? [])
+      .filter((row) => row.status === 'candidate')
+      .map(({ section, label }) => ({ code: 'candidate_design' as const, subject: section, text: label })),
+  ];
+  if (candidates.length)
+    return {
+      state: 'not_a_plan',
+      missing: candidates,
+    };
   const result = draftToPlan(draft, meta, papers);
   if (result.ok) {
     const issues = validatePlan(result.plan);

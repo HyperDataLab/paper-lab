@@ -1,32 +1,32 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { version as appVersion } from '../../../../package.json';
+import type { Run } from '@/core/autoresearch/record';
 import { freezeGate, nextVersion } from '@/core/researchDesign/draft/freezeGate';
 import { setPlanTitle } from '@/core/researchDesign/draft/ops';
 import { checkDesign } from '@/core/researchDesign/draft/checkDesign';
 import { checkChain } from '@/core/researchDesign/draft/checkChain';
 import { checkPlan } from '@/core/researchDesign/draft/checkPlan';
-import { planMarkdown } from '@/core/researchDesign/plan/planMarkdown';
-import { runnerStubs } from '@/core/researchDesign/plan/runnerStubs';
 import type { ExperimentPlan } from '@/core/researchDesign/plan/schema';
-import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
+import { ResearchDesignConflictError } from '@/shared/storage/errors';
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
 import { Card } from '@/shared/ui/Card';
 import { Dialog, DialogActions } from '@/shared/ui/Dialog';
-import { Drawer } from '@/shared/ui/Drawer';
 import { TextField } from '@/shared/ui/TextField';
 import { Empty, Loading } from '@/shared/ui/StateNote';
 import { useToast } from '@/shared/ui/toastContext';
 import { useResearchDesign } from '../ResearchDesignProvider';
 import { issueText, missingLink, missingText, ruleText } from '../package/gateText';
-import { Markdown } from '../package/Markdown';
-import { download } from '../package/download';
+import { autoLockState } from '../package/autoLock';
+import { PlanPreviewDrawer, type PlanPreview } from '../package/PlanPreviewDrawer';
 import { FrozenVersion } from '../package/FrozenVersion';
 import { PublishNote } from '../package/PublishNote';
 import { NOT_SIGNED_IN, usePlanPublisher, type PublishOutcome } from '../package/usePlanPublisher';
 
-export default function PackageSection() {
+type Props = { autoResearch?: { run: Run; busy: boolean; connect: (version: number) => Promise<boolean> } };
+
+export default function PackageSection({ autoResearch }: Props) {
   const state = useResearchDesign();
   const toast = useToast();
   const ready = !state.loading && !state.error;
@@ -41,11 +41,14 @@ export default function PackageSection() {
   const [deviation, setDeviation] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [drawer, setDrawer] = useState<{ kind: 'plan' | 'runner'; plan: ExperimentPlan } | null>(null);
+  const [drawer, setDrawer] = useState<PlanPreview | null>(null);
   if (state.loading) return <Loading />;
   if (state.error) return <Empty title="Không tải được gói kế hoạch." />;
-  const { draft, frozenPlans } = state.design;
+  const { draft, frozenPlans, version: designVersion } = state.design;
   const { freeze, reload, papers } = state;
+  const { run, connect } = autoResearch ?? {};
+  const previous = frozenPlans.at(-1) ?? null;
+  const pending = state.design.planDeviation;
   const version = nextVersion(frozenPlans.map((p) => p.planVersion));
   const gate = freezeGate(
     draft,
@@ -59,27 +62,34 @@ export default function PackageSection() {
       appVersion,
     },
     state.papers,
-    frozenPlans.at(-1) ?? null,
+    previous,
   );
+  const { sourceRun, reconnect, lockError } = autoLockState(state.design, gate, run);
   const reason =
-    gate.state === 'not_a_plan'
-      ? 'Bản nháp chưa đủ để thành kế hoạch.'
-      : gate.unchanged
-        ? `Bản nháp không khác phiên bản ${version - 1}.`
-        : gate.blocked
-          ? 'Còn quy tắc chặn.'
-          : '';
+    sourceRun && !run
+      ? 'Duyệt quyết định đóng băng trong AutoResearch.'
+      : reconnect
+        ? 'Gắn phiên bản đã đóng băng vào run trước khi tạo phiên bản mới.'
+        : lockError
+          ? 'Kế hoạch chưa khớp với thiết kế đã duyệt.'
+          : gate.state === 'not_a_plan'
+            ? 'Bản nháp chưa đủ để thành kế hoạch.'
+            : gate.unchanged && !pending
+              ? `Bản nháp không khác phiên bản ${version - 1}.`
+              : gate.blocked
+                ? 'Còn quy tắc chặn.'
+                : '';
   const designFlags = checkDesign(draft, state.bank);
   const planFlags = checkPlan(draft).filter((f) => f.level !== 'note');
   const counts = [
-    ['Thiết kế nghiên cứu', 'design', designFlags.length],
+    ['Research design', 'design', designFlags.length],
     [
-      'Câu hỏi và giả thuyết',
+      'Research questions và hypotheses',
       'questions',
       designFlags.filter((f) => draft.hypotheses.some((h) => h.id === f.subject)).length,
     ],
-    ['Đo lường', 'measurement', checkChain(draft).length],
-    ['Phân tích thống kê', 'analyses', planFlags.filter((f) => f.rule.startsWith('AN-')).length],
+    ['Measurement', 'measurement', checkChain(draft).length],
+    ['Statistical analysis', 'analyses', planFlags.filter((f) => f.rule.startsWith('AN-')).length],
     ['Ma trận chạy', 'runs', planFlags.filter((f) => f.rule.startsWith('RM-')).length],
   ] as const;
   const destination = (subject: string | undefined, rule: string) =>
@@ -105,6 +115,7 @@ export default function PackageSection() {
         version === 1 ? null : deviation.trim(),
         papers,
         appVersion,
+        ...(run ? [{ runId: run.id, revision: run.revision, designVersion }] : []),
       );
       frozen = design.frozenPlans.at(-1);
       setDialog(false);
@@ -121,7 +132,10 @@ export default function PackageSection() {
       setBusy(false);
     }
     // Publishing is separate from freezing: the version stays frozen whatever the server answers.
-    if (frozen) await send(frozen);
+    if (frozen) {
+      await send(frozen);
+      if (connect) await connect(frozen.planVersion);
+    }
   }
   async function send(plan: ExperimentPlan) {
     setSending(plan.planVersion);
@@ -192,7 +206,7 @@ export default function PackageSection() {
         )}
         <Button
           variant="primary"
-          disabled={!!reason}
+          disabled={!!reason || !!autoResearch?.busy}
           onClick={() => {
             setError('');
             setDialog(true);
@@ -201,6 +215,27 @@ export default function PackageSection() {
           Đóng băng phiên bản {version}
         </Button>{' '}
         {reason && <span>{reason}</span>}
+        {sourceRun && !run && (
+          <p>
+            <Link to={`?ar=S11&arRun=${encodeURIComponent(sourceRun)}`}>
+              Mở quyết định đóng băng AutoResearch
+            </Link>
+          </p>
+        )}
+        {lockError && (
+          <details>
+            <summary>Chi tiết kỹ thuật</summary>
+            {lockError}
+          </details>
+        )}
+        {reconnect && previous && connect && (
+          <Button
+            disabled={autoResearch?.busy || sending !== null || busy}
+            onClick={() => void connect(previous.planVersion)}
+          >
+            Gắn phiên bản {previous.planVersion} vào run
+          </Button>
+        )}
       </Card>
       <Card>
         <h3>Các phiên bản đã đóng băng</h3>
@@ -268,57 +303,13 @@ export default function PackageSection() {
           {error && <p role="alert">{error}</p>}
           <DialogActions>
             <Button onClick={() => setDialog(false)}>Hủy</Button>
-            <Button variant="primary" disabled={busy} onClick={() => void submit()}>
+            <Button variant="primary" disabled={busy || autoResearch?.busy} onClick={() => void submit()}>
               Đóng băng
             </Button>
           </DialogActions>
         </Dialog>
       )}
-      {drawer && (
-        <Drawer
-          open
-          side="right"
-          title={
-            drawer.kind === 'plan'
-              ? `Phiên bản ${drawer.plan.planVersion} · đã đóng băng · chỉ đọc`
-              : 'Mã mẫu cho runner'
-          }
-          onClose={() => setDrawer(null)}
-        >
-          {drawer.kind === 'plan' ? (
-            <Markdown text={planMarkdown(drawer.plan)} />
-          ) : (
-            <>
-              <p>Điểm bắt đầu cho mã chạy; ứng dụng này không chạy chúng.</p>
-              {Object.values(runnerStubs(drawer.plan))
-                .filter((x): x is { fileName: string; text: string } => typeof x !== 'number')
-                .map((file) => (
-                  <section key={file.fileName}>
-                    <h3>{file.fileName}</h3>
-                    <pre>{file.text}</pre>
-                    <Button
-                      onClick={() =>
-                        void navigator.clipboard
-                          .writeText(file.text)
-                          .then(() => toast('Đã sao chép.'))
-                          .catch(() => toast('Không sao chép được.'))
-                      }
-                    >
-                      Sao chép
-                    </Button>
-                    <Button
-                      onClick={() =>
-                        download(file.fileName, new TextEncoder().encode(file.text), 'text/plain')
-                      }
-                    >
-                      Tải về
-                    </Button>
-                  </section>
-                ))}
-            </>
-          )}
-        </Drawer>
-      )}
+      {drawer && <PlanPreviewDrawer preview={drawer} close={() => setDrawer(null)} />}
     </>
   );
 }

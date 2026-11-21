@@ -92,14 +92,14 @@ export function AnalysisPipeline({
         <AnalysisStep
           number={2}
           state={states[1] ?? 'idle'}
-          title="Cấu trúc đoạn"
+          title="Cấu trúc paragraph"
           detail={
             paragraph.result ? (
               <Done>{`Xong · kiểu ${paragraph.result.paragraph.type === 'UNKNOWN' ? 'chưa rõ' : paragraph.result.paragraph.type}`}</Done>
             ) : !syntax.annotations ? (
               <span>Cần phân tích câu trước</span>
             ) : (
-              'Kiểu đoạn, ý chính, vai trò từng câu và mạch nối.'
+              'Kiểu paragraph, ý chính, vai trò từng câu và mạch nối.'
             )
           }
         >
@@ -117,7 +117,7 @@ export function AnalysisPipeline({
               disabled={saved || !syntax.annotations || syntax.running || judge.running || scoring.running}
               onClick={onStructure}
             >
-              Phân tích cấu trúc đoạn (AI)
+              Phân tích cấu trúc paragraph (AI)
             </Button>
           )}
           {paragraph.error && <p role="alert">Không phân tích được: {paragraph.error}</p>}

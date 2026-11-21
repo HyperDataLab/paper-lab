@@ -1,5 +1,5 @@
 import type { Paper } from '@/core/schemas';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 import { paperSha } from './index';
 import { requestGrobid } from './grobidSync';
 

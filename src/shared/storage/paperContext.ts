@@ -1,17 +1,17 @@
 import { PaperContextRecordSchema, type PaperContextRecordInput } from '@/core/schemas';
-import type { ParagraphDb } from './db';
-export function createPaperContextRepository(db: ParagraphDb) {
+import type { DocStore } from './docStore';
+export function createPaperContextRepository(store: DocStore) {
   const paperContext = {
     async get(paperId: string) {
-      const row = await db.paperContext.get(paperId);
-      return row ? PaperContextRecordSchema.parse(row) : undefined;
+      const row = await store.get('paperContext', paperId);
+      return row ? PaperContextRecordSchema.parse(row.doc) : undefined;
     },
     async list() {
-      return (await db.paperContext.toArray()).map((row) => PaperContextRecordSchema.parse(row));
+      return (await store.query('paperContext')).map((row) => PaperContextRecordSchema.parse(row.doc));
     },
     async save(input: PaperContextRecordInput) {
       const value = PaperContextRecordSchema.parse(input);
-      await db.paperContext.put(value);
+      await store.put('paperContext', value.paperId, value);
       return value;
     },
   };

@@ -7,7 +7,7 @@ import { checkPackage } from '@/core/researchDesign/plan/exportPackage';
 import { emptyResearchDesign, type ResearchDesign } from '@/core/schemas/researchDesign';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
 import { ToastProvider } from '@/shared/ui/ToastProvider';
-import { ResearchDesignConflictError } from '@/shared/storage/researchDesigns';
+import { ResearchDesignConflictError } from '@/shared/storage/errors';
 import * as downloads from './download';
 import PackageSection from '../sections/PackageSection';
 
@@ -40,6 +40,10 @@ vi.mock('../ResearchDesignProvider', async () => {
       reload: mock.reload,
     }),
   };
+});
+vi.mock('@/shared/storage/StorageProvider', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/shared/storage/StorageProvider')>();
+  return { ...actual, useHubProjectId: () => 'rh-test-project' };
 });
 
 const signedIn: AuthValue = {
@@ -208,7 +212,10 @@ it('PK-01 shows missing items as links and blocks freezing', () => {
       </ToastProvider>
     </MemoryRouter>,
   );
-  expect(screen.getByRole('link', { name: /gi.*thuy/ })).toHaveAttribute('href', '/?design=questions');
+  expect(screen.getByRole('link', { name: 'Chưa có hypothesis nào.' })).toHaveAttribute(
+    'href',
+    '/?design=questions',
+  );
   expect(screen.getByRole('button', { name: /phi.n b.n 1/ })).toBeDisabled();
 });
 

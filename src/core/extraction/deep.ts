@@ -45,7 +45,13 @@ export function candidateFromWork(raw: unknown, foundBy: string): Candidate | nu
   const openalexId = typeof work.id === 'string' ? (work.id.split('/').pop() ?? null) : null;
   const location = (work.primary_location ?? {}) as Record<string, unknown>;
   const authorships = Array.isArray(work.authorships) ? work.authorships : [];
+  const keywords = (Array.isArray(work.keywords) ? work.keywords : []).flatMap(
+    (entry: Record<string, unknown> | null) => text(entry?.display_name) ?? [],
+  );
+  const workType = text(work.type);
   return {
+    ...(keywords.length ? { keywords } : {}),
+    ...(workType ? { workType } : {}),
     key: doi ?? openalexId ?? normalTitle(title),
     openalexId,
     doi,
@@ -96,23 +102,27 @@ export function applySuggestions(candidates: Candidate[], output: ScreeningOutpu
   });
 }
 
+/** A person's decision. `ai_accepted` records that they applied the AI triage bucket; reopening clears it. */
 export function decideCandidate(
   candidates: Candidate[],
   key: string,
   status: ScreeningStatus,
   at: string,
   reason?: string,
+  by: 'person' | 'ai_accepted' = 'person',
 ) {
-  return candidates.map((candidate) =>
-    candidate.key === key
-      ? {
-          ...candidate,
-          status,
-          reason: reason ?? null,
-          decidedAt: status === 'candidate' ? null : at,
-        }
-      : candidate,
-  );
+  return candidates.map((candidate) => {
+    if (candidate.key !== key) return candidate;
+    const { decidedBy: _old, ...rest } = candidate;
+    void _old;
+    return {
+      ...rest,
+      status,
+      reason: reason ?? null,
+      decidedAt: status === 'candidate' ? null : at,
+      ...(status === 'candidate' ? {} : { decidedBy: by }),
+    };
+  });
 }
 
 const fingerprint = (value: string) => {
@@ -244,7 +254,7 @@ const KIND_TITLES = {
   theme: 'Chủ đề chung',
   agreement: 'Điểm thống nhất',
   disagreement: 'Điểm khác biệt',
-  gap: 'Khoảng trống ứng viên',
+  gap: 'Research gap cần xác minh',
 } as const;
 
 export function synthesisMarkdown(project: ExtractionProject, synthesis: Synthesis) {
@@ -253,9 +263,9 @@ export function synthesisMarkdown(project: ExtractionProject, synthesis: Synthes
   const cite = (keys: string[]) => keys.map((key) => `[${numbers.get(key) ?? '?'}]`).join('');
   const lines = [
     `# ${project.title}`,
-    project.researchQuestion ? `Câu hỏi nghiên cứu: ${project.researchQuestion}` : '',
+    project.researchQuestion ? `Research question: ${project.researchQuestion}` : '',
     `Tổng hợp lúc ${synthesis.createdAt} · ${synthesis.model} · ${synthesis.promptVersion}`,
-    'Tổng hợp chỉ dựa trên giá trị trong ma trận. Khoảng trống là giả thuyết, không phải kết luận rằng chưa có nghiên cứu nào.',
+    'Tổng hợp chỉ dựa trên giá trị trong ma trận. Research gap là hypothesis, không phải kết luận rằng chưa có nghiên cứu nào.',
   ];
   for (const kind of Object.keys(KIND_TITLES) as (keyof typeof KIND_TITLES)[]) {
     const claims = synthesis.claims.filter((claim) => claim.kind === kind);
@@ -276,7 +286,7 @@ export function synthesisMarkdown(project: ExtractionProject, synthesis: Synthes
     for (const { citation } of paperEvidence(synthesis, key))
       for (const quote of citation.quotes)
         lines.push(
-          `   - ${citation.fieldLabel}: “${quote.quote}”${quote.page ? ` (tr. ${quote.page})` : ''}${citation.fullText ? '' : ' (tóm tắt)'}`,
+          `   - ${citation.fieldLabel}: “${quote.quote}”${quote.page ? ` (tr. ${quote.page})` : ''}${citation.fullText ? '' : ' (abstract)'}`,
         );
   }
   return lines.filter((line, index) => line !== '' || index > 0).join('\n');

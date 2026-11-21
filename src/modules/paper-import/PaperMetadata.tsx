@@ -32,14 +32,14 @@ const FORMATS: Record<Paper['source']['kind'], string> = {
   text: 'Văn bản',
 };
 const FIELDS: { name: Exclude<keyof MetadataDraft, 'authors'>; label: string; hint?: string }[] = [
-  { name: 'title', label: 'Tên' },
+  { name: 'title', label: 'Title' },
   { name: 'year', label: 'Năm' },
   { name: 'venue', label: 'Tạp chí / Nơi đăng' },
   { name: 'volume', label: 'Tập' },
   { name: 'issue', label: 'Số' },
   { name: 'pages', label: 'Trang' },
   { name: 'doi', label: 'DOI' },
-  { name: 'keywords', label: 'Từ khoá', hint: 'Cách nhau bằng dấu phẩy.' },
+  { name: 'keywords', label: 'Keywords', hint: 'Cách nhau bằng dấu phẩy.' },
 ];
 const FILLED_LABELS: Record<GrobidField, string> = {
   title: 'tên',
@@ -183,7 +183,7 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
     }
   }
   const rows: [string, string | null][] = [
-    ['Tên', metadata?.title ?? paper.title],
+    ['Title', metadata?.title ?? paper.title],
     [
       'Tệp',
       `${FORMATS[paper.source.kind]}${paper.source.pageCount ? ` · ${paper.source.pageCount} trang` : ''} · ${paper.source.fileName}`,
@@ -203,7 +203,7 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
       metadata?.citedBy === null || metadata?.citedBy === undefined ? null : String(metadata.citedBy),
     ],
     ['Chủ đề', metadata?.topic ?? null],
-    ['Từ khoá', metadata?.keywords.length ? metadata.keywords.join(', ') : null],
+    ['Keywords', metadata?.keywords.length ? metadata.keywords.join(', ') : null],
   ];
   const missing = [
     ...rows.filter(([, value]) => value === null).map(([label]) => label),
@@ -395,7 +395,8 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
       </SheetSection>
       <SheetSection title="Paper model">
         <p className={styles.note}>
-          Toàn bộ bài dưới dạng có cấu trúc: {counts.sentences} câu · {counts.references} tài liệu tham khảo.
+          Toàn bộ bài dưới dạng có cấu trúc: {counts.sentences} câu · {counts.references}{' '}
+          {counts.references === 1 ? 'reference' : 'references'}.
         </p>
         <div className={styles.downloads}>
           <Button onClick={() => void downloadModel()}>

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { BankCatalogLinkSchema } from './bankCatalog';
-import { DeepResearchSchema } from './deepResearch';
+import { CandidateSuggestionSchema, DeepResearchSchema } from './deepResearch';
 
 const timestamp = z.iso.datetime();
 const count = z.number().int().nonnegative();
@@ -124,6 +124,11 @@ export const CorpusMemberSchema = z.object({
       at: timestamp,
     }),
   ),
+  /**
+   * AI screening triage per stage (scores, reason, matched criteria). Shown apart and never counted: only a
+   * person decision in `decisions` changes PRISMA counts.
+   */
+  suggestions: z.partialRecord(z.enum(['title-abstract', 'full-text']), CandidateSuggestionSchema).optional(),
   appraisal: z.array(
     z.object({
       tool: z.string(),

@@ -44,22 +44,25 @@ export class FactRequestError extends Error {
   }
 }
 
-const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
+const auth = (token: string, projectId: string) => ({
+  Authorization: `Bearer ${token}`,
+  'X-Project-Id': projectId,
+});
 
 /** Who the lab server says the caller is. Only the server decides who is an admin. */
-export async function getMe(token: string) {
-  const response = await fetch(`${PDF_WORKER_URL}/v1/me`, { headers: auth(token) });
+export async function getMe(token: string, projectId: string) {
+  const response = await fetch(`${PDF_WORKER_URL}/v1/me`, { headers: auth(token, projectId) });
   if (!response.ok) throw new FactRequestError(response.status);
   return MeSchema.parse(await response.json());
 }
 
-export async function listFactRequests(token: string, state?: FactRequestState, cursor?: string) {
+export async function listFactRequests(token: string, projectId: string, state?: FactRequestState, cursor?: string) {
   const query = new URLSearchParams();
   if (state) query.set('state', state);
   if (cursor) query.set('cursor', cursor);
   const search = query.toString() ? `?${query.toString()}` : '';
   const response = await fetch(`${PDF_WORKER_URL}/v1/admin/fact-requests${search}`, {
-    headers: auth(token),
+    headers: auth(token, projectId),
   });
   if (!response.ok) throw new FactRequestError(response.status);
   const page = FactRequestPageSchema.parse(await response.json());
@@ -68,6 +71,7 @@ export async function listFactRequests(token: string, state?: FactRequestState, 
 
 export async function decideFactRequest(
   token: string,
+  projectId: string,
   paperId: string,
   decision: 'approve' | 'decline',
   note?: string,
@@ -77,7 +81,7 @@ export async function decideFactRequest(
     `${PDF_WORKER_URL}/v1/admin/fact-requests/${encodeURIComponent(paperId)}/decision`,
     {
       method: 'POST',
-      headers: { ...auth(token), 'Content-Type': 'application/json' },
+      headers: { ...auth(token, projectId), 'Content-Type': 'application/json' },
       body: JSON.stringify(trimmed ? { decision, note: trimmed } : { decision }),
     },
   );

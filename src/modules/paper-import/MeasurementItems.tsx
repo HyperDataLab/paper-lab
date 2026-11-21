@@ -204,7 +204,9 @@ export function FieldRow({
           <EvidenceLinks ids={field.evidence_ids} context={context} />
           <AtomicLinks ids={field.atomic_ids} context={context} />
           {field.search_scope && (
-            <span title={field.search_scope.join(', ')}>Đã tìm trong {field.search_scope.length} mục</span>
+            <span title={field.search_scope.join(', ')}>
+              Đã tìm trong {field.search_scope.length} section
+            </span>
           )}
           {!editing && (
             <Button

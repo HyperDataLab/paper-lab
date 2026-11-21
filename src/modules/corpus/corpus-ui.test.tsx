@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -6,21 +5,21 @@ import { expect, it, vi } from 'vitest';
 import { exampleCorpus } from '@/core/corpus/contract';
 import { addMember } from '@/core/corpus/intake';
 import { CorpusSchema } from '@/core/schemas/corpus';
-import { AuthContext } from '@/shared/auth/authContext';
+import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
+import { testWorkerData } from '@/shared/storage/remoteTestSupport';
 import Page from './Page';
 import DetailPage from './DetailPage';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 // The labelling card needs a model client; no test here lets it reach the network.
 const client = { completeJson: vi.fn(() => Promise.reject(new Error('no network in tests'))) };
-function setup(path: string) {
+function setup(path: string, auth?: AuthValue) {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`corpus-ui-${crypto.randomUUID()}`));
-  const mount = () =>
-    render(
+  const repo = testRepositories();
+  const mount = () => {
+    const page = (
       <MemoryRouter initialEntries={[path]}>
         <StorageProvider repositories={repo}>
           <LlmProvider innerClient={client}>
@@ -30,10 +29,55 @@ function setup(path: string) {
             </Routes>
           </LlmProvider>
         </StorageProvider>
-      </MemoryRouter>,
+      </MemoryRouter>
     );
+    return render(auth ? <AuthContext.Provider value={auth}>{page}</AuthContext.Provider> : page);
+  };
   return { repo, mount };
 }
+
+it('queues eligible members even when filtered out and refreshes the lab KG counts', async () => {
+  let corpus = { ...exampleCorpus(), members: [] as ReturnType<typeof exampleCorpus>['members'] };
+  for (const item of [
+    { doi: '10.1000/synthetic', title: 'DOI record' },
+    { openalexId: 'https://openalex.org/W12', title: 'OpenAlex record' },
+    { title: 'Record with no ID' },
+  ])
+    corpus = addMember(corpus, item, corpus.createdAt).corpus;
+  const { repo, mount } = setup(`/corpus/${corpus.id}`, {
+    user: { uid: 'lab', email: 'lab@example.invalid', name: null },
+    ready: true,
+    error: '',
+    getIdToken: async () => 'token',
+    signIn: async () => {},
+    signOut: async () => {},
+  });
+  let pending = 0;
+  const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).endsWith('/kg/ingest/status'))
+      return Response.json({ counts: { pending, done: 0, processing: 0, failed: 0 }, logs: [] });
+    if (String(input).endsWith('/kg/ingest')) {
+      expect(JSON.parse(String(init?.body))).toEqual({ ids: ['10.1000/synthetic', 'W12'] });
+      pending = 2;
+      return Response.json({ queued: 2, processed: 0, skipped: 0, errors: [] }, { status: 202 });
+    }
+    return Response.json({}, { status: 404 });
+  });
+  vi.stubGlobal('fetch', fetcher);
+  try {
+    await repo.corpora.save(corpus);
+    mount();
+    expect(await screen.findByText(/KG của lab · Chờ 0/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('combobox', { name: 'Trạng thái thu thập' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Không lấy được' }));
+    expect(screen.queryByRole('cell', { name: 'DOI record' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Đưa vào KG của lab' }));
+    expect(await screen.findByText(/Đã xếp 2/)).toBeInTheDocument();
+    expect(await screen.findByText(/KG của lab · Chờ 2/)).toBeInTheDocument();
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
 async function detail() {
   const corpus = { ...exampleCorpus(), members: [] };
   const ctx = setup(`/corpus/${corpus.id}`);
@@ -101,7 +145,7 @@ it('C1c creates a topic corpus with its first protocol', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Corpus mới' }));
   expect(screen.getByRole('dialog', { name: 'Tạo corpus' })).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Tên corpus'), { target: { value: 'Review' } });
-  fireEvent.change(screen.getByLabelText('Câu hỏi nghiên cứu'), { target: { value: 'Why?' } });
+  fireEvent.change(screen.getByLabelText('Research question'), { target: { value: 'Why?' } });
   fireEvent.click(screen.getByRole('button', { name: 'Tạo corpus' }));
   expect(await screen.findByRole('heading', { name: 'Review' })).toBeInTheDocument();
   expect((await repo.corpora.list())[0]?.protocol[0]).toMatchObject({
@@ -191,7 +235,7 @@ it('C1c releases the same digest twice without changes', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Thêm bài' }));
   await screen.findByRole('status');
   fireEvent.click(screen.getByRole('button', { name: 'Phát hành' }));
-  await waitFor(async () => expect((await repo.corpora.get(corpus.id))?.releases).toHaveLength(1));
+  await screen.findByText(/, 1 bài$/);
   fireEvent.click(screen.getByRole('button', { name: 'Phát hành' }));
   expect(await screen.findByText(/không đổi so với bản trước/)).toBeInTheDocument();
   const releases = (await repo.corpora.get(corpus.id))?.releases;
@@ -237,54 +281,43 @@ it('C1d shows Vietnamese member labels', async () => {
   expect(screen.getByRole('cell', { name: 'Giữ riêng kiểm tra' })).toBeInTheDocument();
   expect(screen.getByRole('cell', { name: 'Bản chấp nhận' })).toBeInTheDocument();
 });
-it('C1d offers both choices after a stale write', async () => {
-  const corpus = { ...exampleCorpus(), id: crypto.randomUUID() };
-  const repo = createRepositories(createDb(`corpus-conflict-${crypto.randomUUID()}`));
-  await repo.corpora.save(corpus);
-  await repo.corpora.setSyncState(corpus.id, 'old', corpus);
-  vi.stubGlobal(
-    'fetch',
-    vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify([
-            {
-              id: corpus.id,
-              title: corpus.title,
-              kind: corpus.kind,
-              updatedAt: corpus.updatedAt,
-              version: 'old',
-            },
-          ]),
-        ),
-      )
-      .mockResolvedValueOnce(new Response(JSON.stringify({ version: 'new' }), { status: 409 })),
-  );
-  await repo.corpora.save({ ...corpus, title: 'Local edit' });
-  render(
-    <MemoryRouter initialEntries={['/corpus']}>
-      <AuthContext.Provider
-        value={{
-          user: { uid: '1', email: 'a@hyperdatalab.org', name: null },
-          ready: true,
-          error: '',
-          signIn: async () => {},
-          signOut: async () => {},
-          getIdToken: async () => 'token',
-        }}
-      >
+it('C3 lists and opens a corpus on the lab store, then shows a conflict with reload after another write', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const corpus = exampleCorpus();
+  const worker = testWorkerData();
+  const repo = testRepositories({ store: worker.connect() });
+  const other = testRepositories({ store: worker.connect() });
+  try {
+    await repo.corpora.save(corpus);
+    render(
+      <MemoryRouter initialEntries={['/corpus']}>
         <StorageProvider repositories={repo}>
-          <Page />
+          <LlmProvider innerClient={client}>
+            <Routes>
+              <Route path="/corpus" element={<Page />} />
+              <Route path="/corpus/:id" element={<DetailPage />} />
+            </Routes>
+          </LlmProvider>
         </StorageProvider>
-      </AuthContext.Provider>
-    </MemoryRouter>,
-  );
-  fireEvent.click(screen.getByRole('button', { name: 'Đồng bộ' }));
-  expect(await screen.findByText(/Corpus đã được người khác sửa/)).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Tải bản mới' })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Giữ bản của tôi' })).toBeInTheDocument();
-  vi.unstubAllGlobals();
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: `Thao tác với ${corpus.title}` }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Mở' }));
+    await screen.findByRole('heading', { name: corpus.title });
+    await other.corpora.save({ ...corpus, title: 'Edited elsewhere' });
+    fireEvent.click(screen.getByRole('button', { name: 'Phát hành' }));
+    expect(await screen.findByText(/Corpus đã được người khác sửa/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Giữ bản của tôi' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Tải bản mới' }));
+    expect(await screen.findByRole('heading', { name: 'Edited elsewhere' })).toBeInTheDocument();
+    expect(screen.queryByText(/Corpus đã được người khác sửa/)).toBeNull();
+    expect((await other.corpora.get(corpus.id))?.protocol).toHaveLength(corpus.protocol.length);
+    expect((await other.corpora.get(corpus.id))?.releases).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Phát hành' }));
+    await waitFor(async () => expect((await other.corpora.get(corpus.id))?.releases).toHaveLength(1));
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });
 it('C1c deletes a corpus from its card menu after confirming', async () => {
   const corpus = exampleCorpus();

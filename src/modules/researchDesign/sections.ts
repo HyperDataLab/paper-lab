@@ -3,26 +3,26 @@ import { lazy } from 'react';
 export const researchDesignSections = [
   {
     id: 'topic',
-    label: 'Đề tài và khoảng trống',
-    description: 'Kiểm tra đề tài, bài gần nhất và khoảng trống trước khi đặt câu hỏi.',
+    label: 'Topic và research gaps',
+    description: 'Kiểm tra đề tài, bài gần nhất và research gap trước khi đặt research question.',
     component: lazy(() => import('./sections/TopicSection')),
   },
   {
     id: 'questions',
-    label: 'Câu hỏi và giả thuyết',
-    description: 'Xác định câu hỏi và giả thuyết nghiên cứu.',
+    label: 'Research questions và hypotheses',
+    description: 'Xác định research questions và hypotheses.',
     component: lazy(() => import('./sections/QuestionsSection')),
   },
   {
     id: 'design',
-    label: 'Thiết kế nghiên cứu',
-    description: 'Xây dựng thiết kế và xem xét các nguy cơ.',
+    label: 'Research design',
+    description: 'Xây dựng research design và xem xét threats to validity.',
     component: lazy(() => import('./sections/DesignSection')),
   },
   {
     id: 'measurement',
-    label: 'Đo lường',
-    description: 'Xác định biến, thước đo và dữ liệu.',
+    label: 'Measurement',
+    description: 'Xác định variables, metrics và datasets.',
     component: lazy(() => import('./sections/MeasurementSection')),
   },
   {
@@ -33,8 +33,8 @@ export const researchDesignSections = [
   },
   {
     id: 'analyses',
-    label: 'Phân tích thống kê',
-    description: 'Lập kế hoạch phân tích thống kê.',
+    label: 'Statistical analysis',
+    description: 'Lập kế hoạch statistical analysis.',
     component: lazy(() => import('./sections/AnalysesSection')),
   },
   {

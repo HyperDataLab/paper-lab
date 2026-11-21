@@ -94,7 +94,7 @@ export function ArgumentDiagram({
     items.findIndex((item) => item.id === selected),
   );
   const item = items[index];
-  if (!item) return <p className={styles.empty}>Chưa có lập luận nào để vẽ.</p>;
+  if (!item) return <p className={styles.empty}>Chưa có argument nào để vẽ.</p>;
   const whole = view === 'aif' && selected === '__whole';
   const direction =
     orientation === 'auto'
@@ -188,7 +188,7 @@ export function ArgumentDiagram({
     <div className={styles.diagram}>
       <div className={styles.dBar}>
         <Select
-          label="Lập luận"
+          label="Argument"
           size="sm"
           value={whole ? '__whole' : item.id}
           onChange={(event) => setSelected(event.target.value)}
@@ -206,7 +206,7 @@ export function ArgumentDiagram({
         <Button
           size="sm"
           disabled={whole || index === 0}
-          aria-label="Lập luận trước"
+          aria-label="Argument trước"
           onClick={() => setSelected(items[index - 1]?.id ?? item.id)}
         >
           ‹
@@ -214,7 +214,7 @@ export function ArgumentDiagram({
         <Button
           size="sm"
           disabled={whole || index >= items.length - 1}
-          aria-label="Lập luận sau"
+          aria-label="Argument sau"
           onClick={() => setSelected(items[index + 1]?.id ?? item.id)}
         >
           ›
@@ -261,7 +261,7 @@ export function ArgumentDiagram({
       {!whole && (
         <div className={styles.dBar}>
           <Badge tone={item.importance === 'main' ? 'accent' : 'neutral'}>
-            {item.importance === 'main' ? 'Luận điểm chính' : 'Luận điểm phụ'}
+            {item.importance === 'main' ? 'Claim chính' : 'Claim phụ'}
           </Badge>
           <ClaimTypeBadge type={item.claimType} />
           <EvidenceLevelBadge level={item.evidenceLevel} basis={item.evidenceBasis} />
@@ -292,8 +292,8 @@ export function ArgumentDiagram({
             role="group"
             aria-label={
               whole
-                ? `Lược đồ AIF của toàn bài (${items.filter((argument) => states.get(argument.id) !== 'dismissed').length} lập luận)`
-                : `Lược đồ ${view === 'toulmin' ? 'Toulmin' : 'AIF'} của lập luận ${index + 1}`
+                ? `Lược đồ AIF của toàn bài (${items.filter((argument) => states.get(argument.id) !== 'dismissed').length} arguments)`
+                : `Lược đồ ${view === 'toulmin' ? 'Toulmin' : 'AIF'} của argument ${index + 1}`
             }
             viewBox={`${-PAD} ${-PAD} ${width} ${height}`}
             width={zoom ? width * zoom : undefined}

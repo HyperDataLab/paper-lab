@@ -118,14 +118,18 @@ export function PaperMeasurement({
         onRequest: async (count) => {
           callsUsed = count;
           setUsed(count);
-          await repo.measurements.savePending(paper.id, { sectionIds, callsUsed, checkpoint });
+          await repo.measurements.checkpoints.checkpoint(paper.id, { sectionIds, callsUsed, checkpoint });
         },
         onUnit: (done, total) => setProgress(`Đã xử lý ${done}/${total} phần`),
         onCheckpoint: async (checkpoint) => {
-          await repo.measurements.savePending(paper.id, { sectionIds, callsUsed, checkpoint });
+          await repo.measurements.checkpoints.checkpoint(paper.id, { sectionIds, callsUsed, checkpoint });
         },
       });
-      if (abort.signal.aborted) return;
+      if (abort.signal.aborted) {
+        await repo.measurements.checkpoints.flush(paper.id);
+        setRecord(await repo.measurements.get(paper.id));
+        return;
+      }
       let saved = await repo.measurements.saveRun(paper.id, {
         id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
@@ -144,13 +148,18 @@ export function PaperMeasurement({
       setSelectedNode('overview');
       setShowSetup(false);
     } catch (cause) {
-      setRecord(await repo.measurements.get(paper.id));
-      if (!abort.signal.aborted)
-        setError(
-          cause instanceof BatchBudgetExceededError
-            ? 'Đã chạm trần số lượt gọi. Phần đã xong được giữ lại; bấm Tiếp tục để chạy phần còn lại.'
-            : (describeLlmError(cause) ?? ''),
-        );
+      try {
+        await repo.measurements.checkpoints.flush(paper.id);
+        setRecord(await repo.measurements.get(paper.id));
+        if (!abort.signal.aborted)
+          setError(
+            cause instanceof BatchBudgetExceededError
+              ? 'Đã chạm trần số lượt gọi. Phần đã xong được giữ lại; bấm Tiếp tục để chạy phần còn lại.'
+              : (describeLlmError(cause) ?? ''),
+          );
+      } catch (storageError) {
+        setError(String(storageError));
+      }
     } finally {
       if (controller.current === abort) {
         controller.current = null;
@@ -220,7 +229,7 @@ export function PaperMeasurement({
     resumeEstimate,
     stop: () => controller.current?.abort(),
   });
-  if (loading) return <Loading label="Đang tải hồ sơ đo lường…" />;
+  if (loading) return <Loading label="Đang tải hồ sơ measurement…" />;
   const pending = record?.pending ?? null;
   const setup = (
     <RunSetup
@@ -261,7 +270,7 @@ export function PaperMeasurement({
   return (
     <div className={styles.panel}>
       <Card padding="md">
-        {!run && <h2>Phân tích đo lường và đánh giá</h2>}
+        {!run && <h2>Phân tích measurement và đánh giá</h2>}
         {!run && (
           <p>
             Trích xuất bài báo đã đo gì, bằng metric nào, dưới protocol nào. Mọi thông tin được đối chiếu lại
@@ -358,7 +367,7 @@ export function PaperMeasurement({
               />
               {treeNodes.length ? (
                 <Tree
-                  label="Hồ sơ đo lường"
+                  label="Hồ sơ measurement"
                   nodes={treeNodes}
                   selectedId={selected.id}
                   onSelect={setSelectedNode}

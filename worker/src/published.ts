@@ -1,7 +1,7 @@
 import type { Deps } from './app';
 import { completeFactRequest, readFactRequest } from './factRequests';
 
-const PREFIX = 'paperlab/published/';
+const PREFIX = (projectId: string) => `paperlab/projects/${projectId}/published/`;
 const MODEL_PATH =
   /^\/v1\/papers\/(sha256-[0-9a-f]{64}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(model|experiment-facts)$/;
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -22,7 +22,7 @@ export async function handlePublished(deps: Deps, request: Request, email: strin
   const url = new URL(request.url);
   if (url.pathname === '/v1/papers' && request.method === 'GET') {
     const page = await deps.bucket.list({
-      prefix: PREFIX,
+      prefix: PREFIX(deps.projectId ?? 'unassigned'),
       cursor: url.searchParams.get('cursor') || undefined,
       limit: 100,
       include: ['customMetadata'],
@@ -33,7 +33,7 @@ export async function handlePublished(deps: Deps, request: Request, email: strin
         .map((object) => {
           const meta = object.customMetadata ?? {};
           return {
-            paperId: object.key.slice(PREFIX.length, -'/model.json'.length),
+            paperId: object.key.slice(PREFIX(deps.projectId ?? 'unassigned').length, -'/model.json'.length),
             title: meta.title,
             doi: meta.doi || null,
             sourceSha256: meta.sourceSha256 || null,
@@ -65,8 +65,8 @@ export async function handlePublished(deps: Deps, request: Request, email: strin
     return publishedError(400, 'bad_request', 'Invalid path or method.', headers);
   const id = match[1] as string;
   const isFacts = match[2] === 'experiment-facts';
-  const modelKey = `${PREFIX}${id}/model.json`;
-  const key = isFacts ? `${PREFIX}${id}/experiment-facts.json` : modelKey;
+  const modelKey = `${PREFIX(deps.projectId ?? 'unassigned')}${id}/model.json`;
+  const key = isFacts ? `${PREFIX(deps.projectId ?? 'unassigned')}${id}/experiment-facts.json` : modelKey;
   if (request.method === 'GET') {
     const object = await deps.bucket.get(key);
     if (!object) return publishedError(404, 'not_found', `Paper ${id} was not found.`, headers);

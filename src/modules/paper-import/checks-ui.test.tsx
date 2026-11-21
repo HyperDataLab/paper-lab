@@ -1,20 +1,18 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { expect, it, vi } from 'vitest';
 import type { Paper } from '@/core/schemas';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import PaperMapPage from './PaperMapPage';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview counts', async () => {
   vi.stubGlobal('crypto', webcrypto);
   const scroll = vi.fn();
   Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: scroll });
-  const repo = createRepositories(createDb(`p4-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const at = '2026-01-01T00:00:00.000Z';
   const paper: Paper = {
     schemaVersion: 1,
@@ -126,7 +124,7 @@ it('a link from a grounded citation opens the reader on the quoted passage', asy
   vi.stubGlobal('crypto', webcrypto);
   const scroll = vi.fn();
   Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: scroll });
-  const repo = createRepositories(createDb(`grounding-link-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const at = '2026-01-01T00:00:00.000Z';
   const paper: Paper = {
     schemaVersion: 1,
@@ -185,7 +183,7 @@ it('R7 on a wide screen the paper is the centre column beside the analysis, and 
   );
   localStorage.removeItem('paper-split');
   Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() });
-  const repo = createRepositories(createDb(`split-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const at = '2026-01-01T00:00:00.000Z';
   const paper: Paper = {
     schemaVersion: 1,

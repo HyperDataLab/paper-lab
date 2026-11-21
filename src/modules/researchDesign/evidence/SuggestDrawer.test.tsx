@@ -63,7 +63,7 @@ function setup(options: { used?: boolean; consent?: boolean; section?: typeof Ev
 }
 
 for (const [Section, label, target] of [
-  [QuestionsSection, 'Giả thuyết', 'hypotheses'],
+  [QuestionsSection, 'Hypothesis', 'hypotheses'],
   [MeasurementSection, 'Metric', 'metrics'],
   [DesignSection, 'Nguy cơ', 'threats'],
   [AnalysesSection, 'Phân tích', 'analyses'],
@@ -149,7 +149,7 @@ it('FR-405 asks for consent and does not call AI when it is declined', async () 
 });
 
 for (const [target, label] of [
-  ['hypotheses', 'Giả thuyết'],
+  ['hypotheses', 'Hypothesis'],
   ['metrics', 'Metric'],
   ['threats', 'Nguy cơ'],
 ] as const) {

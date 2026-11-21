@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -6,19 +5,17 @@ import { expect, it, vi } from 'vitest';
 import { buildGeneration } from '@/core/generation';
 import type { LlmClient } from '@/shared/llm/client';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import Evaluate from '../evaluate/Page';
 import History from '../history/Page';
 import Generate from './Page';
 import { GenerationResult } from './GenerationResult';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 it('WR-01 WR-08 validates, asks consent, displays provenance and confirms before opening Evaluate', async () => {
   vi.stubGlobal('crypto', webcrypto);
   localStorage.clear();
-  const db = createDb(`generate-ui-${crypto.randomUUID()}`);
-  const repo = createRepositories(db);
+  const repo = testRepositories();
   const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => ({
     data: options.schema.parse({
       paragraph: 'Growth improved by 9 percent.',
@@ -48,20 +45,20 @@ it('WR-01 WR-08 validates, asks consent, displays provenance and confirms before
     </MemoryRouter>,
   );
   expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled();
-  expect(screen.getByText(/Cần có luận điểm/)).toBeInTheDocument();
+  expect(screen.getByText(/Cần có claim/)).toBeInTheDocument();
   expect(completeJson).not.toHaveBeenCalled();
-  fireEvent.change(screen.getByLabelText('Luận điểm chính'), { target: { value: 'Growth improved' } });
+  fireEvent.change(screen.getByLabelText('Claim chính'), { target: { value: 'Growth improved' } });
   fireEvent.change(screen.getByLabelText('Nội dung e1'), { target: { value: 'Growth improved' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Thêm bằng chứng' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm evidence' }));
   fireEvent.change(screen.getByLabelText('Nội dung e2'), { target: { value: 'Other evidence' } });
   fireEvent.click(screen.getByRole('button', { name: 'Lên e2' }));
   fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
   fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Soạn đoạn (AI)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Soạn paragraph (AI)' }));
   expect(completeJson).not.toHaveBeenCalled();
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
   expect(await screen.findByText('Câu chủ đề')).toBeInTheDocument();
-  const chip = screen.getByRole('button', { name: 'Bằng chứng e1' });
+  const chip = screen.getByRole('button', { name: 'Evidence e1' });
   fireEvent.mouseEnter(chip);
   expect(screen.getByText('e1', { selector: 'strong' }).closest('div[class*="evidence"]')).toHaveAttribute(
     'class',
@@ -69,12 +66,12 @@ it('WR-01 WR-08 validates, asks consent, displays provenance and confirms before
   );
   expect(screen.getByText('Cần kiểm tra nguồn')).toBeInTheDocument();
   expect(screen.getByText('Cần số liệu')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Dùng đoạn này' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Dùng paragraph này' }));
   const dialog = screen.getByRole('alertdialog');
   expect(within(dialog).getByText(/Số liệu từ đầu vào/)).toBeInTheDocument();
   expect((await repo.analyses.list()).items).toHaveLength(0);
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Xác nhận dùng đoạn' }));
-  expect(await screen.findByRole('link', { name: 'Đoạn soạn từ luận điểm' })).toHaveAttribute(
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Xác nhận dùng paragraph' }));
+  expect(await screen.findByRole('link', { name: 'Paragraph soạn từ claim' })).toHaveAttribute(
     'href',
     expect.stringContaining('/generate?id='),
   );
@@ -95,13 +92,11 @@ it('WR-01 WR-08 validates, asks consent, displays provenance and confirms before
       expect.stringContaining('/generate?id='),
     ),
   );
-  await db.delete();
 });
 
 it('WR-06 WR-08 requires an override when the draft drops a negation', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const db = createDb(`generate-negation-${crypto.randomUUID()}`);
-  const repo = createRepositories(db);
+  const repo = testRepositories();
   const generation = buildGeneration(
     {
       mainClaim: 'Treatment affects growth',
@@ -134,11 +129,10 @@ it('WR-06 WR-08 requires an override when the draft drops a negation', async () 
       </StorageProvider>
     </MemoryRouter>,
   );
-  fireEvent.click(await screen.findByRole('button', { name: 'Dùng đoạn này' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Dùng paragraph này' }));
   expect(within(screen.getByRole('alertdialog')).getByText(/Giữ nguyên phủ định/)).toBeInTheDocument();
   expect((await repo.analyses.list()).items).toHaveLength(0);
   view.unmount();
-  await db.delete();
 });
 
 it('WR-01 lists unanchored sentences and marks the correct displayed sentence', () => {

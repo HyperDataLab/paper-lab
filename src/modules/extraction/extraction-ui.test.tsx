@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
@@ -18,12 +17,11 @@ import {
 } from '@/core/extraction';
 import type { Candidate, ExtractionProject, Paper, ProjectField } from '@/core/schemas';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { ExtractionMatrix } from './ExtractionMatrix';
 import Page from './Page';
 import ProjectPage from './ProjectPage';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 const at = '2026-01-01T00:00:00.000Z';
 const paper: Paper = {
@@ -52,7 +50,7 @@ function MatrixHost({ initial }: { initial: ExtractionProject }) {
   const [project, setProject] = useState(initial);
   return <ExtractionMatrix project={project} papers={new Map([[paper.id, paper]])} onChange={setProject} />;
 }
-function mountMatrix(repo: ReturnType<typeof createRepositories>, project: ExtractionProject) {
+function mountMatrix(repo: ReturnType<typeof testRepositories>, project: ExtractionProject) {
   return render(
     <MemoryRouter>
       <StorageProvider repositories={repo}>
@@ -64,7 +62,7 @@ function mountMatrix(repo: ReturnType<typeof createRepositories>, project: Extra
   );
 }
 
-function mount(repo: ReturnType<typeof createRepositories>, path: string) {
+function mount(repo: ReturnType<typeof testRepositories>, path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <StorageProvider repositories={repo}>
@@ -81,7 +79,7 @@ function mount(repo: ReturnType<typeof createRepositories>, path: string) {
 
 it('shows one paper as filterable field rows and keeps cell and column actions', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`extraction-vertical-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const base = newProject({ id: crypto.randomUUID(), title: 'Một bài', researchQuestion: '', now: at });
   const projectPaper = projectPaperFromPaper(paper);
   const fields = ['methods_used', 'dataset', 'limitations'].map((key) => ({
@@ -142,7 +140,7 @@ it('shows one paper as filterable field rows and keeps cell and column actions',
 
 it('keeps the horizontal matrix for two papers', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`extraction-horizontal-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const base = newProject({ id: crypto.randomUUID(), title: 'Hai bài', researchQuestion: '', now: at });
   const first = projectPaperFromPaper(paper);
   const saved = await repo.extraction.save({
@@ -158,7 +156,7 @@ it('keeps the horizontal matrix for two papers', async () => {
 
 it('shows every field in a single-paper vertical view with more than 50 columns', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`extraction-long-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const base = newProject({ id: crypto.randomUUID(), title: 'Một bài', researchQuestion: '', now: at });
   const custom = customField({ label: 'Own field', description: '', instruction: '', existing: [] });
   const withFields = addFields(addFields(base, [custom]), FIELD_CATALOG, 51);
@@ -171,7 +169,7 @@ it('shows every field in a single-paper vertical view with more than 50 columns'
 
 it('creates a project, adds a template of columns and reviews a cell with its evidence', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`extraction-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   mount(repo, '/extraction');
   expect(await screen.findByText('Chưa có project nào.')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Project mới' }));
@@ -187,6 +185,7 @@ it('creates a project, adds a template of columns and reviews a cell with its ev
 
   fireEvent.click(screen.getByRole('button', { name: 'Thêm cột' }));
   const columns = await screen.findByRole('dialog', { name: 'Thêm cột' });
+  expect(within(columns).getByText('Tóm tắt phần abstract.')).toBeInTheDocument();
   fireEvent.click(within(columns).getByRole('button', { name: 'Lý thuyết' }));
   fireEvent.click(within(columns).getByRole('button', { name: 'Thêm 6 cột' }));
   expect(await screen.findByText('0 bài · 6 cột · 0 ô đã xác nhận')).toBeInTheDocument();
@@ -234,7 +233,7 @@ it('creates a project, adds a template of columns and reviews a cell with its ev
 
 it('Deep Research waits for an approved plan and leaves screening decisions to a person', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`extraction-deep-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const base = newProject({
     id: crypto.randomUUID(),
     title: 'Tìm bài',
@@ -287,7 +286,7 @@ it('Deep Research waits for an approved plan and leaves screening decisions to a
 
 it('citation grounding shows the passage behind a claim and links to it in the paper', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`extraction-grounding-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const base = newProject({ id: crypto.randomUUID(), title: 'Đối chiếu', researchQuestion: '', now: at });
   const projectPaper = projectPaperFromPaper(paper);
   const quote = {
@@ -364,10 +363,10 @@ it('citation grounding shows the passage behind a claim and links to it in the p
   fireEvent.click(within(card).getByRole('button', { name: 'Đóng' }));
 
   fireEvent.click(screen.getByRole('button', { name: '1 đoạn trích' }));
-  const evidence = await screen.findByRole('dialog', { name: 'Bằng chứng từ bài này' });
+  const evidence = await screen.findByRole('dialog', { name: 'Evidence từ bài này' });
   expect(within(evidence).getByText('an online survey')).toBeInTheDocument();
   expect(
     within(evidence).getByText('Không có đoạn trích tìm thấy trong bài cho giá trị này.'),
   ).toBeInTheDocument();
-  expect(within(evidence).getAllByText(/Dùng cho 1 nhận định/)).toHaveLength(2);
+  expect(within(evidence).getAllByText(/Dùng cho 1 claim/)).toHaveLength(2);
 });

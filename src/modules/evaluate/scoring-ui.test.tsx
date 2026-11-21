@@ -1,19 +1,17 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { expect, it, vi } from 'vitest';
 import type { LlmClient } from '@/shared/llm';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import Evaluate from './Page';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 it('EV-09 AC-10 gates scoring, shows evidence and stale scores, and reopens without a call', async () => {
   vi.stubGlobal('crypto', webcrypto);
   localStorage.clear();
-  const repo = createRepositories(createDb(`scoring-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => {
     const input = JSON.parse(options.user) as { packages: { issues: { id: string }[] }[] };
     const id = input.packages.flatMap((item) => item.issues)[0]?.id;
@@ -45,7 +43,7 @@ it('EV-09 AC-10 gates scoring, shows evidence and stale scores, and reopens with
     );
   const view = mount('/evaluate');
   expect(screen.queryByRole('button', { name: 'Chấm điểm (AI)' })).not.toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), {
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), {
     target: { value: 'This is very important. Results followed in order to grow.' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
@@ -108,7 +106,7 @@ it('EV-09 AC-10 gates scoring, shows evidence and stale scores, and reopens with
 it('EV-09 cancelling scoring shows no error or scores', async () => {
   vi.stubGlobal('crypto', webcrypto);
   localStorage.clear();
-  const repo = createRepositories(createDb(`cancel-scoring-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const completeJson = vi.fn(
     (options: Parameters<LlmClient['completeJson']>[0]) =>
       new Promise<never>((_resolve, reject) => {
@@ -126,7 +124,9 @@ it('EV-09 cancelling scoring shows no error or scores', async () => {
       </StorageProvider>
     </MemoryRouter>,
   );
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), { target: { value: 'Cells grow.' } });
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), {
+    target: { value: 'Cells grow.' },
+  });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Chấm điểm (AI)' }));
   fireEvent.click(screen.getByRole('button', { name: 'Đồng ý và tiếp tục' }));

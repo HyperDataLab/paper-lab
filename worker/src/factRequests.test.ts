@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { handle, type Bucket, type Deps } from './app';
 
 const id = '00000000-0000-4000-8000-000000000001';
+const projectId = '00000000-0000-4000-8000-000000000101';
 const path = `/v1/papers/${id}/experiment-facts/requests`;
 const model = {
   format: 'paperlab-paper-model',
@@ -47,6 +48,7 @@ function setup() {
     verifyToken: async (token) => ({ uid: token, email: token }),
     adminEmails: ['admin@example.org'],
     allowedOrigins: ['https://example.org'],
+    getOwnedProject: async (requestedId) => ({ id: requestedId, name: 'Test project' }),
     now: () => new Date('2026-11-17T00:00:00Z'),
   };
   const call = (
@@ -63,6 +65,7 @@ function setup() {
         headers: {
           authorization: `Bearer ${admin ? 'admin@example.org' : 'user@example.org'}`,
           origin: 'https://example.org',
+          ...(url === '/v1/me' ? {} : { 'X-Project-Id': projectId }),
           ...extra,
         },
         body: body === undefined ? undefined : JSON.stringify(body),
@@ -142,7 +145,7 @@ describe('fact requests', () => {
       expect((await call('PUT', `/v1/papers/${id}/experiment-facts`, facts)).status).toBe(200);
       expect(await (await call('GET', path)).json()).toMatchObject({ state: 'done' });
       expect((await call('POST', path, {})).status).toBe(409);
-      objects.delete(`paperlab/published/${id}/experiment-facts.json`);
+      objects.delete(`paperlab/projects/${projectId}/published/${id}/experiment-facts.json`);
       expect(await (await call('POST', path, {})).json()).toEqual({ requestId: id, state: 'requested' });
     },
   );

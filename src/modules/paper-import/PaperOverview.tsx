@@ -86,10 +86,10 @@ export function PaperOverview({
   return (
     <>
       <Card>
-        <h2>Kết quả theo mục</h2>
+        <h2>Kết quả theo section</h2>
         <p>
-          Đã phân tích {analysed}/{scoped.length} đoạn trong phạm vi (
-          {paper.paragraphs.filter((item) => item.kind === 'body').length} đoạn cả bài)
+          Đã phân tích {analysed}/{scoped.length} paragraph trong phạm vi (
+          {paper.paragraphs.filter((item) => item.kind === 'body').length} paragraph cả bài)
         </p>
         {record.transitions?.stale && (
           <p role="status">

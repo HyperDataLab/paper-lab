@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { examplePaperModel } from '@/core/paperModel/contract';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
@@ -7,7 +7,10 @@ import { fixturePaper, fixtureRun } from '@/core/measurement/testFixture';
 import { contentEtag } from '@/core/paperModel/published';
 
 const storage = vi.hoisted(() => ({ measurements: { get: vi.fn() }, papers: { get: vi.fn() } }));
-vi.mock('@/shared/storage/StorageProvider', () => ({ useRepositories: () => storage }));
+vi.mock('@/shared/storage/StorageProvider', () => ({
+  useRepositories: () => storage,
+  useHubProjectId: () => 'rh-test-project',
+}));
 
 const auth: AuthValue = {
   user: { uid: 'u', email: 'test@example.org', name: null },
@@ -93,8 +96,13 @@ describe('publishing a paper model', () => {
     vi.stubGlobal('fetch', fetchMock);
     setup();
     fireEvent.click(screen.getByRole('button', { name: 'Công bố lên máy chủ lab' }));
-    expect(await screen.findByRole(failure ? 'alert' : 'status')).toHaveTextContent(
-      failure ? 'Không công bố được dữ kiện thí nghiệm' : /kèm \d+ dữ kiện thí nghiệm \(\d+ đã duyệt\)/u,
+    // The status line changes while publishing; wait for the final text, not the first status shown.
+    await waitFor(
+      () =>
+        expect(screen.getByRole(failure ? 'alert' : 'status')).toHaveTextContent(
+          failure ? 'Không công bố được dữ kiện thí nghiệm' : /kèm \d+ dữ kiện thí nghiệm \(\d+ đã duyệt\)/u,
+        ),
+      { timeout: 5000 },
     );
     if (failure) expect(screen.getByRole('alert')).toHaveTextContent('không khớp với paper model');
     expect(screen.getByText(/Đã công bố \(mã aaaaaaaa\)/u)).toBeInTheDocument();

@@ -1,15 +1,27 @@
 import {
   applySuggestions,
+  applyTriage,
+  criteriaOf,
   planFromOutput,
   SCREENING_BATCH,
   synthesisInput,
+  triageBatches,
+  triagePending,
+  triageRow,
   verifySynthesis,
 } from '@/core/extraction';
-import { buildPlanPrompt, buildScreeningPrompt, buildSynthesisPrompt, PROMPT_VERSIONS } from '@/core/prompts';
+import {
+  buildPlanPrompt,
+  buildScreeningPrompt,
+  buildSynthesisPrompt,
+  buildTriagePrompt,
+  PROMPT_VERSIONS,
+} from '@/core/prompts';
 import {
   PlanOutputSchema,
   ScreeningOutputSchema,
   SynthesisOutputSchema,
+  TriageOutputSchema,
   type Candidate,
   type ExtractionProject,
   type SearchPlan,
@@ -20,7 +32,7 @@ import type { LlmConfig } from './config';
 import { requirePaperConsent } from './consent';
 
 const TIMEOUT_MS = 180000;
-type Options = { config: LlmConfig; signal?: AbortSignal; onRequest?: () => void };
+type Options = { config: LlmConfig; signal?: AbortSignal; onRequest?: () => void | Promise<void> };
 
 async function ask(
   client: LlmClient,
@@ -35,7 +47,7 @@ async function ask(
     signal: options.signal,
     onRequest: async () => {
       requirePaperConsent(options.config);
-      options.onRequest?.();
+      await options.onRequest?.();
     },
   });
   return result;
@@ -75,6 +87,50 @@ export async function llmScreening(
       promptVersion: PROMPT_VERSIONS.screening,
     });
     next = applySuggestions(next, ScreeningOutputSchema.parse(result.data));
+  }
+  return next;
+}
+
+export type TriageBatchResult = {
+  /** Applies this batch onto any candidate list, so the caller can merge it into the latest saved state. */
+  apply: (candidates: Candidate[]) => Candidate[];
+  index: number;
+  total: number;
+};
+
+/**
+ * Screening triage: every undecided paper without scores, in batches of TRIAGE_BATCH. After each batch
+ * `onBatch` runs (the caller saves a checkpoint there); a stop between batches keeps what is done, and the
+ * next run starts from the papers still without scores. Papers the model skipped are not asked again here.
+ */
+export async function llmTriage(
+  client: LlmClient,
+  question: string,
+  plan: Pick<SearchPlan, 'inclusion' | 'exclusion'>,
+  candidates: Candidate[],
+  options: Options & { onBatch?: (result: TriageBatchResult) => Promise<void> | void },
+) {
+  const criteria = criteriaOf(plan);
+  const batches = triageBatches(triagePending(candidates));
+  let next = candidates;
+  for (const [index, batch] of batches.entries()) {
+    if (options.signal?.aborted) break;
+    const labelled = batch.map((candidate, position) => ({ label: `P${position + 1}`, key: candidate.key }));
+    const result = await ask(client, options, {
+      ...buildTriagePrompt(
+        question,
+        criteria,
+        batch.map((candidate, position) => triageRow(`P${position + 1}`, candidate)),
+      ),
+      schema: TriageOutputSchema,
+      schemaName: 'screening_triage',
+      promptVersion: PROMPT_VERSIONS.screeningTriage,
+    });
+    const output = TriageOutputSchema.parse(result.data);
+    const meta = { model: result.meta.model, promptVersion: PROMPT_VERSIONS.screeningTriage };
+    const apply = (list: Candidate[]) => applyTriage(list, labelled, output, criteria, meta);
+    next = apply(next);
+    await options.onBatch?.({ apply, index, total: batches.length });
   }
   return next;
 }

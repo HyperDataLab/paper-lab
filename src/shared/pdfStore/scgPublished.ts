@@ -20,11 +20,11 @@ export class PublishScgError extends Error {
           : status === 404
             ? 'Paper model của bài chưa được công bố. Hãy công bố paper model trước.'
             : status === 409
-              ? 'Đồ thị dẫn tới câu không có trong paper model đã công bố. Hãy công bố lại paper model, hoặc chạy lại trích đóng góp.'
+              ? 'Đồ thị dẫn tới câu không có trong paper model đã công bố. Hãy công bố lại paper model, hoặc chạy lại trích contribution.'
               : status === 413
-                ? 'Đồ thị đóng góp vượt quá 2 MiB.'
+                ? 'Đồ thị contribution vượt quá 2 MiB.'
                 : status < 500
-                  ? `Máy chủ lab không chấp nhận đồ thị đóng góp (lỗi ${status}).`
+                  ? `Máy chủ lab không chấp nhận đồ thị contribution (lỗi ${status}).`
                   : `Máy chủ lab gặp lỗi ${status}. Vui lòng thử lại.`,
     );
   }
@@ -33,10 +33,10 @@ export class PublishScgError extends Error {
 const scgUrl = (paperId: string) => `${PDF_WORKER_URL}/v1/papers/${encodeURIComponent(paperId)}/scg`;
 
 /** Sends one paper's graph; the worker stores it only when the paper model is published. */
-export async function publishScg(graph: ScgPaperPublish, token: string) {
+export async function publishScg(graph: ScgPaperPublish, token: string, projectId: string) {
   const response = await fetch(scgUrl(graph.paperId), {
     method: 'PUT',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${token}`, 'X-Project-Id': projectId, 'Content-Type': 'application/json' },
     body: JSON.stringify(graph),
   });
   if (!response.ok) throw new PublishScgError(response.status);
@@ -48,10 +48,18 @@ export async function publishScg(graph: ScgPaperPublish, token: string) {
  * published, `none` when no graph is, `current` when the published ETag is the local one, else `outdated`.
  */
 export type ScgPublishState = 'no_model' | 'none' | 'current' | 'outdated';
-export async function scgPublishState(graph: ScgPaperPublish, token: string): Promise<ScgPublishState> {
+export async function scgPublishState(
+  graph: ScgPaperPublish,
+  token: string,
+  projectId: string,
+): Promise<ScgPublishState> {
   const etag = await scgBodyEtag(JSON.stringify(graph));
   const response = await fetch(scgUrl(graph.paperId), {
-    headers: { Authorization: `Bearer ${token}`, 'If-None-Match': `"${etag}"` },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'X-Project-Id': projectId,
+      'If-None-Match': `"${etag}"`,
+    },
   });
   if (response.status === 304) return 'current';
   if (response.status === 404) {

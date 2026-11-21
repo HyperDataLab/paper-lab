@@ -1,17 +1,15 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { exampleProfileInputs, syntheticPaper } from '@/core/corpusProfile/contract';
 import type { Corpus } from '@/core/schemas/corpus';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { CorpusProfileCard } from './CorpusProfileCard';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 it('C5a computes the profile from stored papers and offers the download', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`profile-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const { target, control } = exampleProfileInputs();
   const withPapers = async (corpus: Corpus, journal: boolean): Promise<Corpus> => ({
     ...corpus,
@@ -52,7 +50,7 @@ it('C5a computes the profile from stored papers and offers the download', async 
   fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra trên tập giữ riêng' }));
   expect(await screen.findByText(/AUC/)).toBeInTheDocument();
   const backup = await repo.transfer.exportAll('test');
-  const restored = createRepositories(createDb(`profile-restored-${crypto.randomUUID()}`));
+  const restored = testRepositories();
   const plan = await restored.transfer.previewImport(backup);
   if (!plan.ok) throw new Error(plan.error);
   await restored.transfer.applyImport(plan);
@@ -77,7 +75,7 @@ it('C5a computes the profile from stored papers and offers the download', async 
 
 it('P2 exports the draft profile v2 next to v1 without storing it', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`profile-v2-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const { target, control } = exampleProfileInputs();
   const withPapers = async (corpus: Corpus, journal: boolean): Promise<Corpus> => ({
     ...corpus,

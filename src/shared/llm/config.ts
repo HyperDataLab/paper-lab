@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import { LlmConfigError } from './errors';
-export type LlmConfig = { baseUrl: string; model: string; key?: string };
-const settingsSchema = z.object({ baseUrl: z.string().min(1), model: z.string().min(1) });
+export type LlmConfig = { baseUrl: string; model: string; criticModel?: string; key?: string };
+const settingsSchema = z.object({
+  baseUrl: z.string().min(1),
+  model: z.string().min(1),
+  criticModel: z.string().trim().min(1).optional(),
+});
+export const criticModelFor = (config: LlmConfig) => config.criticModel?.trim() || config.model;
 export const SETTINGS_KEY = 'pl.llm.settings';
 export const KEY_KEY = 'pl.llm.key';
 export function defaultConfig(): LlmConfig {
@@ -42,7 +47,14 @@ export function getConfig(): LlmConfig {
 }
 export function saveConfig(config: LlmConfig): void {
   validateConfig(config);
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify({ baseUrl: config.baseUrl, model: config.model }));
+  localStorage.setItem(
+    SETTINGS_KEY,
+    JSON.stringify({
+      baseUrl: config.baseUrl,
+      model: config.model,
+      criticModel: config.criticModel?.trim() || undefined,
+    }),
+  );
   if (config.key) localStorage.setItem(KEY_KEY, config.key);
   else localStorage.removeItem(KEY_KEY);
 }

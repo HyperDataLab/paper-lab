@@ -73,6 +73,72 @@ it('ADR-0003 does not echo an empty answer back as an assistant turn', async () 
   const retry = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)) as { messages: { role: string }[] };
   expect(retry.messages.map((m) => m.role)).toEqual(['system', 'user', 'user']);
 });
+const body = (message: unknown) => new Response(JSON.stringify({ choices: [{ message }] }), { status: 200 });
+it.each([
+  ['a JSON object as content', { content: { ok: true, model: 'test' } }],
+  ['text content blocks', { content: [{ type: 'text', text: valid }] }],
+  ['a tool-call arguments string', { content: null, tool_calls: [{ function: { arguments: valid } }] }],
+  ['a legacy function_call', { content: '', function_call: { arguments: valid } }],
+])('ADR-0003 reads %s without repair', async (_label, message) => {
+  const { client, fetchMock } = setup([body(message)]);
+  const result = await client.completeJson(options);
+  expect(result.data).toEqual({ ok: true, model: 'test' });
+  expect(result.meta.repaired).toBe(false);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+it('ADR-0003 still validates tool-call arguments against the schema', async () => {
+  const { client, fetchMock } = setup([
+    body({ tool_calls: [{ function: { arguments: '{"ok":false}' } }] }),
+    body({ tool_calls: [{ function: { arguments: valid } }] }),
+  ]);
+  expect((await client.completeJson(options)).meta.repaired).toBe(true);
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+});
+it('ADR-0003 reports the structure of a streamed answer that stays invalid, with secrets redacted', async () => {
+  const key = 'sk-test-secret-123';
+  const sse = (args: string) =>
+    new Response(
+      `data: ${JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: args } }] } }] })}\n\ndata: [DONE]\n\n`,
+    );
+  const { client, fetchMock } = setup([sse(`{"ok":"${key}"}`), sse(`{"ok":"${key}"}`)], {
+    ...config,
+    baseUrl: 'https://router.example',
+    key,
+  });
+  const error: unknown = await client.completeJson(options).catch((e: unknown) => e);
+  expect(error).toBeInstanceOf(InvalidModelOutputError);
+  const invalid = error as InvalidModelOutputError;
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(invalid.details).toEqual({
+    responseFormat: 'json_schema',
+    streamed: true,
+    envelope: 'chat_completion',
+    source: 'tool_call',
+    rawLength: `{"ok":"${key}"}`.length,
+  });
+  expect(invalid.rawSnippet).toContain('[redacted]');
+  expect(
+    JSON.stringify([invalid.issues, invalid.rawSnippet, invalid.details, invalid.message]),
+  ).not.toContain(key);
+});
+it('ADR-0003 reports an unparseable body as such', async () => {
+  const { client } = setup([new Response('<html>oops</html>'), new Response('<html>oops</html>')]);
+  const error = (await client.completeJson(options).catch((e: unknown) => e)) as InvalidModelOutputError;
+  expect(error).toBeInstanceOf(InvalidModelOutputError);
+  expect(error.details).toMatchObject({ envelope: 'unparseable', source: 'none', rawLength: 0 });
+  expect(error.issues).toBe('The response had no JSON text or tool arguments.');
+});
+it('ADR-0003 downgrades a rejected response_format without using up the repair round', async () => {
+  const rejected = () => new Response('response_format json_schema is not supported', { status: 400 });
+  const { client, fetchMock } = setup([rejected(), rejected(), response('{"ok":false}'), response(valid)]);
+  const result = await client.completeJson(options);
+  expect(result.meta.repaired).toBe(true);
+  const formats = fetchMock.mock.calls.map(
+    (call) =>
+      (JSON.parse(String(call[1]?.body)) as { response_format?: { type: string } }).response_format?.type,
+  );
+  expect(formats).toEqual(['json_schema', 'json_object', undefined, undefined]);
+});
 it('ADR-0003 retries network failures twice and reports a network error', async () => {
   const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(new TypeError('network'));
   const sleep = vi.fn(async (_ms: number) => {});

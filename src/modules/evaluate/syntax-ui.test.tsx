@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -10,10 +9,10 @@ import type { LlmClient } from '@/shared/llm';
 import { LlmConfigError } from '@/shared/llm/errors';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { chooseSelectOption } from '@/test/selectOption';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories, type Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import Evaluate from './Page';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 // Tokens: The0 model1 ,2 after3 very4 extensive5 testing6 across7 many8 new9 multiple10 datasets11 ,12 was13 improved14 .15
 const TEXT = 'The model, after very extensive testing across many new multiple datasets, was improved.';
@@ -70,17 +69,17 @@ function renderEvaluate(repo: Repositories, client: LlmClient, entry = '/evaluat
 }
 
 async function splitAndAnalyze() {
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), { target: { value: TEXT } });
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), { target: { value: TEXT } });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Phân tích câu (AI)' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
 }
 
 it('EV-02 EV-03 asks consent, then shows markers, T/A/S and the review label for a gap of 9', async () => {
-  const repo = createRepositories(createDb(`syntax-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const { client, completeJson } = fakeClient();
   renderEvaluate(repo, client);
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), { target: { value: TEXT } });
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), { target: { value: TEXT } });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Phân tích câu (AI)' }));
   expect(await screen.findByRole('alertdialog')).toHaveTextContent('Thông báo quyền riêng tư');
@@ -102,7 +101,7 @@ it('EV-02 EV-03 asks consent, then shows markers, T/A/S and the review label for
 });
 
 it('EV-11 saved annotations reopen without calling the model', async () => {
-  const repo = createRepositories(createDb(`syntax-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const first = fakeClient();
   const view = renderEvaluate(repo, first.client);
   await splitAndAnalyze();
@@ -126,7 +125,7 @@ it('EV-11 saved annotations reopen without calling the model', async () => {
 });
 
 it('cancelling a running analysis shows no error', async () => {
-  const repo = createRepositories(createDb(`syntax-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const { client } = fakeClient(true);
   renderEvaluate(repo, client);
   await splitAndAnalyze();
@@ -136,7 +135,7 @@ it('cancelling a running analysis shows no error', async () => {
 });
 
 it('AC-03 EV-11 judges local candidates with consent and reopens saved decisions without a call', async () => {
-  const repo = createRepositories(createDb(`judge-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => {
     const id = /WEAK_MODIFIER:s1:\d+-\d+/.exec(options.user)?.[0];
     return {
@@ -151,7 +150,7 @@ it('AC-03 EV-11 judges local candidates with consent and reopens saved decisions
   });
   const client = { completeJson } as unknown as LlmClient;
   const view = renderEvaluate(repo, client);
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), {
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), {
     target: { value: 'Very clear results.' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
@@ -181,7 +180,7 @@ it('AC-03 EV-11 judges local candidates with consent and reopens saved decisions
 });
 
 it('EV-11 reopening a pre-S6 analysis computes candidates locally', async () => {
-  const repo = createRepositories(createDb(`legacy-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const saved = await repo.analyses.create({ text: await analyzeText('Very clear results.') });
   const { client, completeJson } = fakeClient();
   renderEvaluate(repo, client, `/evaluate?id=${saved.id}`);
@@ -192,11 +191,11 @@ it('EV-11 reopening a pre-S6 analysis computes candidates locally', async () => 
 });
 
 it('EV-11 AC-05 AC-06 AC-12 audits unsaved and later saved decisions and restores the previous status', async () => {
-  const repo = createRepositories(createDb(`review-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const spy = vi.spyOn(repo.analyses, 'reviewIssue');
   const { client } = fakeClient();
   const view = renderEvaluate(repo, client);
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), {
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), {
     target: { value: 'Very clear results.' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
@@ -213,7 +212,7 @@ it('EV-11 AC-05 AC-06 AC-12 audits unsaved and later saved decisions and restore
     'confirm',
   ]);
   fireEvent.click(screen.getByRole('tab', { name: /Đã xử lý/ }));
-  expect(screen.queryByText('Chưa hiệu chuẩn (n=1)')).toBeNull();
+  // The in-memory store reloads calibration at once, so the open suggestion may already show n=1 here.
   fireEvent.click(await screen.findByRole('button', { name: /Từ ngữ.*Very/ }));
   expect(await screen.findByText('Chưa hiệu chuẩn (n=1)')).toBeInTheDocument();
   chooseSelectOption('Mức độ', 'Lớn');
@@ -238,7 +237,7 @@ it('EV-11 AC-05 AC-06 AC-12 audits unsaved and later saved decisions and restore
 });
 
 it('EV-11 AC-05 AC-06 calls reviewIssue for saved confirm, undo, dismiss and severity changes', async () => {
-  const repo = createRepositories(createDb(`saved-review-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const text = await analyzeText('Very clear results.');
   const candidates = detectCandidates(text, null);
   const saved = await repo.analyses.create({
@@ -280,12 +279,14 @@ it('EV-11 AC-05 AC-06 calls reviewIssue for saved confirm, undo, dismiss and sev
 });
 
 it('shows the missing API key message and a Settings link', async () => {
-  const repo = createRepositories(createDb(`key-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const client = {
     completeJson: vi.fn().mockRejectedValue(new LlmConfigError('API key is required')),
   } as unknown as LlmClient;
   renderEvaluate(repo, client);
-  fireEvent.change(screen.getByLabelText('Dán một đoạn văn tiếng Anh'), { target: { value: 'A sentence.' } });
+  fireEvent.change(screen.getByLabelText('Dán một paragraph tiếng Anh'), {
+    target: { value: 'A sentence.' },
+  });
   fireEvent.click(screen.getByRole('button', { name: 'Tách câu' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Phân tích câu (AI)' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));

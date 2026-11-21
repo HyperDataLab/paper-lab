@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { decideFactRequest, FactRequestError, getMe, listFactRequests } from './factRequests';
 
 afterEach(() => vi.unstubAllGlobals());
+const PROJECT_ID = '00000000-0000-4000-8000-000000000101';
 const request = {
   paperId: `sha256-${'a'.repeat(64)}`,
   state: 'requested',
@@ -17,40 +18,41 @@ describe('fact requests client', () => {
   it('reads who the server says the caller is', async () => {
     const fetchMock = vi.fn(async () => Response.json({ email: 'admin@example.org', admin: true }));
     vi.stubGlobal('fetch', fetchMock);
-    expect(await getMe('test-token')).toMatchObject({ admin: true });
+    expect(await getMe('test-token', PROJECT_ID)).toMatchObject({ admin: true });
     expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/\/v1\/me$/u), {
-      headers: { Authorization: 'Bearer test-token' },
+      headers: { Authorization: 'Bearer test-token', 'X-Project-Id': PROJECT_ID },
     });
   });
 
   it('lists by state and cursor and tolerates missing title and DOI', async () => {
-    const fetchMock = vi.fn(async () =>
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
       Response.json({
         items: [request, { ...request, paperId: 'p2', title: 'T', doi: '10.1/x' }],
         nextCursor: 'c2',
       }),
     );
     vi.stubGlobal('fetch', fetchMock);
-    const page = await listFactRequests('test-token', 'approved', 'c1');
+    const page = await listFactRequests('test-token', PROJECT_ID, 'approved', 'c1');
     expect(page.items).toHaveLength(2);
     expect(page.nextCursor).toBe('c2');
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringMatching(/\/v1\/admin\/fact-requests\?state=approved&cursor=c1$/u),
       expect.anything(),
     );
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ headers: { 'X-Project-Id': PROJECT_ID } });
   });
 
   it('sends the decision with a trimmed note, and none when empty', async () => {
     const fetchMock = vi.fn(async () => Response.json({ ...request, state: 'declined' }));
     vi.stubGlobal('fetch', fetchMock);
-    expect((await decideFactRequest('t', 'p/1', 'decline', '  out of scope ')).state).toBe('declined');
-    await decideFactRequest('t', 'p/1', 'approve', '   ');
+    expect((await decideFactRequest('t', PROJECT_ID, 'p/1', 'decline', '  out of scope ')).state).toBe('declined');
+    await decideFactRequest('t', PROJECT_ID, 'p/1', 'approve', '   ');
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       expect.stringMatching(/\/fact-requests\/p%2F1\/decision$/u),
       {
         method: 'POST',
-        headers: { Authorization: 'Bearer t', 'Content-Type': 'application/json' },
+        headers: { Authorization: 'Bearer t', 'X-Project-Id': PROJECT_ID, 'Content-Type': 'application/json' },
         body: JSON.stringify({ decision: 'decline', note: 'out of scope' }),
       },
     );
@@ -74,7 +76,7 @@ describe('fact requests client', () => {
       'fetch',
       vi.fn(async () => new Response(null, { status })),
     );
-    const failure = decideFactRequest('t', 'p', 'approve');
+    const failure = decideFactRequest('t', PROJECT_ID, 'p', 'approve');
     await expect(failure).rejects.toBeInstanceOf(FactRequestError);
     await expect(failure).rejects.toThrow(text);
   });

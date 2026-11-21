@@ -101,11 +101,11 @@ export function PaperSummary({
             <div className={styles.pair}>
               <div>
                 <h3>Gap</h3>
-                {quotes(summary.gap, 'Chưa thấy câu nêu khoảng trống trong các mục đã đọc.')}
+                {quotes(summary.gap, 'Chưa thấy câu nêu research gap trong các section đã đọc.')}
               </div>
               <div>
                 <h3>Contribution</h3>
-                {quotes(summary.contribution, 'Chưa thấy câu nêu đóng góp trong các mục đã đọc.')}
+                {quotes(summary.contribution, 'Chưa thấy câu nêu contribution trong các section đã đọc.')}
               </div>
             </div>
           ) : (
@@ -144,9 +144,9 @@ export function PaperSummary({
           </>,
           <>
             {!summary.has.arguments ? (
-              missing('Chưa phân tích lập luận.', 'toulmin')
+              missing('Chưa phân tích argument.', 'toulmin')
             ) : summary.claims.length === 0 ? (
-              <p className={styles.muted}>Chưa xác định được luận điểm chính trong các mục đã đọc.</p>
+              <p className={styles.muted}>Chưa xác định được claim chính trong các section đã đọc.</p>
             ) : (
               <>
                 <ClaimTypeFilter
@@ -200,7 +200,7 @@ export function PaperSummary({
             )}
             {summary.has.arguments && (
               <Button size="sm" variant="ghost" onClick={() => onOpen('toulmin')}>
-                Xem toàn bộ lập luận
+                Xem toàn bộ argument
               </Button>
             )}
           </>,
@@ -215,7 +215,7 @@ export function PaperSummary({
             <>
               {quotes(
                 summary.limits.slice(0, SHOWN_LIMITS),
-                'Chưa thấy tác giả nêu giới hạn trong các mục đã đọc.',
+                'Chưa thấy tác giả nêu limitations trong các section đã đọc.',
               )}
               {summary.limits.length > SHOWN_LIMITS && (
                 <Button size="sm" variant="ghost" onClick={() => onOpen('reporting')}>

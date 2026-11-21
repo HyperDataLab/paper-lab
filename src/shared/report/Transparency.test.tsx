@@ -1,16 +1,14 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { downloadJson } from '@/shared/calibration/download';
 import { Transparency } from './Transparency';
+import { testRepositories } from '@/shared/storage/testRepositories';
 vi.mock('@/shared/calibration/download', () => ({ downloadJson: vi.fn() }));
 it('P7 transparency uses planned sections, excludes skipped items, identifies cached sections and exports snapshots', async () => {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`transparency-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const at = '2026-01-01T00:00:00.000Z';
   const paper = {
     schemaVersion: 1 as const,

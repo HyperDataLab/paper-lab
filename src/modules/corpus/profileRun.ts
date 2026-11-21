@@ -12,7 +12,7 @@ import type { Corpus } from '@/core/schemas/corpus';
 import { CorpusProfileSchema, type CorpusProfile } from '@/core/schemas/corpusProfile';
 import { CorpusProfileV2Schema, type CorpusProfileV2 } from '@/core/schemas/corpusProfileV2';
 import type { NlpClient } from '@/shared/nlp';
-import type { Repositories } from '@/shared/storage/repositories';
+import type { Repositories } from '@/shared/storage/types';
 import { labelMembers, loadLabelPaper } from './labelRun';
 
 /** Members' papers, models and label records, read the way the labelling coverage reads them. */

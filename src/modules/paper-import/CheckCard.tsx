@@ -4,6 +4,7 @@ import { Card } from '@/shared/ui/Card';
 import { CHECK_STATUSES, type CheckHandlers } from './checkTypes';
 import { FindingRow } from './CheckFinding';
 import { CalibrationBadge } from '@/shared/calibration/CalibrationBadge';
+import { displayCheckText } from './findingText';
 import styles from './page.module.css';
 const FOLD_AFTER = 5;
 
@@ -22,6 +23,7 @@ export function CheckCard({
   onLocation: CheckHandlers['onLocation'];
   calibration?: { n: number; wilsonLow: number | null };
 }) {
+  const label = displayCheckText(check.label);
   const status = CHECK_STATUSES[check.status];
   const Icon = status.icon;
   const decision = (id: string) => record.decisions.find((d) => d.findingId === id);
@@ -35,7 +37,7 @@ export function CheckCard({
         <div key={message} className={styles.findingGroup}>
           {group.length > 1 && (
             <p className={styles.findingMessage}>
-              {message} ({group.length})
+              {displayCheckText(message)} ({group.length})
             </p>
           )}
           <ul className={styles.findingList}>
@@ -43,7 +45,7 @@ export function CheckCard({
               <FindingRow
                 key={finding.id}
                 finding={finding}
-                label={check.label}
+                label={label}
                 hideMessage={group.length > 1}
                 paper={paper}
                 decision={decision(finding.id)}
@@ -57,7 +59,7 @@ export function CheckCard({
     });
   return (
     <Card>
-      <h2>{check.label}</h2>
+      <h2>{label}</h2>
       <Badge tone={status.tone} icon={<Icon size={16} aria-hidden="true" />}>
         {status.label}
       </Badge>{' '}

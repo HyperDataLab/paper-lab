@@ -1,20 +1,18 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
+import { testWorkerData } from '@/shared/storage/remoteTestSupport';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import Evaluate from '@/modules/evaluate/Page';
 import Page from './Page';
 import PaperMapPage from './PaperMapPage';
 import type { LlmClient } from '@/shared/llm/client';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
-function setup() {
-  const repo = createRepositories(createDb(`paper-ui-${crypto.randomUUID()}`));
+function setup(repo = testRepositories()) {
   render(
     <MemoryRouter initialEntries={['/papers']}>
       <StorageProvider repositories={repo}>
@@ -45,8 +43,8 @@ it('imports a paper, persists and audits role edits, then prefills Evaluate', as
   const repo = setup();
   await importPaper();
   expect(await screen.findByText('0 ứng viên cục bộ')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('combobox', { name: 'Vai trò của mục' }));
-  const methodsOption = screen.getByRole('option', { name: 'Phương pháp' });
+  fireEvent.click(screen.getByRole('combobox', { name: 'Vai trò của section' }));
+  const methodsOption = screen.getByRole('option', { name: 'Methods' });
   expect(methodsOption).toHaveAttribute('title', 'methods');
   fireEvent.click(methodsOption);
   await waitFor(async () => expect((await repo.papers.list())[0]?.sections[0]?.role).toBe('methods'));
@@ -56,7 +54,24 @@ it('imports a paper, persists and audits role edits, then prefills Evaluate', as
     'edit_label',
   );
   fireEvent.click(screen.getByRole('button', { name: 'Đánh giá đoạn này' }));
-  expect(await screen.findByLabelText('Dán một đoạn văn tiếng Anh')).toHaveValue('The first paragraph.');
+  expect(await screen.findByLabelText('Dán một paragraph tiếng Anh')).toHaveValue('The first paragraph.');
+});
+it('C3 imports and opens a paper from the worker and lists it by summary', async () => {
+  const worker = testWorkerData();
+  const remote = worker.connect();
+  const repo = testRepositories({ store: worker.connect() });
+  setup(repo);
+  await importPaper();
+  fireEvent.click(screen.getByRole('link', { name: 'Bài báo đã nhập' }));
+  expect(await screen.findByRole('link', { name: 'study' })).toBeInTheDocument();
+  const summary = (await repo.papers.listSummaries())[0];
+  if (!summary) throw new Error('Remote paper missing');
+  expect(summary.paragraphCount).toBe(2);
+  expect(await remote.get('papers', summary.id)).not.toBeNull();
+  const queries = worker.requests.filter((request) => request.url.endsWith('/query'));
+  expect(await Promise.all(queries.map((request) => request.json()))).toContainEqual(
+    expect.objectContaining({ collection: 'papers', include: 'summary' }),
+  );
 });
 it('requires confirmation before deleting a paper', async () => {
   const repo = setup();
@@ -84,7 +99,7 @@ it('shows the size guard error before reading an oversized file', async () => {
 
 it('P2 estimates selected calls, asks manuscript consent and opens a completed analysis', async () => {
   localStorage.clear();
-  const repo = createRepositories(createDb(`batch-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => ({
     data: options.schema.parse({ sentences: [] }),
     meta: { model: 'fake', promptVersion: options.promptVersion, latencyMs: 1, repaired: false },
@@ -112,7 +127,7 @@ it('P2 estimates selected calls, asks manuscript consent and opens a completed a
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Đánh giá ngữ cảnh' }));
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc đoạn' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc paragraph' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chấm điểm' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chuyển đoạn' }));
   expect(
@@ -144,7 +159,7 @@ it('P2 estimates selected calls, asks manuscript consent and opens a completed a
 
 it('P2 retries a failed paragraph and restores an interrupted run as paused', async () => {
   localStorage.clear();
-  const repo = createRepositories(createDb(`batch-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   let fail = true;
   const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => {
     if (fail) throw Object.assign(new Error('HTTP 400'), { status: 400 });
@@ -175,12 +190,13 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Đánh giá ngữ cảnh' }));
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc đoạn' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc paragraph' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chấm điểm' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chuyển đoạn' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu phân tích' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
   fireEvent.click(screen.getByRole('tab', { name: 'Full text' }));
+  await waitFor(() => expect(completeJson).toHaveBeenCalled());
   expect(await screen.findByText('Thất bại')).toBeInTheDocument();
   expect(screen.getByText(/Đã có lỗi không xác định/)).toBeInTheDocument();
   fail = false;
@@ -189,8 +205,12 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
   expect(await screen.findByText('Hoàn tất')).toBeInTheDocument();
   const paper = (await repo.papers.list())[0];
   if (!paper) throw new Error('missing paper');
-  const run = (await repo.paperRuns.listByPaper(paper.id))[0];
-  if (!run) throw new Error('missing run');
+  const run = await waitFor(async () => {
+    const [saved] = await repo.paperRuns.listByPaper(paper.id);
+    expect(saved?.status).toBe('done');
+    if (!saved) throw new Error('missing run');
+    return saved;
+  });
   await repo.paperRuns.save({ ...run, status: 'running' });
   view.unmount();
   render(tree(`/papers/${paper.id}`));
@@ -204,7 +224,7 @@ it('P2 retries a failed paragraph and restores an interrupted run as paused', as
 
 it('P2 increases a budget on the same run when resuming', async () => {
   localStorage.clear();
-  const repo = createRepositories(createDb(`batch-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const view = render(
     <MemoryRouter initialEntries={['/papers']}>
       <StorageProvider repositories={repo}>
@@ -286,7 +306,7 @@ it('P2 increases a budget on the same run when resuming', async () => {
 
 it('P2 pauses after the current call and resumes the remaining step', async () => {
   localStorage.clear();
-  const repo = createRepositories(createDb(`batch-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   let release: (() => void) | undefined;
   const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => {
     if (options.schemaName === 'sentence_syntax')
@@ -320,7 +340,7 @@ it('P2 pauses after the current call and resumes the remaining step', async () =
   fireEvent.click(screen.getByRole('button', { name: 'Tuỳ chọn' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
   fireEvent.click(screen.getByRole('checkbox', { name: /Introduction/ }));
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc đoạn' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Cấu trúc paragraph' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chấm điểm' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Chuyển đoạn' }));
   fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu phân tích' }));
@@ -335,7 +355,7 @@ it('P2 pauses after the current call and resumes the remaining step', async () =
 });
 it('P2 a run keeps going when the reader opens another tab, and the view is kept in the address', async () => {
   localStorage.clear();
-  const repo = createRepositories(createDb(`keep-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   // Never answers: the run stays in flight for the whole test.
   const completeJson = vi.fn(() => new Promise(() => {})) as unknown as LlmClient['completeJson'];
   let search = '';

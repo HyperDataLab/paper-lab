@@ -1,6 +1,7 @@
 export const PROMPT_VERSIONS = {
   corpusTopicName: 'corpus-topic-name-2',
   connectionTest: 'conn-test-1',
+  kgSql: 'kg-sql-1',
   sentenceSyntax: 'sent-syntax-1',
   candidateJudge: 'cand-judge-1',
   paragraphStructure: 'para-struct-2',
@@ -33,8 +34,23 @@ export const PROMPT_VERSIONS = {
   extractionVerify: 'extraction-verify-1',
   searchPlan: 'search-plan-1',
   screening: 'screening-1',
+  screeningTriage: 'screening-triage-1',
   synthesis: 'synthesis-3',
   planSuggestion: 'plan-suggestion-2',
+  autoresearchS1: 'autoresearch-s1-1',
+  autoresearchS2: 'autoresearch-s2-1',
+  autoresearchS3: 'autoresearch-s3-1',
+  autoresearchS4: 'autoresearch-s4-1',
+  autoresearchS6: 'autoresearch-s6-2',
+  autoresearchS7: 'autoresearch-s7-1',
+  autoresearchS8: 'autoresearch-s8-1',
+  autoresearchS9: 'autoresearch-s9-1',
+  autoresearchS10: 'autoresearch-s10-1',
+  autoresearchS12: 'autoresearch-s12-1',
+  autoresearchS12Pi: 'autoresearch-s12-pi-1',
+  autoresearchS12Critic: 'autoresearch-s12-critic-1',
+  autoresearchPi: 'autoresearch-pi-1',
+  autoresearchCritic: 'autoresearch-critic-1',
 } as const;
 export const CONNECTION_TEST_SYSTEM = 'You are a connection test. Return the requested JSON object.';
 export const CONNECTION_TEST_USER =

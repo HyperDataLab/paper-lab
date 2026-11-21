@@ -2,10 +2,13 @@ import { getContainer } from '@cloudflare/containers';
 import { handle, type Bucket } from './app';
 import { verifySsoToken } from './auth';
 import { GrobidStartingError } from './grobid-error';
+import { collectOrphanBodies } from './data/gc';
+import { configuredKg, type D1Database, type KgBindings } from './kg/bindings';
+import { drainKgQueue } from './kg/ingest';
 
 export { GrobidContainer } from './grobid';
 
-interface Env {
+interface Env extends KgBindings {
   BUCKET: Bucket;
   SSO_BASE_URL: string;
   RESEARCH_HUB_API_URL?: string;
@@ -16,6 +19,8 @@ interface Env {
   GROBID: Parameters<typeof getContainer>[0];
   /** Base URL of the topics worker that serves POST /nlp/parse; unset → POST /v1/measure skips passive and tense. */
   NLP_URL?: string;
+  DATA?: D1Database;
+  SCIATLAS_API_KEY?: string;
 }
 
 class ResearchHubApiError extends Error {
@@ -162,8 +167,23 @@ export default {
         now: () => new Date(),
         grobid: (pdf) => processPdf(env.GROBID, pdf),
         nlpParse: nlpParse(env),
+        sciatlasKey: env.SCIATLAS_API_KEY,
+        kg: env,
+        data: env.DATA,
       },
       request,
     );
+  },
+  async scheduled(_event: unknown, env: Env): Promise<void> {
+    const kg = configuredKg(env);
+    if (kg) {
+      const [rows] = await kg.db.batch<{ projectId: string }>([
+        kg.db.prepare(`SELECT DISTINCT substr(id, 5, instr(substr(id, 5), '/') - 1) AS projectId
+          FROM ingest_queue WHERE id LIKE '@rh/%'`),
+      ]);
+      for (const { projectId } of rows?.results ?? [])
+        await drainKgQueue(kg, { now: () => new Date(), projectId });
+    }
+    if (env.DATA) await collectOrphanBodies(env.DATA, env.BUCKET, new Date());
   },
 };

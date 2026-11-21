@@ -1,11 +1,13 @@
 import { ArrowLeft, Download, Library, Pencil, Plus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { canonicalDigest } from '@/core/corpus';
+import { labKgIds } from '@/shared/labKg/client';
+import { LabKgActions } from '@/shared/labKg/LabKgActions';
 import { CorpusSchema, type Corpus } from '@/core/schemas/corpus';
 import type { CorpusTopics as TopicsSnapshot, TopicName } from '@/core/schemas/corpusTopics';
 import { useAuth } from '@/shared/auth/authContext';
-import { useHubProjectId, useRepositories } from '@/shared/storage/StorageProvider';
+import { CorpusConflict } from '@/shared/storage/errors';
+import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
 import { Card } from '@/shared/ui/Card';
@@ -20,6 +22,7 @@ import { CorpusLabels } from './CorpusLabels';
 import { CorpusProfileCard } from './CorpusProfileCard';
 import { CorpusTopics } from './CorpusTopics';
 import { CorpusKeywords } from './CorpusKeywords';
+import { CorpusOpenKg } from './CorpusOpenKg';
 import { CorpusScgRoadmap } from './CorpusScgRoadmap';
 import { JournalHarvest } from './JournalHarvest';
 import { kinds, memberRoleLabel, versionLabel } from './labels';
@@ -29,13 +32,17 @@ import { ProtocolForm } from './ProtocolForm';
 import { TopicSearch } from './TopicSearch';
 import styles from './corpus.module.css';
 
+type SaveOptions = { checkpoint?: boolean; expectedVersion?: number };
+
 export default function DetailPage() {
   const { id } = useParams();
   const repo = useRepositories();
-  const { user, getIdToken } = useAuth();
-  const hubProjectId = useHubProjectId();
-  const [corpus, setCorpus] = useState<Corpus>();
+  const { user } = useAuth();
+  const [conflict, setConflict] = useState(false);
+  const [record, setRecord] = useState<{ doc: Corpus; version: number | null }>();
+  const corpus = record?.doc;
   const [loaded, setLoaded] = useState(false);
+  const [releasing, setReleasing] = useState(false);
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [filter, setFilter] = useState('all');
@@ -51,9 +58,9 @@ export default function DetailPage() {
   useEffect(() => {
     if (id)
       void repo.corpora
-        .get(id)
+        .getVersioned(id)
         .then((value) => {
-          setCorpus(value);
+          setRecord(value);
           setLoaded(true);
         })
         .catch((e: unknown) => {
@@ -61,46 +68,45 @@ export default function DetailPage() {
           setLoaded(true);
         });
   }, [id, repo]);
-  async function save(value: Corpus): Promise<void> {
-    const saved = await repo.corpora.save(value);
-    setCorpus(saved);
+  /** Saves the corpus. `checkpoint` coalesces hot writes (a triage batch); the next plain save sends them. */
+  async function save(value: Corpus, options: SaveOptions = {}) {
+    try {
+      setRecord(
+        options.checkpoint
+          ? { doc: await repo.corpora.checkpoint(value), version: null }
+          : await repo.corpora.saveVersioned(value, options.expectedVersion),
+      );
+    } catch (e) {
+      if (e instanceof CorpusConflict) setConflict(true);
+      throw e;
+    }
+  }
+  /** Shows the lab's current copy after a conflict; edits not yet saved are dropped. */
+  async function reload() {
+    if (!id) return;
+    try {
+      setRecord(await repo.corpora.reload(id));
+      setConflict(false);
+      setError('');
+      setEditing(false);
+      setAdding(false);
+    } catch (e) {
+      setError(String(e));
+    }
   }
   if (!loaded) return <p>Đang tải…</p>;
   if (!corpus) return <p role="alert">Không tìm thấy corpus. {error}</p>;
   const protocol = corpus.protocol.at(-1);
   async function release() {
-    if (!corpus || !protocol) return;
+    if (!record || record.version === null || !protocol) return;
+    setReleasing(true);
     try {
-      const contents = {
-        protocol: { version: protocol.version, body: protocol.body },
-        members: corpus.members
-          .map((m) => ({
-            memberId: m.memberId,
-            role: m.role,
-            stratum: m.stratum,
-            identifiers: m.identifiers,
-          }))
-          .sort((a, b) => a.memberId.localeCompare(b.memberId)),
-      };
-      const digest = await canonicalDigest(JSON.parse(JSON.stringify(contents)) as unknown);
-      const at = new Date().toISOString();
-      await save({
-        ...corpus,
-        updatedAt: at,
-        releases: [
-          ...corpus.releases,
-          {
-            id: crypto.randomUUID(),
-            createdAt: at,
-            protocolVersion: protocol.version,
-            digest,
-            memberCount: corpus.members.length,
-            registryVersion: null,
-          },
-        ],
-      });
+      setRecord(await repo.corpora.release(record.doc, record.version));
     } catch (e) {
+      if (e instanceof CorpusConflict) setConflict(true);
       setError(String(e));
+    } finally {
+      setReleasing(false);
     }
   }
   function download() {
@@ -119,7 +125,7 @@ export default function DetailPage() {
     ['Đã lấy', count('retrieval', 'retrieved')],
     ['Không lấy được', count('retrieval', 'not_retrieved')],
     ['Toàn văn', count('textRead', 'FULL_TEXT')],
-    ['Tóm tắt', count('textRead', 'ABSTRACT_ONLY')],
+    ['Abstract', count('textRead', 'ABSTRACT_ONLY')],
     ['Siêu dữ liệu', count('textRead', 'METADATA_ONLY')],
   ];
   const body = protocol?.body;
@@ -128,7 +134,7 @@ export default function DetailPage() {
     ? []
     : 'researchQuestion' in body
       ? [
-          ['Câu hỏi nghiên cứu', body.researchQuestion || 'Chưa đặt'],
+          ['Research question', body.researchQuestion || 'Chưa đặt'],
           ['Tiêu chí chọn', body.inclusion.join('; ') || 'Chưa có'],
           ['Tiêu chí loại', body.exclusion.join('; ') || 'Chưa có'],
           ['Năm', yearRange],
@@ -151,7 +157,7 @@ export default function DetailPage() {
           <div className={styles.badges}>
             <Badge>{kinds[corpus.kind]}</Badge>
             <Badge>Giao thức v{protocol?.version ?? '—'}</Badge>
-            {!hubProjectId && !user && <Badge>Chỉ trên máy này</Badge>}
+            {!user && <Badge>Chỉ trên máy này</Badge>}
           </div>
         </div>
         <div className={styles.detailActions}>
@@ -161,12 +167,25 @@ export default function DetailPage() {
           <IconButton label="Xuất manifest" onClick={download}>
             <Download size={18} />
           </IconButton>
-          <Button variant="primary" onClick={() => void release()}>
+          <Button
+            variant="primary"
+            disabled={releasing || conflict || record?.version === null}
+            onClick={() => void release()}
+          >
             Phát hành
           </Button>
         </div>
       </header>
-      {error && <p role="alert">Có lỗi xảy ra. {error}</p>}
+      {error && !conflict && <p role="alert">Có lỗi xảy ra. {error}</p>}
+      {conflict && (
+        <div role="alert" className={styles.conflict}>
+          <p>Corpus đã được người khác sửa nên thay đổi của bạn chưa được lưu. Tải bản mới rồi làm lại.</p>
+          <Button size="sm" onClick={() => void reload()}>
+            Tải bản mới
+          </Button>
+        </div>
+      )}
+
       <dl className={styles.stats} aria-label="Thu thập">
         <div>
           <dt>Tổng số bài</dt>
@@ -180,16 +199,19 @@ export default function DetailPage() {
         ))}
       </dl>
 
+      <LabKgActions key={user?.uid} ids={labKgIds(corpus.members.map(({ identifiers }) => identifiers))} />
+
       {corpus.kind !== 'topic' && <JournalHarvest corpus={corpus} save={save} />}
       {corpus.kind === 'topic' && <TopicSearch corpus={corpus} save={save} />}
       {corpus.kind === 'topic' && <PrismaPanel corpus={corpus} />}
       {corpus.kind === 'topic' && <AppraisalPanel corpus={corpus} save={save} />}
-      <CorpusBuild corpus={corpus} save={save} getIdToken={getIdToken} />
+      <CorpusBuild key={JSON.stringify([corpus.id, user?.uid])} corpus={corpus} save={save} />
       <CorpusLabels corpus={corpus} save={save} />
       {corpus.kind === 'journal' && <CorpusProfileCard corpus={corpus} />}
       <CorpusTopics corpus={corpus} onData={receiveTopics} />
       <CorpusKeywords corpus={corpus} />
       <CorpusScgRoadmap corpus={corpus} />
+      <CorpusOpenKg key={corpus.id} corpus={corpus} save={save} />
 
       <Card>
         <section aria-labelledby="corpus-members" className={styles.members}>
@@ -238,7 +260,7 @@ export default function DetailPage() {
             <DataTable>
               <thead>
                 <tr>
-                  <th>Tiêu đề / DOI</th>
+                  <th>Title / DOI</th>
                   <th>Định danh</th>
                   <th>Vai trò</th>
                   <th>Thu thập</th>
@@ -287,7 +309,7 @@ export default function DetailPage() {
                     </td>
                     <td>
                       {
-                        { FULL_TEXT: 'Toàn văn', ABSTRACT_ONLY: 'Tóm tắt', METADATA_ONLY: 'Siêu dữ liệu' }[
+                        { FULL_TEXT: 'Toàn văn', ABSTRACT_ONLY: 'Abstract', METADATA_ONLY: 'Siêu dữ liệu' }[
                           m.textRead
                         ]
                       }

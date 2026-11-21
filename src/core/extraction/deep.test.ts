@@ -228,9 +228,9 @@ describe('deep research', () => {
     });
     expect(markdown).toContain('## Điểm khác biệt\n- Khác nhau [1][2]');
     expect(markdown).toContain('Không nguồn (chưa có nguồn trong ma trận) — Lưu ý: ít bài');
-    expect(markdown).toContain('## Khoảng trống ứng viên');
+    expect(markdown).toContain('## Research gap cần xác minh');
     expect(markdown).toContain(
-      '1. Alpha (2023). https://doi.org/10.1234/a\n   - Results: “latency was 10 ms” (tr. 4) (tóm tắt)',
+      '1. Alpha (2023). https://doi.org/10.1234/a\n   - Results: “latency was 10 ms” (tr. 4) (abstract)',
     );
   });
 });

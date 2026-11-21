@@ -6,6 +6,8 @@ import type { Paper, ScgPaperRun } from '@/core/schemas';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
 import { PublishScg } from './PublishScg';
 
+vi.mock('@/shared/storage/StorageProvider', () => ({ useHubProjectId: () => 'rh-test-project' }));
+
 const auth: AuthValue = {
   user: { uid: 'u', email: 'test@example.org', name: null },
   ready: true,
@@ -20,7 +22,7 @@ const paper = {
   source: { kind: 'pdf', fileName: 'a.pdf', pageCount: 1, sha256: `sha256:${sha}` },
 } as Paper;
 const graph = () => projectScgPaper(exampleScgRun(), `sha256-${sha}`);
-const button = () => screen.getByRole('button', { name: 'Công bố đồ thị đóng góp' });
+const button = () => screen.getByRole('button', { name: 'Công bố đồ thị contribution' });
 function setup(run: ScgPaperRun = exampleScgRun(), signedIn = true) {
   render(
     <AuthContext.Provider value={{ ...auth, user: signedIn ? auth.user : null }}>
@@ -65,6 +67,7 @@ describe('publishing a contribution graph', () => {
     const etag = await scgBodyEtag(JSON.stringify(graph()));
     const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
       expect(new Headers(init?.headers).get('If-None-Match')).toBe(`"${etag}"`);
+      expect(new Headers(init?.headers).get('X-Project-Id')).toBe('rh-test-project');
       return new Response('{}', { status: 200, headers: { ETag: `"${'b'.repeat(64)}"` } });
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -98,11 +101,12 @@ describe('publishing a contribution graph', () => {
       );
     vi.stubGlobal('fetch', fetchMock);
     setup();
-    expect(await screen.findByText('Đồ thị đóng góp chưa được công bố.')).toBeInTheDocument();
+    expect(await screen.findByText('Đồ thị contribution chưa được công bố.')).toBeInTheDocument();
     fireEvent.click(button());
     expect(await screen.findByText('Đã công bố, khớp với bản hiện tại.')).toBeInTheDocument();
     const [, init] = fetchMock.mock.calls[1] as [string, RequestInit];
     expect(init.method).toBe('PUT');
+    expect(new Headers(init.headers).get('X-Project-Id')).toBe('rh-test-project');
     expect(JSON.parse(init.body as string)).toEqual(graph());
     await waitFor(() => expect(button()).toBeDisabled());
   });

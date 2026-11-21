@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -9,19 +8,18 @@ import { addMember } from '@/core/corpus/intake';
 import { recordDecision } from '@/core/corpus/screening';
 import type { Corpus } from '@/core/schemas';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
-import { createDb } from '@/shared/storage/db';
-import { createRepositories } from '@/shared/storage/repositories';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { chooseSelectOption } from '@/test/selectOption';
 import { criterionLabel } from './appraisalLabels';
 import DetailPage from './DetailPage';
+import { testRepositories } from '@/shared/storage/testRepositories';
 
 const client = { completeJson: vi.fn(() => Promise.reject(new Error('no network in tests'))) };
 afterEach(() => vi.unstubAllGlobals());
 
 async function setup() {
   vi.stubGlobal('crypto', webcrypto);
-  const repo = createRepositories(createDb(`review-ui-${crypto.randomUUID()}`));
+  const repo = testRepositories();
   const base = exampleCorpus();
   let corpus: Corpus = addMember(
     { ...base, members: [] },
