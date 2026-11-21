@@ -242,7 +242,12 @@ export default function Page() {
     const controller = new AbortController();
     void (async () => {
       try {
-        const next = await getLabKgTrend(trendKey.split(','), await getIdToken(), projectId, controller.signal);
+        const next = await getLabKgTrend(
+          trendKey.split(','),
+          await getIdToken(),
+          projectId,
+          controller.signal,
+        );
         if (!controller.signal.aborted) setTrendResult({ key: trendKey, data: next });
       } catch {
         /* The trend is supplementary; the graph and node details stay usable without it. */
@@ -353,38 +358,53 @@ export default function Page() {
   return (
     <div className={styles.page}>
       {header}
-      <AskKg key={uid} />
+      <div className={styles.launchGrid}>
+        <section className={styles.explore} aria-labelledby="lab-kg-explore-heading">
+          <div className={styles.panelHeading}>
+            <h2 id="lab-kg-explore-heading" className={styles.heading}>
+              Khám phá đồ thị
+            </h2>
+            <p className={styles.muted}>Tìm bài báo, keyword hoặc chủ đề để xem các mối liên hệ.</p>
+          </div>
+          <form className={styles.search} onSubmit={search} role="search">
+            <TextField
+              label="Tìm tâm đồ thị"
+              hint="Nhập tiêu đề, keyword, DOI hoặc OpenAlex ID."
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <Button
+              type="submit"
+              variant={centre ? 'secondary' : 'primary'}
+              disabled={searching || !query.trim()}
+            >
+              {searching ? 'Đang tìm…' : 'Tìm trong KG'}
+            </Button>
+          </form>
+          <p className={styles.exploreFootnote}>
+            Nếu bài chưa có trong KG, PaperLab sẽ gợi ý cách đưa bài vào ở bước tiếp theo.
+          </p>
+        </section>
+        <AskKg key={uid} />
+      </div>
       {statsError ? (
         <ErrorNote error={statsError} onRetry={() => setStatsRefresh((value) => value + 1)} />
       ) : !stats ? (
         <Loading label="Đang tải số liệu KG…" />
       ) : (
-        <StatGrid>
-          <Stat label="Bài báo" value={stats.nodes.paper} />
-          <Stat label="Keywords" value={stats.nodes.keyword} />
-          <Stat label="Tác giả" value={stats.nodes.author} />
-          <Stat label="Chủ đề" value={stats.nodes.topic} />
-          <Stat label="Contributions" value={stats.nodes.contribution} />
-          <Stat label="Đang chờ đưa vào" value={queue} />
-        </StatGrid>
+        <div className={styles.stats}>
+          <StatGrid>
+            <Stat label="Bài báo" value={stats.nodes.paper} />
+            <Stat label="Keywords" value={stats.nodes.keyword} />
+            <Stat label="Tác giả" value={stats.nodes.author} />
+            <Stat label="Chủ đề" value={stats.nodes.topic} />
+            <Stat label="Contributions" value={stats.nodes.contribution} />
+            <Stat label="Đang chờ đưa vào" value={queue} />
+          </StatGrid>
+        </div>
       )}
-      {empty && <EmptyKg queue={queue} onQueued={() => setStatsRefresh((value) => value + 1)} />}
-      <form className={styles.search} onSubmit={search} role="search">
-        <TextField
-          label="Tìm tâm đồ thị"
-          hint="Gõ title, keyword, DOI hoặc OpenAlex ID (W…, keywords/…, topics/…)."
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-        <Button
-          type="submit"
-          variant={centre ? 'secondary' : 'primary'}
-          disabled={searching || !query.trim()}
-        >
-          {searching ? 'Đang tìm…' : 'Tìm'}
-        </Button>
-      </form>
       {searchError && <ErrorNote error={searchError} onRetry={() => void runSearch(query.trim())} />}
+      {empty && !centre && <EmptyKg queue={queue} onQueued={() => setStatsRefresh((value) => value + 1)} />}
       {found && (
         <section aria-label="Kết quả tìm">
           {found.papers.length ? (
@@ -415,7 +435,14 @@ export default function Page() {
         overview && !empty ? (
           <StartingPoints overview={overview} onCentre={recentre} />
         ) : (
-          !empty && <p className={openkg.muted}>Tìm một bài rồi chọn nó để xem đồ thị quanh bài đó.</p>
+          !empty && (
+            <div className={styles.chooseCentre}>
+              <strong>Chọn một điểm bắt đầu</strong>
+              <span className={styles.muted}>
+                Nhập DOI, OpenAlex ID hoặc từ khóa ở trên để mở đồ thị liên quan.
+              </span>
+            </div>
+          )
         )
       ) : (
         <div className={openkg.workspace}>

@@ -74,15 +74,18 @@ export function AskKg() {
 
   return (
     <section className={styles.ask} aria-labelledby="ask-kg-heading">
-      <h2 id="ask-kg-heading" className={styles.heading}>
-        Hỏi KG bằng câu hỏi
-      </h2>
+      <div className={styles.panelHeading}>
+        <h2 id="ask-kg-heading" className={styles.heading}>
+          Hỏi KG bằng câu hỏi
+        </h2>
+        <p className={styles.muted}>Đặt câu hỏi bằng tiếng Việt hoặc tiếng Anh để truy vấn dữ liệu.</p>
+      </div>
       <form className={styles.askForm} onSubmit={(event) => void ask(event)}>
         <TextField
           multiline
           rows={2}
           label="Câu hỏi về KG"
-          hint="Nhập câu hỏi bằng tiếng Việt hoặc tiếng Anh."
+          hint="Câu trả lời được tạo từ dữ liệu hiện có trong KG."
           maxLength={MAX_QUESTION_LENGTH}
           value={question}
           onChange={(event) => setQuestion(event.target.value)}

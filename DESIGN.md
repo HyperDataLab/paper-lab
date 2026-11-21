@@ -433,6 +433,12 @@ authors, venue, year and DOI. Parser counts belong in Minh bạch.
 - Keywords sits after Chủ đề. It counts the OpenAlex keywords of the members (only DOIs leave the browser) and shows a word cloud (size by number of papers, colour from `--text-muted` to `--accent-strong` by mean score) or a co-occurrence graph (top 40 keywords on a ring, Jaccard edges); the sortable table below is the text alternative, with a year filter. Pressing a keyword lists its papers. "Lấy keywords cho N bài còn thiếu" fetches missing keywords three at a time; a collection built from other members than the current ones reads "Đã cũ".
 - Đồ thị tri thức (OpenKG) sits after Lộ trình đóng góp. It reports local coverage and lets readers toggle layers with counted chips. Its concentric diagram shows up to 120 nodes by degree, with a searchable text list and the same inspector available for every node. Selecting a node shows its relationships and supporting papers. The trend table counts the 15 most frequent keywords by year, and the export menu uses the entire corpus graph.
 
+# Lab knowledge graph
+
+- The Lab KG page leads with two task surfaces: explore the graph by paper/keyword/DOI, or ask a natural-language question. Keep them side by side on desktop and stack them below 980 px.
+- Show project KG counts as a compact responsive strip. When the graph has no papers, explain the next step and list local corpora with explicit enqueue actions; do not use a large decorative empty-state illustration.
+- Once a centre is selected, keep graph controls, node inspector, text node list, trend table, and export actions available as progressive details around the graph.
+
 # Paper page patterns
 
 - Look up publication metadata once when a DOI is known and metadata is absent; send only the DOI.
