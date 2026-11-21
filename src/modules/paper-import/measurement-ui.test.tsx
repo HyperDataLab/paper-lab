@@ -275,6 +275,9 @@ it('R5 decides a measurement finding from the unified list', async () => {
   );
   fireEvent.click(await screen.findByRole('tab', { name: 'Issues' }));
   const list = await screen.findByRole('region', { name: 'Issues' });
+  // Cards are compact: open them to read their reasons.
+  await within(list).findAllByRole('button', { name: /^Mở rộng / });
+  for (const fold of within(list).queryAllByRole('button', { name: /^Mở rộng / })) fireEvent.click(fold);
   const finding = await within(list).findByText('Chưa thấy nêu seed.');
   const row = finding.closest('[id^="finding-measurement:"]');
   if (!(row instanceof HTMLElement)) throw new Error('Missing measurement finding');
