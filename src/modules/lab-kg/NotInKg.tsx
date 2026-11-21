@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { KgGraphNodeKind, KgIngestResult } from '@/core/schemas/labKg';
 import { useAuth } from '@/shared/auth/authContext';
+import { useHubProjectId } from '@/shared/storage/StorageProvider';
 import { asLabKgError, enqueueLabKg, getLabKgPaper, getLabKgStatus, LabKgError } from '@/shared/labKg/client';
 import { Button } from '@/shared/ui/Button';
 import { Empty } from '@/shared/ui/StateNote';
@@ -39,6 +40,7 @@ function IngestPaper({
   waitMs: number;
 }) {
   const { getIdToken } = useAuth();
+  const projectId = useHubProjectId();
   const [phase, setPhase] = useState<Phase>({ step: 'idle' });
   const stopped = useRef(new AbortController());
   useEffect(() => {
@@ -49,7 +51,8 @@ function IngestPaper({
 
   async function present(token: string | null, signal: AbortSignal) {
     try {
-      await getLabKgPaper(id, token, signal);
+      if (!projectId) throw new LabKgError('Mở một project ResearchHub để dùng KG.');
+      await getLabKgPaper(id, token, projectId, signal);
       return true;
     } catch (cause) {
       if (cause instanceof LabKgError && cause.status === 404) return false;
@@ -62,7 +65,8 @@ function IngestPaper({
     setPhase({ step: 'sending' });
     try {
       const token = await getIdToken();
-      const result = await enqueueLabKg([id], token);
+      if (!projectId) throw new LabKgError('Mở một project ResearchHub để dùng KG.');
+      const result = await enqueueLabKg([id], token, projectId);
       if (signal.aborted) return;
       const failure = result.errors.find((error) => error.id === id);
       if (failure && FINAL_CODES.has(failure.code))
@@ -84,7 +88,7 @@ function IngestPaper({
         }
         await new Promise((resolve) => setTimeout(resolve, pollMs));
         if (signal.aborted) return;
-        const { logs } = await getLabKgStatus(await getIdToken(), signal);
+        const { logs } = await getLabKgStatus(await getIdToken(), projectId ?? '', signal);
         const latest = logs.find((log) => log.id === id);
         if (latest && FINAL_CODES.has(latest.code))
           return setPhase({

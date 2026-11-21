@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { KgIngestResult, KgIngestStatus } from '@/core/schemas/labKg';
 import { useAuth } from '@/shared/auth/authContext';
+import { useHubProjectId } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { enqueueLabKg, getLabKgStatus, LabKgError } from './client';
 
@@ -15,6 +16,7 @@ export function LabKgActions({
 }) {
   const { user, getIdToken } = useAuth();
   const uid = user?.uid;
+  const projectId = useHubProjectId();
   const [status, setStatus] = useState<KgIngestStatus['counts']>();
   const [statusError, setStatusError] = useState<LabKgError>();
   const [actionError, setActionError] = useState<LabKgError>();
@@ -23,14 +25,15 @@ export function LabKgActions({
   const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {
-    if (!uid || !showStatus) return;
+    if (!uid || !projectId || !showStatus) return;
+    const activeProjectId = projectId;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     async function load() {
       try {
         const token = await getIdToken();
         if (controller.signal.aborted) return;
-        const { counts } = await getLabKgStatus(token, controller.signal);
+        const { counts } = await getLabKgStatus(token, activeProjectId, controller.signal);
         if (controller.signal.aborted) return;
         setStatus(counts);
         setStatusError(undefined);
@@ -47,14 +50,15 @@ export function LabKgActions({
       controller.abort();
       clearTimeout(timer);
     };
-  }, [uid, getIdToken, refresh, showStatus]);
+  }, [uid, projectId, getIdToken, refresh, showStatus]);
 
   async function queue() {
     setBusy(true);
     setActionError(undefined);
     setResult(undefined);
     try {
-      setResult(await enqueueLabKg(ids, await getIdToken()));
+      if (!projectId) throw new LabKgError('Mở một project ResearchHub để thêm vào KG.');
+      setResult(await enqueueLabKg(ids, await getIdToken(), projectId));
     } catch (cause) {
       setActionError(
         cause instanceof LabKgError ? cause : new LabKgError('Không đưa được bài vào KG của lab.'),
@@ -68,7 +72,7 @@ export function LabKgActions({
   const error = actionError ?? statusError;
   return (
     <div>
-      <Button size="sm" disabled={!uid || !ids.length || busy} onClick={() => void queue()}>
+      <Button size="sm" disabled={!uid || !projectId || !ids.length || busy} onClick={() => void queue()}>
         {label}
       </Button>
       {(showStatus || !uid || busy) && (

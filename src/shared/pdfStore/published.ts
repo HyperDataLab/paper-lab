@@ -29,11 +29,11 @@ export class PublishPaperError extends Error {
   }
 }
 
-export async function publishPaperModel(model: PaperModel, localPaperId: string, token: string) {
+export async function publishPaperModel(model: PaperModel, localPaperId: string, token: string, projectId: string) {
   const id = publishedPaperId(model, localPaperId);
   const response = await fetch(`${PDF_WORKER_URL}/v1/papers/${encodeURIComponent(id)}/model`, {
     method: 'PUT',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${token}`, 'X-Project-Id': projectId, 'Content-Type': 'application/json' },
     body: JSON.stringify(model),
   });
   if (!response.ok) throw new PublishPaperError(response.status);
@@ -76,13 +76,14 @@ export async function publishFrozenPlan(
   title: string,
   plan: { planVersion: number },
   token: string,
+  hubProjectId: string,
 ) {
   const version = plan.planVersion;
   const response = await fetch(
     `${PDF_WORKER_URL}/v1/projects/${encodeURIComponent(projectId)}/plans/${version}?title=${encodeURIComponent(title)}`,
     {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${token}`, 'X-Project-Id': hubProjectId, 'Content-Type': 'application/json' },
       body: JSON.stringify(plan),
     },
   );
@@ -94,12 +95,12 @@ export async function publishFrozenPlan(
   };
 }
 
-export async function publishExperimentFacts(facts: ExperimentFacts, token: string) {
+export async function publishExperimentFacts(facts: ExperimentFacts, token: string, projectId: string) {
   const response = await fetch(
     `${PDF_WORKER_URL}/v1/papers/${encodeURIComponent(facts.paperId)}/experiment-facts`,
     {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${token}`, 'X-Project-Id': projectId, 'Content-Type': 'application/json' },
       body: JSON.stringify(facts),
     },
   );

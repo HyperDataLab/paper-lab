@@ -26,7 +26,7 @@ import {
   LabKgError,
   searchLabKg,
 } from '@/shared/labKg/client';
-import { useRepositories } from '@/shared/storage/StorageProvider';
+import { useHubProjectId, useRepositories } from '@/shared/storage/StorageProvider';
 import { ActionBar, ActionMenu, Stat, StatGrid } from '@/shared/ui/ActionBar';
 import { Button } from '@/shared/ui/Button';
 import { Chip } from '@/shared/ui/Chip';
@@ -126,6 +126,7 @@ function StartingPoints({ overview, onCentre }: { overview: KgOverview; onCentre
 export default function Page() {
   const { user, getIdToken } = useAuth();
   const uid = user?.uid;
+  const projectId = useHubProjectId();
   const repo = useRepositories();
   const [stats, setStats] = useState<KgStats>();
   const [statsError, setStatsError] = useState<LabKgError>();
@@ -163,12 +164,12 @@ export default function Page() {
   }, [repo]);
 
   useEffect(() => {
-    if (!uid) return;
+    if (!uid || !projectId) return;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     void (async () => {
       try {
-        const next = await getLabKgStats(await getIdToken(), controller.signal);
+        const next = await getLabKgStats(await getIdToken(), projectId, controller.signal);
         if (controller.signal.aborted) return;
         setStats(next);
         setStatsError(undefined);
@@ -183,22 +184,22 @@ export default function Page() {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [uid, getIdToken, statsRefresh]);
+  }, [uid, projectId, getIdToken, statsRefresh]);
 
   const paperCount = stats?.nodes.paper ?? 0;
   useEffect(() => {
-    if (!uid || !paperCount) return;
+    if (!uid || !projectId || !paperCount) return;
     const controller = new AbortController();
     void (async () => {
       try {
-        const next = await getLabKgOverview(await getIdToken(), controller.signal);
+        const next = await getLabKgOverview(await getIdToken(), projectId, controller.signal);
         if (!controller.signal.aborted) setOverview(next);
       } catch {
         /* Starting points are a shortcut; search works without them. */
       }
     })();
     return () => controller.abort();
-  }, [uid, getIdToken, paperCount]);
+  }, [uid, projectId, getIdToken, paperCount]);
 
   const layerKey = KG_GRAPH_LAYERS.filter((layer) => layers.has(layer)).join(',');
   const graphKey = `${centre ?? ''}|${depth}|${layerKey}|${graphRefresh}`;
@@ -206,7 +207,7 @@ export default function Page() {
   // A graph for another centre, depth or layer set is not shown while the new one loads.
   const graph = graphResult?.key === graphKey ? graphResult.data : undefined;
   useEffect(() => {
-    if (!uid || !centre) return;
+    if (!uid || !projectId || !centre) return;
     const controller = new AbortController();
     const key = `${centre}|${depth}|${layerKey}|${graphRefresh}`;
     void (async () => {
@@ -214,6 +215,7 @@ export default function Page() {
         const next = await getLabKgGraph(
           { centre, depth, layers: layerKey ? (layerKey.split(',') as KgGraphLayer[]) : [] },
           await getIdToken(),
+          projectId,
           controller.signal,
         );
         if (controller.signal.aborted) return;
@@ -227,7 +229,7 @@ export default function Page() {
       }
     })();
     return () => controller.abort();
-  }, [uid, getIdToken, centre, depth, layerKey, graphRefresh]);
+  }, [uid, projectId, getIdToken, centre, depth, layerKey, graphRefresh]);
 
   const trendKey = (graph?.nodes ?? [])
     .filter(({ kind }) => kind === 'keyword')
@@ -236,18 +238,18 @@ export default function Page() {
     .join(',');
   const trend = trendResult?.key === trendKey ? trendResult.data : undefined;
   useEffect(() => {
-    if (!uid || !trendKey) return;
+    if (!uid || !projectId || !trendKey) return;
     const controller = new AbortController();
     void (async () => {
       try {
-        const next = await getLabKgTrend(trendKey.split(','), await getIdToken(), controller.signal);
+        const next = await getLabKgTrend(trendKey.split(','), await getIdToken(), projectId, controller.signal);
         if (!controller.signal.aborted) setTrendResult({ key: trendKey, data: next });
       } catch {
         /* The trend is supplementary; the graph and node details stay usable without it. */
       }
     })();
     return () => controller.abort();
-  }, [uid, getIdToken, trendKey]);
+  }, [uid, projectId, getIdToken, trendKey]);
 
   const kg = useMemo(() => (graph ? labKgGraphToPaperKg(graph) : undefined), [graph]);
   const byIri = useMemo(
@@ -276,6 +278,10 @@ export default function Page() {
   }
 
   async function runSearch(text: string) {
+    if (!projectId) {
+      setSearchError(new LabKgError('Mở một project ResearchHub để tìm trong KG.'));
+      return;
+    }
     const direct = kgGraphCentre(text);
     if (direct) {
       setFound(undefined);
@@ -290,6 +296,7 @@ export default function Page() {
         await searchLabKg(
           { query: text, keywords: [{ text: text.slice(0, 200), level: 'high' }], topK: 10, mode: 'hybrid' },
           await getIdToken(),
+          projectId,
         ),
       );
     } catch (cause) {
@@ -310,7 +317,8 @@ export default function Page() {
     setQueueing(true);
     setQueueError(undefined);
     try {
-      setQueued(await enqueueLabKg(graph.outside, await getIdToken(), 'expansion'));
+      if (!projectId) throw new LabKgError('Mở một project ResearchHub để thêm vào KG.');
+      setQueued(await enqueueLabKg(graph.outside, await getIdToken(), projectId, 'expansion'));
       setStatsRefresh((value) => value + 1);
     } catch (cause) {
       setQueueError(asLabKgError(cause, 'Không đưa được bài vào KG của lab.'));

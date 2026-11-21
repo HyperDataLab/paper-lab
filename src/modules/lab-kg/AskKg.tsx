@@ -3,6 +3,7 @@ import { PROMPT_VERSIONS } from '@/core/prompts';
 import { KgSqlOutputSchema, type KgSqlOutput, type KgSqlResult } from '@/core/schemas/kgSql';
 import { buildKgSqlPrompt, KG_TABLE_CONCEPTS } from '@/core/semantic/kgSchema';
 import { useAuth } from '@/shared/auth/authContext';
+import { useHubProjectId } from '@/shared/storage/StorageProvider';
 import { LabKgError, queryLabKg } from '@/shared/labKg/client';
 import { requireConsent } from '@/shared/llm/consent';
 import { describeLlmError } from '@/shared/llm/describeError';
@@ -18,6 +19,7 @@ const conceptNames = new Map(KG_TABLE_CONCEPTS.map(({ id, name }) => [id, name])
 
 export function AskKg() {
   const { user, getIdToken } = useAuth();
+  const projectId = useHubProjectId();
   const { client, config, ensureConsent } = useLlm();
   const [question, setQuestion] = useState('');
   const [busy, setBusy] = useState(false);
@@ -54,7 +56,8 @@ export function AskKg() {
       });
       if (signal.aborted) return;
       setGenerated(data);
-      const answer = await queryLabKg(data.sql, token, signal);
+      if (!projectId) throw new LabKgError('Mở một project ResearchHub để truy vấn KG.');
+      const answer = await queryLabKg(data.sql, token, projectId, signal);
       if (!signal.aborted) setResult(answer);
     } catch (cause) {
       if (signal.aborted) return;

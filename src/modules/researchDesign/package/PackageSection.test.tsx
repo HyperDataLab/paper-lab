@@ -41,6 +41,10 @@ vi.mock('../ResearchDesignProvider', async () => {
     }),
   };
 });
+vi.mock('@/shared/storage/StorageProvider', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/shared/storage/StorageProvider')>();
+  return { ...actual, useHubProjectId: () => 'rh-test-project' };
+});
 
 const signedIn: AuthValue = {
   user: { uid: 'u-1', email: 'tester@example.test', name: null },

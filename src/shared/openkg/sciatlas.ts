@@ -58,6 +58,7 @@ function codeOf(status: number, error: string | undefined): SciAtlasErrorCode {
 export async function searchSciAtlas(
   request: SciAtlasSearchRequest,
   token: string | null,
+  projectId: string,
   signal?: AbortSignal,
 ): Promise<SciAtlasSearchResponse> {
   if (!token) throw new SciAtlasError('signed_out');
@@ -65,7 +66,11 @@ export async function searchSciAtlas(
   try {
     response = await fetch(`${PDF_WORKER_URL}/v1/sciatlas/search`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-Project-Id': projectId,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(request),
       signal,
     });

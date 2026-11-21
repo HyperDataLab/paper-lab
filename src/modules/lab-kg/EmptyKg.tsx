@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { KG_INGEST_LIMIT, type KgIngestResult } from '@/core/schemas/labKg';
 import { useAuth } from '@/shared/auth/authContext';
 import { asLabKgError, enqueueLabKg, labKgIds, type LabKgError } from '@/shared/labKg/client';
-import { useRepositories } from '@/shared/storage/StorageProvider';
+import { useHubProjectId, useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
 import { Empty } from '@/shared/ui/StateNote';
 import { ErrorNote } from './ErrorNote';
@@ -21,6 +21,7 @@ type Progress = { corpusId: string; total: number; sent: number; result?: KgInge
 /** The KG holds no paper yet: say how it fills, and send a local corpus to the ingest queue. */
 export function EmptyKg({ queue, onQueued }: { queue: number; onQueued: () => void }) {
   const { getIdToken } = useAuth();
+  const projectId = useHubProjectId();
   const repo = useRepositories();
   const [corpora, setCorpora] = useState<CorpusChoice[]>();
   const [progress, setProgress] = useState<Progress>();
@@ -52,7 +53,8 @@ export function EmptyKg({ queue, onQueued }: { queue: number; onQueued: () => vo
     setProgress({ corpusId: corpus.id, total: corpus.ids.length, sent: 0, done: false });
     try {
       const token = await getIdToken();
-      const result = await enqueueLabKg(corpus.ids, token, 'seed', (partial, sent) =>
+      if (!projectId) throw new Error('Mở một project ResearchHub để thêm vào KG.');
+      const result = await enqueueLabKg(corpus.ids, token, projectId, 'seed', (partial, sent) =>
         setProgress({ corpusId: corpus.id, total: corpus.ids.length, sent, result: partial, done: false }),
       );
       setProgress({

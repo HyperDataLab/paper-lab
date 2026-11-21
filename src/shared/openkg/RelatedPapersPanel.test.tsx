@@ -4,6 +4,8 @@ import type { SciAtlasAnchors } from '@/core/openkg';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
 import { RelatedPapersPanel } from './RelatedPapersPanel';
 
+vi.mock('@/shared/storage/StorageProvider', () => ({ useHubProjectId: () => 'rh-1' }));
+
 const signedIn: AuthValue = {
   user: { uid: 'u-1', email: 'tester@example.test', name: null },
   ready: true,

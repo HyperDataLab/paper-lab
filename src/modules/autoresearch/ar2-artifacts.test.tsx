@@ -12,6 +12,10 @@ import { DecisionInbox } from './DecisionInbox';
 import { ResultsImport } from './ResultsImport';
 
 vi.mock('@/shared/calibration/download', () => ({ downloadJson: vi.fn() }));
+vi.mock('@/shared/storage/StorageProvider', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/shared/storage/StorageProvider')>();
+  return { ...actual, useHubProjectId: () => 'rh-test-project' };
+});
 afterEach(() => vi.unstubAllGlobals());
 
 function artifact(

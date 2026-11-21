@@ -23,6 +23,7 @@ export function projectTools(deps: {
   getRun: () => Run;
   requireConsent: () => void;
   getLabToken?: () => Promise<string | null>;
+  hubProjectId: string | null;
   now?: () => string;
   signal?: AbortSignal;
 }) {
@@ -73,6 +74,7 @@ export function projectTools(deps: {
         },
         scholar,
         getLabToken: deps.getLabToken,
+        hubProjectId: deps.hubProjectId,
         check,
         now: deps.now ?? (() => new Date().toISOString()),
         signal,

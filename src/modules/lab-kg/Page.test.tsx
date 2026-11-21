@@ -17,7 +17,7 @@ vi.mock('@/shared/storage/StorageProvider', () => {
     },
     corpora: { list: async () => corpora.list },
   };
-  return { useRepositories: () => repo };
+  return { useRepositories: () => repo, useHubProjectId: () => 'rh-1' };
 });
 
 const signedIn: AuthValue = {

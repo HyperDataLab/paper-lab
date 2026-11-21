@@ -39,6 +39,7 @@ const deps = () => ({
   localAbstract: async () => null,
   scholar: createScholarClient({}),
   getLabToken: async () => 'fake-token',
+  hubProjectId: 'rh-1',
   check: vi.fn(),
   now: () => at,
 });
@@ -56,7 +57,7 @@ it('S4 searches the lab KG, OpenAlex and then the Project corpus, deduping by DO
       if (url.endsWith('/v1/kg/search')) {
         seen.push('lab_kg');
         expect(options.method).toBe('POST');
-        expect(options.headers).toMatchObject({ Authorization: 'Bearer fake-token' });
+        expect(options.headers).toMatchObject({ Authorization: 'Bearer fake-token', 'X-Project-Id': 'rh-1' });
         const params: unknown = JSON.parse(String(options.body));
         expect(params).toMatchObject({ after: '2020-01-01', before: '2025-12-31' });
         return Response.json({ papers: rows, elapsedMs: 0 });

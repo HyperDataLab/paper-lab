@@ -54,7 +54,7 @@ export async function acquireMember(
       if (!token) throw new Error('Hãy đăng nhập tài khoản lab để tải PDF Open Access.');
       for (const pdfUrl of pdfUrls) {
         try {
-          const data = await downloadOpenAlexPdf(doi, pdfUrl, token, signal);
+          const data = await downloadOpenAlexPdf(doi, pdfUrl, token, projectId, signal);
           file = new File([data], name, { type: 'application/pdf' });
           break;
         } catch (cause) {

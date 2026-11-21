@@ -22,10 +22,10 @@ describe('publishPaperModel', () => {
     };
     const fetchMock = vi.fn(async () => Response.json(result));
     vi.stubGlobal('fetch', fetchMock);
-    expect(await publishPaperModel(model, 'unused', 'test-token')).toEqual(result);
+    expect(await publishPaperModel(model, 'unused', 'test-token', 'rh-1')).toEqual(result);
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining(`/v1/papers/${result.paperId}/model`), {
       method: 'PUT',
-      headers: { Authorization: 'Bearer test-token', 'Content-Type': 'application/json' },
+      headers: { Authorization: 'Bearer test-token', 'X-Project-Id': 'rh-1', 'Content-Type': 'application/json' },
       body: JSON.stringify(model),
     });
   });
@@ -35,8 +35,8 @@ describe('publishPaperModel', () => {
       'fetch',
       vi.fn(async () => new Response(null, { status })),
     );
-    await expect(publishPaperModel(noHashModel(), 'id', 'token')).rejects.toBeInstanceOf(PublishPaperError);
-    await expect(publishPaperModel(noHashModel(), 'id', 'token')).rejects.toThrow(
+    await expect(publishPaperModel(noHashModel(), 'id', 'token', 'rh-1')).rejects.toBeInstanceOf(PublishPaperError);
+    await expect(publishPaperModel(noHashModel(), 'id', 'token', 'rh-1')).rejects.toThrow(
       status === 401 ? 'Phiên đăng nhập' : status === 403 ? 'Tài khoản' : 'Máy chủ lab',
     );
   });
@@ -45,7 +45,7 @@ describe('publishPaperModel', () => {
       'fetch',
       vi.fn(async () => Response.json({ unchanged: true })),
     );
-    await expect(publishPaperModel(noHashModel(), 'id', 'token')).rejects.toThrow();
+    await expect(publishPaperModel(noHashModel(), 'id', 'token', 'rh-1')).rejects.toThrow();
   });
 });
 
@@ -56,7 +56,7 @@ describe('publishFrozenPlan', () => {
       Response.json({ projectId: 'p', version: plan.planVersion, etag: 'c'.repeat(64) }, { status: 201 }),
     );
     vi.stubGlobal('fetch', fetchMock);
-    expect(await publishFrozenPlan('Proj 1', 'Tên & kế hoạch', plan, 'test-token')).toEqual({
+    expect(await publishFrozenPlan('Proj 1', 'Tên & kế hoạch', plan, 'test-token', 'rh-1')).toEqual({
       unchanged: false,
       etag: 'c'.repeat(64),
     });
@@ -66,7 +66,7 @@ describe('publishFrozenPlan', () => {
       ),
       {
         method: 'PUT',
-        headers: { Authorization: 'Bearer test-token', 'Content-Type': 'application/json' },
+        headers: { Authorization: 'Bearer test-token', 'X-Project-Id': 'rh-1', 'Content-Type': 'application/json' },
         body: JSON.stringify(plan),
       },
     );
@@ -77,7 +77,7 @@ describe('publishFrozenPlan', () => {
       'fetch',
       vi.fn(async () => Response.json({ unchanged: true })),
     );
-    expect(await publishFrozenPlan('p', 't', examplePlan(), 'token')).toEqual({
+    expect(await publishFrozenPlan('p', 't', examplePlan(), 'token', 'rh-1')).toEqual({
       unchanged: true,
       etag: null,
     });
@@ -95,7 +95,7 @@ describe('publishFrozenPlan', () => {
       'fetch',
       vi.fn(async () => new Response(null, { status })),
     );
-    const failure = publishFrozenPlan('p', 't', examplePlan(), 'token');
+    const failure = publishFrozenPlan('p', 't', examplePlan(), 'token', 'rh-1');
     await expect(failure).rejects.toBeInstanceOf(PublishPlanError);
     await expect(failure).rejects.toThrow(text);
   });
