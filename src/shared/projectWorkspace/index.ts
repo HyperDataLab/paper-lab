@@ -10,7 +10,7 @@ import {
   TopicNameSchema,
 } from '@/core/schemas';
 import { PaperRunSchema } from '@/core/schemas/paperRun';
-import { PDF_WORKER_URL } from '@/shared/pdfStore';
+import { PDF_WORKER_URL, projectScopedUrl } from '@/shared/pdfStore';
 
 const projectSchema = z.object({ id: z.uuid(), name: z.string() });
 export const ProjectWorkspaceSnapshotSchema = z.object({
@@ -48,7 +48,7 @@ export class ProjectWorkspaceError extends Error {
 }
 
 function endpoint(projectId: string) {
-  return `${PDF_WORKER_URL}/v1/workspaces/${encodeURIComponent(projectId)}`;
+  return projectScopedUrl(`${PDF_WORKER_URL}/v1/workspaces/${encodeURIComponent(projectId)}`, projectId);
 }
 
 function errorMessage(status: number, body: unknown) {
@@ -103,7 +103,8 @@ export async function pushProjectWorkspace(
     throw new ProjectWorkspaceError(response.status, errorMessage(response.status, body), latest);
   }
   const result = z.object({ project: projectSchema, version: z.string() }).safeParse(body);
-  if (!result.success) throw new ProjectWorkspaceError(502, 'Máy chủ lưu project nhưng trả phiên bản không hợp lệ.');
+  if (!result.success)
+    throw new ProjectWorkspaceError(502, 'Máy chủ lưu project nhưng trả phiên bản không hợp lệ.');
   return result.data;
 }
 

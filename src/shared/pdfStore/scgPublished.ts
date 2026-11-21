@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { scgBodyEtag, type ScgPaperPublish } from '@/core/scg/publish';
-import { PDF_WORKER_URL } from './index';
+import { PDF_WORKER_URL, projectScopedUrl } from './index';
 
 const PublishResultSchema = z.object({
   paperId: z.string(),
@@ -30,13 +30,18 @@ export class PublishScgError extends Error {
   }
 }
 
-const scgUrl = (paperId: string) => `${PDF_WORKER_URL}/v1/papers/${encodeURIComponent(paperId)}/scg`;
+const scgUrl = (paperId: string, projectId: string) =>
+  projectScopedUrl(`${PDF_WORKER_URL}/v1/papers/${encodeURIComponent(paperId)}/scg`, projectId);
 
 /** Sends one paper's graph; the worker stores it only when the paper model is published. */
 export async function publishScg(graph: ScgPaperPublish, token: string, projectId: string) {
-  const response = await fetch(scgUrl(graph.paperId), {
+  const response = await fetch(scgUrl(graph.paperId, projectId), {
     method: 'PUT',
-    headers: { Authorization: `Bearer ${token}`, 'X-Project-Id': projectId, 'Content-Type': 'application/json' },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'X-Project-Id': projectId,
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(graph),
   });
   if (!response.ok) throw new PublishScgError(response.status);
@@ -54,7 +59,7 @@ export async function scgPublishState(
   projectId: string,
 ): Promise<ScgPublishState> {
   const etag = await scgBodyEtag(JSON.stringify(graph));
-  const response = await fetch(scgUrl(graph.paperId), {
+  const response = await fetch(scgUrl(graph.paperId, projectId), {
     headers: {
       Authorization: `Bearer ${token}`,
       'X-Project-Id': projectId,

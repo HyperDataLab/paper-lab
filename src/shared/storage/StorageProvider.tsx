@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useAuth } from '@/shared/auth/authContext';
 import { RESEARCH_HUB_URL } from '@/shared/auth/config';
-import { PDF_WORKER_URL } from '@/shared/pdfStore';
+import { PDF_WORKER_URL, projectScopedUrl } from '@/shared/pdfStore';
 import { RemoteDocStore } from './remoteDocStore';
 import { createRepositories, type Repositories } from './repositories';
 
@@ -67,7 +67,7 @@ export function StorageProvider({
     void (async () => {
       const accessToken = await token();
       if (!accessToken) throw new Error('Không nhận được phiên HyperDataLab SSO từ ResearchHub.');
-      const response = await fetch(`${PDF_WORKER_URL}/v1/me`, {
+      const response = await fetch(projectScopedUrl(`${PDF_WORKER_URL}/v1/me`, effectiveProjectId), {
         headers: { Authorization: `Bearer ${accessToken}`, 'X-Project-Id': effectiveProjectId },
         cache: 'no-store',
       });

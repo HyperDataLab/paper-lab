@@ -1,4 +1,4 @@
-import { PDF_WORKER_URL, PdfRemoteError } from './index';
+import { PDF_WORKER_URL, PdfRemoteError, projectScopedUrl } from './index';
 
 const TIMEOUT_MS = 180_000;
 
@@ -35,11 +35,14 @@ export async function fetchGrobidTei(
   );
   try {
     for (;;) {
-      const response = await fetch(`${PDF_WORKER_URL}/grobid/fulltext/${encodeURIComponent(sha)}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'X-Project-Id': projectId },
-        signal: controller.signal,
-      });
+      const response = await fetch(
+        projectScopedUrl(`${PDF_WORKER_URL}/grobid/fulltext/${encodeURIComponent(sha)}`, projectId),
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'X-Project-Id': projectId },
+          signal: controller.signal,
+        },
+      );
       if (response.ok) return await response.text();
       if (response.status !== 503) throw new PdfRemoteError(response.status);
       const retry = response.headers.get('Retry-After');

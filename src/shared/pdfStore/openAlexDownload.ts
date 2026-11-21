@@ -1,5 +1,5 @@
 import { guardPaperSize } from '@/shared/paper/sizeGuard';
-import { PDF_WORKER_URL } from './index';
+import { PDF_WORKER_URL, projectScopedUrl } from './index';
 
 type WorkerError = { message?: unknown };
 
@@ -13,7 +13,7 @@ export async function downloadOpenAlexPdf(
 ): Promise<ArrayBuffer> {
   let response: Response;
   try {
-    response = await fetch(`${PDF_WORKER_URL}/v1/pdfs/openalex`, {
+    response = await fetch(projectScopedUrl(`${PDF_WORKER_URL}/v1/pdfs/openalex`, projectId), {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,

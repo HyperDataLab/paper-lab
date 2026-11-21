@@ -4,7 +4,7 @@ import {
   type SciAtlasSearchRequest,
   type SciAtlasSearchResponse,
 } from '@/core/openkg';
-import { PDF_WORKER_URL } from '@/shared/pdfStore';
+import { PDF_WORKER_URL, projectScopedUrl } from '@/shared/pdfStore';
 
 export type SciAtlasErrorCode =
   | 'signed_out'
@@ -64,7 +64,7 @@ export async function searchSciAtlas(
   if (!token) throw new SciAtlasError('signed_out');
   let response: Response;
   try {
-    response = await fetch(`${PDF_WORKER_URL}/v1/sciatlas/search`, {
+    response = await fetch(projectScopedUrl(`${PDF_WORKER_URL}/v1/sciatlas/search`, projectId), {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,

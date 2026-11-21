@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PDF_WORKER_URL } from '@/shared/pdfStore';
+import { PDF_WORKER_URL, projectScopedUrl } from '@/shared/pdfStore';
 import {
   DataNotConfiguredError,
   RemoteStorageError,
@@ -77,7 +77,7 @@ export class RemoteDataClient {
     const send = this.options.fetch ?? fetch;
     const payload = JSON.stringify(prepareBody ? prepareBody() : body);
     onSend?.();
-    const response = await send(`${url}/v1/data/${path}`, {
+    const response = await send(projectScopedUrl(`${url}/v1/data/${path}`, this.options.projectId), {
       method,
       cache: 'no-store',
       headers: {

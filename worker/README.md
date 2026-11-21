@@ -5,7 +5,9 @@ Files store; R2 keeps project/SHA-to-file-ID links and the derived GROBID cache.
 their on-demand migration to ResearchHub.
 
 - `GET`/`HEAD`/`PUT /pdfs/<64 hex sha256>`. Every request needs `Authorization: Bearer <HyperDataLab SSO access token>`
-  for a verified account on `@hyperdatalab.org` and `X-Project-Id` for the active ResearchHub project. The Worker
+  for a verified account on `@hyperdatalab.org` and the active ResearchHub project. Clients send the project ID in
+  `X-Project-Id` and as the `projectId` query parameter so project scope survives intermediaries that remove custom
+  headers. If both are present, they must match. The Worker
   verifies project access, uploads new bytes to ResearchHub's `POST /api/files`, and stores only the returned file ID
   in an R2 link record. Downloads and GROBID read the bytes back through ResearchHub's `GET /api/files/{id}`.
   PDFs left in the old PaperLab R2 path are copied to ResearchHub the first time their project opens them; the old

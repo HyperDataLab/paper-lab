@@ -202,7 +202,11 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
       : json(401, { error: 'invalid token' }, headers);
   }
 
-  const requestedProjectId = request.headers.get('X-Project-Id')?.trim() ?? '';
+  const headerProjectId = request.headers.get('X-Project-Id')?.trim() ?? '';
+  const queryProjectId = new URL(request.url).searchParams.get('projectId')?.trim() ?? '';
+  if (headerProjectId && queryProjectId && headerProjectId.toLowerCase() !== queryProjectId.toLowerCase())
+    return json(400, { error: 'conflicting ResearchHub project ids' }, headers);
+  const requestedProjectId = headerProjectId || queryProjectId;
   const projectId = requestedProjectId ? requestedProjectId.toLowerCase() : null;
   if (isV1 && path !== '/v1/me' && !projectId)
     return json(400, { error: 'X-Project-Id is required for ResearchHub project access' }, headers);

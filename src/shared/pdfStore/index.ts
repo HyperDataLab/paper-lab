@@ -5,6 +5,14 @@ export const PDF_WORKER_URL: string =
   (import.meta.env.VITE_PDF_WORKER_URL as string | undefined) ||
   (import.meta.env.DEV ? '/paperlab-worker' : 'https://paperlab-pdf-worker.hyperdatalab.workers.dev');
 
+/** Keep project scope available if an intermediate proxy drops the custom header. */
+export function projectScopedUrl(endpoint: string, projectId: string) {
+  const [path, search = ''] = endpoint.split('?', 2);
+  const query = new URLSearchParams(search);
+  query.set('projectId', projectId);
+  return `${path}?${query.toString()}`;
+}
+
 /** The hex digest a paper was imported with, or null for papers that did not come from a file. */
 export const paperSha = (paper: Pick<Paper, 'source'>) => {
   const match = /^sha256:([0-9a-f]{64})$/.exec(paper.source.sha256);
@@ -19,7 +27,10 @@ export async function sha256Hex(data: ArrayBuffer) {
 export const clearSessionPdfs = () => undefined;
 
 export class PdfRemoteError extends Error {
-  constructor(public status: number, detail?: string) {
+  constructor(
+    public status: number,
+    detail?: string,
+  ) {
     const message =
       status === 401
         ? 'Phiên đăng nhập đã hết hạn.'
@@ -37,7 +48,7 @@ async function uploadErrorDetail(response: Response) {
     : undefined;
 }
 
-const url = (sha: string) => `${PDF_WORKER_URL}/pdfs/${sha}`;
+const url = (sha: string, projectId: string) => projectScopedUrl(`${PDF_WORKER_URL}/pdfs/${sha}`, projectId);
 const auth = (token: string, projectId: string) => ({
   Authorization: `Bearer ${token}`,
   'X-Project-Id': projectId,
@@ -46,19 +57,19 @@ const auth = (token: string, projectId: string) => ({
 /** Reads and writes the ResearchHub copy through the PaperLab Worker. */
 export const pdfRemote = {
   async exists(sha: string, projectId: string, token: string): Promise<boolean> {
-    const response = await fetch(url(sha), { method: 'HEAD', headers: auth(token, projectId) });
+    const response = await fetch(url(sha, projectId), { method: 'HEAD', headers: auth(token, projectId) });
     if (response.status === 404) return false;
     if (!response.ok) throw new PdfRemoteError(response.status);
     return true;
   },
   async download(sha: string, projectId: string, token: string, signal?: AbortSignal): Promise<Blob | null> {
-    const response = await fetch(url(sha), { headers: auth(token, projectId), signal });
+    const response = await fetch(url(sha, projectId), { headers: auth(token, projectId), signal });
     if (response.status === 404) return null;
     if (!response.ok) throw new PdfRemoteError(response.status);
     return response.blob();
   },
   async upload(sha: string, projectId: string, fileName: string, blob: Blob, token: string): Promise<void> {
-    const response = await fetch(url(sha), {
+    const response = await fetch(url(sha, projectId), {
       method: 'PUT',
       headers: {
         ...auth(token, projectId),
