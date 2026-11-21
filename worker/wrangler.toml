@@ -14,8 +14,10 @@ ALLOWED_DOMAIN = "hyperdatalab.org"
 ADMIN_EMAILS = "phuong@hyperdatalab.org"
 # Owner, 2026-11-18: the Writing Bank site (its own Firebase project) may call this worker, e.g. POST /v1/measure.
 # Lab sign-in (ALLOWED_DOMAIN) still applies to tokens from both projects.
-ACCEPTED_PROJECT_IDS = "hyperdatalab-paragraph-lab,hyperdatalab-writing-bank"
-ALLOWED_ORIGINS = "https://hyperdatalab-paragraph-lab.web.app,https://hyperdatalab-paragraph-lab.firebaseapp.com,https://hyperdatalab-writing-bank.web.app,https://hyperdatalab-writing-bank.firebaseapp.com,http://localhost:5174"
+# Owner, 2026-11-20: idea2hypothesis (Firebase project hyperdatalab-idea2hypo) lists corpora from its start-run
+# dialog, and its i2h-worker calls the Lab KG, SciAtlas, corpora and GROBID routes with the signed-in person's token.
+ACCEPTED_PROJECT_IDS = "hyperdatalab-paragraph-lab,hyperdatalab-writing-bank,hyperdatalab-idea2hypo"
+ALLOWED_ORIGINS = "https://hyperdatalab-paragraph-lab.web.app,https://hyperdatalab-paragraph-lab.firebaseapp.com,https://hyperdatalab-writing-bank.web.app,https://hyperdatalab-writing-bank.firebaseapp.com,https://hyperdatalab-idea2hypo.web.app,https://hyperdatalab-idea2hypo.firebaseapp.com,http://localhost:5174"
 # Grammar parser (P6) for POST /v1/measure: the topics worker's /nlp/parse, called with the caller's token.
 NLP_URL = "https://paperlab-topics-worker.hyperdatalab.workers.dev"
 # Optional OpenAlex contact. Set OPENALEX_MAILTO to a lab contact when one is configured.
