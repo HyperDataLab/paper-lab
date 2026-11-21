@@ -126,6 +126,9 @@ function wrap(repo: Repositories, auth: AuthValue, children: ReactNode, path = '
 }
 
 const newRepo = () => testRepositories();
+/** The viewer stand-in renders at once; what it shows follows the asynchronous read or hash. */
+const viewerShows = (text: string) =>
+  waitFor(() => expect(screen.getByTestId('pdf-viewer')).toHaveTextContent(text));
 
 /** The lab's PDF worker: GET returns the PDF (or 404 when it has none), PUT stores it. */
 function stubLab(has = true) {
@@ -158,7 +161,7 @@ it('R8 the PDF is read from the active ResearchHub project with the SSO token', 
   const repo = newRepo();
   const fetchMock = stubLab();
   render(wrap(repo, signedIn(), <PaperPdf paper={paperFor(sha)} target={null} />));
-  expect(await screen.findByTestId('pdf-viewer')).toHaveTextContent(`${bytes.length} bytes`);
+  await viewerShows(`${bytes.length} bytes`);
   expect(screen.getByText('Đã lưu trong ResearchHub')).toBeInTheDocument();
   expect(fetchMock).toHaveBeenCalledTimes(1);
   const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
@@ -186,10 +189,10 @@ it('R8 a PDF is read from ResearchHub each time it opens and is not kept in the 
   const repo = newRepo();
   const fetchMock = stubLab();
   render(wrap(repo, signedIn(), <PaperPdf paper={paperFor(sha)} target={null} />));
-  expect(await screen.findByTestId('pdf-viewer')).toHaveTextContent(`${bytes.length} bytes`);
+  await viewerShows(`${bytes.length} bytes`);
   cleanup();
   render(wrap(repo, signedIn(), <PaperPdf paper={paperFor(sha)} target={null} />));
-  expect(await screen.findByTestId('pdf-viewer')).toHaveTextContent(`${bytes.length} bytes`);
+  await viewerShows(`${bytes.length} bytes`);
   expect(fetchMock).toHaveBeenCalledTimes(2);
 });
 
@@ -209,7 +212,7 @@ it('R8 attaching the PDF again refuses a different file and sends the original o
   );
   expect(screen.getByTestId('pdf-viewer')).toHaveTextContent('0 bytes');
   fireEvent.change(input, { target: { files: [new File([bytes], 'paper.pdf')] } });
-  expect(await screen.findByTestId('pdf-viewer')).toHaveTextContent(`${bytes.length} bytes`);
+  await viewerShows(`${bytes.length} bytes`);
   await waitFor(() => expect(screen.getByText('Đã lưu trong ResearchHub')).toBeInTheDocument());
   const put = fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === 'PUT');
   expect(put?.[0]).toMatch(new RegExp(`/pdfs/${sha}\\?projectId=${TEST_PROJECT_ID}$`));
@@ -312,7 +315,7 @@ it('R8 opening a finding in a PDF paper turns the PDF to the page of its passage
   fireEvent.click(screen.getByRole('button', { name: /^Vấn đề và trích dẫn/u }));
   const issues = await screen.findByRole('region', { name: 'Issues' });
   fireEvent.click(await within(issues).findByRole('button', { name: 'Tr. 3' }));
-  expect(await screen.findByTestId('pdf-viewer')).toHaveTextContent('page 3, passage [Figure 2]');
+  await viewerShows('page 3, passage [Figure 2]');
 });
 
 it('R9 findings are drawn on the PDF and open the finding when pressed', async () => {
@@ -474,7 +477,7 @@ it('R14 a page link in Summary opens the PDF with a way back to Summary', async 
   fireEvent.click(await screen.findByRole('button', { name: 'Mở trang 3 trong PDF' }));
   // A PDF paper's full text is its PDF: the toolbar carries the PDF / Tóm tắt switch.
   expect(screen.getByRole('tab', { name: 'PDF' })).toHaveAttribute('aria-selected', 'true');
-  expect(await screen.findByTestId('pdf-viewer')).toHaveTextContent('page 3');
+  await viewerShows('page 3');
   const back = await screen.findByRole('button', { name: '← Quay lại Summary' });
   fireEvent.click(back);
   expect(screen.getByRole('tab', { name: 'Summary' })).toHaveAttribute('aria-selected', 'true');
