@@ -1,4 +1,5 @@
 import { Button } from '@/shared/ui/Button';
+import { ActivityStatus } from '@/shared/ui/ActivityStatus';
 import type { SyntaxAnalysis } from './useSyntaxAnalysis';
 import { Link } from 'react-router-dom';
 
@@ -21,7 +22,7 @@ export function SyntaxControls({
       {!readOnly &&
         (syntax.running ? (
           <>
-            <span role="status">Đang phân tích câu…</span>
+            <ActivityStatus label="Đang phân tích câu…" />
             <Button size="sm" variant="danger" onClick={syntax.cancel}>
               Huỷ
             </Button>

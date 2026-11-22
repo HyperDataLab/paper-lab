@@ -8,6 +8,7 @@ import { useLlm } from '@/shared/llm/LlmProvider';
 import { llmContribution } from '@/shared/llm/llmContribution';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
+import { ActivityStatus } from '@/shared/ui/ActivityStatus';
 import { ContributionViews } from './ContributionViews';
 
 export function PaperContribution({
@@ -63,8 +64,9 @@ export function PaperContribution({
     <section aria-label="Contribution graph">
       <h2>Contribution graph</h2>
       <Button disabled={running || !model.sentences.length} onClick={() => void start()}>
-        {running ? 'Đang phân tích…' : 'Phân tích contribution'}
+        Phân tích contribution
       </Button>{' '}
+      {running && <ActivityStatus label="Đang phân tích contribution graph…" />}{' '}
       <span>Ước tính {contributionChunks(model.sentences).length} lượt gọi AI.</span>{' '}
       {run && <Button onClick={download}>Tải ncg.zip</Button>}
       {error && <p role="alert">{error}</p>}

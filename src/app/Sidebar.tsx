@@ -1,4 +1,4 @@
-import { BookOpenText, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { BookOpenText, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
 import { useState } from 'react';
 import { useAdmin } from '@/shared/auth/useAdmin';
 import { IconButton } from '@/shared/ui/IconButton';
@@ -43,18 +43,34 @@ export function Sidebar({
     }
   }
   return (
-    <aside className={`${styles.sidebar} ${desktop ? styles.desktopSidebar : ''} ${rail ? styles.collapsed : ''}`}>
+    <aside
+      className={`${styles.sidebar} ${desktop ? styles.desktopSidebar : ''} ${mobile ? styles.mobileSidebar : ''} ${rail ? styles.collapsed : ''}`}
+    >
       <div className={styles.brand}>
         <BookOpenText className={styles.logo} size={22} aria-hidden="true" />
-        {!rail && <span>PaperLab</span>}
-        {!mobile && (
+        {!rail && <span className={styles.brandName}>PaperLab</span>}
+        {mobile ? (
+          <IconButton
+            className={styles.collapse}
+            tooltipSide="right"
+            label="Đóng menu"
+            onClick={onNavigate}
+          >
+            <X size={18} aria-hidden="true" />
+          </IconButton>
+        ) : (
           <IconButton
             className={styles.collapse}
             tooltipSide="right"
             label={rail ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
+            aria-expanded={!rail}
             onClick={toggle}
           >
-            {rail ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+            {rail ? (
+              <PanelLeftOpen size={18} aria-hidden="true" />
+            ) : (
+              <PanelLeftClose size={18} aria-hidden="true" />
+            )}
           </IconButton>
         )}
       </div>

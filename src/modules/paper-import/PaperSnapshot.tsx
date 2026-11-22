@@ -11,6 +11,7 @@ import { useRepositories } from '@/shared/storage/StorageProvider';
 import { ActionBar } from '@/shared/ui/ActionBar';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
+import { ActivityStatus } from '@/shared/ui/ActivityStatus';
 import { Card } from '@/shared/ui/Card';
 import { ReviewActions } from '@/shared/ui/FindingCard';
 import { useReportJob } from './paperJobs';
@@ -106,7 +107,7 @@ export function PaperSnapshot({
   if (compact) {
     // A rejected fact stays in place, dimmed, so the decision can be undone.
     const shown = (run?.values ?? []).filter((item) => item.status === 'reported');
-    if (running && !run) return <p role="status">Đang trích Key facts…</p>;
+    if (running && !run) return <ActivityStatus label="Đang trích key facts…" />;
     if (shown.length === 0) return error ? <p role="alert">{error}</p> : null;
     return (
       <section className={styles.strip} aria-label="Key facts">
@@ -162,6 +163,7 @@ export function PaperSnapshot({
     <Card>
       <h2>Snapshot</h2>
       <ActionBar
+        busy={running}
         status={
           running ? (
             <span role="status">Đang đọc bài…</span>

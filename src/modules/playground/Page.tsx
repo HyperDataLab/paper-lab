@@ -11,6 +11,7 @@ import {
 } from '@/shared/labResearch';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
+import { ActivityStatus } from '@/shared/ui/ActivityStatus';
 import { Card } from '@/shared/ui/Card';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
@@ -152,8 +153,9 @@ export default function Page() {
                 Điền ví dụ
               </Button>{' '}
               <Button variant="primary" disabled={running || !user} onClick={() => void run()}>
-                {running ? 'Đang chạy…' : 'Chạy'}
+                Chạy
               </Button>
+              {running && <ActivityStatus label="Đang xử lý yêu cầu…" />}
             </div>
           </section>
         )}

@@ -13,6 +13,14 @@ import { testRepositories } from '@/shared/storage/testRepositories';
 
 it('R17e shows a contribution unit and a verified triple', async () => {
   vi.stubGlobal('crypto', webcrypto);
+  vi.stubGlobal(
+    'ResizeObserver',
+    class ResizeObserverMock {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
   localStorage.clear();
   acceptConsent(getConfig(), true);
   const at = '2026-01-01T00:00:00.000Z';
@@ -55,7 +63,7 @@ it('R17e shows a contribution unit and a verified triple', async () => {
       meta: { model: 'm', promptVersion: request.promptVersion, latencyMs: 1, repaired: false },
     };
   });
-  render(
+  const { container } = render(
     <StorageProvider repositories={repo}>
       <LlmProvider innerClient={{ completeJson } as unknown as LlmClient}>
         <PaperContribution paper={paper} onLocation={vi.fn()} />
@@ -66,7 +74,10 @@ it('R17e shows a contribution unit and a verified triple', async () => {
   expect(await screen.findByRole('heading', { name: 'Model' })).toBeInTheDocument();
   expect(screen.getByText('We → propose → a model')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('radio', { name: 'Đồ thị tri thức' }));
-  fireEvent.click(screen.getByRole('button', { name: 'We' }));
+  const weNode = container.querySelector('.react-flow__node[data-id="we"]');
+  expect(weNode).not.toBeNull();
+  if (weNode) fireEvent.click(weNode);
+  fireEvent.click(screen.getByText('We → propose → a model'));
   expect(screen.getByText('We propose a model.')).toBeVisible();
   expect(screen.getByText('We → propose → a model')).toBeVisible();
   fireEvent.click(screen.getByRole('radio', { name: 'Dòng contribution' }));

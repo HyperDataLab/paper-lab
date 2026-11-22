@@ -344,6 +344,7 @@ export function DeepResearch({
   return (
     <div className={styles.deep}>
       <ActionBar
+        busy={Boolean(busy)}
         status={
           busy ? (
             <span role="status">{busy}</span>

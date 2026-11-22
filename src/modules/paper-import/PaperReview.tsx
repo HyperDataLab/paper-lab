@@ -205,6 +205,7 @@ export function PaperReview({
         <h2>Thiết lập phản biện AI</h2>
         {running ? (
           <ActionBar
+            busy
             status={
               <span role="status">
                 Đã dùng {used}/{budget} lượt gọi.

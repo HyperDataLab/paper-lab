@@ -428,7 +428,7 @@ it('R14 a page link in Summary opens the PDF with a way back to Summary', async 
     ),
   );
   fireEvent.click(await screen.findByRole('button', { name: 'Mở trang 3 trong PDF' }));
-  expect(screen.getByRole('tab', { name: 'Full text' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'PDF' })).toHaveAttribute('aria-selected', 'true');
   const back = await screen.findByRole('button', { name: '← Quay lại Summary' });
   fireEvent.click(back);
   expect(screen.getByRole('tab', { name: 'Summary' })).toHaveAttribute('aria-selected', 'true');

@@ -9,6 +9,7 @@ import styles from './report.module.css';
 import { labels, statuses } from '@/modules/evaluate';
 import { checkLabels } from '@/modules/revise';
 import { Loading } from '@/shared/ui/StateNote';
+import { PageHeader } from '@/shared/ui/PageHeader';
 
 const arrow = (value: number | null) =>
   value === null ? '—' : `${value > 0 ? '↑' : value < 0 ? '↓' : '→'} ${Math.abs(value).toFixed(2)}`;
@@ -81,7 +82,10 @@ export default function ComparePage() {
       : 'Chưa chấm điểm';
   return (
     <article className={styles.report}>
-      <h1>So sánh phiên bản</h1>
+      <PageHeader
+        title="So sánh phiên bản"
+        lead="Đối chiếu thay đổi nội dung, chỉ số và các kiểm tra giữa hai phiên bản."
+      />
       <div className={styles.diff}>
         <section>
           <h2>Bản gốc</h2>
@@ -96,60 +100,64 @@ export default function ComparePage() {
       </div>
       <section>
         <h2>Thay đổi số liệu</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Số liệu</th>
-              <th>Trước (tử/mẫu)</th>
-              <th>Sau (tử/mẫu)</th>
-              <th>Thay đổi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {comparison.metricDeltas.map((metric) => (
-              <tr key={metric.name}>
-                <th>{metric.name}</th>
-                <td>
-                  {metric.before
-                    ? `${metric.before.value ?? '—'} (${metric.before.numerator}/${metric.before.denominator})`
-                    : '—'}
-                </td>
-                <td>
-                  {metric.after
-                    ? `${metric.after.value ?? '—'} (${metric.after.numerator}/${metric.after.denominator})`
-                    : '—'}
-                </td>
-                <td>{arrow(metric.delta)}</td>
+        <div className={styles.tableScroll} role="region" aria-label="Thay đổi số liệu" tabIndex={0}>
+          <table>
+            <thead>
+              <tr>
+                <th>Số liệu</th>
+                <th>Trước (tử/mẫu)</th>
+                <th>Sau (tử/mẫu)</th>
+                <th>Thay đổi</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {comparison.metricDeltas.map((metric) => (
+                <tr key={metric.name}>
+                  <th>{metric.name}</th>
+                  <td>
+                    {metric.before
+                      ? `${metric.before.value ?? '—'} (${metric.before.numerator}/${metric.before.denominator})`
+                      : '—'}
+                  </td>
+                  <td>
+                    {metric.after
+                      ? `${metric.after.value ?? '—'} (${metric.after.numerator}/${metric.after.denominator})`
+                      : '—'}
+                  </td>
+                  <td>{arrow(metric.delta)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {comparison.metricDeltas.length === 0 && <p>Không có số liệu để so sánh.</p>}
       </section>
       <section>
         <h2>Thay đổi điểm</h2>
         <p>Trước: {scoreContext(left)}</p>
         <p>Sau: {scoreContext(right)}</p>
-        <table>
-          <thead>
-            <tr>
-              <th>Tiêu chí</th>
-              <th>Trước</th>
-              <th>Sau</th>
-              <th>Thay đổi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {comparison.scoreDeltas.map((score) => (
-              <tr key={score.id}>
-                <th>{score.id}</th>
-                <td>{score.before}</td>
-                <td>{score.after}</td>
-                <td>{arrow(score.delta)}</td>
+        <div className={styles.tableScroll} role="region" aria-label="Thay đổi điểm" tabIndex={0}>
+          <table>
+            <thead>
+              <tr>
+                <th>Tiêu chí</th>
+                <th>Trước</th>
+                <th>Sau</th>
+                <th>Thay đổi</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {comparison.scoreDeltas.map((score) => (
+                <tr key={score.id}>
+                  <th>{score.id}</th>
+                  <td>{score.before}</td>
+                  <td>{score.after}</td>
+                  <td>{arrow(score.delta)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {comparison.scoreDeltas.length === 0 && <p>Không có tiêu chí cùng đủ căn cứ.</p>}
       </section>
       <section>

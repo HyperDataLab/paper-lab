@@ -132,9 +132,7 @@ export function usePaperNavigation() {
       if (isSpace(modeOf(tab))) setTabState(beforeSpace.current);
     } else {
       const targetMode = modeOf(view);
-      setVisitedModes((old) =>
-        old.has(targetMode) ? old : new Set([...old, targetMode]),
-      );
+      setVisitedModes((old) => (old.has(targetMode) ? old : new Set([...old, targetMode])));
       setTabState(view);
       setFocus('right');
       if (!isSpace(place)) setPanelPreference(true);
@@ -207,7 +205,8 @@ export function usePaperNavigation() {
   const leaveSpace = () => setTab(beforeSpace.current);
   const openSpace = (space: Space) => {
     // The parts that cost nothing are open on arrival.
-    const free: BlockId[] = space === 'arguments' ? ['gap', 'mainClaims', 'atomics'] : ['vocabulary'];
+    const free: BlockId[] =
+      space === 'arguments' ? ['arguments', 'gap', 'mainClaims', 'atomics'] : ['vocabulary'];
     setOpenBlocks((old) => [...new Set<BlockId>([...old, ...free])]);
     const first = BLOCK_IDS.find((id) => BLOCKS[id].place === space);
     setTab((first && blockView[first]) ?? DEFAULT_VIEW[space]);

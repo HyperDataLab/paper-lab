@@ -14,6 +14,7 @@ import { Card } from '@/shared/ui/Card';
 import { Dialog } from '@/shared/ui/Dialog';
 import { IconButton } from '@/shared/ui/IconButton';
 import { DataTable } from '@/shared/ui/DataTable';
+import { PageHeader } from '@/shared/ui/PageHeader';
 import { Select } from '@/shared/ui/Select';
 import { AppraisalPanel } from './AppraisalPanel';
 import { Intake } from './Intake';
@@ -147,20 +148,21 @@ export default function DetailPage() {
   const pending = corpus.pendingConfirmations?.length ?? 0;
   return (
     <div className={styles.page}>
-      <header className={styles.detailHead}>
-        <div className={styles.detailTitle}>
+      <PageHeader
+        title={corpus.title}
+        lead={
+          <span className={styles.badges}>
+            <Badge>{kinds[corpus.kind]}</Badge>
+            <Badge>Giao thức v{protocol?.version ?? '—'}</Badge>
+            {!user && <Badge>Chỉ trên máy này</Badge>}
+          </span>
+        }
+      >
+        <div className={styles.detailActions}>
           <Link to="/corpus" className={styles.back}>
             <ArrowLeft size={14} aria-hidden="true" />
             Corpus
           </Link>
-          <h1>{corpus.title}</h1>
-          <div className={styles.badges}>
-            <Badge>{kinds[corpus.kind]}</Badge>
-            <Badge>Giao thức v{protocol?.version ?? '—'}</Badge>
-            {!user && <Badge>Chỉ trên máy này</Badge>}
-          </div>
-        </div>
-        <div className={styles.detailActions}>
           <IconButton label="Sửa giao thức" onClick={() => setEditing(true)}>
             <Pencil size={18} />
           </IconButton>
@@ -175,7 +177,7 @@ export default function DetailPage() {
             Phát hành
           </Button>
         </div>
-      </header>
+      </PageHeader>
       {error && !conflict && <p role="alert">Có lỗi xảy ra. {error}</p>}
       {conflict && (
         <div role="alert" className={styles.conflict}>

@@ -81,7 +81,7 @@ export function BatchPanel({ paper, batch }: { paper: Paper; batch: ReturnType<t
   });
   return (
     <Card>
-      <div className={styles.sectionHead}>
+      <div className={`${styles.sectionHead} ${styles.batchHead}`}>
         <h2>Phân tích chất lượng viết</h2>
         {run && !running && (
           <Button size="sm" variant="ghost" onClick={() => setEditing(!editing)}>
@@ -128,7 +128,7 @@ export function BatchPanel({ paper, batch }: { paper: Paper; batch: ReturnType<t
           )}
         </RunSetup>
       )}
-      <div className={styles.filterBar}>
+      <div className={`${styles.filterBar} ${styles.batchActions}`}>
         {running && (
           <>
             <Button onClick={batch.pause}>Tạm dừng</Button> <Button onClick={batch.cancel}>Huỷ</Button>
@@ -155,11 +155,25 @@ export function BatchPanel({ paper, batch }: { paper: Paper; batch: ReturnType<t
       </div>
       {batch.error && <p role="alert">Không thể chạy phân tích: {batch.error}</p>}
       {run && (
-        <section aria-label="Tiến độ phân tích">
-          <p>
-            Tiến độ: {done}/{run.items.length} đoạn · {run.callsUsed} lượt gọi
-          </p>
-          <progress aria-label="Tiến độ tổng" value={done} max={run.items.length || 1} />
+        <section className={styles.batchProgress} aria-label="Tiến độ phân tích">
+          <div className={styles.batchProgressLabel}>
+            <span className={styles.batchProgressState}>
+              <strong>Tiến độ phân tích</strong>
+              {running && (
+                <span className={styles.batchLive} role="status" aria-live="polite">
+                  <span className={styles.batchLiveDot} aria-hidden="true" />
+                  AI đang xử lý
+                </span>
+              )}
+            </span>
+            <span>
+              {done}/{run.items.length} đoạn <span aria-hidden="true">·</span> {run.callsUsed} lượt gọi AI
+            </span>
+          </div>
+          <div className={styles.batchProgressTrack} data-running={running || undefined}>
+            <progress aria-label="Tiến độ tổng" value={done} max={run.items.length || 1} />
+            {running && <span className={styles.batchProgressSweep} aria-hidden="true" />}
+          </div>
           <details>
             <summary>Tiến độ theo section</summary>
             {paper.sections

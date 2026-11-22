@@ -2,13 +2,13 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
-  max-width: 72ch;
+  width: 100%;
 }
 .summary section {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-2);
-  justify-items: start;
+  min-width: 0;
 }
 .summary h2 {
   display: flex;
@@ -82,26 +82,61 @@
 }
 .claims {
   display: grid;
-  gap: var(--space-4);
+  gap: 0;
   width: 100%;
   margin: 0;
   padding-left: var(--space-5);
 }
+.claimItem {
+  min-width: 0;
+  padding: var(--space-3) var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.claimItem:first-child {
+  padding-top: var(--space-2);
+}
+.claimItem:last-child {
+  border-bottom: 0;
+}
 .claim {
+  max-width: 100ch;
   margin: 0;
   font-family: var(--font-reading);
-  font-size: var(--text-reading);
+  font-size: var(--text-lg);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+.claimMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin-top: var(--space-2);
 }
 .support {
   display: grid;
-  grid-template-columns: minmax(96px, max-content) minmax(0, 1fr);
-  gap: var(--space-1) var(--space-3);
-  margin: var(--space-2) 0 0;
+  grid-template-columns: minmax(104px, 128px) minmax(0, 1fr);
+  gap: var(--space-2) var(--space-3);
+  margin: var(--space-3) 0 0;
   font-size: var(--text-sm);
 }
 .support dt {
+  padding-top: 2px;
   color: var(--text-muted);
+  font-weight: 600;
 }
 .support dd {
+  max-width: 110ch;
   margin: 0;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .support {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+  }
+  .support dt:not(:first-child) {
+    margin-top: var(--space-2);
+  }
 }

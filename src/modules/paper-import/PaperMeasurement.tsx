@@ -269,7 +269,7 @@ export function PaperMeasurement({
     : nodes.map(toTree);
   return (
     <div className={styles.panel}>
-      <Card padding="md">
+      <div className={styles.runPanel}>
         {!run && <h2>Phân tích measurement và đánh giá</h2>}
         {!run && (
           <p>
@@ -278,6 +278,7 @@ export function PaperMeasurement({
           </p>
         )}
         <ActionBar
+          busy={running}
           status={
             running || used > 0 ? (
               <span role="status">
@@ -354,7 +355,7 @@ export function PaperMeasurement({
           <ScopeWarning paper={paper} sections={sections} onSections={setSections} />
         )}
         {error && <div role="alert">{error}</div>}
-      </Card>
+      </div>
       {profile && context && selected && (
         <div className={styles.workspace}>
           <div className={styles.nav}>
@@ -365,16 +366,18 @@ export function PaperMeasurement({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
-              {treeNodes.length ? (
-                <Tree
-                  label="Hồ sơ measurement"
-                  nodes={treeNodes}
-                  selectedId={selected.id}
-                  onSelect={setSelectedNode}
-                />
-              ) : (
-                <p>Không có mục nào khớp.</p>
-              )}
+              <div className={styles.navTree}>
+                {treeNodes.length ? (
+                  <Tree
+                    label="Hồ sơ measurement"
+                    nodes={treeNodes}
+                    selectedId={selected.id}
+                    onSelect={setSelectedNode}
+                  />
+                ) : (
+                  <p>Không có mục nào khớp.</p>
+                )}
+              </div>
             </Card>
           </div>
           <div className={styles.detail}>

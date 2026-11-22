@@ -5,6 +5,8 @@ import { linkTopic, promoteProject } from '@/core/corpus/topic';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Select } from '@/shared/ui/Select';
 import { Button } from '@/shared/ui/Button';
+import { Card } from '@/shared/ui/Card';
+import { PageHeader } from '@/shared/ui/PageHeader';
 import { ProjectResearch } from './ProjectResearch';
 import { DeepResearch } from './DeepResearch';
 import styles from './extraction.module.css';
@@ -42,54 +44,64 @@ export default function ProjectPage() {
   };
   return (
     <div className={styles.projectWorkspace}>
-      <header className={styles.projectHeader}>
+      <PageHeader
+        title={project.title}
+        lead={project.researchQuestion ? `Research question: ${project.researchQuestion}` : undefined}
+      >
         <Link className={styles.backLink} to="/extraction">
           ← Các project
         </Link>
-        <h1>{project.title}</h1>
-        {project.researchQuestion && (
-          <p className={styles.note}>Research question: {project.researchQuestion}</p>
-        )}
-      </header>
-      <section>
-        <h2>Corpus chủ đề</h2>
-        {project.corpusId && <Link to={`/corpus/${project.corpusId}`}>Mở corpus đã liên kết</Link>}
-        <Select label="Chọn corpus" value={corpusId} onChange={(event) => setCorpusId(event.target.value)}>
-          <option value="">Chọn corpus</option>
-          {corpora
-            .filter((item) => item.kind === 'topic')
-            .map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.title}
-              </option>
-            ))}
-        </Select>
-        <Button
-          type="button"
-          disabled={!corpusId}
-          onClick={() => {
-            const corpus = corpora.find((item) => item.id === corpusId);
-            if (corpus) void save(linkTopic(project, corpus));
-          }}
-        >
-          Liên kết với Extraction
-        </Button>
-        <Button
-          type="button"
-          onClick={() => {
-            const corpus = promoteProject(project, crypto.randomUUID(), new Date().toISOString());
-            void repo.corpora
-              .save(corpus)
-              .then(async (saved) => {
-                setCorpora((items) => [saved, ...items]);
-                await save(linkTopic(project, saved));
-              })
-              .catch((cause: unknown) => setError(String(cause)));
-          }}
-        >
-          Tạo corpus từ dự án
-        </Button>
-      </section>
+      </PageHeader>
+      <Card padding="md">
+        <section className={styles.projectCorpus} aria-labelledby="project-corpus-title">
+          <div>
+            <h2 id="project-corpus-title">Corpus chủ đề</h2>
+            <p>Liên kết corpus đang có hoặc tạo corpus mới từ câu hỏi nghiên cứu này.</p>
+          </div>
+          <div className={styles.projectCorpusControls}>
+            <Select
+              label="Chọn corpus"
+              value={corpusId}
+              onChange={(event) => setCorpusId(event.target.value)}
+            >
+              <option value="">Chọn corpus</option>
+              {corpora
+                .filter((item) => item.kind === 'topic')
+                .map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.title}
+                  </option>
+                ))}
+            </Select>
+            <Button
+              type="button"
+              disabled={!corpusId}
+              onClick={() => {
+                const corpus = corpora.find((item) => item.id === corpusId);
+                if (corpus) void save(linkTopic(project, corpus));
+              }}
+            >
+              Liên kết corpus
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                const corpus = promoteProject(project, crypto.randomUUID(), new Date().toISOString());
+                void repo.corpora
+                  .save(corpus)
+                  .then(async (saved) => {
+                    setCorpora((items) => [saved, ...items]);
+                    await save(linkTopic(project, saved));
+                  })
+                  .catch((cause: unknown) => setError(String(cause)));
+              }}
+            >
+              Tạo corpus
+            </Button>
+            {project.corpusId && <Link to={`/corpus/${project.corpusId}`}>Mở corpus liên kết</Link>}
+          </div>
+        </section>
+      </Card>
       {error && <p role="alert">Có lỗi xảy ra: {error}</p>}
       {!project.paperId && <ProjectResearch project={project} />}
       <DeepResearch

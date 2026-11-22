@@ -4,6 +4,9 @@ import { RESEARCH_HUB_URL } from '@/shared/auth/config';
 import { PDF_WORKER_URL, projectScopedUrl } from '@/shared/pdfStore';
 import { RemoteDocStore } from './remoteDocStore';
 import { createRepositories, type Repositories } from './repositories';
+import { ProjectAccessGate } from './ProjectAccessGate';
+import { AlertCircle, CloudUpload } from 'lucide-react';
+import statusStyles from './storage-status.module.css';
 
 const Context = createContext<Repositories | null>(null);
 const StoreContext = createContext<{ store: RemoteDocStore; error: string } | null>(null);
@@ -146,7 +149,13 @@ export function StorageProvider({
       </section>
     );
   } else if (!ready) {
-    gate = <p role="status">Đang kiểm tra phiên ResearchHub…</p>;
+    gate = (
+      <ProjectAccessGate
+        title="Đang kết nối phiên làm việc"
+        description="PaperLab đang kiểm tra phiên ResearchHub để mở đúng không gian nghiên cứu."
+        statusLabel="Đang kiểm tra phiên ResearchHub…"
+      />
+    );
   } else if (!user) {
     gate = (
       <section role="alert">
@@ -157,7 +166,13 @@ export function StorageProvider({
       </section>
     );
   } else if (status === 'loading') {
-    gate = <p role="status">Đang xác minh quyền truy cập project…</p>;
+    gate = (
+      <ProjectAccessGate
+        title="Đang xác minh project"
+        description="Đang kiểm tra quyền truy cập vào không gian nghiên cứu bạn vừa mở."
+        statusLabel="Đang xác minh quyền truy cập project…"
+      />
+    );
   } else if (status === 'error') {
     gate = (
       <section role="alert">
@@ -196,7 +211,12 @@ export function StorageStatus({ className }: { className?: string }) {
   if (status === 'idle' && !storage?.error) return null;
   return (
     <div className={className} role="status">
-      {status !== 'idle' && <span>{status === 'saving' ? 'Đang lưu…' : 'Lỗi lưu'}</span>}
+      {status !== 'idle' && (
+        <span className={`${statusStyles.badge} ${status === 'error' ? statusStyles.error : ''}`}>
+          {status === 'saving' ? <CloudUpload size={14} aria-hidden="true" /> : <AlertCircle size={14} aria-hidden="true" />}
+          {status === 'saving' ? 'Đang lưu thay đổi…' : 'Lỗi lưu'}
+        </span>
+      )}
       {storage?.error && <div role="alert">Kho dữ liệu project chưa được cấu hình.<details><summary>Chi tiết kỹ thuật</summary>{storage.error}</details></div>}
     </div>
   );

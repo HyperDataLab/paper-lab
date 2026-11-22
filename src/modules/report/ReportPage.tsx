@@ -4,6 +4,7 @@ import type { AnalysisReport } from '@/core/schemas';
 import { sliceCp } from '@/core/text';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
+import { PageHeader } from '@/shared/ui/PageHeader';
 import { loadReport } from '@/shared/report/loadReport';
 import { ReportText } from './ReportText';
 import styles from './report.module.css';
@@ -54,10 +55,11 @@ export default function ReportPage() {
     span ? sliceCp(analysis.text.sourceText, span.start, span.end) : '—';
   return (
     <article className={styles.report}>
-      <div className={styles.toolbar}>
-        <Button onClick={() => window.print()}>In / Lưu PDF</Button>
-      </div>
-      <h1>Báo cáo phân tích</h1>
+      <PageHeader title="Báo cáo phân tích">
+        <div className={styles.toolbar}>
+          <Button onClick={() => window.print()}>In / Lưu PDF</Button>
+        </div>
+      </PageHeader>
       <Transparency report={report} />
       <section>
         <h2>Văn bản gốc</h2>
