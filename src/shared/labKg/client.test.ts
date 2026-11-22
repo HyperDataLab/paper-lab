@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { KG_EDGE_TABLES, KG_NODE_TABLES } from '@/core/schemas/labKg';
-import { enqueueLabKg, getLabKgStats, getLabKgStatus, labKgIds, LabKgError } from './client';
+import { enqueueLabKg, getLabKgStats, getLabKgStatus, labKgIds, LabKgError, queryLabKg } from './client';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -17,14 +17,22 @@ it('prefers a usable OpenAlex ID, falls back to DOI and removes duplicate identi
 
 it('sends at most 50 identifiers per authenticated POST and combines the results', async () => {
   const fetcher = vi.fn(async (url: string, request: RequestInit) => {
-    expect(url).toMatch(/\/v1\/kg\/ingest$/u);
-    expect(request).toMatchObject({ method: 'POST', headers: { Authorization: 'Bearer lab', 'X-Project-Id': 'rh-1' } });
+    expect(url).toMatch(/\/v1\/kg\/ingest\?projectId=rh-1$/u);
+    expect(request).toMatchObject({
+      method: 'POST',
+      headers: { Authorization: 'Bearer lab', 'X-Project-Id': 'rh-1' },
+    });
     const { ids } = JSON.parse(String(request.body)) as { ids: string[] };
     return Response.json({ queued: ids.length - 1, processed: 1, skipped: 1, errors: [] });
   });
   vi.stubGlobal('fetch', fetcher);
   const ids = Array.from({ length: 105 }, (_, index) => `W${index + 1}`);
-  expect(await enqueueLabKg(ids, 'lab', 'rh-1')).toEqual({ queued: 102, processed: 3, skipped: 3, errors: [] });
+  expect(await enqueueLabKg(ids, 'lab', 'rh-1')).toEqual({
+    queued: 102,
+    processed: 3,
+    skipped: 3,
+    errors: [],
+  });
   expect(fetcher.mock.calls.map(([, request]) => JSON.parse(String(request.body)).ids)).toEqual([
     ids.slice(0, 50),
     ids.slice(50, 100),
@@ -38,7 +46,9 @@ it('checks sign-in and validates the status response', async () => {
   await expect(getLabKgStatus(null, 'rh-1')).rejects.toThrow('Hãy đăng nhập');
   expect(fetcher).not.toHaveBeenCalled();
   fetcher.mockResolvedValueOnce(Response.json({ error: 'kg_not_configured' }, { status: 503 }));
-  await expect(getLabKgStatus('lab', 'rh-1')).rejects.toMatchObject({ detail: 'HTTP 503 · kg_not_configured' });
+  await expect(getLabKgStatus('lab', 'rh-1')).rejects.toMatchObject({
+    detail: 'HTTP 503 · kg_not_configured',
+  });
   fetcher.mockResolvedValueOnce(Response.json({ counts: { pending: 1 }, logs: [] }));
   await expect(getLabKgStatus('lab', 'rh-1')).rejects.toThrow('Không đọc được trạng thái');
 });
@@ -88,6 +98,18 @@ it('names the failure by status and keeps the status and code for the page', asy
   }
   fetcher.mockResolvedValueOnce(Response.json({ error: 'not_found' }, { status: 404 }));
   await expect(getLabKgStats('lab', 'rh-1')).rejects.toMatchObject({ status: 404, code: 'not_found' });
+});
+
+it('explains that the active Worker is missing the KG SQL route', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn<typeof fetch>().mockResolvedValue(Response.json({ error: 'not_found' }, { status: 404 })),
+  );
+  await expect(queryLabKg('SELECT title FROM paper', 'lab', 'rh-1')).rejects.toMatchObject({
+    message: 'Worker hiện tại chưa hỗ trợ truy vấn Hỏi KG. Cần cập nhật Worker PaperLab.',
+    detail: 'HTTP 404 · not_found',
+    status: 404,
+  });
 });
 
 it('asks again without revalidation when a bodiless 304 reaches the client', async () => {

@@ -7,7 +7,14 @@ import { acceptConsent, revokeConsent } from '@/shared/llm/consent';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { AskKg } from './AskKg';
 
-vi.mock('@/shared/storage/StorageProvider', () => ({ useHubProjectId: () => 'rh-test-project' }));
+vi.mock('@/shared/storage/StorageProvider', () => ({
+  useHubProjectId: () => 'rh-test-project',
+  useRepositories: () => ({
+    papers: { listSummaries: async () => [], getMany: async () => [] },
+    paperContext: { list: async () => [] },
+    library: { list: async () => [] },
+  }),
+}));
 
 const sql = 'SELECT title FROM paper ORDER BY cited_by_count DESC';
 const signedIn: AuthValue = {
@@ -65,12 +72,20 @@ it('semantic step 4 sends the approved question to the model, then SQL to the wo
   expect(panel.getByText(/Concept đã dùng · KG paper/u)).toBeInTheDocument();
   expect(panel.getByText(/Đã giới hạn kết quả/u)).toBeInTheDocument();
   expect(completeJson).toHaveBeenCalledWith(
-    expect.objectContaining({ user: question, promptVersion: 'kg-sql-1' }),
+    expect.objectContaining({
+      user: question,
+      promptVersion: 'kg-sql-1',
+      stream: true,
+      onStreamStart: expect.any(Function),
+    }),
   );
   expect(worker).toHaveBeenCalledWith(
-    expect.stringMatching(/\/v1\/kg\/sql$/u),
+    expect.stringMatching(/\/v1\/kg\/sql\?projectId=rh-test-project$/u),
     expect.objectContaining({
-      headers: expect.objectContaining({ Authorization: 'Bearer test-token', 'X-Project-Id': 'rh-test-project' }),
+      headers: expect.objectContaining({
+        Authorization: 'Bearer test-token',
+        'X-Project-Id': 'rh-test-project',
+      }),
       body: JSON.stringify({ sql }),
     }),
   );

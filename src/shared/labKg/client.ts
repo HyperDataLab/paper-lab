@@ -50,6 +50,8 @@ function errorMessage(status: number, code: string, path: string) {
     return 'SQL không hợp lệ hoặc truy cập ngoài phạm vi KG.';
   }
   if (status === 400) return 'Yêu cầu tới KG của lab chưa hợp lệ.';
+  if (status === 404 && path === '/sql')
+    return 'Worker hiện tại chưa hỗ trợ truy vấn Hỏi KG. Cần cập nhật Worker PaperLab.';
   if (status === 404) return 'KG của lab chưa có mục này.';
   if (status === 429) return 'Máy chủ lab đang bận. Hãy thử lại sau ít phút.';
   if (status >= 500) return `Máy chủ KG của lab gặp lỗi (HTTP ${status}).`;
