@@ -99,7 +99,6 @@ export default function AnalysesSection() {
   }
   return (
     <>
-      <h2>Statistical analysis</h2>
       <p>Khai báo trước phép kiểm định cho từng hypothesis.</p>
       <SectionSuggest state={state} target="analyses" />
       {error && <p role="alert">{error}</p>}

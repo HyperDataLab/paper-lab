@@ -276,6 +276,21 @@
 .wideContent {
   max-width: calc(var(--wide-width) + 2 * var(--space-8));
 }
+.projectDetailContent {
+  max-width: none;
+  margin-inline: 0;
+  padding: var(--space-6);
+}
+.corpusDetailContent {
+  max-width: none;
+  margin-inline: 0;
+  padding: var(--space-6);
+}
+.fullWidthPageContent {
+  max-width: none;
+  margin-inline: 0;
+  padding: var(--space-6);
+}
 @media (min-width: 1024px) {
   .appContent {
     max-width: none;

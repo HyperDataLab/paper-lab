@@ -81,25 +81,46 @@ export function TopicSearch({ corpus, save }: { corpus: Corpus; save: (value: Co
     }
   }
   return (
-    <Card>
-      <h2>Tìm bài</h2>
-      <TextField label="Truy vấn OpenAlex" value={query} onChange={(event) => setQuery(event.target.value)} />
-      <div className={styles.cardTools}>
-        <Button onClick={() => void search()} disabled={busy || !query.trim()}>
-          Tìm bài
-        </Button>
-        <Button variant="ghost" onClick={() => void update()} disabled={busy || queries.length === 0}>
-          Cập nhật tìm kiếm
-        </Button>
-      </div>
-      {error && <p role="alert">Không tìm được bài: {error}</p>}
-      {message && <p className={styles.muted}>{message}</p>}
-      <p>
-        {corpus.searches.length} lượt tìm kiếm
-        {round > 0 ? `, ${round} lần cập nhật` : ''}. Cập nhật chạy lại mỗi truy vấn OpenAlex từ ngày sau lần
-        chạy gần nhất.
-      </p>
-      <SearchImport corpus={corpus} save={save} />
+    <Card className={styles.topicSearchCard}>
+      <header className={styles.searchHeader}>
+        <div>
+          <h2>Tìm bài</h2>
+          <p className={styles.muted}>
+            Tìm ứng viên theo truy vấn OpenAlex hoặc nhập kết quả từ cơ sở dữ liệu.
+          </p>
+        </div>
+        <div className={styles.searchCount} aria-label={`${corpus.searches.length} lượt tìm kiếm`}>
+          <strong>{corpus.searches.length}</strong>
+          <span>lượt tìm kiếm</span>
+        </div>
+      </header>
+      <section className={styles.searchSection} aria-label="Tìm bằng OpenAlex">
+        <TextField
+          label="Truy vấn OpenAlex"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+        <div className={styles.searchActions}>
+          <Button variant="primary" onClick={() => void search()} disabled={busy || !query.trim()}>
+            {busy ? 'Đang tìm…' : 'Tìm bài'}
+          </Button>
+          <Button onClick={() => void update()} disabled={busy || queries.length === 0}>
+            Cập nhật tìm kiếm
+          </Button>
+          <span className={styles.searchHint}>
+            {round > 0 ? `${round} lần cập nhật · ` : ''}Cập nhật sẽ tìm các bài mới kể từ lần chạy gần nhất.
+          </span>
+        </div>
+        {error && <p role="alert">Không tìm được bài: {error}</p>}
+        {message && (
+          <p className={styles.muted} role="status">
+            {message}
+          </p>
+        )}
+      </section>
+      <section className={styles.importSection} aria-label="Nhập kết quả tìm kiếm">
+        <SearchImport corpus={corpus} save={save} />
+      </section>
       <SnowballPanel corpus={corpus} save={save} />
       <ScreeningList corpus={corpus} save={save} />
     </Card>

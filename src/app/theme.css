@@ -89,7 +89,7 @@
   --hl-critical: #b91c1c;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
+  :root[data-theme='system'] {
     color-scheme: dark;
     --bg: #0b1220;
     --surface: #101a2b;

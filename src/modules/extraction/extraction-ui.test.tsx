@@ -262,13 +262,16 @@ it('Deep Research waits for an approved plan and leaves screening decisions to a
       syntheses: [],
     },
   });
-  mount(repo, `/extraction/${saved.id}`);
-  expect(await screen.findByRole('button', { name: 'Tìm theo kế hoạch' })).toBeDisabled();
+  mount(repo, `/extraction/${saved.id}?workspace=auto&searchStep=plan`);
+  expect(screen.queryByRole('button', { name: 'Tìm theo kế hoạch' })).not.toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Kế hoạch tìm kiếm' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Duyệt kế hoạch' }));
+  fireEvent.click(screen.getByRole('button', { name: /Tìm bài/ }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Tìm theo kế hoạch' })).toBeEnabled());
+  fireEvent.click(screen.getByRole('button', { name: /Sàng lọc/ }));
+  fireEvent.click(screen.getByText('Edge offloading study'));
   expect(screen.getByText('AI gợi ý: Chọn')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /Đưa 0 bài/ })).toBeDisabled();
-
-  fireEvent.click(screen.getByRole('button', { name: 'Duyệt kế hoạch' }));
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Tìm theo kế hoạch' })).toBeEnabled());
 
   const item = screen.getByText('Edge offloading study').closest('li') as HTMLElement;
   fireEvent.click(within(item).getByRole('button', { name: 'Chọn' }));
@@ -282,6 +285,24 @@ it('Deep Research waits for an approved plan and leaves screening decisions to a
     suggestion: { reason: 'Đúng chủ đề' },
   });
   expect(stored?.deep?.plan?.approvedAt).not.toBeNull();
+});
+
+it('preserves an unsaved AutoResearch plan when switching project tabs', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const repo = testRepositories();
+  const saved = await repo.extraction.save(
+    newProject({ id: crypto.randomUUID(), title: 'Draft', researchQuestion: '', now: at }),
+  );
+  mount(repo, `/extraction/${saved.id}?workspace=auto`);
+  fireEvent.change(await screen.findByRole('textbox', { name: 'Research question' }), {
+    target: { value: 'How does edge latency affect service quality?' },
+  });
+  fireEvent.click(screen.getByRole('tab', { name: 'Research Design' }));
+  expect(await screen.findByRole('heading', { name: 'Định hình nghiên cứu' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('tab', { name: 'AutoResearch' }));
+  expect(await screen.findByRole('textbox', { name: 'Research question' })).toHaveValue(
+    'How does edge latency affect service quality?',
+  );
 });
 
 it('citation grounding shows the passage behind a claim and links to it in the paper', async () => {
@@ -342,7 +363,7 @@ it('citation grounding shows the passage behind a claim and links to it in the p
       ],
     },
   });
-  mount(repo, `/extraction/${saved.id}`);
+  mount(repo, `/extraction/${saved.id}?workspace=auto&searchStep=synthesis`);
   await screen.findByRole('heading', { name: saved.title });
   // Only the claim whose citation has no passage is flagged.
   expect(screen.getAllByText('Chưa có đoạn trích kiểm chứng')).toHaveLength(1);

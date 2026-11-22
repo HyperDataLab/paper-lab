@@ -88,6 +88,34 @@ describe('shared UI', () => {
     expect(screen.getByRole('combobox', { name: 'Choice' })).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Enabled' })).toBeInTheDocument();
   });
+  it('filters long select lists and supports arrow, enter, and escape', () => {
+    const onChange = vi.fn();
+    render(
+      <Select label="Research question" searchable value="" onChange={onChange}>
+        <option value="">Choose a question</option>
+        {Array.from({ length: 7 }, (_, index) => (
+          <option key={index} value={`q-${index + 1}`}>
+            Question about intervention {index + 1}
+          </option>
+        ))}
+      </Select>,
+    );
+    const trigger = screen.getByRole('combobox', { name: 'Research question' });
+    fireEvent.click(trigger);
+    const search = screen.getByRole('searchbox', { name: 'Tìm trong research question' });
+    fireEvent.change(search, { target: { value: 'intervention 5' } });
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+    fireEvent.keyDown(search, { key: 'ArrowDown' });
+    fireEvent.keyDown(search, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalled();
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+
+    fireEvent.click(trigger);
+    const reopenedSearch = screen.getByRole('searchbox', { name: 'Tìm trong research question' });
+    fireEvent.keyDown(reopenedSearch, { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
   it('renders chips, badges and cards', () => {
     render(
       <Card padding="md">

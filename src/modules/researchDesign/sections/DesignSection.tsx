@@ -50,7 +50,6 @@ export default function DesignSection() {
   );
   return (
     <>
-      <h3>Research design</h3>
       <p>Chọn research design, xem nó cho phép kết luận gì, ghi threat to validity và cách giảm.</p>
       <SectionSuggest state={state} target="threats" />
       {bank && flags.some((f) => f.rule === 'DS-05' && f.reason === 'other_release') && (
@@ -60,7 +59,7 @@ export default function DesignSection() {
         </Card>
       )}
       <Card>
-        <h3>Research design</h3>
+        <h3>Thiết kế nghiên cứu đã chọn</h3>
         {!draft.design ? (
           <Empty title="Chưa chọn research design" hint="Chọn một research design để bắt đầu.">
             <Button variant="primary" onClick={() => setDrawer(true)}>

@@ -146,9 +146,8 @@ export async function handleData(
     const scoped = { collection, id: projectRecordId(projectId, id) };
     const row = (await readRows(db, [scoped])).get(refKey(scoped));
     if (!row || row.deleted_at) {
-      // A paper can have no analysis record until its first run; 204 keeps this normal state out of browser error logs.
-      if (collection === 'paperInsights') return new Response(null, { status: 204, headers });
-      return fail(404, 'not_found', 'No such record.', headers);
+      // Missing records are a normal first-run state for every collection, not a failed network request.
+      return new Response(null, { status: 204, headers });
     }
     const etag = etagOf(row.version);
     // A weak validator matches for a GET, as on the other /v1 routes.
@@ -330,7 +329,9 @@ async function batchGet(env: StoreEnv, value: unknown, headers: Headers) {
     .map((ref) => rows.get(refKey({ ...ref, id: projectRecordId(env.projectId, ref.id) })))
     .filter((row): row is DocRow => !!row && !row.deleted_at);
   const { items, deferred } = await withBodies(env, found);
-  const foundKeys = new Set(found.map((row) => refKey({ ...row, id: logicalRecordId(env.projectId, row.id) })));
+  const foundKeys = new Set(
+    found.map((row) => refKey({ ...row, id: logicalRecordId(env.projectId, row.id) })),
+  );
   const missing = unique.filter((ref) => !foundKeys.has(refKey(ref)));
   if ('refs' in input) {
     return ok(
@@ -338,7 +339,10 @@ async function batchGet(env: StoreEnv, value: unknown, headers: Headers) {
       {
         items,
         missing,
-        deferred: deferred.map(({ collection, id }) => ({ collection, id: logicalRecordId(env.projectId, id) })),
+        deferred: deferred.map(({ collection, id }) => ({
+          collection,
+          id: logicalRecordId(env.projectId, id),
+        })),
       },
       headers,
     );

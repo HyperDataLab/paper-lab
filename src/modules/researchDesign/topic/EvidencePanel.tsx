@@ -1,16 +1,27 @@
 import { labResearchErrorMessage } from '@/shared/labResearch';
 import { Button } from '@/shared/ui/Button';
-import { Card } from '@/shared/ui/Card';
 import { DebateList } from './DebateList';
 import { PaperRow } from './PaperRow';
 import { YearBars } from './YearBars';
-import { BlurField } from './BlurField';
+import { useState } from 'react';
+import { SearchQueryField } from './SearchQueryField';
 import { topicSearchText, useTopicTools } from './useTopicTools';
 import type { Props } from './types';
 
 export function EvidencePanel(props: Props) {
   const { check, change } = props;
   const { run, running, error } = useTopicTools(props);
+  const savedSearchQuery = check.searchQuery ?? '';
+  const [queryDraft, setQueryDraft] = useState({ saved: savedSearchQuery, value: savedSearchQuery });
+  if (queryDraft.saved !== savedSearchQuery) {
+    setQueryDraft({ saved: savedSearchQuery, value: savedSearchQuery });
+  }
+  const searchQuery = queryDraft.value;
+  const saveSearchQuery = (value: string) => change((c) => ({ ...c, searchQuery: value }));
+  const runWithQuery = (kind: 'duplication' | 'saturation' | 'debate' | 'impact') => {
+    if (searchQuery !== (check.searchQuery ?? '')) saveSearchQuery(searchQuery);
+    void run(kind, searchQuery);
+  };
   const sorted = [...check.evidence].sort((a, b) => b.ranAt.localeCompare(a.ranAt));
   const duplication = sorted.find((e) => e.kind === 'duplication');
   const saturation = sorted.find((e) => e.kind === 'saturation');
@@ -23,33 +34,43 @@ export function EvidencePanel(props: Props) {
     </p>
   );
   return (
-    <Card>
-      <h3>Evidence từ công cụ</h3>
-      <BlurField
-        label="Từ khoá tìm kiếm (tiếng Anh)"
-        placeholder="Ví dụ: large language models title abstract screening systematic reviews"
-        value={check.searchQuery ?? ''}
-        save={(value) => change((c) => ({ ...c, searchQuery: value }))}
+    <section className="topic-evidence">
+      <SearchQueryField
+        value={searchQuery}
+        onChange={(value) => setQueryDraft((current) => ({ ...current, value }))}
+        onCommit={(value) => {
+          if (value !== (check.searchQuery ?? '')) saveSearchQuery(value);
+        }}
       />
-      <p>
-        Cơ sở dữ liệu học thuật chủ yếu bằng tiếng Anh. Để trống thì công cụ dùng phát biểu đề tài. Kết quả là
-        đầu mối để mở và đọc, không phải kết luận.
-      </p>
-      <Button disabled={running || !topicSearchText(check)} onClick={() => void run('duplication')}>
-        Tìm bài gần nhất
-      </Button>{' '}
-      <Button disabled={running || !topicSearchText(check)} onClick={() => void run('saturation')}>
-        Đếm nghiên cứu theo năm
-      </Button>{' '}
-      <Button disabled={running || !topicSearchText(check)} onClick={() => void run('debate')}>
-        Bản đồ tranh luận
-      </Button>{' '}
-      <Button
-        disabled={running || !check.neighbours.some((n) => n.ref.trim())}
-        onClick={() => void run('impact')}
-      >
-        Quỹ đạo trích dẫn bài gần nhất
-      </Button>
+      <div className="topic-evidence-actions">
+        <Button
+          variant="primary"
+          className="topic-evidence-primary"
+          disabled={running || !topicSearchText(check, searchQuery)}
+          onClick={() => runWithQuery('duplication')}
+        >
+          Tìm bài gần nhất
+        </Button>{' '}
+        <Button
+          disabled={running || !topicSearchText(check, searchQuery)}
+          onClick={() => runWithQuery('saturation')}
+        >
+          Đếm nghiên cứu theo năm
+        </Button>{' '}
+        <Button
+          disabled={running || !topicSearchText(check, searchQuery)}
+          onClick={() => runWithQuery('debate')}
+        >
+          Bản đồ tranh luận
+        </Button>{' '}
+        <Button
+          disabled={running || !check.neighbours.some((n) => n.ref.trim())}
+          onClick={() => runWithQuery('impact')}
+        >
+          Quỹ đạo trích dẫn bài gần nhất
+        </Button>
+      </div>
+      {running && <p role="status">Đang tìm bằng chứng trong các nguồn học thuật…</p>}
       {error != null && (
         <div role="alert">
           <p>{labResearchErrorMessage(error)}</p>
@@ -148,6 +169,6 @@ export function EvidencePanel(props: Props) {
           <p>Các số liệu là đầu mối, không phải kết luận.</p>
         </section>
       )}
-    </Card>
+    </section>
   );
 }

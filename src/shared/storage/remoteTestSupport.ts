@@ -18,11 +18,23 @@ export function testWorkerData(configured = true) {
   const baseUrl = 'https://worker.test';
   const requests: Request[] = [];
   const dispatch: typeof fetch = async (input, init) => {
-    const request = new Request(input, init);
+    const rawUrl = input instanceof Request ? input.url : input.toString();
+    const request = new Request(new URL(rawUrl, baseUrl), init);
     requests.push(request.clone());
     if (request.headers.get('Authorization') !== 'Bearer lab-test')
       return new Response(null, { status: 401 });
-    return handleData(deps, request, new URL(request.url).pathname, 'test@hyperdatalab.org', {}, testId(1));
+    const requestPath = new URL(request.url).pathname;
+    if (requestPath.endsWith('/v1/me')) {
+      return Response.json({ project: { name: 'ResearchHub test project' }, email: 'test@hyperdatalab.org' });
+    }
+    return handleData(
+      deps,
+      request,
+      requestPath.replace(/^\/paperlab-worker/u, ''),
+      'test@hyperdatalab.org',
+      {},
+      testId(1),
+    );
   };
   const connect = (send = dispatch) =>
     new RemoteDocStore({ baseUrl, fetch: send, getToken: async () => 'lab-test', projectId: testId(1) });
