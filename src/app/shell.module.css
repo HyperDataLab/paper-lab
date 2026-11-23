@@ -58,7 +58,9 @@
   min-width: 0;
 }
 .logo {
-  color: var(--accent);
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
   flex: none;
 }
 .navigation {

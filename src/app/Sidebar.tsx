@@ -1,4 +1,4 @@
-import { BookOpenText, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
 import { useState } from 'react';
 import { useAdmin } from '@/shared/auth/useAdmin';
 import { IconButton } from '@/shared/ui/IconButton';
@@ -47,15 +47,14 @@ export function Sidebar({
       className={`${styles.sidebar} ${desktop ? styles.desktopSidebar : ''} ${mobile ? styles.mobileSidebar : ''} ${rail ? styles.collapsed : ''}`}
     >
       <div className={styles.brand}>
-        <BookOpenText className={styles.logo} size={22} aria-hidden="true" />
-        {!rail && <span className={styles.brandName}>PaperLab</span>}
+        <img className={styles.logo} src="/paperlab-logo.png" alt="PaperLab" />
+        {!rail && (
+          <span className={styles.brandName} aria-hidden="true">
+            PaperLab
+          </span>
+        )}
         {mobile ? (
-          <IconButton
-            className={styles.collapse}
-            tooltipSide="right"
-            label="Đóng menu"
-            onClick={onNavigate}
-          >
+          <IconButton className={styles.collapse} tooltipSide="right" label="Đóng menu" onClick={onNavigate}>
             <X size={18} aria-hidden="true" />
           </IconButton>
         ) : (
