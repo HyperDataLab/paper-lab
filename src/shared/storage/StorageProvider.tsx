@@ -162,7 +162,7 @@ export function StorageProvider({
         <h1>{handoffFailed ? 'Không nhận được phiên ResearchHub' : 'Cần phiên HyperDataLab SSO'}</h1>
         <p>{authError || 'Mở PaperLab từ project ResearchHub để chuyển phiên hiện tại.'}</p>
         {RESEARCH_HUB_URL && <a href={`${RESEARCH_HUB_URL}/projects/${encodeURIComponent(effectiveProjectId)}`}>Mở project ResearchHub</a>}
-        {!handoffFailed && <button type="button" onClick={retrySignIn}>Đăng nhập bằng SSO</button>}
+        <button type="button" onClick={retrySignIn}>Đăng nhập lại bằng HyperDataLab SSO</button>
       </section>
     );
   } else if (status === 'loading') {
@@ -178,6 +178,7 @@ export function StorageProvider({
       <section role="alert">
         <h1>Không mở được project</h1>
         <p>{projectError}</p>
+        <button type="button" onClick={retrySignIn}>Đăng nhập lại bằng HyperDataLab SSO</button>
         {RESEARCH_HUB_URL && <a href={`${RESEARCH_HUB_URL}/projects/${encodeURIComponent(effectiveProjectId)}`}>Mở project ResearchHub</a>}
       </section>
     );

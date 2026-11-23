@@ -33,7 +33,8 @@ export async function handleKg(
     path === '/v1/kg/stats' ||
     path === '/v1/kg/overview' ||
     path.startsWith('/v1/kg/papers/') ||
-    path.startsWith('/v1/kg/keywords/')
+    path.startsWith('/v1/kg/keywords/') ||
+    path.startsWith('/v1/kg/entities/')
   )
     return handleKgRead(kg.db, request, path, headers, projectScope);
   if (path === '/v1/kg/graph' || path === '/v1/kg/trend')

@@ -80,7 +80,10 @@ export function App() {
     location.pathname === '/' ||
     location.pathname === '/papers' ||
     location.pathname === '/extraction' ||
-    location.pathname === '/corpus';
+    location.pathname === '/corpus' ||
+    location.pathname === '/lab-kg' ||
+    location.pathname === '/playground' ||
+    location.pathname === '/transfer';
   useEffect(() => {
     if (invalidProjectId) {
       // Route changes may remove projectId for one render; keep the last accepted ID for that transition.

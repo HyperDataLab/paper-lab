@@ -16,6 +16,7 @@ interface SsoAttempt {
 }
 
 let callbackInProgress: Promise<string> | null = null;
+let loginRedirectInProgress = false;
 
 function randomBase64Url(bytes = 32) {
   const value = crypto.getRandomValues(new Uint8Array(bytes));
@@ -45,23 +46,30 @@ function configurationError() {
 }
 
 async function startLogin(returnTo: string) {
+  if (loginRedirectInProgress) return;
   const error = configurationError();
   if (error) throw new Error(error);
-  const state = randomBase64Url();
-  const verifier = randomBase64Url();
-  const attempt: SsoAttempt = { state, verifier, createdAt: Date.now(), returnTo: safeReturnTo(returnTo) };
-  sessionStorage.setItem(ATTEMPT_KEY, JSON.stringify(attempt));
-  const authorize = new URL('/oauth/authorize', SSO_BASE_URL);
-  authorize.search = new URLSearchParams({
-    response_type: 'code',
-    client_id: SSO_CLIENT_ID,
-    redirect_uri: SSO_CALLBACK_URL,
-    scope: 'email profile hyperdatalab_profile',
-    state,
-    code_challenge: await codeChallenge(verifier),
-    code_challenge_method: 'S256',
-  }).toString();
-  window.location.assign(authorize.toString());
+  loginRedirectInProgress = true;
+  try {
+    const state = randomBase64Url();
+    const verifier = randomBase64Url();
+    const attempt: SsoAttempt = { state, verifier, createdAt: Date.now(), returnTo: safeReturnTo(returnTo) };
+    sessionStorage.setItem(ATTEMPT_KEY, JSON.stringify(attempt));
+    const authorize = new URL('/oauth/authorize', SSO_BASE_URL);
+    authorize.search = new URLSearchParams({
+      response_type: 'code',
+      client_id: SSO_CLIENT_ID,
+      redirect_uri: SSO_CALLBACK_URL,
+      scope: 'email profile hyperdatalab_profile',
+      state,
+      code_challenge: await codeChallenge(verifier),
+      code_challenge_method: 'S256',
+    }).toString();
+    window.location.assign(authorize.toString());
+  } catch (cause) {
+    loginRedirectInProgress = false;
+    throw cause;
+  }
 }
 
 async function finishCallback() {
@@ -157,12 +165,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const initialUrl = new URL(window.location.href);
   const initialHandoff = getHandoffRequest(initialUrl);
   const hasHandoffParameter = initialUrl.searchParams.has('rh_handoff');
+  const [shouldStartLogin] = useState(() => {
+    const projectId = initialUrl.searchParams.get('projectId');
+    const hasProjectContext = Boolean(
+      projectId &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(projectId),
+    );
+    return !hasHandoffParameter && hasProjectContext && !readSsoSession();
+  });
   const [session, setSession] = useState<SsoSession | null>(() =>
     hasHandoffParameter && !initialHandoff ? null : readSsoSession(),
   );
-  const [ready, setReady] = useState(() => !isCallback && !initialHandoff);
+  const [ready, setReady] = useState(() => !isCallback && !initialHandoff && !shouldStartLogin);
   const [error, setError] = useState(() => hasHandoffParameter && !initialHandoff ? 'Liên kết handoff ResearchHub không hợp lệ. Hãy đăng nhập lại.' : '');
   const [handoffFailed, setHandoffFailed] = useState(() => hasHandoffParameter && !initialHandoff);
+
+  const reauthenticate = useCallback(async (message = 'Phiên làm việc đã hết hạn. Đang kết nối lại HyperDataLab SSO…') => {
+    setError(message);
+    try {
+      await startLogin(`${window.location.pathname}${window.location.search}${window.location.hash}`);
+    } catch (cause) {
+      loginRedirectInProgress = false;
+      clearSsoSession();
+      setSession(null);
+      setError(cause instanceof Error ? cause.message : 'Không thể bắt đầu đăng nhập lại bằng HyperDataLab SSO.');
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -212,16 +240,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             clearHandoffFromUrl();
             setReady(true);
           })
-          .catch((cause: unknown) => {
+          .catch(async (cause: unknown) => {
             if (!active) return;
-            setError(cause instanceof Error ? cause.message : 'Không nhận được phiên đăng nhập từ ResearchHub.');
+            const handoffError = cause instanceof Error ? cause.message : 'Không nhận được phiên đăng nhập từ ResearchHub.';
             clearSsoSession();
             setSession(null);
             setHandoffFailed(true);
             clearHandoffFromUrl();
-            setReady(true);
+            const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+            try {
+              await startLogin(returnTo);
+            } catch (loginCause) {
+              loginRedirectInProgress = false;
+              setError(loginCause instanceof Error ? loginCause.message : handoffError);
+              setReady(true);
+            }
           });
       }
+    } else if (shouldStartLogin) {
+      void startLogin(`${url.pathname}${url.search}${url.hash}`).catch((cause: unknown) => {
+        if (!active) return;
+        loginRedirectInProgress = false;
+        setError(cause instanceof Error ? cause.message : 'Không thể bắt đầu đăng nhập lại bằng HyperDataLab SSO.');
+        setReady(true);
+      });
     }
     const sync = () => setSession(readSsoSession());
     window.addEventListener('storage', sync);
@@ -232,13 +274,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('storage', sync);
       window.removeEventListener(SESSION_EVENT, sync);
     };
-  }, []);
+  }, [shouldStartLogin]);
 
   const signIn = useCallback(async () => {
     setError('');
+    setHandoffFailed(false);
     try {
       await startLogin(`${window.location.pathname}${window.location.search}${window.location.hash}`);
     } catch (cause) {
+      loginRedirectInProgress = false;
       setError(cause instanceof Error ? cause.message : 'Không thể bắt đầu đăng nhập SSO.');
     }
   }, []);
@@ -252,11 +296,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const next = await refreshSsoSessionIfNeeded(current, readSsoSession);
       if (!next || next.accessToken !== current.accessToken) setSession(readSsoSession());
-      return next?.accessToken ?? null;
-    } catch {
+      if (!next) {
+        await reauthenticate();
+        return null;
+      }
+      return next.expiresAt > Date.now() ? next.accessToken : null;
+    } catch (cause) {
+      if (current.handoff || current.expiresAt <= Date.now()) {
+        await reauthenticate(cause instanceof Error ? 'Không gia hạn được phiên ResearchHub. Đang kết nối lại bằng HyperDataLab SSO…' : undefined);
+        return null;
+      }
       return current.expiresAt > Date.now() ? current.accessToken : null;
     }
-  }, []);
+  }, [reauthenticate]);
   useEffect(() => {
     if (!session) return;
 
@@ -265,26 +317,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const canRefresh = (candidate: SsoSession) =>
       candidate.handoff
         ? Boolean(window.opener)
-        : Boolean(candidate.refreshToken && candidate.refreshExpiresAt && candidate.refreshExpiresAt > Date.now());
+        : Boolean(candidate.refreshToken && (!candidate.refreshExpiresAt || candidate.refreshExpiresAt > Date.now()));
     const schedule = (candidate: SsoSession) => {
       if (timer !== undefined) window.clearTimeout(timer);
-      if (!canRefresh(candidate)) return;
-      timer = window.setTimeout(() => void refresh(), Math.max(0, candidate.expiresAt - Date.now() - 5 * 60 * 1000));
+      const refreshEarlyBy = canRefresh(candidate) ? 5 * 60 * 1000 : 0;
+      timer = window.setTimeout(() => void refresh(), Math.max(1_000, candidate.expiresAt - Date.now() - refreshEarlyBy));
     };
     const refresh = async () => {
       const current = readSsoSession();
-      if (!current || !canRefresh(current)) return;
+      if (!current) return;
       try {
         const next = await refreshSsoSessionIfNeeded(current, readSsoSession);
         if (!active) return;
         if (!next) {
-          setSession(readSsoSession());
+          await reauthenticate();
           return;
         }
         if (next.accessToken !== current.accessToken) setSession(next);
         schedule(next);
       } catch {
-        if (active) timer = window.setTimeout(() => void refresh(), 30_000);
+        if (!active) return;
+        if (current.handoff || current.expiresAt <= Date.now()) {
+          await reauthenticate('Không gia hạn được phiên làm việc. Đang kết nối lại bằng HyperDataLab SSO…');
+          return;
+        }
+        timer = window.setTimeout(() => void refresh(), 30_000);
       }
     };
     const refreshWhenActive = () => {
@@ -300,7 +357,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('focus', refreshWhenActive);
       document.removeEventListener('visibilitychange', refreshWhenActive);
     };
-  }, [session]);
+  }, [reauthenticate, session]);
   const user: LabUser | null = useMemo(
     () => (session ? { uid: session.profile.sub, email: session.profile.email, name: session.profile.name ?? null } : null),
     [session],

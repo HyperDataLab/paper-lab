@@ -14,7 +14,7 @@ const localPaper = {
   source: { kind: 'pdf', fileName: 'a.pdf', pageCount: 1, sha256: `sha256:${LOCAL_SHA}` },
 } as unknown as Paper;
 const storage = vi.hoisted(() => ({ papers: { list: vi.fn() } }));
-const project = vi.hoisted(() => ({ id: '00000000-0000-4000-8000-000000000101' }));
+const project = vi.hoisted(() => ({ id: '00000000-0000-4000-8000-000000000101' as string | null }));
 vi.mock('@/shared/storage/StorageProvider', () => ({
   useRepositories: () => storage,
   useHubProjectId: () => project.id,
@@ -106,12 +106,15 @@ function open(signedIn: boolean, path = '/admin/requests') {
   );
 }
 const calls = (fetchMock: ReturnType<typeof serve>, path: string) =>
-  fetchMock.mock.calls.filter(([input]) => new URL(String(input), 'http://localhost').pathname.endsWith(path));
+  fetchMock.mock.calls.filter(([input]) =>
+    new URL(String(input), 'http://localhost').pathname.endsWith(path),
+  );
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.resetAllMocks();
   resetAdminCache();
+  project.id = '00000000-0000-4000-8000-000000000101';
 });
 
 describe('admin fact requests', () => {
@@ -136,6 +139,16 @@ describe('admin fact requests', () => {
     open(true, '/');
     expect(await screen.findAllByRole('link', { name: /Duyệt yêu cầu/u })).toHaveLength(2);
     expect(calls(fetchMock, '/v1/me')).toHaveLength(1);
+  });
+
+  it('shows the admin entry without a ResearchHub project context', async () => {
+    project.id = null;
+    const fetchMock = serve(true);
+    open(true, '/');
+    expect(await screen.findAllByRole('link', { name: /Duyệt yêu cầu/u })).toHaveLength(2);
+    expect(calls(fetchMock, '/v1/me')).toHaveLength(1);
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ headers: { Authorization: 'Bearer test-token' } });
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).not.toHaveProperty('X-Project-Id');
   });
 
   it('lists requested by default and filters by state', async () => {

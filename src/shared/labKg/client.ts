@@ -5,6 +5,7 @@ import {
   KgIngestResultSchema,
   KgGraphSchema,
   KgIngestStatusSchema,
+  KgEntityDetailSchema,
   KgKeywordDetailSchema,
   KgOverviewSchema,
   KgPaperDetailSchema,
@@ -14,6 +15,7 @@ import {
   kgIdentifier,
   paperId,
   type KgGraphLayer,
+  type KgDetailEntityKind,
   type KgIngestResult,
   type KgIngestSource,
 } from '@/core/schemas/labKg';
@@ -241,6 +243,21 @@ export async function getLabKgKeyword(
   );
   if (!parsed.success)
     throw new LabKgError('Không đọc được keyword trong KG của lab.', 'Invalid keyword response.');
+  return parsed.data;
+}
+
+export async function getLabKgEntity(
+  kind: KgDetailEntityKind,
+  id: string,
+  token: string | null,
+  projectId: string,
+  signal?: AbortSignal,
+) {
+  const parsed = KgEntityDetailSchema.safeParse(
+    await request(`/entities/${kind}/${encodeURIComponent(id)}`, token, projectId, { signal }),
+  );
+  if (!parsed.success)
+    throw new LabKgError('Không đọc được chi tiết thực thể trong KG của lab.', 'Invalid entity response.');
   return parsed.data;
 }
 

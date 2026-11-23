@@ -19,8 +19,20 @@ describe('fact requests client', () => {
     const fetchMock = vi.fn(async () => Response.json({ email: 'admin@example.org', admin: true }));
     vi.stubGlobal('fetch', fetchMock);
     expect(await getMe('test-token', PROJECT_ID)).toMatchObject({ admin: true });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(new RegExp(`/v1/me\\?projectId=${PROJECT_ID}$`, 'u')),
+      {
+        headers: { Authorization: 'Bearer test-token', 'X-Project-Id': PROJECT_ID },
+      },
+    );
+  });
+
+  it('checks the account-wide admin role without requiring a project', async () => {
+    const fetchMock = vi.fn(async () => Response.json({ email: 'admin@example.org', admin: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    expect(await getMe('test-token')).toMatchObject({ admin: true });
     expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/\/v1\/me$/u), {
-      headers: { Authorization: 'Bearer test-token', 'X-Project-Id': PROJECT_ID },
+      headers: { Authorization: 'Bearer test-token' },
     });
   });
 
@@ -36,7 +48,9 @@ describe('fact requests client', () => {
     expect(page.items).toHaveLength(2);
     expect(page.nextCursor).toBe('c2');
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringMatching(/\/v1\/admin\/fact-requests\?state=approved&cursor=c1$/u),
+      expect.stringMatching(
+        new RegExp(`/v1/admin/fact-requests\\?state=approved&cursor=c1&projectId=${PROJECT_ID}$`, 'u'),
+      ),
       expect.anything(),
     );
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ headers: { 'X-Project-Id': PROJECT_ID } });
@@ -45,14 +59,20 @@ describe('fact requests client', () => {
   it('sends the decision with a trimmed note, and none when empty', async () => {
     const fetchMock = vi.fn(async () => Response.json({ ...request, state: 'declined' }));
     vi.stubGlobal('fetch', fetchMock);
-    expect((await decideFactRequest('t', PROJECT_ID, 'p/1', 'decline', '  out of scope ')).state).toBe('declined');
+    expect((await decideFactRequest('t', PROJECT_ID, 'p/1', 'decline', '  out of scope ')).state).toBe(
+      'declined',
+    );
     await decideFactRequest('t', PROJECT_ID, 'p/1', 'approve', '   ');
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      expect.stringMatching(/\/fact-requests\/p%2F1\/decision$/u),
+      expect.stringMatching(new RegExp(`/fact-requests/p%2F1/decision\\?projectId=${PROJECT_ID}$`, 'u')),
       {
         method: 'POST',
-        headers: { Authorization: 'Bearer t', 'X-Project-Id': PROJECT_ID, 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: 'Bearer t',
+          'X-Project-Id': PROJECT_ID,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ decision: 'decline', note: 'out of scope' }),
       },
     );

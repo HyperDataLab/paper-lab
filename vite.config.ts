@@ -5,6 +5,11 @@ import { fileURLToPath, URL } from 'node:url';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const proxy = {
+    '/lab-research-mcp': {
+      target: env.LAB_RESEARCH_MCP_PROXY_TARGET || 'https://lab-research-mcp.hyperdatalab.workers.dev',
+      changeOrigin: true,
+      rewrite: (path: string) => path.replace(/^\/lab-research-mcp/, ''),
+    },
     '/paperlab-worker': {
       target: env.PAPERLAB_WORKER_PROXY_TARGET || 'https://paperlab-pdf-worker.hyperdatalab.workers.dev',
       changeOrigin: true,

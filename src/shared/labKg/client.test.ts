@@ -1,6 +1,14 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { KG_EDGE_TABLES, KG_NODE_TABLES } from '@/core/schemas/labKg';
-import { enqueueLabKg, getLabKgStats, getLabKgStatus, labKgIds, LabKgError, queryLabKg } from './client';
+import {
+  enqueueLabKg,
+  getLabKgEntity,
+  getLabKgStats,
+  getLabKgStatus,
+  labKgIds,
+  LabKgError,
+  queryLabKg,
+} from './client';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -58,6 +66,26 @@ it('does not call the worker without an active ResearchHub project', async () =>
   vi.stubGlobal('fetch', fetcher);
   await expect(getLabKgStatus('lab', '')).rejects.toThrow('project ResearchHub');
   expect(fetcher).not.toHaveBeenCalled();
+});
+
+it('loads validated project-scoped author detail with an encoded entity ID', async () => {
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+    Response.json({
+      kind: 'author',
+      entity: { id: 'A1', name: 'Author A1', orcid: '0000-0000-0000-0001', ror: null, countryCode: null },
+      paperCount: 1,
+      papers: [{ id: 'W1', title: 'Paper title', doi: null, year: 2024, citations: 5 }],
+      related: [{ id: 'topics/T1', name: 'Topic', kind: 'topic', count: null }],
+    }),
+  );
+  vi.stubGlobal('fetch', fetcher);
+
+  const detail = await getLabKgEntity('author', 'A1', 'lab', 'rh-1');
+  expect(fetcher.mock.calls[0]?.[0]).toMatch(/\/v1\/kg\/entities\/author\/A1\?projectId=rh-1$/u);
+  expect(fetcher.mock.calls[0]?.[1]).toMatchObject({
+    headers: { Authorization: 'Bearer lab', 'X-Project-Id': 'rh-1' },
+  });
+  expect(detail).toMatchObject({ kind: 'author', paperCount: 1, papers: [{ id: 'W1' }] });
 });
 
 const stats = {

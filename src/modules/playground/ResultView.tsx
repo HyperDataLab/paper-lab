@@ -7,6 +7,7 @@ const object = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 export function ResultView({ output }: { output: unknown }) {
   const [view, setView] = useState('result');
+  const [copyMessage, setCopyMessage] = useState('');
   const entries = object(output) ? Object.entries(output) : [];
   const scalars = entries.filter(
     ([, value]) => value === null || ['string', 'number', 'boolean'].includes(typeof value),
@@ -19,6 +20,15 @@ export function ResultView({ output }: { output: unknown }) {
         (paper: unknown) => object(paper) && typeof paper.title === 'string' && typeof paper.url === 'string',
       ),
   );
+  async function copyJson() {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard API unavailable.');
+      await navigator.clipboard.writeText(JSON.stringify(output, null, 2));
+      setCopyMessage('Đã sao chép JSON.');
+    } catch {
+      setCopyMessage('Không thể sao chép tự động. Hãy chọn JSON để sao chép thủ công.');
+    }
+  }
   return (
     <div>
       <SegmentedControl
@@ -32,9 +42,8 @@ export function ResultView({ output }: { output: unknown }) {
       />
       {view === 'json' ? (
         <>
-          <Button onClick={() => void navigator.clipboard.writeText(JSON.stringify(output, null, 2))}>
-            Sao chép
-          </Button>
+          <Button onClick={() => void copyJson()}>Sao chép JSON</Button>
+          {copyMessage && <p role="status">{copyMessage}</p>}
           <pre>{JSON.stringify(output, null, 2)}</pre>
         </>
       ) : (

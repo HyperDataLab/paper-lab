@@ -22,7 +22,10 @@ export async function refreshSsoSessionIfNeeded(
       storeSsoSession(next);
       return next;
     })();
-  } else if (current.refreshToken && current.refreshExpiresAt && current.refreshExpiresAt > Date.now()) {
+  } else if (
+    current.refreshToken &&
+    (current.refreshExpiresAt === undefined || current.refreshExpiresAt > Date.now())
+  ) {
     const refreshToken = current.refreshToken;
     refreshInProgress = (async () => {
       const response = await fetch(new URL('/oauth/token', SSO_BASE_URL), {
@@ -50,21 +53,23 @@ export async function refreshSsoSessionIfNeeded(
         }
         throw new Error(typeof body.error_description === 'string' ? body.error_description : 'Không thể gia hạn phiên SSO.');
       }
-      if (typeof body.access_token !== 'string' || typeof body.refresh_token !== 'string') {
+      if (typeof body.access_token !== 'string') {
         clearSsoSession();
-        throw new Error('Phản hồi gia hạn SSO thiếu access token hoặc refresh token mới.');
+        throw new Error('Phản hồi gia hạn SSO thiếu access token mới.');
       }
       const latest = readCurrent();
       if (!latest || latest.refreshToken !== refreshToken) return latest;
+      const nextRefreshExpiresAt = typeof body.refresh_token_expires_in === 'number'
+        ? Date.now() + Math.max(0, body.refresh_token_expires_in) * 1000
+        : latest.refreshExpiresAt;
       const next: SsoSession = {
         ...latest,
         accessToken: body.access_token,
         expiresAt: Date.now() + (typeof body.expires_in === 'number' ? Math.max(0, body.expires_in) : 3600) * 1000,
-        refreshToken: body.refresh_token,
-        refreshExpiresAt:
-          Date.now() + (typeof body.refresh_token_expires_in === 'number' ? Math.max(0, body.refresh_token_expires_in) : 0) * 1000,
+        refreshToken: typeof body.refresh_token === 'string' ? body.refresh_token : refreshToken,
+        ...(nextRefreshExpiresAt === undefined ? {} : { refreshExpiresAt: nextRefreshExpiresAt }),
       };
-      if (!next.refreshExpiresAt || next.refreshExpiresAt <= Date.now()) {
+      if (next.refreshExpiresAt !== undefined && next.refreshExpiresAt <= Date.now()) {
         clearSsoSession();
         return null;
       }

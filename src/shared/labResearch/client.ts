@@ -2,7 +2,14 @@ import { z } from 'zod';
 
 export const LAB_RESEARCH_URL: string = (import.meta.env.VITE_LAB_RESEARCH_URL as string | undefined) ?? '';
 export type LabResearchErrorCode =
-  'network' | 'signed_out' | 'not_configured' | 'rate_limited' | 'invalid_input' | 'upstream' | 'failed';
+  | 'network'
+  | 'signed_out'
+  | 'unauthorized'
+  | 'not_configured'
+  | 'rate_limited'
+  | 'invalid_input'
+  | 'upstream'
+  | 'failed';
 export class LabResearchError extends Error {
   constructor(
     public readonly status: number,
@@ -48,7 +55,7 @@ export function createLabResearchClient(options: {
       throw new LabResearchError(
         response.status,
         response.status === 401
-          ? 'signed_out'
+          ? 'unauthorized'
           : response.status === 429
             ? 'rate_limited'
             : response.status >= 500
@@ -96,7 +103,7 @@ export function createLabResearchClient(options: {
       if (!response.ok || !parsed.success || !parsed.data.ok) {
         const code: LabResearchErrorCode =
           response.status === 401
-            ? 'signed_out'
+            ? 'unauthorized'
             : response.status === 429
               ? 'rate_limited'
               : response.status === 400
@@ -126,6 +133,8 @@ export function labResearchErrorMessage(error: unknown): string {
       return 'Máy chủ nghiên cứu của lab chưa được cấu hình.';
     case 'signed_out':
       return 'Đăng nhập tài khoản lab để chạy công cụ.';
+    case 'unauthorized':
+      return 'Lab Research Worker từ chối phiên SSO hiện tại. Hãy đăng nhập lại; nếu vẫn lỗi, cần kiểm tra cấu hình xác thực của Worker.';
     case 'network':
       return 'Không thể kết nối máy chủ nghiên cứu.';
     case 'rate_limited':
