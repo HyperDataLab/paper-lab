@@ -188,11 +188,11 @@ it('P3 shows distributions, recurring filters, transition review and stale notic
   if (openCoherence1) fireEvent.click(openCoherence1);
   fireEvent.click(screen.getByRole('radio', { name: 'Paragraph structure & flow' }));
   expect(
-    await screen.findByText('Đã phân tích 3/4 paragraph trong phạm vi (4 paragraph cả bài)'),
+    await screen.findByText('Đã phân tích 3/4 đoạn trong phạm vi · 4 đoạn trong toàn bài'),
   ).toBeInTheDocument();
   expect(screen.getByText(/Kết quả chuyển đoạn đã cũ/)).toBeInTheDocument();
   expect(screen.getAllByText('Chưa đủ dữ liệu').length).toBeGreaterThan(0);
-  expect(screen.getByText(/Tổng quan chỉ thống kê kết quả/)).toBeInTheDocument();
+  expect(screen.getByText(/Bảng thống kê các đoạn đã phân tích/)).toBeInTheDocument();
   expect(screen.queryByText(/tổng điểm|điểm tổng/i)).not.toBeInTheDocument();
   expect(screen.getByText(/Chuyển chủ đề · Không có/)).toHaveTextContent('Không liên kết');
   // The paragraph ids name the pair as plain text: the Evaluate page they used to link to is retired.
@@ -211,7 +211,7 @@ it('P3 shows distributions, recurring filters, transition review and stale notic
   if (openCoherence2) fireEvent.click(openCoherence2);
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   expect(await screen.findByText('62,5 (56,25–68,75, n = 2)')).toBeInTheDocument();
-  fireEvent.click(await screen.findByRole('button', { name: /Động từ chưa cụ thể · 3 lần/ }));
+  fireEvent.click(await screen.findByRole('button', { name: /Động từ chưa cụ thể: 3 lần/ }));
   expect(screen.getByRole('tab', { name: 'Full text' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByText('Paragraph 1.')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('treeitem', { name: /Results/ }));
