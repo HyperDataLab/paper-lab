@@ -2,7 +2,7 @@ import { PAPER_LABELS } from './labels';
 import { PROMPT_VERSIONS } from '@/core/prompts';
 import { runFreshness } from '@/core/runFreshness';
 import { useStoredChanged } from './paperJobs';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { argumentMetrics, buildArgumentGraph, planArguments } from '@/core/argument';
 import { BatchBudgetExceededError } from '@/core/batch/runBatch';
 import { defaultRhetoricSections } from '@/core/rhetoric';
@@ -16,7 +16,6 @@ import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { FindingCard, ReviewActions } from '@/shared/ui/FindingCard';
-import { ArgumentDiagram } from './ArgumentDiagram';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { usePaperScope, useRunBudget } from './paperScope';
 import { RunSetup, ScopeWarning } from './RunSetup';
@@ -27,6 +26,11 @@ import { PlaceText } from './PlaceText';
 import type { ClaimType } from '@/core/argument/claimTypes';
 import { ClaimTypeBadge, ClaimTypeFilter } from './ClaimTypes';
 import { EvidenceLevelBadge } from './EvidenceLevel';
+import { Select } from '@/shared/ui/Select';
+
+const ArgumentDiagram = lazy(() =>
+  import('./ArgumentDiagram').then((module) => ({ default: module.ArgumentDiagram })),
+);
 
 type Location = Finding['locations'][number];
 type Span = Argument['claim'];
@@ -56,6 +60,7 @@ export function PaperArguments({
   const [showSetup, setShowSetup] = useState(false);
   // A diagram is the default reading; the list keeps every argument on one page for scanning.
   const [layout, setLayout] = useState('diagram');
+  const [selectedArgumentId, setSelectedArgumentId] = useState<string | undefined>();
   const [claimType, setClaimType] = useState<ClaimType | null>(null);
   const controller = useRef<AbortController | null>(null);
   useEffect(() => {
@@ -219,17 +224,33 @@ export function PaperArguments({
       : [];
   const nodeText = (id: string) => metrics?.graph.nodes.find((node) => node.id === id)?.span;
   const filtered = ordered.filter((item) => !claimType || item.claimType === claimType);
+  const activeArgumentId =
+    view === 'aif' && selectedArgumentId === '__whole'
+      ? '__whole'
+      : filtered.some((item) => item.id === selectedArgumentId)
+        ? selectedArgumentId
+        : filtered[0]?.id;
+  const wholePaperSelected = activeArgumentId === '__whole';
+  const activeArgumentIndex = Math.max(
+    0,
+    filtered.findIndex((item) => item.id === activeArgumentId),
+  );
   return (
     <div className={styles.panel}>
       <Card padding="md">
-        {!run && <h2>Phân tích argument</h2>}
-        {!run && (
-          <p>
-            Tìm các claims của tác giả và cấu trúc của chúng theo Toulmin. AI đề xuất, code kiểm tra từng
-            trích dẫn, bạn xác nhận. Đây là mô tả cấu trúc, không kết luận argument đúng hay sai.
-          </p>
-        )}
+        <div className={styles.runHeading}>
+          <div>
+            <h2>Phân tích lập luận</h2>
+            <p>AI đề xuất cấu trúc claim và nguồn dẫn; bạn kiểm tra rồi xác nhận từng nhận định.</p>
+          </div>
+          {run && (
+            <Badge tone={record?.argumentPending ? 'warning' : 'neutral'}>
+              {record?.argumentPending ? 'Còn phần chưa chạy' : 'Kết quả phân tích'}
+            </Badge>
+          )}
+        </div>
         <ActionBar
+          busy={running}
           status={
             running ? (
               <span role="status">
@@ -263,21 +284,82 @@ export function PaperArguments({
         </ActionBar>
         {(!run || showSetup) && !running && setup}
         {(!(!run || showSetup) || running) && (
-          <ScopeWarning paper={paper} sections={sections} onSections={setSections} />
+          <div className={styles.runScope}>
+            <ScopeWarning paper={paper} sections={sections} onSections={setSections} />
+          </div>
         )}
-        {error && <div role="alert">{error}</div>}
+        {error && (
+          <div className={styles.runError} role="alert">
+            {error}
+          </div>
+        )}
         {run && run.failedSectionIds.length > 0 && (
-          <p role="status">
-            Chưa đọc được:{' '}
-            {run.failedSectionIds
-              .map((id) => paper.sections.find((s) => s.id === id)?.heading ?? id)
-              .join(', ')}
-            .
-          </p>
+          <div className={styles.runWarning} role="status">
+            <span>
+              Chưa phân tích được{' '}
+              {run.failedSectionIds
+                .map((id) => paper.sections.find((s) => s.id === id)?.heading ?? id)
+                .join(', ')}
+              . Kết quả ở các mục khác vẫn dùng được.
+            </span>
+            <Button size="sm" onClick={() => setShowSetup(true)}>
+              Chọn mục để chạy lại
+            </Button>
+          </div>
         )}
       </Card>
       {run && metrics && (
         <Card padding="md">
+          <ClaimTypeFilter
+            types={ordered.map((item) => item.claimType)}
+            value={claimType}
+            onChange={setClaimType}
+          />
+          <div className={styles.argumentPicker}>
+            <Select
+              label="Argument đang chọn"
+              size="sm"
+              value={activeArgumentId ?? ''}
+              disabled={filtered.length === 0}
+              onChange={(event) => setSelectedArgumentId(event.target.value)}
+            >
+              {view === 'aif' && <option value="__whole">Toàn bài</option>}
+              {filtered.length === 0 ? (
+                <option value="">Không có argument phù hợp</option>
+              ) : (
+                filtered.map((item, index) => (
+                  <option key={item.id} value={item.id}>
+                    {index + 1}. {item.claim.excerpt.slice(0, 72)}
+                    {item.claim.excerpt.length > 72 ? '…' : ''}
+                  </option>
+                ))
+              )}
+            </Select>
+            <div className={styles.argumentStepper} aria-label="Điều hướng argument">
+              <Button
+                size="sm"
+                aria-label="Argument trước"
+                disabled={!filtered.length || wholePaperSelected || activeArgumentIndex === 0}
+                onClick={() => setSelectedArgumentId(filtered[activeArgumentIndex - 1]?.id)}
+              >
+                ‹
+              </Button>
+              <span>
+                {wholePaperSelected ? 'Toàn bài' : filtered.length ? activeArgumentIndex + 1 : 0} /{' '}
+                {filtered.length}
+              </span>
+              <Button
+                size="sm"
+                aria-label="Argument sau"
+                disabled={
+                  !filtered.length || wholePaperSelected || activeArgumentIndex >= filtered.length - 1
+                }
+                onClick={() => setSelectedArgumentId(filtered[activeArgumentIndex + 1]?.id)}
+              >
+                ›
+              </Button>
+            </div>
+          </div>
           <div className={styles.layoutHead}>
             <h2>
               {view === 'toulmin'
@@ -294,25 +376,31 @@ export function PaperArguments({
               onChange={setLayout}
             />
           </div>
-          <ClaimTypeFilter
-            types={ordered.map((item) => item.claimType)}
-            value={claimType}
-            onChange={setClaimType}
-          />
           {layout === 'diagram' && (
-            <ArgumentDiagram
-              paper={paper}
-              graph={
-                claimType
-                  ? buildArgumentGraph(metrics.live.filter((item) => item.claimType === claimType))
-                  : metrics.graph
+            <Suspense
+              fallback={
+                <div className={styles.dCanvas}>
+                  <Loading label="Đang tải lược đồ…" />
+                </div>
               }
-              items={filtered}
-              states={metrics.states}
-              view={view}
-              onLocation={open}
-              onDecide={decide}
-            />
+            >
+              <ArgumentDiagram
+                paper={paper}
+                graph={
+                  claimType
+                    ? buildArgumentGraph(metrics.live.filter((item) => item.claimType === claimType))
+                    : metrics.graph
+                }
+                items={filtered}
+                states={metrics.states}
+                view={view}
+                onLocation={open}
+                onDecide={decide}
+                selectedId={activeArgumentId}
+                onSelectedIdChange={setSelectedArgumentId}
+                showArgumentPicker={false}
+              />
+            </Suspense>
           )}
         </Card>
       )}
@@ -335,62 +423,75 @@ export function PaperArguments({
             filtered.map((item) => {
               const state = metrics.states.get(item.id);
               return (
-                <FindingCard
+                <div
                   key={item.id}
-                  state={state ?? 'open'}
-                  labels={
-                    <>
-                      <Badge tone={item.importance === 'main' ? 'accent' : 'neutral'}>
-                        {item.importance === 'main' ? 'Claim chính' : 'Claim phụ'}
-                      </Badge>
-                      <ClaimTypeBadge type={item.claimType} />
-                      <EvidenceLevelBadge level={item.evidenceLevel} basis={item.evidenceBasis} />
-                      {state && (
-                        <Badge tone={state === 'confirmed' ? 'success' : 'danger'}>
-                          {state === 'confirmed' ? 'Đã xác nhận' : 'Đã bác bỏ'}
-                        </Badge>
-                      )}
-                    </>
-                  }
-                  quote={item.claim.excerpt}
-                  source={{
-                    label: <PlaceText paper={paper} paragraphId={item.claim.paragraphId} />,
-                    onOpen: () => open(item.claim),
-                  }}
-                  actions={
-                    <ReviewActions
-                      acceptByDefault
-                      decided={Boolean(state)}
-                      dismissLabel="Loại bỏ"
-                      onConfirm={() => decide(item.id, 'confirm')}
-                      onDismiss={() => decide(item.id, 'dismiss')}
-                      onUndo={() => decide(item.id, 'reopen')}
-                    />
-                  }
+                  className={styles.argumentRow}
+                  data-selected={activeArgumentId === item.id}
                 >
-                  <dl className={styles.slots}>
-                    <dt>Grounds</dt>
-                    <dd>{quotes(item.data)}</dd>
-                    <dt>Warrant</dt>
-                    <dd>
-                      {item.statedWarrant ? (
-                        quotes([item.statedWarrant])
-                      ) : item.inferredWarrant ? (
-                        <>
-                          <Badge tone="warning">AI suy ra, tác giả không nêu</Badge> {item.inferredWarrant}
-                        </>
-                      ) : (
-                        <span className={styles.empty}>{PAPER_LABELS.notIdentified}</span>
-                      )}
-                    </dd>
-                    <dt>Backing</dt>
-                    <dd>{quotes(item.backing)}</dd>
-                    <dt>Qualifier</dt>
-                    <dd>{quotes(item.qualifier ? [item.qualifier] : [])}</dd>
-                    <dt>Rebuttal</dt>
-                    <dd>{quotes(item.rebuttals)}</dd>
-                  </dl>
-                </FindingCard>
+                  <FindingCard
+                    state={state ?? 'open'}
+                    labels={
+                      <>
+                        <Badge tone={item.importance === 'main' ? 'accent' : 'neutral'}>
+                          {item.importance === 'main' ? 'Claim chính' : 'Claim phụ'}
+                        </Badge>
+                        <ClaimTypeBadge type={item.claimType} />
+                        <EvidenceLevelBadge level={item.evidenceLevel} basis={item.evidenceBasis} />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          aria-pressed={activeArgumentId === item.id}
+                          onClick={() => setSelectedArgumentId(item.id)}
+                        >
+                          {activeArgumentId === item.id ? 'Đang chọn' : 'Chọn trên lược đồ'}
+                        </Button>
+                        {state && (
+                          <Badge tone={state === 'confirmed' ? 'success' : 'danger'}>
+                            {state === 'confirmed' ? 'Đã xác nhận' : 'Đã bác bỏ'}
+                          </Badge>
+                        )}
+                      </>
+                    }
+                    quote={item.claim.excerpt}
+                    source={{
+                      label: <PlaceText paper={paper} paragraphId={item.claim.paragraphId} />,
+                      onOpen: () => open(item.claim),
+                    }}
+                    actions={
+                      <ReviewActions
+                        acceptByDefault
+                        decided={Boolean(state)}
+                        dismissLabel="Loại bỏ"
+                        onConfirm={() => decide(item.id, 'confirm')}
+                        onDismiss={() => decide(item.id, 'dismiss')}
+                        onUndo={() => decide(item.id, 'reopen')}
+                      />
+                    }
+                  >
+                    <dl className={styles.slots}>
+                      <dt>Grounds</dt>
+                      <dd>{quotes(item.data)}</dd>
+                      <dt>Warrant</dt>
+                      <dd>
+                        {item.statedWarrant ? (
+                          quotes([item.statedWarrant])
+                        ) : item.inferredWarrant ? (
+                          <>
+                            <Badge tone="warning">AI suy ra, tác giả không nêu</Badge> {item.inferredWarrant}
+                          </>
+                        ) : (
+                          <span className={styles.empty}>{PAPER_LABELS.notIdentified}</span>
+                        )}
+                      </dd>
+                      <dt>Backing</dt>
+                      <dd>{quotes(item.backing)}</dd>
+                      <dt>Qualifier</dt>
+                      <dd>{quotes(item.qualifier ? [item.qualifier] : [])}</dd>
+                      <dt>Rebuttal</dt>
+                      <dd>{quotes(item.rebuttals)}</dd>
+                    </dl>
+                  </FindingCard>
+                </div>
               );
             })}
           <p className={styles.note}>

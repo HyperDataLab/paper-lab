@@ -11,6 +11,7 @@ import { downloadJson, downloadText } from '@/shared/calibration/download';
 import { createScholarClient } from '@/shared/scholar/client';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Button } from '@/shared/ui/Button';
+import { ActivityStatus } from '@/shared/ui/ActivityStatus';
 import { SheetSection } from '@/shared/ui/SheetSection';
 import { TextField } from '@/shared/ui/TextField';
 import { useGrobidState } from './grobidContext';
@@ -221,14 +222,16 @@ export function PaperMetadata({ paper }: { paper: Paper }) {
   }
   return (
     <div className={styles.metadata}>
-      <p className={styles.sourceLine} role={running ? 'status' : undefined}>
-        <Info size={14} aria-hidden="true" />
-        {running
-          ? 'Đang tra cứu…'
-          : metadata
+      {running ? (
+        <ActivityStatus label="Đang tra cứu metadata…" />
+      ) : (
+        <p className={styles.sourceLine}>
+          <Info size={14} aria-hidden="true" />
+          {metadata
             ? `Nguồn: ${SOURCE_LABELS[metadata.source]} · ${new Date(metadata.fetchedAt).toLocaleString('vi-VN')}${filled.length && metadata.source !== 'grobid' ? ` · thêm từ GROBID: ${filled.map((field) => FILLED_LABELS[field]).join(', ')}` : ''}`
             : 'Chưa có metadata. Chỉ DOI được gửi tới OpenAlex.'}
-      </p>
+        </p>
+      )}
       <GrobidStatus />
 
       <div className={styles.fullTitle}>

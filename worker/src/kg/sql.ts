@@ -1,3 +1,4 @@
+import { PROJECT_ID_PREFIX, scopePrefix, type ProjectScope } from '../scope';
 import { KG_SQL_MAX_BYTES, KgSqlRequestSchema, type KgSqlResult } from '../../../src/core/schemas/kgSql';
 import { KG_TABLE_CONCEPTS } from '../../../src/core/semantic/kgSchema';
 import { publishedError } from '../published';
@@ -10,11 +11,74 @@ const FROM_END = new Set(['where', 'having', 'limit']);
 const SQL_TIME_BUDGET_MS = 5_000;
 const MAX_BODY_BYTES = KG_SQL_MAX_BYTES * 6 + 1_024; // A JSON escape can take six bytes per character.
 const wrapSql = (sql: string) => `SELECT * FROM (${sql}) LIMIT ?`;
+const PROJECT_SCOPE_COLUMN: Record<string, string> = {
+  paper: 'id',
+  source: 'id',
+  keyword: 'id',
+  author: 'id',
+  institution: 'id',
+  topic: 'id',
+  subfield: 'id',
+  field: 'id',
+  domain: 'id',
+  contribution: 'published_paper_id',
+  builds_on: 'published_paper_id',
+  has_keyword: 'paper_id',
+  cites: 'paper_id',
+  related_to: 'paper_id',
+  authored: 'paper_id',
+  affiliated: 'paper_id',
+  has_topic: 'paper_id',
+  coauthor: 'left_id',
+  cooccur: 'left_id',
+  subfield_of: 'topic_id',
+  field_of: 'subfield_id',
+  domain_of: 'field_id',
+  // Queue ids are scoped like paper ids: `@rh/<projectId>/<id>` in a project, unprefixed in the lab.
+  ingest_queue: 'id',
+  ingest_log: 'id',
+};
+
+function render(tokens: Token[]): string {
+  let sql = '';
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (!token) continue;
+    if (token.kind === 'group') {
+      if (sql && !sql.endsWith(' ') && !sql.endsWith('(')) sql += ' ';
+      sql += `(${render(token.tokens)})`;
+      continue;
+    }
+    if (token.kind === 'symbol' && token.value === '.') {
+      sql = `${sql.trimEnd()}.`;
+      continue;
+    }
+    if (token.kind === 'symbol' && token.value === ',') {
+      sql = `${sql.trimEnd()}, `;
+      continue;
+    }
+    const next = tokens[i + 1];
+    const operator = token.kind === 'symbol' && next?.kind === 'symbol' ? `${token.value}${next.value}` : '';
+    if (['!=', '<>', '<=', '>=', '||', '=='].includes(operator)) {
+      if (sql && !sql.endsWith(' ')) sql += ' ';
+      sql += `${operator} `;
+      i++;
+      continue;
+    }
+    if (sql && !sql.endsWith(' ') && !sql.endsWith('.')) sql += ' ';
+    if (token.kind === 'string') sql += `'${token.value.replaceAll("'", "''")}'`;
+    else if (token.kind === 'identifier') sql += `"${token.value.replaceAll('"', '""')}"`;
+    else sql += token.value;
+  }
+  return sql.trim();
+}
 
 type Scope = ReadonlySet<string>;
 
 class SqlSources {
   readonly concepts = new Set<string>();
+
+  constructor(private readonly projectId: ProjectScope) {}
 
   query(tokens: Token[], inherited: Scope) {
     let start = 0;
@@ -115,6 +179,62 @@ class SqlSources {
     if (!concept)
       throw new KgSqlError('sql_table', 'The statement references a table outside the KG registry.');
     this.concepts.add(concept);
+    {
+      // Every table read is narrowed to the caller's scope: a project's `@rh/<projectId>/` rows, or the lab's
+      // unprefixed rows (ADR 0008).
+      const scopeColumn = PROJECT_SCOPE_COLUMN[name];
+      if (!scopeColumn) throw new KgSqlError('sql_table', 'The KG table has no project scope.');
+      const condition: Token[] = this.projectId
+        ? [
+            { kind: 'word', value: 'like' },
+            { kind: 'string', value: `${scopePrefix(this.projectId)}%` },
+          ]
+        : [
+            { kind: 'word', value: 'not' },
+            { kind: 'word', value: 'like' },
+            { kind: 'string', value: `${PROJECT_ID_PREFIX}%` },
+          ];
+      tokens[index] = {
+        kind: 'group',
+        tokens: [
+          { kind: 'word', value: 'select' },
+          { kind: 'symbol', value: '*' },
+          { kind: 'word', value: 'from' },
+          { kind: 'identifier', value: name },
+          { kind: 'word', value: 'where' },
+          { kind: 'identifier', value: scopeColumn },
+          ...condition,
+        ],
+      };
+      const next = tokens[index + 1];
+      const nextWord = word(next);
+      const clause = new Set([
+        'where',
+        'join',
+        'left',
+        'right',
+        'full',
+        'inner',
+        'cross',
+        'outer',
+        'on',
+        'using',
+        'group',
+        'order',
+        'limit',
+        'union',
+        'intersect',
+        'except',
+        'window',
+        'having',
+        'indexed',
+      ]);
+      const hasAlias =
+        nextWord === 'as' ||
+        (next && (next.kind === 'word' || next.kind === 'identifier') && !clause.has(nextWord ?? ''));
+      if (!hasAlias)
+        tokens.splice(index + 1, 0, { kind: 'word', value: 'as' }, { kind: 'identifier', value: name });
+    }
   }
 
   private expression(tokens: Token[], index: number, ctes: Scope) {
@@ -122,7 +242,7 @@ class SqlSources {
     const next = tokens[index + 1];
     // SQLite also accepts `x IN table` and `x IN table_function(...)` as implicit reads.
     if (word(token) === 'in' && next?.kind !== 'group') invalidSql('Use IN (...) for values and subqueries.');
-    if (token?.kind === 'string' && token.value === 'load_extension' && next?.kind === 'group')
+    if (token?.kind === 'string' && token.value.toLowerCase() === 'load_extension' && next?.kind === 'group')
       throw new KgSqlError('sql_forbidden', 'SQL contains a prohibited function.');
     if (token?.kind !== 'group') return;
     if (word(token.tokens[0]) === 'select' || word(token.tokens[0]) === 'with') {
@@ -133,7 +253,7 @@ class SqlSources {
   }
 }
 
-export function validateKgSql(input: string) {
+export function validateKgSql(input: string, projectId?: ProjectScope) {
   if (
     input.length > KG_SQL_MAX_BYTES ||
     new TextEncoder().encode(wrapSql(input)).byteLength > KG_SQL_MAX_BYTES
@@ -141,18 +261,28 @@ export function validateKgSql(input: string) {
     throw new KgSqlError('sql_limit', 'The wrapped SQL exceeds the D1 statement size limit.');
   const sql = input.replace(/^[ \t\r\n\f]+|[ \t\r\n\f]+$/gu, '');
   const { tokens, terminated } = tokenizeSql(sql);
-  const sources = new SqlSources();
+  const sources = new SqlSources(projectId);
   sources.query(tokens, new Set());
-  return { sql: terminated ? sql.slice(0, -1).trimEnd() : sql, concepts: [...sources.concepts] };
+  return {
+    sql: terminated ? sql.slice(0, -1).trimEnd() : sql,
+    scopedSql: render(tokens),
+    concepts: [...sources.concepts],
+  };
 }
 
 type DbCell = KgSqlResult['rows'][number][number];
 
-export async function runKgSql(db: D1Database, input: unknown): Promise<KgSqlResult> {
+export async function runKgSql(
+  db: D1Database,
+  input: unknown,
+  projectId?: ProjectScope,
+): Promise<KgSqlResult> {
   const parsed = KgSqlRequestSchema.safeParse(input);
   if (!parsed.success)
     throw new KgSqlError('bad_request', 'Expected SQL and an optional integer limit from 1 to 1000.');
-  const { sql, concepts } = validateKgSql(parsed.data.sql);
+  const validated = validateKgSql(parsed.data.sql, projectId);
+  const { sql, concepts } = validated;
+  const executableSql = validated.scopedSql;
   const { limit } = parsed.data;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -165,7 +295,7 @@ export async function runKgSql(db: D1Database, input: unknown): Promise<KgSqlRes
         );
       }),
       db
-        .prepare(wrapSql(sql))
+        .prepare(wrapSql(executableSql))
         .bind(limit + 1)
         .raw<DbCell[]>({ columnNames: true }),
     ]);
@@ -192,7 +322,12 @@ export async function runKgSql(db: D1Database, input: unknown): Promise<KgSqlRes
   }
 }
 
-export async function handleKgSql(db: D1Database, request: Request, headers: Record<string, string>) {
+export async function handleKgSql(
+  db: D1Database,
+  request: Request,
+  headers: Record<string, string>,
+  projectId: ProjectScope,
+) {
   const responseHeaders = { ...headers, 'Cache-Control': 'no-store' };
   if (request.method !== 'POST') return publishedError(405, 'bad_request', 'Use POST.', responseHeaders);
   try {
@@ -221,7 +356,7 @@ export async function handleKgSql(db: D1Database, request: Request, headers: Rec
     } catch {
       throw new KgSqlError('bad_request', 'Expected a JSON request body.');
     }
-    return Response.json(await runKgSql(db, body), { headers: responseHeaders });
+    return Response.json(await runKgSql(db, body, projectId), { headers: responseHeaders });
   } catch (cause) {
     if (cause instanceof KgSqlError) return publishedError(400, cause.code, cause.message, responseHeaders);
     throw cause;

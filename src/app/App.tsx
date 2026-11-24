@@ -1,5 +1,5 @@
 import { Menu, Monitor, Moon, Search, Sun } from 'lucide-react';
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Drawer } from '@/shared/ui/Drawer';
 import { IconButton } from '@/shared/ui/IconButton';
@@ -10,6 +10,7 @@ import { Skeleton } from '@/shared/ui/Skeleton';
 import { StorageProvider, StorageStatus } from '@/shared/storage/StorageProvider';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { AuthProvider } from '@/shared/auth/AuthProvider';
+import { AUTH_MODE } from '@/shared/auth/config';
 import { AccountButton } from './AccountButton';
 import { CommandPalette } from './CommandPalette';
 import { modules } from './modules';
@@ -27,11 +28,11 @@ const NEXT_THEME: Record<Theme, Theme> = { system: 'light', light: 'dark', dark:
 function readTheme(): Theme {
   try {
     const value = localStorage.getItem('theme');
-    if (value === 'light' || value === 'dark') return value;
+    if (value === 'light' || value === 'dark' || value === 'system') return value;
   } catch {
     /* Storage may be unavailable. */
   }
-  return 'system';
+  return 'light';
 }
 export function App() {
   const [drawer, setDrawer] = useState(false);
@@ -39,7 +40,9 @@ export function App() {
   const closeDrawer = useCallback(() => setDrawer(false), []);
   const location = useLocation();
   const navigate = useNavigate();
-  const rawProjectId = new URLSearchParams(location.search).get('projectId');
+  // The Firebase build works in the lab store and ignores ResearchHub project links (ADR 0008).
+  const rawProjectId =
+    AUTH_MODE === 'firebase' ? null : new URLSearchParams(location.search).get('projectId');
   const validProjectId =
     rawProjectId &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(rawProjectId)
@@ -63,13 +66,27 @@ export function App() {
     /^\/(?:report|papers|extraction|corpus)\/[^/]+$/u.test(location.pathname);
   // Workspaces and wide tables use the whole window; lists, forms and home stay at a readable width.
   const wideContent =
-    location.pathname.startsWith('/report/') ||
+    location.pathname === '/' ||
     location.pathname === '/compare' ||
+    location.pathname === '/extraction' ||
+    location.pathname === '/papers' ||
     location.pathname.startsWith('/extraction/') ||
     location.pathname.startsWith('/corpus/') ||
-    location.pathname.startsWith('/papers/');
+    location.pathname.startsWith('/papers/') ||
+    location.pathname === '/lab-kg' ||
+    location.pathname === '/playground';
   // A paper is a workspace: on wide screens it fills the window and its columns scroll on their own.
   const appContent = /^\/papers\/[^/]+/.test(location.pathname);
+  const projectDetailContent = /^\/extraction\/[^/]+$/u.test(location.pathname);
+  const corpusDetailContent = /^\/corpus\/[^/]+$/u.test(location.pathname);
+  const fullWidthPageContent =
+    location.pathname === '/' ||
+    location.pathname === '/papers' ||
+    location.pathname === '/extraction' ||
+    location.pathname === '/corpus' ||
+    location.pathname === '/lab-kg' ||
+    location.pathname === '/playground' ||
+    location.pathname === '/transfer';
   useEffect(() => {
     if (invalidProjectId) {
       // Route changes may remove projectId for one render; keep the last accepted ID for that transition.
@@ -97,9 +114,8 @@ export function App() {
     rawProjectId,
     validProjectId,
   ]);
-  useEffect(() => {
-    if (theme === 'system') delete document.documentElement.dataset.theme;
-    else document.documentElement.dataset.theme = theme;
+  useLayoutEffect(() => {
+    document.documentElement.dataset.theme = theme;
     try {
       localStorage.setItem('theme', theme);
     } catch {
@@ -124,7 +140,7 @@ export function App() {
           <div className={styles.main}>
             <header className={styles.topbar}>
               <div className={styles.mobileMenu}>
-                <IconButton label="Mở menu" onClick={() => setDrawer(true)}>
+                <IconButton label="Mở menu" aria-expanded={drawer} onClick={() => setDrawer(true)}>
                   <Menu size={20} />
                 </IconButton>
               </div>
@@ -162,7 +178,7 @@ export function App() {
               </div>
             </header>
             <main
-              className={`${styles.content} ${wideContent ? styles.wideContent : ''} ${appContent ? styles.appContent : ''}`}
+              className={`${styles.content} ${wideContent ? styles.wideContent : ''} ${appContent ? styles.appContent : ''} ${projectDetailContent ? styles.projectDetailContent : ''} ${corpusDetailContent ? styles.corpusDetailContent : ''} ${fullWidthPageContent ? styles.fullWidthPageContent : ''}`}
             >
               <StorageProvider
                 key={workspaceProjectId ?? 'local-workspace'}

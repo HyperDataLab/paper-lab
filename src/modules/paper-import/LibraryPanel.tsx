@@ -20,6 +20,7 @@ import { downloadText } from '@/shared/calibration/download';
 import { getScholarEmail } from '@/shared/scholar/settings';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
+import { ActivityStatus } from '@/shared/ui/ActivityStatus';
 import { Checkbox } from '@/shared/ui/Checkbox';
 import { Chip } from '@/shared/ui/Chip';
 import { Dialog } from '@/shared/ui/Dialog';
@@ -250,9 +251,10 @@ export function LibraryPanel() {
             <span>{picked.length ? `Đã chọn ${picked.length}` : `Đang hiện ${shown.length} bài`}</span>
             {running ? (
               <>
-                <span role="status">
-                  Đang xử lý {done.finished}/{done.total}
-                </span>
+                <ActivityStatus
+                  label={`Đang xử lý ${done.finished}/${done.total} bài`}
+                  progress={{ value: done.finished, max: done.total }}
+                />
                 <Button size="sm" onClick={library.cancel}>
                   Dừng
                 </Button>

@@ -10,6 +10,7 @@ const module: ModuleDefinition = {
   group: 'labs',
   order: 1,
   status: 'beta',
+  adminOnly: true,
   page: lazy(() => import('./Page')),
 };
 export default module;

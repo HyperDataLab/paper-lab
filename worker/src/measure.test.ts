@@ -32,7 +32,7 @@ function setup(overrides: Partial<Deps> = {}) {
     bucket,
     verifyToken: async (token) => {
       if (token !== 'good') throw new Error('bad token');
-      return { uid: '1', email: 'lab@example.org' };
+      return { uid: '1', email: 'lab@example.org', kind: 'sso' as const };
     },
     allowedOrigins: ['https://bank.example.org'],
     getOwnedProject: async (projectId) => ({ id: projectId, name: 'Test project' }),

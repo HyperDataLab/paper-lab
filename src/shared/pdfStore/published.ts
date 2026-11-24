@@ -1,3 +1,4 @@
+import { projectHeader } from '@/shared/scope';
 import { z } from 'zod';
 import { publishedPaperId } from '@/core/paperModel/published';
 import type { ExperimentFacts, PaperModel } from '@/core/schemas';
@@ -42,7 +43,7 @@ export async function publishPaperModel(
       method: 'PUT',
       headers: {
         Authorization: `Bearer ${token}`,
-        'X-Project-Id': projectId,
+        ...projectHeader(projectId),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(model),
@@ -100,7 +101,7 @@ export async function publishFrozenPlan(
       method: 'PUT',
       headers: {
         Authorization: `Bearer ${token}`,
-        'X-Project-Id': hubProjectId,
+        ...projectHeader(hubProjectId),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(plan),
@@ -124,7 +125,7 @@ export async function publishExperimentFacts(facts: ExperimentFacts, token: stri
       method: 'PUT',
       headers: {
         Authorization: `Bearer ${token}`,
-        'X-Project-Id': projectId,
+        ...projectHeader(projectId),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(facts),

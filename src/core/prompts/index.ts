@@ -2,6 +2,7 @@ export const PROMPT_VERSIONS = {
   corpusTopicName: 'corpus-topic-name-2',
   connectionTest: 'conn-test-1',
   kgSql: 'kg-sql-1',
+  kgAnswer: 'kg-answer-1',
   sentenceSyntax: 'sent-syntax-1',
   candidateJudge: 'cand-judge-1',
   paragraphStructure: 'para-struct-2',

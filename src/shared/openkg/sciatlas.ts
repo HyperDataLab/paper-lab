@@ -1,3 +1,4 @@
+import { projectHeader } from '@/shared/scope';
 import { z } from 'zod';
 import {
   SciAtlasSearchResponseSchema,
@@ -68,7 +69,7 @@ export async function searchSciAtlas(
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
-        'X-Project-Id': projectId,
+        ...projectHeader(projectId),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(request),

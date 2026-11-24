@@ -1,6 +1,7 @@
 import { getContainer } from '@cloudflare/containers';
+import { createRemoteJWKSet, customFetch } from 'jose';
 import { handle, type Bucket } from './app';
-import { verifySsoToken } from './auth';
+import { cachedSsoVerifier, dualVerifier, SECURETOKEN_JWKS, verifyFirebaseToken } from './auth';
 import { GrobidStartingError } from './grobid-error';
 import { collectOrphanBodies } from './data/gc';
 import { configuredKg, type D1Database, type KgBindings } from './kg/bindings';
@@ -12,6 +13,10 @@ export { GrobidContainer } from './grobid';
 
 interface Env extends KgBindings {
   BUCKET: Bucket;
+  /** PaperLab's Firebase project; the fallback when ACCEPTED_PROJECT_IDS is unset. */
+  FIREBASE_PROJECT_ID: string;
+  /** Comma-separated Firebase projects whose ID tokens are accepted (lab scope only). */
+  ACCEPTED_PROJECT_IDS?: string;
   SSO_BASE_URL: string;
   RESEARCH_HUB_API_URL?: string;
   RESEARCH_HUB: { fetch(request: Request): Promise<Response> };
@@ -25,6 +30,33 @@ interface Env extends KgBindings {
   DATA?: D1Database;
   PASSAGE_VECTORS?: PassageVectorIndex;
   SCIATLAS_API_KEY?: string;
+}
+
+// A Worker's fetch goes through Cloudflare's cache, which keeps Google's key set for its ~7 h max-age; after a key
+// rotation every newly signed token would fail. jose already caches the keys in the isolate.
+const jwks = createRemoteJWKSet(new URL(SECURETOKEN_JWKS), {
+  [customFetch]: (url, options) => fetch(url, { ...options, cache: 'no-store' }),
+});
+
+// One verifier per isolate, so the SSO userinfo cache outlives a single request.
+let verifier: { key: string; verify: ReturnType<typeof dualVerifier> } | undefined;
+function verifyToken(env: Env) {
+  const projects = (env.ACCEPTED_PROJECT_IDS ?? env.FIREBASE_PROJECT_ID ?? '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
+  const key = JSON.stringify([projects, env.SSO_BASE_URL, env.ALLOWED_DOMAIN]);
+  if (verifier?.key !== key) {
+    const sso = cachedSsoVerifier({ ssoBaseUrl: env.SSO_BASE_URL, domain: env.ALLOWED_DOMAIN });
+    verifier = {
+      key,
+      verify: dualVerifier({
+        firebase: (token) => verifyFirebaseToken(token, jwks, projects, env.ALLOWED_DOMAIN),
+        sso,
+      }),
+    };
+  }
+  return verifier.verify;
 }
 
 class ResearchHubApiError extends Error {
@@ -196,7 +228,7 @@ export default {
   fetch(request: Request, env: Env): Promise<Response> {
     return handle(
       {
-        verifyToken: (token) => verifySsoToken(token, env.SSO_BASE_URL, env.ALLOWED_DOMAIN),
+        verifyToken: verifyToken(env),
         getOwnedProject: (projectId, token) => getOwnedProject(env, projectId, token),
         uploadProjectFile: (projectId, token, fileName, body) =>
           uploadResearchHubFile(env, projectId, token, fileName, body),
@@ -225,6 +257,8 @@ export default {
   async scheduled(_event: unknown, env: Env): Promise<void> {
     const kg = configuredKg(env);
     if (kg) {
+      // The lab's own queue (unprefixed ids) first, then each project's `@rh/<projectId>/` queue (ADR 0008).
+      await drainKgQueue(kg, { now: () => new Date() });
       const [rows] = await kg.db.batch<{ projectId: string }>([
         kg.db.prepare(`SELECT DISTINCT substr(id, 5, instr(substr(id, 5), '/') - 1) AS projectId
           FROM ingest_queue WHERE id LIKE '@rh/%'`),

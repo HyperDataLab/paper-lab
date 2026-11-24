@@ -1,3 +1,4 @@
+import { projectHeader } from '@/shared/scope';
 import { z } from 'zod';
 import { PDF_WORKER_URL, projectScopedUrl } from '@/shared/pdfStore';
 import {
@@ -82,7 +83,7 @@ export class RemoteDataClient {
       cache: 'no-store',
       headers: {
         Authorization: `Bearer ${token}`,
-        'X-Project-Id': this.options.projectId,
+        ...projectHeader(this.options.projectId),
         ...(payload === undefined ? {} : { 'Content-Type': 'application/json' }),
         ...headers,
       },

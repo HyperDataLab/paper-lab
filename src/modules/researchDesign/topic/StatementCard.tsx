@@ -1,15 +1,16 @@
-import { Card } from '@/shared/ui/Card';
 import { BlurField } from './BlurField';
 import type { Props } from './types';
 export function StatementCard({ check, change }: Props) {
   return (
-    <Card>
-      <h3>Topic và research gaps</h3>
+    <section>
       <BlurField
+        id="topic-statement"
         label="Phát biểu đề tài"
+        rows={3}
+        maxRows={12}
         value={check.statement}
         save={(statement) => change((c) => ({ ...c, statement }))}
       />
-    </Card>
+    </section>
   );
 }

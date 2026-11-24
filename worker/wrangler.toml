@@ -9,11 +9,20 @@ account_id = "124949a79dc6c5894bc492942593cb51"
 zod = "./node_modules/zod/index.js"
 
 [vars]
+# Two sign-ins (ADR 0008, owner 2026-11-25). A Firebase ID token gives lab scope only; an SSO access token gives
+# lab scope, or project scope with X-Project-Id.
+FIREBASE_PROJECT_ID = "hyperdatalab-paragraph-lab"
+# Owner, 2026-11-18: the Writing Bank site (its own Firebase project) may call this worker, e.g. POST /v1/measure.
+# Lab sign-in (ALLOWED_DOMAIN) still applies to tokens from every project.
+# Owner, 2026-11-20: idea2hypothesis (Firebase project hyperdatalab-idea2hypo) lists corpora from its start-run
+# dialog, and its i2h-worker calls the Lab KG, SciAtlas, corpora and GROBID routes with the signed-in person's token.
+ACCEPTED_PROJECT_IDS = "hyperdatalab-paragraph-lab,hyperdatalab-writing-bank,hyperdatalab-idea2hypo"
+# HyperDataLab SSO: access tokens are checked against {SSO_BASE_URL}/oauth/userinfo (cached 5 minutes per isolate).
 SSO_BASE_URL = "https://rpr-grobid-gateway.hpl-storage.workers.dev"
 # Fill with the deployed ResearchHub Files API base URL (NEXT_PUBLIC_FILE_API_URL in ResearchHub).
 RESEARCH_HUB_API_URL = "https://research-hub-files.hyperdatalab.workers.dev"
 ALLOWED_DOMAIN = "hyperdatalab.org"
-ADMIN_EMAILS = "phuong@hyperdatalab.org"
+ADMIN_EMAILS = "phuong@hyperdatalab.org,duylh@hyperdatalab.org"
 ALLOWED_ORIGINS = "https://hyperdatalab-paragraph-lab.web.app,https://hyperdatalab-paragraph-lab.firebaseapp.com,https://paperlab.hyperdatalab.org,https://hyperdatalab-writing-bank.web.app,https://hyperdatalab-writing-bank.firebaseapp.com,https://hyperdatalab-idea2hypo.web.app,https://hyperdatalab-idea2hypo.firebaseapp.com,http://localhost:5173,http://localhost:5174"
 NLP_URL = "https://paperlab-topics-worker.hyperdatalab.workers.dev"
 LLM_ALLOWED_HOSTS = "9router.dcloud.io.vn,9router.oraltest.site"

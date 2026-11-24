@@ -20,6 +20,38 @@ export const RESEARCH_HUB_ORIGINS = ((import.meta.env.VITE_RESEARCH_HUB_ORIGINS 
     }
   });
 
+export type AuthMode = 'firebase' | 'sso';
+
+/**
+ * Which sign-in this build uses (ADR 0008). `VITE_AUTH_MODE=firebase|sso` decides; without it, a build that has
+ * an SSO client id uses SSO and any other build uses Firebase.
+ */
+export function resolveAuthMode(mode: unknown, ssoClientId: unknown): AuthMode {
+  if (mode === 'firebase' || mode === 'sso') return mode;
+  return typeof ssoClientId === 'string' && ssoClientId.trim() ? 'sso' : 'firebase';
+}
+export const AUTH_MODE: AuthMode = resolveAuthMode(import.meta.env.VITE_AUTH_MODE, SSO_CLIENT_ID);
+
+/**
+ * The public web configuration of the PaperLab Firebase project (the web.app build's sign-in). It identifies the
+ * project to Google's sign-in; it is not a secret and belongs in the bundle. Access is enforced by the workers.
+ */
+export const firebaseConfig = {
+  apiKey: 'AIzaSyDydGhJQet_2ng5QC3xKOpBUtRNOFvItXY',
+  authDomain: 'hyperdatalab-paragraph-lab.firebaseapp.com',
+  projectId: 'hyperdatalab-paragraph-lab',
+  storageBucket: 'hyperdatalab-paragraph-lab.firebasestorage.app',
+  messagingSenderId: '537098100241',
+  appId: '1:537098100241:web:f15034bcfa3c19bffb1bb0',
+};
+
+/** The same rule the workers apply: exactly one '@' and exactly the lab's domain. */
+export function labEmail(email: string | null | undefined): email is string {
+  if (!email) return false;
+  const at = email.indexOf('@');
+  return at > 0 && at === email.lastIndexOf('@') && email.slice(at + 1).toLowerCase() === LAB_DOMAIN;
+}
+
 export function isAllowedOrganizationEmail(email: unknown, verified: unknown): email is string {
   return verified === true && typeof email === 'string' && /^[^@\s]+@hyperdatalab\.org$/iu.test(email.trim());
 }

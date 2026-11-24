@@ -83,40 +83,52 @@ export function SnowballPanel({ corpus, save }: { corpus: Corpus; save: (value: 
           {withoutId} bài được chọn chưa có mã OpenAlex nên không làm bài hạt giống được.
         </p>
       )}
-      <div className={styles.row}>
-        {DIRECTIONS.map((direction) => (
-          <Checkbox
-            key={direction.id}
-            checked={directions.includes(direction.id)}
-            onChange={(event) => setDirections(toggle(directions, direction.id, event.target.checked))}
-          >
-            {direction.label}
-          </Checkbox>
-        ))}
-        <TextField
-          label="Giới hạn mỗi bài hạt giống"
-          hint="Để trống: không giới hạn"
-          inputMode="numeric"
-          value={cap}
-          onChange={(event) => setCap(event.target.value)}
-        />
-      </div>
-      <div className={styles.cardTools}>
-        <Button
-          onClick={() => void run(candidates.filter((member) => selected.includes(member.memberId)))}
-          disabled={busy || selected.length === 0 || directions.length === 0}
-        >
-          Chạy snowballing
-        </Button>
-        {state.lastRound > 0 && (
-          <Button
-            variant="ghost"
-            onClick={() => void run(state.nextSeeds)}
-            disabled={busy || state.nextSeeds.length === 0 || directions.length === 0}
-          >
-            Vòng tiếp theo
-          </Button>
-        )}
+      <div className={styles.snowballControls}>
+        <div className={styles.snowballDirections} role="group" aria-label="Hướng tìm trích dẫn">
+          {DIRECTIONS.map((direction) => {
+            const checked = directions.includes(direction.id);
+            return (
+              <div
+                key={direction.id}
+                className={`${styles.directionOption} ${checked ? styles.directionOptionSelected : ''}`}
+              >
+                <Checkbox
+                  checked={checked}
+                  onChange={(event) => setDirections(toggle(directions, direction.id, event.target.checked))}
+                >
+                  {direction.label}
+                </Checkbox>
+                <span>{checked ? 'Đang bật' : 'Đã tắt'}</span>
+              </div>
+            );
+          })}
+        </div>
+        <div className={styles.snowballRunRow}>
+          <TextField
+            label="Giới hạn mỗi bài hạt giống"
+            labelAction={<span className={styles.fieldOptional}>Tuỳ chọn</span>}
+            inputMode="numeric"
+            value={cap}
+            onChange={(event) => setCap(event.target.value)}
+          />
+          <div className={styles.snowballActions}>
+            <Button
+              variant="primary"
+              onClick={() => void run(candidates.filter((member) => selected.includes(member.memberId)))}
+              disabled={busy || selected.length === 0 || directions.length === 0}
+            >
+              {busy ? 'Đang chạy…' : 'Chạy snowballing'}
+            </Button>
+            {state.lastRound > 0 && (
+              <Button
+                onClick={() => void run(state.nextSeeds)}
+                disabled={busy || state.nextSeeds.length === 0 || directions.length === 0}
+              >
+                Vòng tiếp theo
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
       {state.converged && (
         <p className={styles.notice}>

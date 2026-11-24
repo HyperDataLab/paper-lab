@@ -2,6 +2,21 @@
 
 Decision: `docs/adr/0007-central-lab-store.md`. Existing local data is sample data, so there is no migration step.
 
+## Two scopes (ADR 0008, owner 2026-11-25)
+
+The store has a lab scope and a project scope. Details: `docs/adr/0009-dual-auth-scope.md`.
+
+- **Lab scope.** A request without `X-Project-Id` or `?projectId=` reads and writes the global lab store, as
+  before ResearchHub projects. Rows are `hub_project_id IS NULL` with unprefixed ids. Either a Firebase ID token
+  or an SSO access token works.
+- **Project scope.** A request with a project id reads and writes that ResearchHub project's rows
+  (`@rh/<projectId>/<id>`, `hub_project_id = <projectId>`). It needs an SSO access token.
+- **Isolation.** Neither scope sees the other's rows, and a logical id may not start with `@rh/`.
+- **Integrations** (Writing Bank, idea2hypothesis, Paper Fetch Hub, lab-research-mcp) may keep Firebase tokens and
+  lab scope. The 20 lab corpora live in lab scope.
+- **Deploy.** Apply `worker/migrations-data/0004_lab_scope_library_doi.sql` before the worker that serves lab
+  writes. It restores one live library item per DOI in lab scope.
+
 ## Facts this plan rests on (survey 2026-11-19)
 
 - **Dexie:** 31 tables (v1–v26). Only `pdfFiles` holds Blobs, and PDFs already live in R2. `researchDesignBanks.bytes` stores binary as a `number[]`.

@@ -161,6 +161,47 @@ export const KgKeywordDetailSchema = z.object({
 });
 export type KgKeywordDetail = z.infer<typeof KgKeywordDetailSchema>;
 
+export const KG_DETAIL_ENTITY_KINDS = [
+  'author',
+  'institution',
+  'topic',
+  'subfield',
+  'field',
+  'domain',
+] as const;
+export type KgDetailEntityKind = (typeof KG_DETAIL_ENTITY_KINDS)[number];
+
+/** Full, project-scoped profile for a non-paper/non-keyword graph node. */
+export const KgEntityDetailSchema = z.object({
+  kind: z.enum(KG_DETAIL_ENTITY_KINDS),
+  entity: z.object({
+    id: z.string(),
+    name: z.string().nullable(),
+    orcid: z.string().nullable(),
+    ror: z.string().nullable(),
+    countryCode: z.string().nullable(),
+  }),
+  paperCount: count,
+  papers: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      doi: z.string().nullable(),
+      year: z.number().int().nullable(),
+      citations: z.number().int().nullable(),
+    }),
+  ),
+  related: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string().nullable(),
+      kind: z.enum(KG_DETAIL_ENTITY_KINDS),
+      count: count.nullable(),
+    }),
+  ),
+});
+export type KgEntityDetail = z.infer<typeof KgEntityDetailSchema>;
+
 /** `GET /v1/kg/graph` (L4): the neighbourhood of one KG node, ranked by weight and capped. */
 export const KG_GRAPH_MAX_NODES = 150;
 export const KG_GRAPH_DEFAULT_NODES = 80;

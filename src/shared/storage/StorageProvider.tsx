@@ -1,3 +1,4 @@
+import { LAB_SCOPE, projectHeader } from '@/shared/scope';
 import {
   createContext,
   useCallback,
@@ -9,10 +10,13 @@ import {
   type ReactNode,
 } from 'react';
 import { useAuth } from '@/shared/auth/authContext';
-import { RESEARCH_HUB_URL } from '@/shared/auth/config';
+import { LAB_DOMAIN, RESEARCH_HUB_URL } from '@/shared/auth/config';
 import { PDF_WORKER_URL, projectScopedUrl } from '@/shared/pdfStore';
 import { RemoteDocStore } from './remoteDocStore';
 import { createRepositories, type Repositories } from './repositories';
+import { ProjectAccessGate } from './ProjectAccessGate';
+import { AlertCircle, CloudUpload } from 'lucide-react';
+import statusStyles from './storage-status.module.css';
 
 const Context = createContext<Repositories | null>(null);
 const StoreContext = createContext<{ store: RemoteDocStore; error: string } | null>(null);
@@ -24,6 +28,8 @@ const ProjectStatusContext = createContext<{
   status: ProjectWorkspaceStatus;
   error: string;
 } | null>(null);
+/** What the status shows for the lab store (Firebase build, ADR 0008). */
+const LAB_STORE_NAME = 'Kho chung của lab';
 const noopSubscribe = () => () => {};
 const idle = () => 'idle' as const;
 
@@ -31,7 +37,7 @@ export function StorageProvider({
   children,
   repositories,
   projectId = null,
-  invalidProjectId = false,
+  invalidProjectId: invalidProjectLink = false,
 }: {
   children: ReactNode;
   repositories?: Repositories;
@@ -40,6 +46,7 @@ export function StorageProvider({
   hideStatusBanner?: boolean;
 }) {
   const {
+    mode,
     user,
     ready,
     error: authError,
@@ -48,11 +55,17 @@ export function StorageProvider({
     getAccessToken,
     getIdToken,
   } = useAuth();
+  // The Firebase build works in the lab store, with no ResearchHub project (ADR 0008).
+  const labScope = mode === 'firebase';
+  const invalidProjectId = invalidProjectLink && !labScope;
   // A supplied repository is an explicit in-memory/test adapter; production App never supplies one.
   const injectedRepositories = repositories !== undefined;
-  const effectiveProjectId =
-    projectId ??
-    (injectedRepositories && import.meta.env.MODE === 'test' ? '00000000-0000-4000-8000-000000000001' : null);
+  const effectiveProjectId = labScope
+    ? LAB_SCOPE
+    : (projectId ??
+      (injectedRepositories && import.meta.env.MODE === 'test'
+        ? '00000000-0000-4000-8000-000000000001'
+        : null));
   const uid = user?.uid;
   const token = getAccessToken ?? getIdToken;
   const [configurationError, setConfigurationError] = useState<{
@@ -86,9 +99,14 @@ export function StorageProvider({
     let active = true;
     void (async () => {
       const accessToken = await token();
-      if (!accessToken) throw new Error('Không nhận được phiên HyperDataLab SSO từ ResearchHub.');
+      if (!accessToken)
+        throw new Error(
+          labScope
+            ? 'Chưa đăng nhập tài khoản lab.'
+            : 'Không nhận được phiên HyperDataLab SSO từ ResearchHub.',
+        );
       const response = await fetch(projectScopedUrl(`${PDF_WORKER_URL}/v1/me`, effectiveProjectId), {
-        headers: { Authorization: `Bearer ${accessToken}`, 'X-Project-Id': effectiveProjectId },
+        headers: { Authorization: `Bearer ${accessToken}`, ...projectHeader(effectiveProjectId) },
         cache: 'no-store',
       });
       const body: unknown = await response.json().catch(() => null);
@@ -108,7 +126,9 @@ export function StorageProvider({
         'name' in body.project &&
         typeof body.project.name === 'string'
           ? body.project.name
-          : effectiveProjectId;
+          : labScope
+            ? LAB_STORE_NAME
+            : effectiveProjectId;
       if (active) {
         setVerification({ key: `${uid}:${effectiveProjectId}`, status: 'synced', name, error: '' });
       }
@@ -125,7 +145,7 @@ export function StorageProvider({
     return () => {
       active = false;
     };
-  }, [injectedRepositories, invalidProjectId, effectiveProjectId, ready, token, uid]);
+  }, [injectedRepositories, invalidProjectId, effectiveProjectId, labScope, ready, token, uid]);
 
   const status: ProjectWorkspaceStatus = injectedRepositories
     ? 'synced'
@@ -186,7 +206,25 @@ export function StorageProvider({
       </section>
     );
   } else if (!ready) {
-    gate = <p role="status">Đang kiểm tra phiên ResearchHub…</p>;
+    gate = (
+      <ProjectAccessGate
+        title="Đang kết nối phiên làm việc"
+        description="PaperLab đang kiểm tra phiên ResearchHub để mở đúng không gian nghiên cứu."
+        statusLabel="Đang kiểm tra phiên ResearchHub…"
+      />
+    );
+  } else if (!user && labScope) {
+    gate = (
+      <section role="alert">
+        <h1>Cần đăng nhập tài khoản lab</h1>
+        <p>
+          {authError || `Đăng nhập bằng tài khoản Google @${LAB_DOMAIN} để dùng kho dữ liệu chung của lab.`}
+        </p>
+        <button type="button" onClick={retrySignIn}>
+          Đăng nhập bằng Google
+        </button>
+      </section>
+    );
   } else if (!user) {
     gate = (
       <section role="alert">
@@ -197,20 +235,37 @@ export function StorageProvider({
             Mở project ResearchHub
           </a>
         )}
-        {!handoffFailed && (
-          <button type="button" onClick={retrySignIn}>
-            Đăng nhập bằng SSO
-          </button>
-        )}
+        <button type="button" onClick={retrySignIn}>
+          Đăng nhập lại bằng HyperDataLab SSO
+        </button>
       </section>
     );
   } else if (status === 'loading') {
-    gate = <p role="status">Đang xác minh quyền truy cập project…</p>;
+    gate = (
+      <ProjectAccessGate
+        title="Đang xác minh project"
+        description="Đang kiểm tra quyền truy cập vào không gian nghiên cứu bạn vừa mở."
+        statusLabel="Đang xác minh quyền truy cập project…"
+      />
+    );
+  } else if (status === 'error' && labScope) {
+    gate = (
+      <section role="alert">
+        <h1>Không mở được kho dữ liệu của lab</h1>
+        <p>{projectError}</p>
+        <button type="button" onClick={retrySignIn}>
+          Đăng nhập lại bằng Google
+        </button>
+      </section>
+    );
   } else if (status === 'error') {
     gate = (
       <section role="alert">
         <h1>Không mở được project</h1>
         <p>{projectError}</p>
+        <button type="button" onClick={retrySignIn}>
+          Đăng nhập lại bằng HyperDataLab SSO
+        </button>
         {RESEARCH_HUB_URL && (
           <a href={`${RESEARCH_HUB_URL}/projects/${encodeURIComponent(effectiveProjectId)}`}>
             Mở project ResearchHub
@@ -254,7 +309,16 @@ export function StorageStatus({ className }: { className?: string }) {
   if (status === 'idle' && !storage?.error) return null;
   return (
     <div className={className} role="status">
-      {status !== 'idle' && <span>{status === 'saving' ? 'Đang lưu…' : 'Lỗi lưu'}</span>}
+      {status !== 'idle' && (
+        <span className={`${statusStyles.badge} ${status === 'error' ? statusStyles.error : ''}`}>
+          {status === 'saving' ? (
+            <CloudUpload size={14} aria-hidden="true" />
+          ) : (
+            <AlertCircle size={14} aria-hidden="true" />
+          )}
+          {status === 'saving' ? 'Đang lưu thay đổi…' : 'Lỗi lưu'}
+        </span>
+      )}
       {storage?.error && (
         <div role="alert">
           Kho dữ liệu project chưa được cấu hình.

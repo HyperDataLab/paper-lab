@@ -124,9 +124,16 @@ it('R15 the page switch keeps every space reachable and the split label follows 
   const spaces = await screen.findByRole('tablist', { name: 'Spaces' });
   expect(within(spaces).getByRole('tab', { name: /^Arguments/ })).toHaveAttribute('aria-selected', 'true');
   expect(document.querySelector('section[aria-label="Paper"]')).not.toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'Quay lại bài' }));
+  // The paper is the first tab of the Spaces bar.
+  fireEvent.click(
+    within(screen.getByRole('tablist', { name: 'Spaces' })).getByRole('tab', { name: 'Bài báo' }),
+  );
   const centre = await screen.findByRole('tablist', { name: 'Paper' });
   expect(within(centre).getByRole('tab', { name: 'Full text' })).toHaveAttribute('aria-selected', 'true');
+  // Choosing the paper closes the analysis column; the toggle beside the paper's tabs opens it again.
+  const toggle = () => screen.getByRole('button', { name: /^Vấn đề và trích dẫn/u });
+  expect(toggle()).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(toggle());
   const right = screen.getByRole('tablist', { name: 'Analysis' });
   expect(
     within(right)
@@ -136,7 +143,6 @@ it('R15 the page switch keeps every space reachable and the split label follows 
   expect(within(spaces).getByRole('tab', { name: /^Writing style/ })).toBeInTheDocument();
   expect(within(spaces).getByRole('tab', { name: 'Contribution graph' })).toBeInTheDocument();
   // The analysis toggle beside the paper's tabs says whether the right column is open.
-  const toggle = () => screen.getByRole('button', { name: /^Vấn đề và trích dẫn/u });
   expect(toggle()).toHaveAttribute('aria-expanded', 'true');
   fireEvent.click(toggle());
   expect(toggle()).toHaveAttribute('aria-expanded', 'false');

@@ -10,3 +10,4 @@ Format: MADR-lite. One file per decision, `NNNN-title.md`, never edited after ac
 | 0004 | Hybrid NLP behind a SyntaxProvider interface                   | Accepted |
 | 0005 | Option: self-host everything on an Oracle Cloud Always Free VM | Proposed |
 | 0007 | Central lab store replaces browser-local storage               | Accepted |
+| 0008 | Two sign-ins, two scopes (Firebase lab, SSO project)           | Accepted |

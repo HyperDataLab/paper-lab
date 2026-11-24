@@ -1,6 +1,7 @@
 import { CheckCircle2, Info, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/shared/ui/Button';
+import { ActivityStatus } from '@/shared/ui/ActivityStatus';
 import { AnalysisStep, type StepState } from './AnalysisStep';
 import { SyntaxControls } from './SyntaxControls';
 import type { SyntaxAnalysis } from './useSyntaxAnalysis';
@@ -105,7 +106,7 @@ export function AnalysisPipeline({
         >
           {paragraph.running ? (
             <>
-              <span role="status">Đang phân tích cấu trúc…</span>
+              <ActivityStatus label="Đang phân tích cấu trúc…" />
               <Button size="sm" variant="danger" onClick={paragraph.cancel}>
                 Huỷ
               </Button>
@@ -139,7 +140,7 @@ export function AnalysisPipeline({
           {canJudge &&
             (judge.running ? (
               <>
-                <span role="status">Đang đánh giá…</span>
+                <ActivityStatus label="Đang đánh giá…" />
                 <Button size="sm" variant="danger" onClick={judge.cancel}>
                   Huỷ
                 </Button>
@@ -179,7 +180,7 @@ export function AnalysisPipeline({
         >
           {scoring.running ? (
             <>
-              <span role="status">Đang chấm điểm…</span>
+              <ActivityStatus label="Đang chấm điểm…" />
               <Button size="sm" variant="danger" onClick={scoring.cancel}>
                 Huỷ
               </Button>

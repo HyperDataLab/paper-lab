@@ -15,6 +15,7 @@ import type { Corpus } from '@/core/schemas';
 import { downloadText } from '@/shared/calibration/download';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
+import { DataTable } from '@/shared/ui/DataTable';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { prismaLabels, reasonLabels } from './labels';
 import styles from './corpus.module.css';
@@ -64,8 +65,6 @@ export function PrismaPanel({ corpus }: { corpus: Corpus }) {
   const truncated = [...counts.sources, ...counts.otherMethods.sources].some(
     (source) => source.notExhaustive,
   );
-  const twoColumns = counts.otherMethods.sources.length > 0 || counts.otherMethods.members > 0;
-  const columns: PrismaColumn[] = twoColumns ? ['databases', 'otherMethods'] : ['databases'];
   const screeners = new Set(
     corpus.members.flatMap((member) =>
       member.decisions.flatMap((d) =>
@@ -73,22 +72,6 @@ export function PrismaPanel({ corpus }: { corpus: Corpus }) {
       ),
     ),
   ).size;
-  const list = (phase: string, column: PrismaColumn) => (
-    <dl
-      className={styles.facts}
-      aria-label={`PRISMA: ${phase}${column === 'databases' ? '' : column === 'total' ? ' (tổng)' : ' (trích dẫn)'}`}
-    >
-      {boxes
-        .map((box, index) => ({ box, index }))
-        .filter(({ box }) => box.column === column && phaseOf(box) === phase)
-        .map(({ box, index }) => (
-          <div key={index}>
-            <dt>{labelOf(box)}</dt>
-            <dd>{box.n}</dd>
-          </div>
-        ))}
-    </dl>
-  );
   return (
     <Card>
       <section aria-labelledby="corpus-prisma">
@@ -139,26 +122,34 @@ export function PrismaPanel({ corpus }: { corpus: Corpus }) {
             Có lượt tìm kiếm bị giới hạn số kết quả: nguồn đó chưa được tìm đầy đủ.
           </p>
         )}
-        <div className={`${styles.prisma} ${twoColumns ? styles.prismaTwo : ''}`}>
+        <DataTable aria-label="Bảng lưu chuyển PRISMA 2020" className={styles.prismaTable}>
+          <thead>
+            <tr>
+              <th>Nguồn / nhánh</th>
+              <th>Chỉ số PRISMA</th>
+              <th className={styles.prismaCountHeader}>Số lượng</th>
+            </tr>
+          </thead>
           {PHASES.map((phase) => (
-            <div key={phase}>
-              <h3>{phase}</h3>
-              {twoColumns ? (
-                <div className={styles.prismaColumns}>
-                  {columns.map((column) => (
-                    <div key={column}>
-                      <h4>{COLUMNS[column]}</h4>
-                      {list(phase, column)}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                list(phase, 'databases')
-              )}
-              {twoColumns && phase === 'Đưa vào' && list(phase, 'total')}
-            </div>
+            <tbody key={phase}>
+              <tr className={styles.prismaPhaseRow}>
+                <th colSpan={3} scope="rowgroup">
+                  {phase}
+                </th>
+              </tr>
+              {boxes
+                .map((box, index) => ({ box, index }))
+                .filter(({ box }) => phaseOf(box) === phase)
+                .map(({ box, index }) => (
+                  <tr key={index}>
+                    <td className={styles.prismaSource}>{COLUMNS[box.column]}</td>
+                    <td>{labelOf(box)}</td>
+                    <td className={styles.prismaCount}>{box.n}</td>
+                  </tr>
+                ))}
+            </tbody>
           ))}
-        </div>
+        </DataTable>
         <p className={styles.muted}>
           Chỉ quyết định của người sàng lọc được tính; gợi ý AI không được tính. {screeners} người đã sàng
           lọc; chưa có sàng lọc kép độc lập.

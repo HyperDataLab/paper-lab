@@ -45,7 +45,7 @@ function setup() {
   };
   const deps: Deps = {
     bucket,
-    verifyToken: async (token) => ({ uid: token, email: token }),
+    verifyToken: async (token) => ({ uid: token, email: token, kind: 'sso' as const }),
     adminEmails: ['admin@example.org'],
     allowedOrigins: ['https://example.org'],
     getOwnedProject: async (requestedId) => ({ id: requestedId, name: 'Test project' }),

@@ -1,5 +1,5 @@
 import { Plus, Table2 } from 'lucide-react';
-import { ItemCard, ItemGrid } from '@/shared/ui/ItemCard';
+import { ItemCard } from '@/shared/ui/ItemCard';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { newProject } from '@/core/extraction';
@@ -58,6 +58,18 @@ export default function Page() {
       setError(String(cause));
     }
   }
+  const overview = projects
+    ? projects.reduce(
+        (summary, project) => {
+          summary.papers += project.papers;
+          summary.columns += project.visibleFields;
+          summary.verified += project.verified;
+          summary.cells += project.papers * project.visibleFields;
+          return summary;
+        },
+        { papers: 0, columns: 0, verified: 0, cells: 0 },
+      )
+    : null;
   return (
     <div className={styles.page}>
       <PageHeader
@@ -80,38 +92,108 @@ export default function Page() {
           <Button onClick={() => setCreating(true)}>Tạo project đầu tiên</Button>
         </Empty>
       ) : (
-        <ItemGrid label="Các project">
-          {projects.map((project) => {
-            const { visibleFields: columns, verified } = project;
-            const total = project.papers * columns;
-            return (
-              <li key={project.id}>
-                <ItemCard
-                  to={`/extraction/${project.id}`}
-                  icon={<Table2 size={20} />}
-                  title={project.title}
-                  description={project.researchQuestion}
-                  stats={[
-                    { label: 'Bài', value: project.papers },
-                    { label: 'Cột', value: columns },
-                    { label: 'Đã xác nhận', value: verified },
-                  ]}
-                  progress={
-                    total
-                      ? { value: verified, max: total, label: `Đã xác nhận ${verified}/${total} ô` }
-                      : undefined
-                  }
-                  footer={<span>Cập nhật {new Date(project.updatedAt).toLocaleDateString('vi-VN')}</span>}
-                  actions={[
-                    { label: 'Mở', onSelect: () => navigate(`/extraction/${project.id}`) },
-                    { label: 'Nhân bản', onSelect: () => void duplicate(project.id) },
-                    { label: 'Xoá', danger: true, onSelect: () => setRemoving(project) },
-                  ]}
-                />
-              </li>
-            );
-          })}
-        </ItemGrid>
+        <div className={styles.projectDashboard}>
+          <section className={styles.projectCollection} aria-labelledby="project-list-title">
+            <div className={styles.collectionHeading}>
+              <div>
+                <h2 id="project-list-title">Dự án nghiên cứu</h2>
+                <p>Mở một project để tiếp tục trích xuất và đối chiếu bằng chứng.</p>
+              </div>
+              <span className={styles.collectionCount}>
+                {projects.length} {projects.length === 1 ? 'project' : 'projects'}
+              </span>
+            </div>
+            <ul className={styles.projectCards} aria-label="Các project">
+              {projects.map((project) => {
+                const { visibleFields: columns, verified } = project;
+                const total = project.papers * columns;
+                return (
+                  <li key={project.id}>
+                    <ItemCard
+                      to={`/extraction/${project.id}`}
+                      icon={<Table2 size={20} />}
+                      title={project.title}
+                      description={project.researchQuestion}
+                      stats={[
+                        { label: 'Bài báo', value: project.papers },
+                        { label: 'Trường dữ liệu', value: columns },
+                        { label: 'Đã xác nhận', value: verified },
+                      ]}
+                      progress={
+                        total
+                          ? { value: verified, max: total, label: `Đã xác nhận ${verified}/${total} ô` }
+                          : undefined
+                      }
+                      footer={<span>Cập nhật {new Date(project.updatedAt).toLocaleDateString('vi-VN')}</span>}
+                      actions={[
+                        { label: 'Mở', onSelect: () => navigate(`/extraction/${project.id}`) },
+                        { label: 'Nhân bản', onSelect: () => void duplicate(project.id) },
+                        { label: 'Xoá', danger: true, onSelect: () => setRemoving(project) },
+                      ]}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+          {overview && (
+            <aside className={styles.projectOverview} aria-labelledby="project-overview-title">
+              <div className={styles.overviewHeading}>
+                <span className={styles.overviewIcon} aria-hidden="true">
+                  <Table2 size={18} />
+                </span>
+                <div>
+                  <h2 id="project-overview-title">Tổng quan workspace</h2>
+                  <p>Tiến độ trên tất cả project</p>
+                </div>
+              </div>
+              <dl className={styles.overviewStats}>
+                <div>
+                  <dt>Projects</dt>
+                  <dd>{projects.length}</dd>
+                </div>
+                <div>
+                  <dt>Bài báo</dt>
+                  <dd>{overview.papers}</dd>
+                </div>
+                <div>
+                  <dt>Trường dữ liệu</dt>
+                  <dd>{overview.columns}</dd>
+                </div>
+              </dl>
+              <div className={styles.overviewProgress}>
+                <div>
+                  <span>Ô đã xác nhận</span>
+                  <strong>
+                    {overview.verified} <span>/ {overview.cells}</span>
+                  </strong>
+                </div>
+                {overview.cells > 0 && (
+                  <div
+                    className={styles.progressTrack}
+                    role="progressbar"
+                    aria-label="Tiến độ xác nhận workspace"
+                    aria-valuenow={Math.min(overview.verified, overview.cells)}
+                    aria-valuemin={0}
+                    aria-valuemax={overview.cells}
+                  >
+                    <span
+                      style={{ width: `${Math.min(100, (overview.verified / overview.cells) * 100)}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+              <div className={styles.workflowNote}>
+                <h3>Quy trình làm việc</h3>
+                <ol>
+                  <li>Thêm bài báo vào project.</li>
+                  <li>Chọn thông tin cần trích xuất.</li>
+                  <li>Kiểm tra trích dẫn trước khi xác nhận.</li>
+                </ol>
+              </div>
+            </aside>
+          )}
+        </div>
       )}
       {creating && (
         <Dialog

@@ -10,6 +10,7 @@ import type { Bucket } from '../deps';
 import type { D1Database, D1Statement, SqlValue } from '../kg/bindings';
 import { INDEX_COLUMN } from './indexColumns';
 import { queryPlan, type QueryGuard } from './queryPlan';
+import { logicalId, physicalId, type ProjectScope } from '../scope';
 
 /** Every row is stamped with the lab so permissions (C5) can filter on it later. */
 export const LAB_ID = 'hyperdatalab';
@@ -56,12 +57,9 @@ export const parseEtag = (value: string | null) => {
 export function bodyKey(collection: string, id: string, version: number, suffix?: string) {
   return `${DATA_PREFIX}${collection}/${encodeURIComponent(id)}/v${version}${suffix ? `-${suffix}` : ''}.json`;
 }
-/** Physical IDs isolate project records while leaving legacy unassigned rows untouched. */
-export const projectRecordId = (projectId: string, id: string) => `@rh/${projectId}/${id}`;
-export const logicalRecordId = (projectId: string, id: string) => {
-  const prefix = `@rh/${projectId}/`;
-  return id.startsWith(prefix) ? id.slice(prefix.length) : id;
-};
+/** Physical IDs isolate project records (`@rh/<projectId>/<id>`); lab records keep their unprefixed id. */
+export const projectRecordId = (projectId: ProjectScope, id: string) => physicalId(projectId, id);
+export const logicalRecordId = (projectId: ProjectScope, id: string) => logicalId(projectId, id);
 /** Inverse of `bodyKey`; null for keys this store did not write. */
 export function parseBodyKey(key: string) {
   const match = /^paperlab\/data\/([A-Za-z]+)\/([^/]+)\/v(\d+)(?:-[0-9a-f-]+)?\.json$/u.exec(key);
@@ -186,7 +184,8 @@ export interface StoreEnv {
   bucket: Bucket;
   now: () => Date;
   email: string;
-  projectId: string;
+  /** The ResearchHub project, or null for the lab store (`hub_project_id IS NULL`). */
+  projectId: string | null;
 }
 
 /** The statement a version guard runs: it inserts a 0, which the CHECK rejects, when the doc changed. */
@@ -595,7 +594,7 @@ export async function readBody(bucket: Bucket, row: DocRow) {
 }
 
 /** The public shape of a doc row (camelCase, summary parsed). */
-export function docMeta(row: DocRow, projectId: string) {
+export function docMeta(row: DocRow, projectId: ProjectScope) {
   return {
     collection: row.collection,
     id: logicalRecordId(projectId, row.id),

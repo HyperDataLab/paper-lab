@@ -1,3 +1,4 @@
+import { isLabScope, projectHeader } from '@/shared/scope';
 import type { Paper } from '@/core/schemas';
 
 /** PaperLab's PDF proxy to the ResearchHub Files API; every request needs a user access token. */
@@ -5,8 +6,12 @@ export const PDF_WORKER_URL: string =
   (import.meta.env.VITE_PDF_WORKER_URL as string | undefined) ||
   (import.meta.env.DEV ? '/paperlab-worker' : 'https://paperlab-pdf-worker.hyperdatalab.workers.dev');
 
-/** Keep project scope available if an intermediate proxy drops the custom header. */
+/**
+ * Keep project scope available if an intermediate proxy drops the custom header. Lab scope (ADR 0008) sends no
+ * project id at all.
+ */
 export function projectScopedUrl(endpoint: string, projectId: string) {
+  if (isLabScope(projectId)) return endpoint;
   const [path, search = ''] = endpoint.split('?', 2);
   const query = new URLSearchParams(search);
   query.set('projectId', projectId);
@@ -51,7 +56,7 @@ async function uploadErrorDetail(response: Response) {
 const url = (sha: string, projectId: string) => projectScopedUrl(`${PDF_WORKER_URL}/pdfs/${sha}`, projectId);
 const auth = (token: string, projectId: string) => ({
   Authorization: `Bearer ${token}`,
-  'X-Project-Id': projectId,
+  ...projectHeader(projectId),
 });
 
 /** Reads and writes the ResearchHub copy through the PaperLab Worker. */

@@ -118,8 +118,8 @@ export function CorpusLabelling({
     abort.current?.abort();
   };
   return (
-    <Card>
-      <section aria-labelledby="corpus-labelling" className={styles.members}>
+    <Card className={styles.labelingCard}>
+      <section aria-labelledby="corpus-labelling" className={`${styles.members} ${styles.labeling}`}>
         <div className={styles.cardHead}>
           <h2 id="corpus-labelling">Gắn nhãn cho corpus</h2>
         </div>
@@ -127,61 +127,77 @@ export function CorpusLabelling({
           Chạy từng bài đã dựng paper model, bằng đúng các phân tích của trang bài báo. Bài đã có nhãn của
           prompt hiện tại được bỏ qua; nhãn của prompt khác được chạy lại. Cần giữ tab mở trong khi chạy.
         </p>
-        <div className={styles.checks} role="group" aria-label="Loại nhãn">
+        <div className={styles.labelSchemes} role="group" aria-label="Loại nhãn">
           {SCHEMES.map((scheme) => (
-            <Checkbox
+            <div
               key={scheme}
-              checked={schemes.includes(scheme)}
-              disabled={busy}
-              onChange={(e) =>
-                setSchemes((list) =>
-                  e.target.checked
-                    ? SCHEMES.filter((s) => s === scheme || list.includes(s))
-                    : list.filter((s) => s !== scheme),
-                )
-              }
+              className={`${styles.labelScheme} ${schemes.includes(scheme) ? styles.labelSchemeSelected : ''}`}
             >
-              {schemeNames[scheme]}
-            </Checkbox>
+              <Checkbox
+                checked={schemes.includes(scheme)}
+                disabled={busy}
+                onChange={(e) =>
+                  setSchemes((list) =>
+                    e.target.checked
+                      ? SCHEMES.filter((s) => s === scheme || list.includes(s))
+                      : list.filter((s) => s !== scheme),
+                  )
+                }
+              >
+                {schemeNames[scheme]}
+              </Checkbox>
+              <span>{schemes.includes(scheme) ? 'Đang chọn' : 'Tuỳ chọn'}</span>
+            </div>
           ))}
         </div>
-        <p>
-          {estimate === null
-            ? 'Đang tính ước tính…'
-            : `Ước tính: ${estimate} lượt gọi AI cho ${toRun}/${items?.length ?? 0} bài đã dựng model.`}
-        </p>
-        <div className={styles.cardTools}>
-          <Button
-            variant="primary"
-            disabled={busy || !schemes.length || !items?.length}
-            onClick={() => void run(false)}
-          >
-            Bắt đầu gắn nhãn
-          </Button>
-          {!busy && resumable && (
-            <>
-              {sameVersions && <Button onClick={() => void run(true)}>Tiếp tục</Button>}
-              <Button variant="ghost" onClick={() => void cancelPaused()}>
-                Hủy lượt chạy
-              </Button>
-            </>
-          )}
-          {busy && (
-            <>
-              <Button onClick={() => stop('pause')}>Tạm dừng</Button>
-              <Button variant="ghost" onClick={() => stop('cancel')}>
-                Hủy
-              </Button>
-            </>
-          )}
+        <div className={styles.labelRunBar}>
+          <div className={styles.labelEstimate} role="status" aria-live="polite">
+            <strong>{estimate ?? '—'}</strong>
+            <span>
+              <b>lượt gọi AI ước tính</b>
+              <small>
+                {estimate === null
+                  ? 'Đang tính khối lượng xử lý…'
+                  : `${toRun}/${items?.length ?? 0} bài đã dựng model cần gắn nhãn`}
+              </small>
+            </span>
+          </div>
+          <div className={styles.labelActions}>
+            <Button
+              variant="primary"
+              disabled={busy || !schemes.length || !items?.length}
+              onClick={() => void run(false)}
+            >
+              Bắt đầu gắn nhãn
+            </Button>
+            {!busy && resumable && (
+              <>
+                {sameVersions && <Button onClick={() => void run(true)}>Tiếp tục</Button>}
+                <Button variant="ghost" onClick={() => void cancelPaused()}>
+                  Hủy lượt chạy
+                </Button>
+              </>
+            )}
+            {busy && (
+              <>
+                <Button onClick={() => stop('pause')}>Tạm dừng</Button>
+                <Button variant="ghost" onClick={() => stop('cancel')}>
+                  Hủy
+                </Button>
+              </>
+            )}
+          </div>
         </div>
+        {!items?.length && estimate !== null && (
+          <p className={styles.labelEmptyHint}>Dựng paper model cho bài trong corpus để bắt đầu gắn nhãn.</p>
+        )}
         {!busy && resumable && !sameVersions && (
           <p className={styles.muted}>
             Lượt chạy dở dùng prompt hoặc model khác với hiện tại; hãy bắt đầu lượt mới.
           </p>
         )}
         {queue && (
-          <p>
+          <p className={styles.labelQueueStatus}>
             {queue.schemes
               .map((s) => {
                 const c = queue.counts[s];
@@ -192,7 +208,7 @@ export function CorpusLabelling({
           </p>
         )}
         {queue?.failed.slice(-5).map((f) => (
-          <p key={`${f.memberId}-${f.scheme}`} className={styles.muted}>
+          <p key={`${f.memberId}-${f.scheme}`} className={styles.labelFailure}>
             {corpus.members.find((m) => m.memberId === f.memberId)?.title ?? f.memberId} (
             {schemeNames[f.scheme]}
             ): {f.reason}
@@ -211,7 +227,11 @@ export function CorpusLabelling({
             ))}
           </ol>
         )}
-        {error && <p role="alert">{error}</p>}
+        {error && (
+          <p className={styles.labelFailure} role="alert">
+            {error}
+          </p>
+        )}
       </section>
     </Card>
   );

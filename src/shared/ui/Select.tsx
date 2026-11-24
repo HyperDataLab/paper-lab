@@ -10,7 +10,7 @@ import {
   type ReactNode,
   type SelectHTMLAttributes,
 } from 'react';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, Search } from 'lucide-react';
 import styles from './ui.module.css';
 
 type OptionProps = {
@@ -21,6 +21,7 @@ type OptionProps = {
 };
 
 type Option = {
+  index: number;
   value: string;
   label: string;
   disabled: boolean;
@@ -33,6 +34,8 @@ type Props = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'size'> & {
   inline?: boolean;
   /** Keeps the label for screen readers only, for toolbars where the value says what the control is. */
   hideLabel?: boolean;
+  /** Adds an in-menu filter for longer lists while retaining keyboard option navigation. */
+  searchable?: boolean;
 };
 
 function textContent(node: ReactNode): string {
@@ -52,6 +55,7 @@ export function Select({
   size = 'md',
   inline = false,
   hideLabel = false,
+  searchable = false,
   id,
   className = '',
   children,
@@ -74,13 +78,16 @@ export function Select({
   const listId = `${controlId}-listbox`;
   const nativeRef = useRef<HTMLSelectElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const typeahead = useRef('');
   const typeaheadTimer = useRef<number | undefined>(undefined);
-  const options = Children.toArray(children).flatMap((child): Option[] => {
+  const options = Children.toArray(children).flatMap((child, index): Option[] => {
     if (!isValidElement<OptionProps>(child) || child.type !== 'option') return [];
     const labelText = textContent(child.props.children);
     return [
       {
+        index,
         value: String(child.props.value ?? labelText),
         label: labelText,
         disabled: Boolean(child.props.disabled),
@@ -98,6 +105,14 @@ export function Select({
   const selectedOption = options.find((option) => option.value === selectedValue);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(selectedIndex >= 0 ? selectedIndex : firstEnabledIndex);
+  const [searchTerm, setSearchTerm] = useState('');
+  const showSearch = searchable && options.length >= 6;
+  const visibleOptions =
+    showSearch && searchTerm.trim()
+      ? options.filter((option) =>
+          option.label.toLocaleLowerCase().includes(searchTerm.trim().toLocaleLowerCase()),
+        )
+      : options;
 
   useEffect(() => {
     if (!open) return;
@@ -108,6 +123,10 @@ export function Select({
     return () => document.removeEventListener('pointerdown', dismiss);
   }, [open]);
 
+  useEffect(() => {
+    if (open && showSearch) searchRef.current?.focus();
+  }, [open, showSearch]);
+
   useEffect(
     () => () => {
       if (typeaheadTimer.current !== undefined) window.clearTimeout(typeaheadTimer.current);
@@ -116,6 +135,7 @@ export function Select({
   );
 
   function show() {
+    setSearchTerm('');
     setActiveIndex(selectedIndex >= 0 ? selectedIndex : firstEnabledIndex);
     setOpen(true);
   }
@@ -131,14 +151,38 @@ export function Select({
       nativeSelect.dispatchEvent(new Event('change', { bubbles: true }));
     }
     setOpen(false);
+    buttonRef.current?.focus();
   }
 
   function moveActive(direction: -1 | 1) {
-    const enabled = options.flatMap((option, index) => (option.disabled ? [] : [index]));
+    const enabled = visibleOptions.flatMap((option) => (option.disabled ? [] : [option.index]));
     if (enabled.length === 0) return;
     const position = enabled.indexOf(activeIndex);
     const next = (position + direction + enabled.length) % enabled.length;
     setActiveIndex(enabled[next] ?? enabled[0] ?? -1);
+  }
+
+  function searchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setOpen(false);
+      buttonRef.current?.focus();
+      return;
+    }
+    if (event.key === 'Tab') {
+      setOpen(false);
+      return;
+    }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      moveActive(event.key === 'ArrowDown' ? 1 : -1);
+      return;
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const activeOption = visibleOptions.find((option) => option.index === activeIndex);
+      if (activeOption) choose(activeOption);
+    }
   }
 
   function keyDown(event: KeyboardEvent<HTMLButtonElement>) {
@@ -210,6 +254,7 @@ export function Select({
       <div className={`${styles.selectWrap} ${inline ? styles.fieldInline : ''}`} ref={rootRef}>
         <button
           id={controlId}
+          ref={buttonRef}
           type="button"
           role="combobox"
           className={`${styles.selectButton} ${size === 'sm' ? styles.selectButtonSm : ''}`}
@@ -251,24 +296,55 @@ export function Select({
           {children}
         </select>
         {open && (
-          <div id={listId} className={styles.selectMenu} role="listbox" aria-labelledby={labelId}>
-            {options.map((option, index) => (
-              <div
-                id={`${listId}-option-${index}`}
-                key={`${option.value}-${index}`}
-                role="option"
-                aria-selected={option.value === selectedValue}
-                aria-disabled={option.disabled || undefined}
-                title={option.title}
-                className={`${styles.selectOption} ${index === activeIndex ? styles.selectOptionActive : ''}`}
-                onMouseDown={(event) => event.preventDefault()}
-                onMouseEnter={() => !option.disabled && setActiveIndex(index)}
-                onClick={() => choose(option)}
-              >
-                <span>{option.label}</span>
-                {option.value === selectedValue && <Check size={15} aria-hidden="true" />}
+          <div className={styles.selectMenu}>
+            {showSearch && (
+              <div className={styles.selectSearchWrap}>
+                <Search size={15} aria-hidden="true" />
+                <input
+                  ref={searchRef}
+                  type="search"
+                  className={styles.selectSearch}
+                  aria-label={`Tìm trong ${label.toLocaleLowerCase()}`}
+                  aria-controls={listId}
+                  aria-activedescendant={activeIndex >= 0 ? `${listId}-option-${activeIndex}` : undefined}
+                  placeholder="Tìm theo nội dung câu hỏi"
+                  value={searchTerm}
+                  onChange={(event) => {
+                    const nextTerm = event.target.value;
+                    setSearchTerm(nextTerm);
+                    const first = options.find(
+                      (option) =>
+                        !option.disabled &&
+                        option.label.toLocaleLowerCase().includes(nextTerm.trim().toLocaleLowerCase()),
+                    );
+                    setActiveIndex(first?.index ?? -1);
+                  }}
+                  onKeyDown={searchKeyDown}
+                />
               </div>
-            ))}
+            )}
+            <div id={listId} role="listbox" aria-labelledby={labelId}>
+              {visibleOptions.map((option) => (
+                <div
+                  id={`${listId}-option-${option.index}`}
+                  key={`${option.value}-${option.index}`}
+                  role="option"
+                  aria-selected={option.value === selectedValue}
+                  aria-disabled={option.disabled || undefined}
+                  title={option.title}
+                  className={`${styles.selectOption} ${option.index === activeIndex ? styles.selectOptionActive : ''}`}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onMouseEnter={() => !option.disabled && setActiveIndex(option.index)}
+                  onClick={() => choose(option)}
+                >
+                  <span>{option.label}</span>
+                  {option.value === selectedValue && <Check size={15} aria-hidden="true" />}
+                </div>
+              ))}
+            </div>
+            {visibleOptions.length === 0 && (
+              <p className={styles.selectEmpty}>Không tìm thấy câu hỏi phù hợp.</p>
+            )}
           </div>
         )}
       </div>

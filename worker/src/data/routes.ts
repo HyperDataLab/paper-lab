@@ -17,6 +17,7 @@ import {
   type DocRow,
   type StoreEnv,
 } from './store';
+import { isProjectPhysicalId } from '../scope';
 
 export const DATA_PATH_PREFIX = '/v1/data/';
 const IMPORT_LEGACY_CORPORA_PATH = '/v1/data/admin/import-legacy-corpora';
@@ -44,7 +45,9 @@ const idSchema = z
   .string()
   .min(1)
   .max(300)
-  .regex(/^\P{Cc}+$/u);
+  .regex(/^\P{Cc}+$/u)
+  // `@rh/` is the physical namespace of project records; a logical id never starts with it (ADR 0008).
+  .refine((id) => !isProjectPhysicalId(id), 'Reserved id prefix.');
 const versionSchema = z.number().int().positive().nullable();
 
 const QuerySchema = z.strictObject({
@@ -99,7 +102,8 @@ export async function handleData(
   path: string,
   email: string,
   headers: Headers,
-  projectId: string,
+  /** The ResearchHub project, or null for the lab store. */
+  projectId: string | null,
 ) {
   if (path === IMPORT_LEGACY_CORPORA_PATH && !isAdmin(deps, email))
     return fail(403, 'forbidden', 'Forbidden.', headers);
@@ -146,9 +150,8 @@ export async function handleData(
     const scoped = { collection, id: projectRecordId(projectId, id) };
     const row = (await readRows(db, [scoped])).get(refKey(scoped));
     if (!row || row.deleted_at) {
-      // A paper can have no analysis record until its first run; 204 keeps this normal state out of browser error logs.
-      if (collection === 'paperInsights') return new Response(null, { status: 204, headers });
-      return fail(404, 'not_found', 'No such record.', headers);
+      // Missing records are a normal first-run state for every collection, not a failed network request.
+      return new Response(null, { status: 204, headers });
     }
     const etag = etagOf(row.version);
     // A weak validator matches for a GET, as on the other /v1 routes.

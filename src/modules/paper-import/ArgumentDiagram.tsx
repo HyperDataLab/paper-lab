@@ -1,26 +1,48 @@
-import { PAPER_LABELS } from './labels';
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
-import type { ArgumentNode, ArgumentEdge } from '@/core/argument';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  Background,
+  BackgroundVariant,
+  Handle,
+  MarkerType,
+  Position,
+  ReactFlow,
+  type Edge,
+  type Node,
+  type NodeChangeset,
+  type NodeProps,
+  type ReactFlowInstance,
+} from '@xyflow/react';
+import '@xyflow/react/style.css';
+import type { ArgumentEdge, ArgumentNode } from '@/core/argument';
 import {
   aifDiagram,
-  edgePath,
   paperDiagram,
-  type Orientation,
-  toulminDiagram,
   type DiagramNode,
   type DiagramRole,
+  type Orientation,
+  toulminDiagram,
 } from '@/core/argument/diagram';
 import type { Argument, Paper } from '@/core/schemas';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { ReviewActions } from '@/shared/ui/FindingCard';
 import { Select } from '@/shared/ui/Select';
-import styles from './argument.module.css';
-import { PlaceText } from './PlaceText';
+import { PAPER_LABELS } from './labels';
 import { ClaimTypeBadge } from './ClaimTypes';
 import { EvidenceLevelBadge } from './EvidenceLevel';
+import { PlaceText } from './PlaceText';
+import styles from './argument.module.css';
 
 type Span = Argument['claim'];
+type FlowNodeData = {
+  model: DiagramNode;
+  content: ReactNode;
+  ariaLabel: string;
+  orientation: Orientation;
+  onNudge: (id: string, key: string) => void;
+};
+type ArgumentFlowNode = Node<FlowNodeData, 'argument'>;
+
 const ROLES: Record<DiagramRole, string> = {
   claim: 'Claim',
   data: 'Grounds',
@@ -33,15 +55,56 @@ const ROLES: Record<DiagramRole, string> = {
   ra: 'Inference',
   ca: 'Conflict',
 };
-const ZOOMS = [0.6, 0.8, 1, 1.25, 1.5];
-const PAD = 12;
+const nodeTypes = { argument: ArgumentFlowNodeView };
+const motionDuration = (duration: number) =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ? 0
+    : duration;
 const short = (text: string) =>
   Array.from(text).length > 44 ? `${Array.from(text).slice(0, 44).join('')}…` : text;
 
-/**
- * One argument drawn as a diagram: boxes for the passages, lines for how they bear on each other. The reader
- * steps through the arguments one at a time; the drawing is computed, so it never has to be arranged by hand.
- */
+function ArgumentFlowNodeView({
+  id,
+  data,
+  positionAbsoluteX,
+  positionAbsoluteY,
+}: NodeProps<ArgumentFlowNode>) {
+  const { model } = data;
+  const vertical = data.orientation === 'vertical';
+  const scheme = model.kind === 'scheme';
+  return (
+    <div
+      className={scheme ? styles.dSchemeNode : styles.dNode}
+      data-role={model.role}
+      data-missing={model.missing}
+      data-testid={`node-${id}`}
+      data-position-x={positionAbsoluteX}
+      data-position-y={positionAbsoluteY}
+      role="group"
+      aria-label={data.ariaLabel}
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key.startsWith('Arrow')) {
+          event.preventDefault();
+          event.stopPropagation();
+          data.onNudge(id, event.key);
+        }
+      }}
+    >
+      <Handle type="target" position={vertical ? Position.Top : Position.Left} className={styles.dHandle} />
+      {data.content}
+      <Handle
+        type="source"
+        position={vertical ? Position.Bottom : Position.Right}
+        className={styles.dHandle}
+      />
+    </div>
+  );
+}
+
+/** The argument map uses computed academic layouts and React Flow for pan, zoom, and node movement. */
 export function ArgumentDiagram({
   paper,
   items,
@@ -50,58 +113,52 @@ export function ArgumentDiagram({
   onLocation,
   onDecide,
   graph,
+  selectedId,
+  onSelectedIdChange,
+  showArgumentPicker = true,
 }: {
   paper: Paper;
   graph?: { nodes: ArgumentNode[]; edges: ArgumentEdge[] };
-  /** The arguments to step through, in the order they should be offered. */
   items: Argument[];
   states: Map<string, 'confirmed' | 'dismissed'>;
   view: 'toulmin' | 'aif';
   onLocation: (span: Span) => void;
   onDecide: (id: string, decision: 'confirm' | 'dismiss' | 'reopen') => void;
+  selectedId?: string;
+  onSelectedIdChange?: (id: string) => void;
+  showArgumentPicker?: boolean;
 }) {
   const canvas = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ id: string; x: number; y: number; left: number; top: number } | null>(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0, left: 0, top: 0 });
+  const flow = useRef<ReactFlowInstance<ArgumentFlowNode, Edge> | null>(null);
+  const [canvasWidth, setCanvasWidth] = useState(0);
   const [orientation, setOrientation] = useState<Orientation | 'auto'>('auto');
   const [positions, setPositions] = useState<Record<string, Record<string, { x: number; y: number }>>>({});
   const [conflicts, setConflicts] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [localSelected, setLocalSelected] = useState(items[0]?.id ?? '');
+  const selected = selectedId ?? localSelected;
+  const setSelected = onSelectedIdChange ?? setLocalSelected;
+
   useEffect(() => {
     const element = canvas.current;
     if (!element) return;
-    const update = () =>
-      setCanvasSize({
-        width: element.clientWidth,
-        height: element.clientHeight,
-        left: element.scrollLeft,
-        top: element.scrollTop,
-      });
+    const update = () => setCanvasWidth(element.clientWidth);
     update();
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
     observer?.observe(element);
-    element.addEventListener('scroll', update);
-    return () => {
-      observer?.disconnect();
-      element.removeEventListener('scroll', update);
-    };
+    return () => observer?.disconnect();
   }, []);
-  const [selected, setSelected] = useState(items[0]?.id ?? '');
-  // A number is a fixed scale, readable at any width because the canvas scrolls. Null fits the drawing to
-  // the width it has, which beside the paper can be too small to read, so it is a choice and not the default.
-  const [zoom, setZoom] = useState<number | null>(1);
+
   const index = Math.max(
     0,
-    items.findIndex((item) => item.id === selected),
+    items.findIndex((candidate) => candidate.id === selected),
   );
   const item = items[index];
   if (!item) return <p className={styles.empty}>Chưa có argument nào để vẽ.</p>;
+
   const whole = view === 'aif' && selected === '__whole';
   const direction =
-    orientation === 'auto'
-      ? canvasSize.width > 0 && canvasSize.width < 720
-        ? 'vertical'
-        : 'horizontal'
-      : orientation;
+    orientation === 'auto' ? (canvasWidth > 0 && canvasWidth < 720 ? 'vertical' : 'horizontal') : orientation;
   const layout = whole
     ? paperDiagram(graph ?? { nodes: [], edges: [] }, conflicts)
     : view === 'toulmin'
@@ -112,55 +169,37 @@ export function ArgumentDiagram({
     ...layout,
     nodes: layout.nodes.map((node) => ({ ...node, ...positions[layoutKey]?.[node.id] })),
   };
-  diagram.width = Math.max(layout.width, ...diagram.nodes.map((node) => node.x + node.width));
-  diagram.height = Math.max(layout.height, ...diagram.nodes.map((node) => node.y + node.height));
-  const move = (node: DiagramNode, x: number, y: number) =>
-    setPositions((current) => ({
-      ...current,
-      [layoutKey]: { ...current[layoutKey], [node.id]: { x: Math.max(0, x), y: Math.max(0, y) } },
-    }));
-  const pointerDown = (event: PointerEvent<SVGGElement>, node: DiagramNode) => {
-    if ((event.target as Element).closest('button')) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    drag.current = { id: node.id, x: event.clientX, y: event.clientY, left: node.x, top: node.y };
+  const state = states.get(item.id);
+
+  const move = (id: string, x: number, y: number) => {
+    const next = { x: Math.max(0, x), y: Math.max(0, y) };
+    setPositions((current) => ({ ...current, [layoutKey]: { ...current[layoutKey], [id]: next } }));
   };
-  const pointerMove = (event: PointerEvent<SVGGElement>, node: DiagramNode) => {
-    const active = drag.current;
-    if (!active || active.id !== node.id) return;
-    const scale = zoom ?? (canvas.current?.clientWidth ?? width) / width;
-    move(
-      node,
-      active.left + (event.clientX - active.x) / scale,
-      active.top + (event.clientY - active.y) / scale,
-    );
-  };
-  const keyMove = (event: KeyboardEvent<SVGGElement>, node: DiagramNode) => {
+  const onNudge = (id: string, key: string) => {
     const delta: Record<string, [number, number]> = {
       ArrowLeft: [-10, 0],
       ArrowRight: [10, 0],
       ArrowUp: [0, -10],
       ArrowDown: [0, 10],
     };
-    const step = delta[event.key];
-    if (step && event.target === event.currentTarget) {
-      event.preventDefault();
-      move(node, node.x + step[0], node.y + step[1]);
-    }
+    const step = delta[key];
+    const node = diagram.nodes.find((candidate) => candidate.id === id);
+    if (step && node) move(id, node.x + step[0], node.y + step[1]);
   };
-  const byId = new Map(diagram.nodes.map((node) => [node.id, node]));
-  const state = states.get(item.id);
-  const width = diagram.width + PAD * 2;
-  const height = diagram.height + PAD * 2;
-  const step = (direction: 1 | -1) => {
-    const scale = zoom ?? 1;
-    const at = ZOOMS.findIndex((value) => value >= scale);
-    setZoom(
-      ZOOMS[Math.min(ZOOMS.length - 1, Math.max(0, (at < 0 ? ZOOMS.length - 1 : at) + direction))] ?? 1,
-    );
+  const onNodesChange = (changes: NodeChangeset<ArgumentFlowNode>) => {
+    const moved = changes.getByType('position').filter((change) => change.position);
+    if (!moved.length) return;
+    setPositions((current) => {
+      const next = { ...current[layoutKey] };
+      for (const change of moved) {
+        if (change.type === 'position' && change.position) next[change.id] = change.position;
+      }
+      return { ...current, [layoutKey]: next };
+    });
   };
 
   const card = (node: DiagramNode) => (
-    <div className={styles.dNode} data-role={node.role} data-missing={node.missing}>
+    <div className={styles.dNodeContent}>
       <div className={styles.dHead}>
         <span className={styles.dRole}>
           {view === 'aif' && <span className={styles.dKind}>I</span>}
@@ -176,7 +215,12 @@ export function ArgumentDiagram({
         </p>
       )}
       {node.span ? (
-        <Button size="sm" variant="ghost" onClick={() => node.span && onLocation(node.span)}>
+        <Button
+          className="nodrag"
+          size="sm"
+          variant="ghost"
+          onClick={() => node.span && onLocation(node.span)}
+        >
           <PlaceText paper={paper} paragraphId={node.span.paragraphId} />
         </Button>
       ) : node.inferred ? (
@@ -184,80 +228,149 @@ export function ArgumentDiagram({
       ) : null}
     </div>
   );
+
+  const nodes: ArgumentFlowNode[] = diagram.nodes.map((node) => ({
+    id: node.id,
+    type: 'argument',
+    position: { x: node.x, y: node.y },
+    width: node.width,
+    height: node.height,
+    draggable: true,
+    selectable: false,
+    focusable: true,
+    ariaLabel: `${ROLES[node.role]}: di chuyển bằng phím mũi tên`,
+    data: {
+      model: node,
+      orientation: direction,
+      ariaLabel: `${ROLES[node.role]}: di chuyển bằng phím mũi tên`,
+      content:
+        node.kind === 'scheme' ? (
+          <div className={styles.dSchemeContent}>
+            <strong>{node.role === 'ra' ? 'RA' : 'CA'}</strong>
+            <span>{ROLES[node.role]}</span>
+            {node.role === 'ra' && (
+              <small>{diagram.edges.filter((edge) => edge.to === node.id).length} tiền đề → 1 kết luận</small>
+            )}
+          </div>
+        ) : (
+          card(node)
+        ),
+      onNudge,
+    },
+  }));
+
+  const edges: Edge[] = diagram.edges.map((edge) => ({
+    id: edge.id,
+    source: edge.from,
+    target: edge.to,
+    type: 'smoothstep',
+    label: edge.label || undefined,
+    className: `${styles.dEdge} ${styles[`dEdge${edge.tone[0]?.toUpperCase()}${edge.tone.slice(1)}`]} ${edge.dashed ? styles.dEdgeDashed : ''}`,
+    markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--text-muted)' },
+    labelStyle: { fill: 'var(--text-secondary)', fontSize: 12 },
+    labelBgStyle: { fill: 'var(--surface)', fillOpacity: 0.95 },
+    labelBgPadding: [5, 3],
+    labelBgBorderRadius: 4,
+    interactionWidth: 16,
+    selectable: false,
+  }));
+
+  const zoomBy = (delta: 1 | -1) => {
+    const duration = motionDuration(150);
+    void (delta < 0 ? flow.current?.zoomOut({ duration }) : flow.current?.zoomIn({ duration }));
+  };
+  const fit = () => void flow.current?.fitView({ padding: 0.14, duration: motionDuration(180) });
+  const resetLayout = () => {
+    setPositions((current) => {
+      const next = { ...current };
+      delete next[layoutKey];
+      return next;
+    });
+    requestAnimationFrame(fit);
+  };
+
   return (
     <div className={styles.diagram}>
-      <div className={styles.dBar}>
-        <Select
-          label="Argument"
-          size="sm"
-          value={whole ? '__whole' : item.id}
-          onChange={(event) => setSelected(event.target.value)}
-        >
-          {view === 'aif' && <option value="__whole">Toàn bài</option>}
-          {items.map((option, position) => (
-            <option key={option.id} value={option.id}>
-              {position + 1}. {short(option.claim.excerpt)}
-            </option>
-          ))}
-        </Select>
-        <span className={styles.dCount}>
-          {index + 1} / {items.length}
-        </span>
-        <Button
-          size="sm"
-          disabled={whole || index === 0}
-          aria-label="Argument trước"
-          onClick={() => setSelected(items[index - 1]?.id ?? item.id)}
-        >
-          ‹
-        </Button>
-        <Button
-          size="sm"
-          disabled={whole || index >= items.length - 1}
-          aria-label="Argument sau"
-          onClick={() => setSelected(items[index + 1]?.id ?? item.id)}
-        >
-          ›
-        </Button>
-        <Select
-          label="Hướng"
-          size="sm"
-          value={orientation}
-          onChange={(event) => setOrientation(event.target.value as Orientation | 'auto')}
-        >
-          <option value="auto">Tự động</option>
-          <option value="horizontal">Ngang</option>
-          <option value="vertical">Dọc</option>
-        </Select>
-        <Button
-          size="sm"
-          onClick={() =>
-            setPositions((current) => {
-              const next = { ...current };
-              delete next[layoutKey];
-              return next;
-            })
-          }
-        >
-          Bố cục lại
-        </Button>
-        {whole && (
-          <Button size="sm" aria-pressed={conflicts} onClick={() => setConflicts(!conflicts)}>
-            Chỉ hiện xung đột
-          </Button>
+      <div
+        className={styles.dToolbar}
+        data-compact={!showArgumentPicker}
+        aria-label="Điều khiển lược đồ argument"
+      >
+        {showArgumentPicker && (
+          <div className={styles.dArgumentControls}>
+            <Select
+              label="Argument"
+              size="sm"
+              value={whole ? '__whole' : item.id}
+              onChange={(event) => setSelected(event.target.value)}
+            >
+              {view === 'aif' && <option value="__whole">Toàn bài</option>}
+              {items.map((option, position) => (
+                <option key={option.id} value={option.id}>
+                  {position + 1}. {short(option.claim.excerpt)}
+                </option>
+              ))}
+            </Select>
+            <div className={styles.dStepper} aria-label={`Argument ${index + 1} trên ${items.length}`}>
+              <Button
+                size="sm"
+                disabled={whole || index === 0}
+                aria-label="Argument trước"
+                onClick={() => setSelected(items[index - 1]?.id ?? item.id)}
+              >
+                ‹
+              </Button>
+              <span className={styles.dCount}>
+                {index + 1} / {items.length}
+              </span>
+              <Button
+                size="sm"
+                disabled={whole || index >= items.length - 1}
+                aria-label="Argument sau"
+                onClick={() => setSelected(items[index + 1]?.id ?? item.id)}
+              >
+                ›
+              </Button>
+            </div>
+          </div>
         )}
-        <span className={styles.dSpacer} />
-        <Button size="sm" aria-label="Thu nhỏ" onClick={() => step(-1)}>
-          −
-        </Button>
-        <span className={styles.dCount}>{zoom ? `${Math.round(zoom * 100)}%` : 'Vừa khung'}</span>
-        <Button size="sm" aria-label="Phóng to" onClick={() => step(1)}>
-          +
-        </Button>
-        <Button size="sm" variant="ghost" disabled={zoom === null} onClick={() => setZoom(null)}>
-          Vừa khung
-        </Button>
+        <div className={styles.dViewControls}>
+          <Button size="sm" aria-label="Thu nhỏ sơ đồ" onClick={() => zoomBy(-1)}>
+            −
+          </Button>
+          <span className={styles.dCount}>{Math.round(zoom * 100)}%</span>
+          <Button size="sm" aria-label="Phóng to sơ đồ" onClick={() => zoomBy(1)}>
+            +
+          </Button>
+          <Button size="sm" variant="ghost" aria-label="Vừa khung" onClick={fit}>
+            Vừa khung
+          </Button>
+          <details className={styles.dMore}>
+            <summary>Tùy chọn</summary>
+            <div className={styles.dMoreMenu}>
+              <Select
+                label="Hướng bố cục"
+                size="sm"
+                value={orientation}
+                onChange={(event) => setOrientation(event.target.value as Orientation | 'auto')}
+              >
+                <option value="auto">Tự động</option>
+                <option value="horizontal">Ngang</option>
+                <option value="vertical">Dọc</option>
+              </Select>
+              <Button size="sm" onClick={resetLayout}>
+                Bố cục lại
+              </Button>
+              {whole && (
+                <Button size="sm" aria-pressed={conflicts} onClick={() => setConflicts(!conflicts)}>
+                  Chỉ hiện xung đột
+                </Button>
+              )}
+            </div>
+          </details>
+        </div>
       </div>
+
       {!whole && (
         <div className={styles.dBar}>
           <Badge tone={item.importance === 'main' ? 'accent' : 'neutral'}>
@@ -286,159 +399,43 @@ export function ArgumentDiagram({
           />
         </div>
       )}
+
       <div className={styles.dViewport}>
         <div className={styles.dCanvas} ref={canvas}>
-          <svg
+          <div
+            className={styles.dFlow}
             role="group"
             aria-label={
               whole
                 ? `Lược đồ AIF của toàn bài (${items.filter((argument) => states.get(argument.id) !== 'dismissed').length} arguments)`
                 : `Lược đồ ${view === 'toulmin' ? 'Toulmin' : 'AIF'} của argument ${index + 1}`
             }
-            viewBox={`${-PAD} ${-PAD} ${width} ${height}`}
-            width={zoom ? width * zoom : undefined}
-            className={zoom ? undefined : styles.dFit}
           >
-            <defs>
-              <marker
-                id="arrow"
-                viewBox="0 0 10 10"
-                refX="9"
-                refY="5"
-                markerWidth="7"
-                markerHeight="7"
-                orient="auto"
-              >
-                <path d="M 0 0 L 10 5 L 0 10 z" className={styles.dArrow} />
-              </marker>
-            </defs>
-            {diagram.edges.map((edge) => {
-              const from = byId.get(edge.from);
-              const to = byId.get(edge.to);
-              if (!from || !to) return null;
-              const path = edgePath(from, to, diagram.nodes);
-              return (
-                <g key={edge.id}>
-                  <path
-                    d={path.d}
-                    className={styles.dEdge}
-                    data-tone={edge.tone}
-                    data-dashed={edge.dashed}
-                    markerEnd="url(#arrow)"
-                  />
-                  {edge.label && (
-                    <text x={path.labelX} y={path.labelY - 6} textAnchor="middle" className={styles.dLabel}>
-                      {edge.label}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-            {diagram.nodes.map((node) => (
-              <g
-                key={node.id}
-                tabIndex={0}
-                role="group"
-                aria-label={`${ROLES[node.role]}: di chuyển bằng phím mũi tên`}
-                onPointerDown={(event) => pointerDown(event, node)}
-                onPointerMove={(event) => pointerMove(event, node)}
-                onPointerUp={() => {
-                  drag.current = null;
-                }}
-                onPointerCancel={() => {
-                  drag.current = null;
-                }}
-                onKeyDown={(event) => keyMove(event, node)}
-              >
-                {node.kind === 'scheme' ? (
-                  <g data-testid={`node-${node.id}`}>
-                    <circle
-                      cx={node.x + node.width / 2}
-                      cy={node.y + node.height / 2}
-                      r={node.width / 2}
-                      className={styles.dScheme}
-                      data-role={node.role}
-                    />
-                    <text
-                      x={node.x + node.width / 2}
-                      y={node.y + node.height / 2 - 8}
-                      textAnchor="middle"
-                      className={styles.dSchemeCode}
-                    >
-                      {node.role === 'ra' ? 'RA' : 'CA'}
-                    </text>
-                    <text
-                      x={node.x + node.width / 2}
-                      y={node.y + node.height / 2 + 14}
-                      textAnchor="middle"
-                      className={styles.dLabel}
-                    >
-                      {ROLES[node.role]}
-                    </text>
-                    {node.role === 'ra' && (
-                      <text
-                        x={node.x + node.width / 2}
-                        y={node.y + node.height / 2 + 32}
-                        textAnchor="middle"
-                        className={styles.dLabel}
-                      >
-                        {diagram.edges.filter((edge) => edge.to === node.id).length} tiền đề → 1 kết luận
-                      </text>
-                    )}
-                  </g>
-                ) : (
-                  <foreignObject
-                    x={node.x}
-                    y={node.y}
-                    width={node.width}
-                    height={node.height}
-                    data-testid={`node-${node.id}`}
-                  >
-                    {card(node)}
-                  </foreignObject>
-                )}
-              </g>
-            ))}
-          </svg>
-        </div>
-        {zoom !== null &&
-          canvasSize.width > 0 &&
-          (width * zoom > canvasSize.width || height * zoom > canvasSize.height) && (
-            <svg
-              className={styles.dMinimap}
-              role="img"
-              aria-label="Tổng quan sơ đồ"
-              viewBox={`0 0 ${width} ${height}`}
-              onClick={(event) => {
-                const rect = event.currentTarget.getBoundingClientRect();
-                const element = canvas.current;
-                if (element) {
-                  element.scrollLeft =
-                    ((event.clientX - rect.left) / rect.width) * width * zoom - element.clientWidth / 2;
-                  element.scrollTop =
-                    ((event.clientY - rect.top) / rect.height) * height * zoom - element.clientHeight / 2;
-                }
+            <ReactFlow
+              key={`${layoutKey}:${conflicts}`}
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              onNodesChange={onNodesChange}
+              onInit={(instance) => {
+                flow.current = instance;
+                setZoom(instance.getZoom());
               }}
+              onMoveEnd={(_event, viewport) => setZoom(viewport.zoom)}
+              fitView
+              fitViewOptions={{ padding: 0.14, duration: motionDuration(180) }}
+              minZoom={0.35}
+              maxZoom={2.4}
+              nodesConnectable={false}
+              nodesDraggable
+              elementsSelectable={false}
+              deleteKeyCode={null}
+              onlyRenderVisibleElements
             >
-              {diagram.nodes.map((node) => (
-                <rect
-                  key={node.id}
-                  x={node.x + PAD}
-                  y={node.y + PAD}
-                  width={node.width}
-                  height={node.height}
-                  className={styles.dMiniNode}
-                />
-              ))}
-              <rect
-                x={canvasSize.left / zoom}
-                y={canvasSize.top / zoom}
-                width={canvasSize.width / zoom}
-                height={canvasSize.height / zoom}
-                className={styles.dMiniViewport}
-              />
-            </svg>
-          )}
+              <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--border-subtle)" />
+            </ReactFlow>
+          </div>
+        </div>
       </div>
     </div>
   );

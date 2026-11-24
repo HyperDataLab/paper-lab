@@ -149,6 +149,25 @@
   font-weight: 500;
   color: var(--text);
 }
+.fieldLabelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.fieldLabelRow > label {
+  min-width: 0;
+}
+.fieldLabelWithPrefix {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.fieldLabelPrefix {
+  color: var(--text-muted);
+  font-weight: 600;
+}
 .field .fieldControl {
   font-weight: 400;
 }
@@ -157,7 +176,7 @@
   padding: 0 var(--space-3);
   color: var(--text);
   background: var(--surface);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   font-family: inherit;
   font-size: var(--text-base);
@@ -167,7 +186,7 @@
     box-shadow 0.12s ease;
 }
 .fieldControl:hover:not(:disabled) {
-  border-color: var(--text-muted);
+  border-color: var(--border-strong);
 }
 .fieldControl:focus-visible {
   outline: none;
@@ -177,6 +196,14 @@
 .fieldControl:disabled {
   color: var(--text-muted);
   background: var(--surface-sunken);
+}
+.fieldControl:read-only {
+  background: var(--surface-sunken);
+  cursor: default;
+}
+.fieldControl::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
 }
 .selectLabel {
   cursor: pointer;
@@ -277,6 +304,44 @@
   box-shadow: var(--shadow-overlay);
   animation: selectMenuIn 140ms ease-out both;
 }
+.selectSearchWrap {
+  position: sticky;
+  top: calc(var(--space-1) * -1);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: calc(var(--space-1) * -1) calc(var(--space-1) * -1) var(--space-1);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface);
+  color: var(--text-muted);
+}
+.selectSearchWrap:focus-within {
+  color: var(--accent);
+}
+.selectSearch {
+  width: 100%;
+  min-width: 0;
+  height: var(--control-h-sm);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+.selectSearch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.selectEmpty {
+  margin: 0;
+  padding: var(--space-3) var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
 .selectOption {
   display: flex;
   align-items: center;
@@ -343,9 +408,11 @@
   font-size: var(--text-sm);
 }
 .multiline {
-  min-height: var(--control-h);
+  min-height: calc(var(--control-h) + var(--space-4));
   padding: var(--space-2) var(--space-3);
-  resize: vertical;
+  resize: none;
+  overflow-y: auto;
+  vertical-align: top;
 }
 .fieldInline {
   display: inline-flex;
@@ -365,6 +432,17 @@
 .fieldError {
   color: var(--danger);
   font-size: var(--text-sm);
+}
+.segmentField {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.segmentLabel {
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: 550;
 }
 .checkbox {
   display: inline-flex;
@@ -420,17 +498,17 @@
   border-radius: var(--radius);
 }
 .segments .segment:hover:not(:disabled) {
-  background: transparent;
-  border-color: transparent;
+  background: var(--surface);
+  border-color: var(--border);
   color: var(--text);
 }
 .segments .segment[aria-checked='true'],
 .segments .segment[aria-checked='true']:hover:not(:disabled) {
-  background: var(--surface);
-  border-color: transparent;
-  color: var(--text);
+  background: var(--soft);
+  border-color: var(--accent);
+  color: var(--accent-strong);
   font-weight: 600;
-  box-shadow: var(--shadow-sm);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 .toast {
   position: fixed;
@@ -891,6 +969,62 @@
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
+.activityStatus {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  width: min(240px, 100%);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+}
+.activitySpinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.activityLabel {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.activityTrack {
+  grid-column: 2;
+  display: block;
+  height: 2px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--border-subtle);
+}
+.activityIndeterminate {
+  display: block;
+  width: 38%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  animation: activitySweep 1.25s ease-in-out infinite;
+}
+.activityDeterminate {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transform: scaleX(var(--activity-progress, 0));
+  transform-origin: left center;
+  transition: transform 180ms ease-out;
+}
+@keyframes activitySweep {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(280%);
+  }
+}
 .spinner {
   width: var(--space-4);
   height: var(--space-4);
@@ -907,6 +1041,19 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .activitySpinner,
+  .activityIndeterminate {
+    animation: none;
+  }
+  .activityIndeterminate {
+    width: 48%;
+    transform: none;
+  }
+  .activityDeterminate {
+    transition: none;
   }
 }
 .emptyNote {
@@ -957,24 +1104,34 @@
 .pageHeader {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-3) var(--space-6);
-  margin-bottom: var(--space-2);
+}
+.pageHeader > div:first-child {
+  min-width: 0;
 }
 .pageHeader h1 {
   margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  text-wrap: balance;
 }
 .pageHeader p {
   max-width: 68ch;
   margin: var(--space-1) 0 0;
   color: var(--text-muted);
-  font-size: var(--text-md);
+  font-size: var(--text-base);
+  line-height: 1.5;
 }
 .pageActions {
   display: flex;
+  flex: 0 1 auto;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-2);
 }
 .dropzone {
@@ -1293,6 +1450,19 @@
 @media (max-width: 640px) {
   .itemGrid {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .pageHeader {
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+  .pageHeader h1 {
+    font-size: var(--text-xl);
+  }
+  .pageActions {
+    width: 100%;
+    justify-content: flex-start;
   }
 }
 /* The title link stretches over the whole card; the actions menu and focus ring sit above it. */

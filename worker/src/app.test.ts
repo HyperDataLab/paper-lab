@@ -54,7 +54,7 @@ function deps(
       new Response(pdf, { headers: { 'Content-Type': 'application/pdf' } }),
   );
   return {
-    verifyToken: async () => ({ uid: 'u1', email: 'a@hyperdatalab.org' }),
+    verifyToken: async () => ({ uid: 'u1', email: 'a@hyperdatalab.org', kind: 'sso' as const }),
     bucket,
     allowedOrigins: [ORIGIN],
     getOwnedProject: async (projectId) => ({ id: projectId, name: 'Test project' }),

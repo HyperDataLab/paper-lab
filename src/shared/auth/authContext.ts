@@ -6,6 +6,11 @@ export interface LabUser {
   name: string | null;
 }
 export interface AuthValue {
+  /**
+   * The sign-in in use (ADR 0008): 'firebase' works in lab scope with no ResearchHub project; 'sso' (the default
+   * when absent) works in the selected ResearchHub project.
+   */
+  mode?: 'firebase' | 'sso';
   user: LabUser | null;
   /** False until the saved session has been checked. */
   ready: boolean;
@@ -14,9 +19,9 @@ export interface AuthValue {
   handoffFailed?: boolean;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
-  /** A valid HyperDataLab SSO access token, or null when signed out/expired. */
+  /** The active sign-in's token for the lab workers (SSO access token or Firebase ID token), or null. */
   getAccessToken?: () => Promise<string | null>;
-  /** @deprecated Use getAccessToken; retained while existing paper features migrate. */
+  /** The same token as getAccessToken; most worker clients call this one. */
   getIdToken: () => Promise<string | null>;
 }
 

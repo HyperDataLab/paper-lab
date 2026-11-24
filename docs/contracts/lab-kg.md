@@ -11,7 +11,8 @@ Every `/v1/kg/*` route requires `Authorization: Bearer <Firebase ID token>` from
 Send `{ "sql": "SELECT title FROM paper ORDER BY id", "limit": 10 }`. `limit` is optional and accepts integers
 from 1 to 1,000 (default 100). `200` returns `{ sql, columns, rows, truncated, concepts }` with positional rows
 and registry concept IDs. The worker binds `limit + 1` to an outer `LIMIT` to detect truncation. The route uses
-`Cache-Control: no-store`.
+`Cache-Control: no-store`. Every registry table source is wrapped with a project-ID prefix filter using the
+authenticated ResearchHub project scope before the query runs.
 
 The validator accepts one `SELECT` or non-recursive `WITH … SELECT` with an optional trailing semicolon.
 Sources must be unqualified registry tables, previously declared CTEs or SELECT subqueries. Joins can group

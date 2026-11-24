@@ -180,7 +180,7 @@ const calls = (path: string) =>
 /** The first request to a KG path; worker URLs carry the ResearchHub project in the query. */
 const firstCall = (path: string) =>
   fetcher.mock.calls.find(([url]) => {
-    const parsed = new URL(url, 'https://worker.test');
+    const parsed = new URL(String(url), 'https://worker.test');
     return parsed.pathname.endsWith(path) && parsed.searchParams.get('projectId') === 'rh-1';
   }) ?? [];
 
@@ -204,9 +204,10 @@ describe('L4 lab KG explorer', () => {
     paperCount = 0;
     show();
     expect(await screen.findByText('KG của lab chưa có bài nào')).toBeTruthy();
-    expect(screen.getByText(/nhập DOI vào ô tìm/u)).toBeTruthy();
+    expect(screen.getByText('Chọn corpus để đưa vào KG')).toBeTruthy();
     expect(await screen.findByRole('link', { name: 'Mở Corpus' })).toBeTruthy();
     expect(screen.getByLabelText('Tìm tâm đồ thị')).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: 'Hỏi KG bằng AI' }));
     expect(screen.getByRole('region', { name: 'Hỏi KG bằng câu hỏi' })).toBeInTheDocument();
     expect(calls('/overview')).toHaveLength(0);
   });
@@ -230,7 +231,7 @@ describe('L4 lab KG explorer', () => {
     fireEvent.click(within(list).getByRole('button', { name: 'Đưa 61 bài vào KG' }));
     expect(await within(list).findByText(/Đã gửi 61\/61 \(50 bài một lượt\) · Đã xếp 61/u)).toBeTruthy();
     const bodies = fetcher.mock.calls
-      .filter(([url]) => new URL(url, 'https://worker.test').pathname.endsWith('/ingest'))
+      .filter(([url]) => new URL(String(url), 'https://worker.test').pathname.endsWith('/ingest'))
       .map(([, init]) => JSON.parse(String(init?.body)) as { ids: string[] });
     expect(bodies.map(({ ids }) => ids.length)).toEqual([50, 11]);
     expect(bodies[1]?.ids.at(-1)).toBe('10.1000/extra');
@@ -371,5 +372,32 @@ describe('L4 lab KG explorer', () => {
     await waitFor(() =>
       expect(calls('/graph').at(-1)?.searchParams.get('center')).toBe('keywords/synthetic-graphs'),
     );
+  });
+
+  it('keeps the explorer and AI question drafts separate when switching tabs', async () => {
+    show();
+    const exploreInput = await screen.findByLabelText('Tìm tâm đồ thị');
+    fireEvent.change(exploreInput, { target: { value: '10.1016/j.comnet.2025.111430' } });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Hỏi KG bằng AI' }));
+    const question = await screen.findByLabelText('Câu hỏi về KG');
+    expect(question).toHaveValue('');
+    fireEvent.change(question, { target: { value: 'Bài báo này liên kết với những chủ đề nào?' } });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Khám phá đồ thị' }));
+    expect(screen.getByLabelText('Tìm tâm đồ thị')).toHaveValue('10.1016/j.comnet.2025.111430');
+    fireEvent.click(screen.getByRole('tab', { name: 'Hỏi KG bằng AI' }));
+    expect(screen.getByLabelText('Câu hỏi về KG')).toHaveValue('Bài báo này liên kết với những chủ đề nào?');
+  });
+
+  it('opens the graph directly for the AsyncDefender DOI from the reference screenshot', async () => {
+    show();
+    fireEvent.change(await screen.findByLabelText('Tìm tâm đồ thị'), {
+      target: { value: '10.1016/j.comnet.2025.111430' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Tìm trong KG' }));
+    await screen.findByRole('group', { name: 'Đồ thị KG của lab quanh tâm đã chọn' });
+    expect(calls('/search')).toHaveLength(0);
+    expect(calls('/graph')[0]?.searchParams.get('center')).toBe('10.1016/j.comnet.2025.111430');
   });
 });

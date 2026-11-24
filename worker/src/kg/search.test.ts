@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { mapOpenAlexWorkToKg } from '../../../src/core/labKg';
 import {
   KG_EDGE_TABLES,
+  KgEntityDetailSchema,
   KgOverviewSchema,
   KgPaperDetailSchema,
   KgSearchResponseSchema,
@@ -110,7 +111,7 @@ async function setup({ seed = true, matches = [] as { id: string; score: number 
     verifyToken: async (token) => {
       if (token === 'outsider') throw new NotAllowedError();
       if (token !== 'lab') throw new Error('bad token');
-      return { uid: 'test', email: 'test@example.invalid' };
+      return { uid: 'test', email: 'test@example.invalid', kind: 'sso' as const };
     },
     allowedOrigins: ['https://example.invalid'],
     getOwnedProject: async (id) => (id === PROJECT_ID ? { id, name: 'Test project' } : null),
@@ -379,6 +380,80 @@ describe('L3 KG reads', () => {
       ]);
     }
     expect((await call('/v1/kg/keywords/keywords%2Fnone')).status).toBe(404);
+  });
+
+  it('L4 returns scoped author and institution profiles with linked papers and relations', async () => {
+    const { call, sqlite } = await setup();
+    const authorResponse = await call('/v1/kg/entities/author/A1');
+    expect(authorResponse.status).toBe(200);
+    const author = KgEntityDetailSchema.parse(await authorResponse.json());
+    expect(author).toMatchObject({
+      kind: 'author',
+      entity: { id: 'A1', name: 'Author A1', orcid: null },
+      paperCount: 1,
+      papers: [{ id: 'W1', title: 'Graph neural networks for synthetic molecules', year: 2020 }],
+    });
+    expect(author.related).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'A2', kind: 'author', count: 1 }),
+        expect.objectContaining({ id: 'I1', kind: 'institution', count: 1 }),
+      ]),
+    );
+
+    const institutionResponse = await call('/v1/kg/entities/institution/I1');
+    expect(institutionResponse.status).toBe(200);
+    const institution = KgEntityDetailSchema.parse(await institutionResponse.json());
+    expect(institution).toMatchObject({
+      kind: 'institution',
+      entity: { id: 'I1', name: 'Synthetic Institute', countryCode: 'VN' },
+      paperCount: 1,
+    });
+    expect(institution.related.map(({ id, kind }) => [id, kind])).toEqual([
+      ['A1', 'author'],
+      ['A2', 'author'],
+    ]);
+
+    // A same OpenAlex entity in another project must not contribute papers or relations here.
+    const foreign = '@rh/foreign-project/';
+    sqlite
+      .prepare(`INSERT INTO paper (id, title, title_normalized) VALUES (?, ?, ?)`)
+      .run(`${foreign}W99`, 'Foreign paper', 'foreign paper');
+    sqlite.prepare(`INSERT INTO author (id, display_name) VALUES (?, ?)`).run(`${foreign}A1`, 'Other Author');
+    sqlite
+      .prepare(`INSERT INTO authored (paper_id, author_id, position) VALUES (?, ?, 1)`)
+      .run(`${foreign}W99`, `${foreign}A1`);
+    const stillScoped = KgEntityDetailSchema.parse(await (await call('/v1/kg/entities/author/A1')).json());
+    expect(stillScoped.paperCount).toBe(1);
+    expect(stillScoped.papers.map(({ id }) => id)).toEqual(['W1']);
+  });
+
+  it('L4 returns taxonomy profiles and rejects malformed or missing entity IDs', async () => {
+    const { call } = await setup();
+    const response = await call('/v1/kg/entities/topic/topics%2FT1');
+    expect(response.status).toBe(200);
+    const topic = KgEntityDetailSchema.parse(await response.json());
+    expect(topic).toMatchObject({
+      kind: 'topic',
+      entity: { id: 'topics/T1', name: 'Synthetic topic' },
+      paperCount: 1,
+      papers: [{ id: 'W1' }],
+      related: [{ id: 'subfields/2', kind: 'subfield', count: null }],
+    });
+    for (const [kind, id, parentKind, parentId] of [
+      ['subfield', 'subfields/2', 'field', 'fields/3'],
+      ['field', 'fields/3', 'domain', 'domains/4'],
+      ['domain', 'domains/4', 'field', 'fields/3'],
+    ] as const) {
+      const taxonomyResponse = await call(`/v1/kg/entities/${kind}/${encodeURIComponent(id)}`);
+      expect(taxonomyResponse.status).toBe(200);
+      const taxonomy = KgEntityDetailSchema.parse(await taxonomyResponse.json());
+      expect(taxonomy).toMatchObject({ kind, paperCount: 1 });
+      expect(
+        taxonomy.related.map(({ id: relatedId, kind: relatedKind }) => [relatedId, relatedKind]),
+      ).toContainEqual([parentId, parentKind]);
+    }
+    expect((await call('/v1/kg/entities/author/not-an-author')).status).toBe(400);
+    expect((await call('/v1/kg/entities/topic/topics%2Fmissing')).status).toBe(404);
   });
 
   it('L3 counts nodes, edges and the queue', async () => {

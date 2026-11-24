@@ -61,6 +61,15 @@ export function ArgumentsSpace({
           label="Arguments overview"
         />
       )}
+      <PaperBlock id="arguments" kit={kit}>
+        {shown('arguments') && (
+          <PaperArguments
+            paper={paper}
+            view={kit.viewOf('arguments') === 'aif' ? 'aif' : 'toulmin'}
+            onLocation={onLocation}
+          />
+        )}
+      </PaperBlock>
       <IssuesBlock id="argIssues" only={ARGUMENT_CRITERIA} visible={active} kit={kit} issues={issues} />
       <PaperBlock id="gap" kit={kit}>
         {open('gap') && (
@@ -91,15 +100,6 @@ export function ArgumentsSpace({
             record={measurements}
             onLocation={onLocation}
             onOpen={() => onOpen('measure')}
-          />
-        )}
-      </PaperBlock>
-      <PaperBlock id="arguments" kit={kit}>
-        {shown('arguments') && (
-          <PaperArguments
-            paper={paper}
-            view={kit.viewOf('arguments') === 'aif' ? 'aif' : 'toulmin'}
-            onLocation={onLocation}
           />
         )}
       </PaperBlock>

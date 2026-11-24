@@ -39,7 +39,7 @@ const expand = (name: RegExp) =>
 it('M4 shows an overview with counts and no overall score', async () => {
   await setup();
   expect(await screen.findByText('Thực nghiệm')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /1\s*metric/ })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /1\s*chỉ số/u })).toBeInTheDocument();
   expect(screen.getByText(/không có điểm tổng/)).toBeInTheDocument();
   expect(screen.getByRole('table')).toHaveTextContent('Seed ngẫu nhiên');
 });

@@ -26,6 +26,15 @@ describe('fact requests client', () => {
     });
   });
 
+  it('checks the account-wide admin role without requiring a project', async () => {
+    const fetchMock = vi.fn(async () => Response.json({ email: 'admin@example.org', admin: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    expect(await getMe('test-token')).toMatchObject({ admin: true });
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/\/v1\/me$/u), {
+      headers: { Authorization: 'Bearer test-token' },
+    });
+  });
+
   it('lists by state and cursor and tolerates missing title and DOI', async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
       Response.json({

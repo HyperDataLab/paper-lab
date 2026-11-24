@@ -173,7 +173,7 @@ it('P2 estimates selected calls, asks manuscript consent and opens a completed a
   expect(completeJson).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Đồng ý và tiếp tục' }));
   // The whole journey runs in jsdom. Under CI load the run alone took longer than the 4 s default wait.
-  expect(await screen.findByText(/Tiến độ: 1\/1 đoạn/, {}, { timeout: 15000 })).toBeInTheDocument();
+  expect(await screen.findByText(/^1\/1 đoạn/u, {}, { timeout: 15000 })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('tab', { name: 'Full text' }));
   expect(await screen.findByText('Hoàn tất')).toBeInTheDocument();
   // The completed analysis is read on the paper; the retired Evaluate page is no longer linked.
@@ -412,7 +412,7 @@ it('P2 a run keeps going when the reader opens another tab, and the view is kept
   expect(await screen.findByText(/Đang chạy: /)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('tab', { name: 'Summary' }));
   // Still the same runs: the panels were hidden, not unmounted, so nothing was restarted.
-  expect(screen.getByText('Đang trích Key facts…')).toBeVisible();
+  expect(screen.getByText('Đang trích key facts…')).toBeVisible();
   expect(screen.getByRole('button', { name: 'Đang tóm tắt…' })).toBeDisabled();
   expect(completeJson).toHaveBeenCalledTimes(2);
 });

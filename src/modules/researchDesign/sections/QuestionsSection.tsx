@@ -111,7 +111,6 @@ export default function QuestionsSection() {
     deletion?.type === 'question' ? draft.hypotheses.filter((h) => h.question === deletion.id).length : 0;
   return (
     <>
-      <h3>Research questions và hypotheses</h3>
       <p>Mỗi research question và hypothesis có mã ổn định, nối với research gap tìm được.</p>
       <SectionSuggest state={state} target="hypotheses" />
       <Button variant="primary" onClick={() => setEditor({ type: 'question' })}>

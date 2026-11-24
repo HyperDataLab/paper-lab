@@ -145,7 +145,6 @@ export default function PackageSection({ autoResearch }: Props) {
   const publishedPlans = state.design.publishedPlans ?? {};
   return (
     <>
-      <h3>Gói kế hoạch</h3>
       <p>Kiểm tra, đóng băng và xuất gói cho Scientific Research Desktop.</p>
       <Card>
         <h3>Bản nháp hiện tại</h3>

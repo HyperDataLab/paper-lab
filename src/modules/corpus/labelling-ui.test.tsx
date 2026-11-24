@@ -69,7 +69,11 @@ it('C4b asks for consent once, runs the members and records the run', async () =
   );
   // Only stance is chosen, so the run makes no rhetoric call.
   fireEvent.click(screen.getByRole('checkbox', { name: 'Validity và Moves' }));
-  expect(screen.getByText(/Ước tính: \d+ lượt gọi AI cho 1\/1 bài/)).toBeInTheDocument();
+  // The estimate shows the call count next to its label and the share of built papers to label.
+  expect(screen.getByText('lượt gọi AI ước tính').closest('div')).toHaveTextContent(
+    /^\d+lượt gọi AI ước tính/u,
+  );
+  expect(screen.getByText('1/1 bài đã dựng model cần gắn nhãn')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu gắn nhãn' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đồng ý và tiếp tục' }));
   await waitFor(async () => expect((await repo.corpora.get(corpus.id))?.labelQueue?.status).toBe('complete'));

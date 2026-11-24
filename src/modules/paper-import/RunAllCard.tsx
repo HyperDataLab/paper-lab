@@ -2,6 +2,7 @@ import { useRef, useState, type RefObject } from 'react';
 import { Play, Square } from 'lucide-react';
 import { BATCH_CONCURRENCY } from '@/core/batch';
 import { Button } from '@/shared/ui/Button';
+import { ActivityStatus } from '@/shared/ui/ActivityStatus';
 import { Card } from '@/shared/ui/Card';
 import { Dialog } from '@/shared/ui/Dialog';
 import {
@@ -194,7 +195,8 @@ export function RunAllCard({
   const progress = (
     <>
       {(phase.kind === 'running' || phase.kind === 'finished') && (
-        <div role="status">
+        <div role={phase.kind === 'finished' ? 'status' : undefined} aria-busy={phase.kind === 'running'}>
+          {phase.kind === 'running' && <ActivityStatus label="Đang chạy các phân tích đã chọn…" />}
           {RUN_ALL_PURPOSES.map((purpose) => {
             const hasResult = purpose.jobs.some(
               (id) =>

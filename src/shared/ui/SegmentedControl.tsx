@@ -6,11 +6,13 @@ export function SegmentedControl({
   value,
   options,
   onChange,
+  showLabel = false,
 }: {
   label: string;
   value: string;
   options: { value: string; label: string }[];
   onChange: (value: string) => void;
+  showLabel?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const selected = options.some((option) => option.value === value);
@@ -28,21 +30,24 @@ export function SegmentedControl({
     }
   }
   return (
-    <div ref={ref} role="radiogroup" aria-label={label} className={styles.segments} onKeyDown={keyDown}>
-      {options.map((option, index) => (
-        <Button
-          key={option.value}
-          role="radio"
-          aria-checked={value === option.value}
-          // With nothing chosen yet, the first option keeps the group reachable by Tab.
-          tabIndex={value === option.value || (index === 0 && !selected) ? 0 : -1}
-          size="sm"
-          className={styles.segment}
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-        </Button>
-      ))}
+    <div className={styles.segmentField}>
+      {showLabel && <span className={styles.segmentLabel}>{label}</span>}
+      <div ref={ref} role="radiogroup" aria-label={label} className={styles.segments} onKeyDown={keyDown}>
+        {options.map((option, index) => (
+          <Button
+            key={option.value}
+            role="radio"
+            aria-checked={value === option.value}
+            // With nothing chosen yet, the first option keeps the group reachable by Tab.
+            tabIndex={value === option.value || (index === 0 && !selected) ? 0 : -1}
+            size="sm"
+            className={styles.segment}
+            onClick={() => onChange(option.value)}
+          >
+            {option.label}
+          </Button>
+        ))}
+      </div>
     </div>
   );
 }

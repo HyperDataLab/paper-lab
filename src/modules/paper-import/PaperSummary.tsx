@@ -158,12 +158,15 @@ export function PaperSummary({
                   {summary.claims
                     .filter((item) => !claimType || item.claimType === claimType)
                     .map((item) => (
-                      <li key={item.id}>
+                      <li key={item.id} className={styles.claimItem}>
                         <p className={styles.claim}>
-                          <strong>“{item.claim.excerpt}”</strong> <ClaimTypeBadge type={item.claimType} />{' '}
-                          <EvidenceLevelBadge level={item.evidenceLevel} basis={item.evidenceBasis} />{' '}
-                          {place(item.claim)}
+                          <strong>“{item.claim.excerpt}”</strong>
                         </p>
+                        <div className={styles.claimMeta}>
+                          <ClaimTypeBadge type={item.claimType} />
+                          <EvidenceLevelBadge level={item.evidenceLevel} basis={item.evidenceBasis} />
+                          {place(item.claim)}
+                        </div>
                         <dl className={styles.support}>
                           <dt>Grounds</dt>
                           <dd>

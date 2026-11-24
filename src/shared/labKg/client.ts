@@ -1,3 +1,4 @@
+import { projectHeader } from '@/shared/scope';
 import type { SciAtlasSearchRequest } from '@/core/openkg';
 import { KgSqlResultSchema } from '@/core/schemas/kgSql';
 import {
@@ -5,6 +6,7 @@ import {
   KgIngestResultSchema,
   KgGraphSchema,
   KgIngestStatusSchema,
+  KgEntityDetailSchema,
   KgKeywordDetailSchema,
   KgOverviewSchema,
   KgPaperDetailSchema,
@@ -14,6 +16,7 @@ import {
   kgIdentifier,
   paperId,
   type KgGraphLayer,
+  type KgDetailEntityKind,
   type KgIngestResult,
   type KgIngestSource,
 } from '@/core/schemas/labKg';
@@ -50,6 +53,8 @@ function errorMessage(status: number, code: string, path: string) {
     return 'SQL không hợp lệ hoặc truy cập ngoài phạm vi KG.';
   }
   if (status === 400) return 'Yêu cầu tới KG của lab chưa hợp lệ.';
+  if (status === 404 && path === '/sql')
+    return 'Worker hiện tại chưa hỗ trợ truy vấn Hỏi KG. Cần cập nhật Worker PaperLab.';
   if (status === 404) return 'KG của lab chưa có mục này.';
   if (status === 429) return 'Máy chủ lab đang bận. Hãy thử lại sau ít phút.';
   if (status >= 500) return `Máy chủ KG của lab gặp lỗi (HTTP ${status}).`;
@@ -78,7 +83,7 @@ async function request(
       return await fetch(url, {
         ...init,
         ...(cache ? { cache } : {}),
-        headers: { Authorization: `Bearer ${token}`, 'X-Project-Id': projectId, ...init?.headers },
+        headers: { Authorization: `Bearer ${token}`, ...projectHeader(projectId), ...init?.headers },
       });
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
@@ -239,6 +244,21 @@ export async function getLabKgKeyword(
   );
   if (!parsed.success)
     throw new LabKgError('Không đọc được keyword trong KG của lab.', 'Invalid keyword response.');
+  return parsed.data;
+}
+
+export async function getLabKgEntity(
+  kind: KgDetailEntityKind,
+  id: string,
+  token: string | null,
+  projectId: string,
+  signal?: AbortSignal,
+) {
+  const parsed = KgEntityDetailSchema.safeParse(
+    await request(`/entities/${kind}/${encodeURIComponent(id)}`, token, projectId, { signal }),
+  );
+  if (!parsed.success)
+    throw new LabKgError('Không đọc được chi tiết thực thể trong KG của lab.', 'Invalid entity response.');
   return parsed.data;
 }
 

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { normalizeDoi } from '@/core/library/doi';
 import { labKgGraphToPaperKg, labKgIri } from '@/core/labKg/graphKg';
 import { toJsonLd, toTurtle } from '@/core/openkg/exportRdf';
@@ -148,6 +149,23 @@ export default function Page() {
   const [queueing, setQueueing] = useState(false);
   const [queued, setQueued] = useState<KgIngestResult>();
   const [queueError, setQueueError] = useState<LabKgError>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTool, setActiveTool] = useState<'explore' | 'ask'>(() =>
+    searchParams.get('tool') === 'ask' ? 'ask' : 'explore',
+  );
+
+  function selectTool(tool: 'explore' | 'ask') {
+    setActiveTool(tool);
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (tool === 'ask') next.set('tool', 'ask');
+        else next.delete('tool');
+        return next;
+      },
+      { replace: true },
+    );
+  }
 
   useEffect(() => {
     void repo.paperContext
@@ -317,6 +335,21 @@ export default function Page() {
     if (text) void runSearch(text);
   }
 
+  function moveToolTab(event: KeyboardEvent<HTMLButtonElement>) {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const current = event.currentTarget.id === 'kg-explore-tab' ? 0 : 1;
+    const index =
+      event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+          ? 1
+          : (current + (event.key === 'ArrowRight' ? 1 : -1) + 2) % 2;
+    const next = index === 0 ? 'explore' : 'ask';
+    selectTool(next);
+    document.getElementById(next === 'explore' ? 'kg-explore-tab' : 'kg-ask-tab')?.focus();
+  }
+
   async function ingestOutside() {
     if (!graph?.outside.length) return;
     setQueueing(true);
@@ -341,8 +374,8 @@ export default function Page() {
 
   const header = (
     <PageHeader
-      title="KG của lab"
-      lead="Xem quanh một bài, keyword hoặc chủ đề trong knowledge graph chung của lab."
+      title="Knowledge Graph của lab"
+      lead="Khám phá mối liên hệ trong dữ liệu nghiên cứu của project."
     />
   );
   if (!uid)
@@ -358,226 +391,263 @@ export default function Page() {
   return (
     <div className={styles.page}>
       {header}
-      <div className={styles.launchGrid}>
-        <section className={styles.explore} aria-labelledby="lab-kg-explore-heading">
-          <div className={styles.panelHeading}>
-            <h2 id="lab-kg-explore-heading" className={styles.heading}>
-              Khám phá đồ thị
-            </h2>
-            <p className={styles.muted}>Tìm bài báo, keyword hoặc chủ đề để xem các mối liên hệ.</p>
-          </div>
+      <div className={styles.workspace}>
+        <div className={styles.workspaceTabs} role="tablist" aria-label="Công cụ Knowledge Graph">
+          <Button
+            id="kg-explore-tab"
+            variant="ghost"
+            className={styles.workspaceTab}
+            role="tab"
+            aria-selected={activeTool === 'explore'}
+            aria-controls="kg-explore-panel"
+            tabIndex={activeTool === 'explore' ? 0 : -1}
+            onClick={() => selectTool('explore')}
+            onKeyDown={moveToolTab}
+          >
+            Khám phá đồ thị
+          </Button>
+          <Button
+            id="kg-ask-tab"
+            variant="ghost"
+            className={styles.workspaceTab}
+            role="tab"
+            aria-selected={activeTool === 'ask'}
+            aria-controls="kg-ask-panel"
+            tabIndex={activeTool === 'ask' ? 0 : -1}
+            onClick={() => selectTool('ask')}
+            onKeyDown={moveToolTab}
+          >
+            Hỏi KG bằng AI
+          </Button>
+        </div>
+        <section
+          id="kg-explore-panel"
+          role="tabpanel"
+          aria-labelledby="kg-explore-tab"
+          hidden={activeTool !== 'explore'}
+          className={styles.toolPanel}
+        >
           <form className={styles.search} onSubmit={search} role="search">
             <TextField
               label="Tìm tâm đồ thị"
-              hint="Nhập tiêu đề, keyword, DOI hoặc OpenAlex ID."
+              hint="Nhập tiêu đề, từ khóa, chủ đề, DOI hoặc OpenAlex ID."
+              placeholder="Tìm trong Knowledge Graph"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
-            <Button
-              type="submit"
-              variant={centre ? 'secondary' : 'primary'}
-              disabled={searching || !query.trim()}
-            >
+            <Button type="submit" variant="primary" disabled={searching || !query.trim()}>
               {searching ? 'Đang tìm…' : 'Tìm trong KG'}
             </Button>
           </form>
-          <p className={styles.exploreFootnote}>
-            Nếu bài chưa có trong KG, PaperLab sẽ gợi ý cách đưa bài vào ở bước tiếp theo.
-          </p>
-        </section>
-        <AskKg key={uid} />
-      </div>
-      {statsError ? (
-        <ErrorNote error={statsError} onRetry={() => setStatsRefresh((value) => value + 1)} />
-      ) : !stats ? (
-        <Loading label="Đang tải số liệu KG…" />
-      ) : (
-        <div className={styles.stats}>
-          <StatGrid>
-            <Stat label="Bài báo" value={stats.nodes.paper} />
-            <Stat label="Keywords" value={stats.nodes.keyword} />
-            <Stat label="Tác giả" value={stats.nodes.author} />
-            <Stat label="Chủ đề" value={stats.nodes.topic} />
-            <Stat label="Contributions" value={stats.nodes.contribution} />
-            <Stat label="Đang chờ đưa vào" value={queue} />
-          </StatGrid>
-        </div>
-      )}
-      {searchError && <ErrorNote error={searchError} onRetry={() => void runSearch(query.trim())} />}
-      {empty && !centre && <EmptyKg queue={queue} onQueued={() => setStatsRefresh((value) => value + 1)} />}
-      {found && (
-        <section aria-label="Kết quả tìm">
-          {found.papers.length ? (
-            <ul className={styles.results}>
-              {found.papers.map((paper) => (
-                <li key={paper.openalexId ?? paper.id ?? paper.title}>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={!(paper.openalexId ?? paper.id)}
-                    onClick={() => recentre(paper.openalexId ?? paper.id ?? '')}
-                  >
-                    {paper.title}
-                  </Button>{' '}
-                  <small>{[paper.year, paper.venue].filter(Boolean).join(' · ')}</small>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className={openkg.muted}>
-              Không có bài nào trong KG khớp với từ khoá này. Nếu bạn biết DOI của bài, hãy gõ DOI để đưa bài
-              vào KG.
-            </p>
-          )}
-        </section>
-      )}
-      {!centre ? (
-        overview && !empty ? (
-          <StartingPoints overview={overview} onCentre={recentre} />
-        ) : (
-          !empty && (
-            <div className={styles.chooseCentre}>
-              <strong>Chọn một điểm bắt đầu</strong>
-              <span className={styles.muted}>
-                Nhập DOI, OpenAlex ID hoặc từ khóa ở trên để mở đồ thị liên quan.
-              </span>
-            </div>
-          )
-        )
-      ) : (
-        <div className={openkg.workspace}>
-          <div className={styles.controls}>
-            <fieldset className={openkg.layers}>
-              <legend>Lớp</legend>
-              {KG_GRAPH_LAYERS.map((layer) => (
-                <Chip
-                  key={layer}
-                  aria-pressed={layers.has(layer)}
-                  count={graph && layers.has(layer) ? (layerCounts.get(layer) ?? 0) : undefined}
-                  onClick={() =>
-                    setLayers((previous) => {
-                      const next = new Set(previous);
-                      if (next.has(layer)) next.delete(layer);
-                      else next.add(layer);
-                      return next;
-                    })
-                  }
-                >
-                  {LAYER_NAMES[layer]}
-                </Chip>
-              ))}
-            </fieldset>
-            <SegmentedControl
-              label="Độ sâu"
-              value={String(depth)}
-              onChange={(value) => setDepth(value === '2' ? 2 : 1)}
-              options={[
-                { value: '1', label: '1 bước' },
-                { value: '2', label: '2 bước' },
-              ]}
-            />
-          </div>
-          {graphError && centreRef && graphError.status === 404 ? (
-            <NotInKg
-              centre={centreRef}
-              onPresent={() => {
-                setGraphRefresh((value) => value + 1);
-                setStatsRefresh((value) => value + 1);
-              }}
-              onSearch={(text) => {
-                setQuery(text);
-                void runSearch(text);
-              }}
-            />
-          ) : (
-            graphError && (
-              <ErrorNote error={graphError} onRetry={() => setGraphRefresh((value) => value + 1)} />
-            )
-          )}
-          {!graph && !graphError && <Loading label="Đang tải đồ thị…" />}
-          {graph && kg && (
-            <>
-              <ActionBar
-                status={`Tâm: ${centreNode?.label ?? graph.centre} · ${graph.nodes.length} nút · ${graph.edges.length} liên kết${graph.truncated ? ' · đã giữ các nút mạnh nhất' : ''}`}
-              >
-                {graph.outside.length > 0 && (
-                  <Button size="sm" disabled={queueing} onClick={() => void ingestOutside()}>
-                    {queueing ? 'Đang gửi…' : `Đưa ${graph.outside.length} bài được dẫn vào KG`}
-                  </Button>
-                )}
-                <ActionMenu
-                  label="Xuất đồ thị"
-                  items={[
-                    {
-                      label: 'Turtle (.ttl)',
-                      onSelect: () => exportFile('ttl', 'text/turtle', toTurtle(kg)),
-                    },
-                    {
-                      label: 'JSON-LD (.jsonld)',
-                      onSelect: () => exportFile('jsonld', 'application/ld+json', toJsonLd(kg)),
-                    },
-                  ]}
-                />
-              </ActionBar>
-              {queued && (
-                <p role="status" className={openkg.muted}>
-                  Đã xếp {queued.queued} · Xử lý ngay {queued.processed} · Bỏ qua {queued.skipped} · Lỗi{' '}
-                  {queued.errors.length}
-                </p>
-              )}
-              {queueError && <ErrorNote error={queueError} />}
-              <div className={`${openkg.layout} ${styles.canvas}`}>
-                <OpenKgGraph
-                  graph={kg}
-                  centre={centreNode ? labKgIri(centreNode) : undefined}
-                  label="Đồ thị KG của lab quanh tâm đã chọn"
-                  selected={current ? labKgIri(current) : undefined}
-                  onSelect={(iri) => setSelected(byIri.get(iri))}
-                />
-                <aside className={openkg.inspector} aria-label="Chi tiết nút">
-                  {current ? (
-                    <NodeDetails
-                      node={current}
-                      graph={graph}
-                      localPaperId={localPaperId}
-                      onCentre={recentre}
-                    />
-                  ) : (
-                    <p className={openkg.muted}>Chọn một nút để xem chi tiết.</p>
-                  )}
-                </aside>
-              </div>
-              <details className={`${openkg.textList} ${styles.nodeList}`}>
-                <summary>Danh sách nút ({graph.nodes.length})</summary>
-                <ul>
-                  {graph.nodes.map((node) => (
-                    <li key={node.id}>
+          {searchError && <ErrorNote error={searchError} onRetry={() => void runSearch(query.trim())} />}
+          {found && (
+            <section aria-label="Kết quả tìm">
+              {found.papers.length ? (
+                <ul className={styles.results}>
+                  {found.papers.map((paper) => (
+                    <li key={paper.openalexId ?? paper.id ?? paper.title}>
                       <Button
                         variant="ghost"
                         size="sm"
-                        aria-pressed={node.id === selected}
-                        onClick={() => setSelected(node.id)}
+                        disabled={!(paper.openalexId ?? paper.id)}
+                        onClick={() => recentre(paper.openalexId ?? paper.id ?? '')}
                       >
-                        {node.label}
+                        {paper.title}
                       </Button>{' '}
-                      <small className={openkg.muted}>
-                        {KIND_LABELS[node.kind]}
-                        {node.depth === 0 ? ' · tâm' : ` · ${node.weight.toFixed(2)}`}
-                      </small>
+                      <small>{[paper.year, paper.venue].filter(Boolean).join(' · ')}</small>
                     </li>
                   ))}
                 </ul>
-              </details>
-              {trend && trend.keywords.length > 0 && (
-                <section>
-                  <h3>Keywords theo năm</h3>
-                  <TrendTable trend={trend} />
-                </section>
+              ) : (
+                <p className={openkg.muted}>
+                  Không có bài nào trong KG khớp với từ khoá này. Nếu bạn biết DOI của bài, hãy gõ DOI để đưa
+                  bài vào KG.
+                </p>
               )}
-            </>
+            </section>
           )}
-        </div>
-      )}
+          {!centre && !found && !searchError && (
+            <p className={styles.exploreHint}>
+              Nhập tiêu đề, từ khóa, chủ đề, DOI hoặc OpenAlex ID để bắt đầu.
+            </p>
+          )}
+          {empty && !centre && (
+            <EmptyKg queue={queue} onQueued={() => setStatsRefresh((value) => value + 1)} />
+          )}
+          {!centre ? (
+            overview && !empty ? (
+              <StartingPoints overview={overview} onCentre={recentre} />
+            ) : (
+              !empty && (
+                <div className={styles.chooseCentre}>
+                  <strong>Chọn một điểm bắt đầu</strong>
+                  <span className={styles.muted}>
+                    Nhập DOI, OpenAlex ID hoặc từ khóa ở trên để mở đồ thị liên quan.
+                  </span>
+                </div>
+              )
+            )
+          ) : (
+            <div className={openkg.workspace}>
+              <div className={styles.controls}>
+                <fieldset className={openkg.layers}>
+                  <legend>Lớp</legend>
+                  {KG_GRAPH_LAYERS.map((layer) => (
+                    <Chip
+                      key={layer}
+                      aria-pressed={layers.has(layer)}
+                      count={graph && layers.has(layer) ? (layerCounts.get(layer) ?? 0) : undefined}
+                      onClick={() =>
+                        setLayers((previous) => {
+                          const next = new Set(previous);
+                          if (next.has(layer)) next.delete(layer);
+                          else next.add(layer);
+                          return next;
+                        })
+                      }
+                    >
+                      {LAYER_NAMES[layer]}
+                    </Chip>
+                  ))}
+                </fieldset>
+                <SegmentedControl
+                  label="Độ sâu"
+                  value={String(depth)}
+                  onChange={(value) => setDepth(value === '2' ? 2 : 1)}
+                  options={[
+                    { value: '1', label: '1 bước' },
+                    { value: '2', label: '2 bước' },
+                  ]}
+                />
+              </div>
+              {graphError && centreRef && graphError.status === 404 ? (
+                <NotInKg
+                  centre={centreRef}
+                  onPresent={() => {
+                    setGraphRefresh((value) => value + 1);
+                    setStatsRefresh((value) => value + 1);
+                  }}
+                  onSearch={(text) => {
+                    setQuery(text);
+                    void runSearch(text);
+                  }}
+                />
+              ) : (
+                graphError && (
+                  <ErrorNote error={graphError} onRetry={() => setGraphRefresh((value) => value + 1)} />
+                )
+              )}
+              {!graph && !graphError && <Loading label="Đang tải đồ thị…" />}
+              {graph && kg && (
+                <>
+                  <ActionBar
+                    status={`Tâm: ${centreNode?.label ?? graph.centre} · ${graph.nodes.length} nút · ${graph.edges.length} liên kết${graph.truncated ? ' · đã giữ các nút mạnh nhất' : ''}`}
+                  >
+                    {graph.outside.length > 0 && (
+                      <Button size="sm" disabled={queueing} onClick={() => void ingestOutside()}>
+                        {queueing ? 'Đang gửi…' : `Đưa ${graph.outside.length} bài được dẫn vào KG`}
+                      </Button>
+                    )}
+                    <ActionMenu
+                      label="Xuất đồ thị"
+                      items={[
+                        {
+                          label: 'Turtle (.ttl)',
+                          onSelect: () => exportFile('ttl', 'text/turtle', toTurtle(kg)),
+                        },
+                        {
+                          label: 'JSON-LD (.jsonld)',
+                          onSelect: () => exportFile('jsonld', 'application/ld+json', toJsonLd(kg)),
+                        },
+                      ]}
+                    />
+                  </ActionBar>
+                  {queued && (
+                    <p role="status" className={openkg.muted}>
+                      Đã xếp {queued.queued} · Xử lý ngay {queued.processed} · Bỏ qua {queued.skipped} · Lỗi{' '}
+                      {queued.errors.length}
+                    </p>
+                  )}
+                  {queueError && <ErrorNote error={queueError} />}
+                  <div className={`${openkg.layout} ${styles.canvas}`}>
+                    <OpenKgGraph
+                      graph={kg}
+                      centre={centreNode ? labKgIri(centreNode) : undefined}
+                      label="Đồ thị KG của lab quanh tâm đã chọn"
+                      selected={current ? labKgIri(current) : undefined}
+                      onSelect={(iri) => setSelected(byIri.get(iri))}
+                    />
+                    <aside className={openkg.inspector} aria-label="Chi tiết nút">
+                      {current ? (
+                        <NodeDetails
+                          node={current}
+                          graph={graph}
+                          localPaperId={localPaperId}
+                          onCentre={recentre}
+                        />
+                      ) : (
+                        <p className={openkg.muted}>Chọn một nút để xem chi tiết.</p>
+                      )}
+                    </aside>
+                  </div>
+                  <details className={`${openkg.textList} ${styles.nodeList}`}>
+                    <summary>Danh sách nút ({graph.nodes.length})</summary>
+                    <ul>
+                      {graph.nodes.map((node) => (
+                        <li key={node.id}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-pressed={node.id === selected}
+                            onClick={() => setSelected(node.id)}
+                          >
+                            {node.label}
+                          </Button>{' '}
+                          <small className={openkg.muted}>
+                            {KIND_LABELS[node.kind]}
+                            {node.depth === 0 ? ' · tâm' : ` · ${node.weight.toFixed(2)}`}
+                          </small>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                  {trend && trend.keywords.length > 0 && (
+                    <section>
+                      <h3>Keywords theo năm</h3>
+                      <TrendTable trend={trend} />
+                    </section>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+          {statsError ? (
+            <ErrorNote error={statsError} onRetry={() => setStatsRefresh((value) => value + 1)} />
+          ) : !stats ? (
+            <Loading label="Đang tải số liệu KG…" />
+          ) : (
+            <div className={styles.stats}>
+              <StatGrid>
+                <Stat label="Bài báo" value={stats.nodes.paper} />
+                <Stat label="Keywords" value={stats.nodes.keyword} />
+                <Stat label="Tác giả" value={stats.nodes.author} />
+                <Stat label="Chủ đề" value={stats.nodes.topic} />
+                <Stat label="Contributions" value={stats.nodes.contribution} />
+                <Stat label="Đang chờ đưa vào" value={queue} />
+              </StatGrid>
+            </div>
+          )}
+        </section>
+        <section
+          id="kg-ask-panel"
+          role="tabpanel"
+          aria-labelledby="kg-ask-tab"
+          hidden={activeTool !== 'ask'}
+          className={styles.toolPanel}
+        >
+          <AskKg key={uid} localPaperIds={local} />
+        </section>
+      </div>
     </div>
   );
 }
