@@ -72,6 +72,8 @@ a lab sign-in and an owned ResearchHub project; without `DATA`, `AI` or `PASSAGE
   to the cron. A 400-paragraph paper costs about 8 Workers AI calls and 4 Vectorize calls.
 - Vectorize: `topK` 50 without metadata in the result; filters only on indexed metadata (`projectId`, `paperId`),
   and only for vectors written after the metadata index exists.
+- `sectionRoles` filters in D1 after the vector top 50, so a rare role can leave the vector channel nearly empty
+  (keyword matches still answer). A third metadata index on `sectionRole` would move the filter into Vectorize.
 - The embedding model is English; Vietnamese text is indexed but matches mostly through FTS5.
 
 ## Deploy

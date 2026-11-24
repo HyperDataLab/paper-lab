@@ -238,7 +238,12 @@ export default {
       vectors: env.PASSAGE_VECTORS,
       ai: env.AI,
     });
-    if (passages) await drainPassageQueue(passages, { now: () => new Date() });
+    try {
+      if (passages) await drainPassageQueue(passages, { now: () => new Date() });
+    } catch (error) {
+      // A missing migration or a D1 outage must not stop the orphan-body collector below.
+      console.error('Passage indexing failed', error instanceof Error ? error.name : 'unknown');
+    }
     if (env.DATA) await collectOrphanBodies(env.DATA, env.BUCKET, new Date());
   },
 };
