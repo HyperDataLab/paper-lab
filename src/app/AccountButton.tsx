@@ -6,12 +6,12 @@ import styles from './shell.module.css';
 
 /** The lab account in the top bar: who is signed in, or one button to sign in. Details live in Settings. */
 export function AccountButton() {
-  const { user, ready, signIn } = useAuth();
+  const { mode, user, ready, signIn } = useAuth();
   if (!ready) return null;
   if (!user)
     return (
       <Button variant="ghost" size="sm" onClick={() => void signIn()}>
-        <LogIn size={16} aria-hidden="true" /> Đăng nhập SSO
+        <LogIn size={16} aria-hidden="true" /> {mode === 'firebase' ? 'Đăng nhập Google' : 'Đăng nhập SSO'}
       </Button>
     );
   return (

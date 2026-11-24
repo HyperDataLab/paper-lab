@@ -1,3 +1,4 @@
+import { projectHeader } from '@/shared/scope';
 import { z } from 'zod';
 import { PDF_WORKER_URL, projectScopedUrl } from './index';
 
@@ -46,7 +47,7 @@ export class FactRequestError extends Error {
 
 const auth = (token: string, projectId: string) => ({
   Authorization: `Bearer ${token}`,
-  'X-Project-Id': projectId,
+  ...projectHeader(projectId),
 });
 
 /** Who the lab server says the caller is. Only the server decides who is an admin. */

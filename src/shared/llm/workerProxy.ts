@@ -1,4 +1,5 @@
 import { PDF_WORKER_URL, projectScopedUrl } from '@/shared/pdfStore';
+import { isLabScope } from '@/shared/scope';
 
 const ROUTER_HOSTS = new Set(['9router.dcloud.io.vn', '9router.oraltest.site']);
 
@@ -30,7 +31,8 @@ export function createLlmWorkerFetch(
 
     const headers = new Headers(source.headers);
     headers.set('Authorization', `Bearer ${token}`);
-    headers.set('X-Project-Id', projectId);
+    // Lab scope (ADR 0008) sends no project id.
+    if (!isLabScope(projectId)) headers.set('X-Project-Id', projectId);
     headers.set('X-LLM-API-Key', key);
     headers.set('X-LLM-Base-URL', baseUrl.replace(/\/$/u, ''));
     headers.delete('content-length');
