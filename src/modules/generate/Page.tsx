@@ -136,7 +136,10 @@ export default function Page() {
         {!id && !generation && <ParagraphModes current="/generate" />}
       </PageHeader>
       {(running || generation) && (
-        <ActionBar status={running ? <span role="status">Đang soạn paragraph…</span> : undefined} busy={running}>
+        <ActionBar
+          status={running ? <span role="status">Đang soạn paragraph…</span> : undefined}
+          busy={running}
+        >
           {running && (
             <Button
               variant="danger"

@@ -63,13 +63,15 @@ export async function refreshSsoSessionIfNeeded(
       }
       const latest = readCurrent();
       if (!latest || latest.refreshToken !== refreshToken) return latest;
-      const nextRefreshExpiresAt = typeof body.refresh_token_expires_in === 'number'
-        ? Date.now() + Math.max(0, body.refresh_token_expires_in) * 1000
-        : latest.refreshExpiresAt;
+      const nextRefreshExpiresAt =
+        typeof body.refresh_token_expires_in === 'number'
+          ? Date.now() + Math.max(0, body.refresh_token_expires_in) * 1000
+          : latest.refreshExpiresAt;
       const next: SsoSession = {
         ...latest,
         accessToken: body.access_token,
-        expiresAt: Date.now() + (typeof body.expires_in === 'number' ? Math.max(0, body.expires_in) : 3600) * 1000,
+        expiresAt:
+          Date.now() + (typeof body.expires_in === 'number' ? Math.max(0, body.expires_in) : 3600) * 1000,
         refreshToken: typeof body.refresh_token === 'string' ? body.refresh_token : refreshToken,
         ...(nextRefreshExpiresAt === undefined ? {} : { refreshExpiresAt: nextRefreshExpiresAt }),
       };

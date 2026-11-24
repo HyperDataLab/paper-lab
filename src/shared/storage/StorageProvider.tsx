@@ -201,8 +201,14 @@ export function StorageProvider({
       <section role="alert">
         <h1>{handoffFailed ? 'Không nhận được phiên ResearchHub' : 'Cần phiên HyperDataLab SSO'}</h1>
         <p>{authError || 'Mở PaperLab từ project ResearchHub để chuyển phiên hiện tại.'}</p>
-        {RESEARCH_HUB_URL && <a href={`${RESEARCH_HUB_URL}/projects/${encodeURIComponent(effectiveProjectId)}`}>Mở project ResearchHub</a>}
-        <button type="button" onClick={retrySignIn}>Đăng nhập lại bằng HyperDataLab SSO</button>
+        {RESEARCH_HUB_URL && (
+          <a href={`${RESEARCH_HUB_URL}/projects/${encodeURIComponent(effectiveProjectId)}`}>
+            Mở project ResearchHub
+          </a>
+        )}
+        <button type="button" onClick={retrySignIn}>
+          Đăng nhập lại bằng HyperDataLab SSO
+        </button>
       </section>
     );
   } else if (status === 'loading') {
@@ -218,8 +224,14 @@ export function StorageProvider({
       <section role="alert">
         <h1>Không mở được project</h1>
         <p>{projectError}</p>
-        <button type="button" onClick={retrySignIn}>Đăng nhập lại bằng HyperDataLab SSO</button>
-        {RESEARCH_HUB_URL && <a href={`${RESEARCH_HUB_URL}/projects/${encodeURIComponent(effectiveProjectId)}`}>Mở project ResearchHub</a>}
+        <button type="button" onClick={retrySignIn}>
+          Đăng nhập lại bằng HyperDataLab SSO
+        </button>
+        {RESEARCH_HUB_URL && (
+          <a href={`${RESEARCH_HUB_URL}/projects/${encodeURIComponent(effectiveProjectId)}`}>
+            Mở project ResearchHub
+          </a>
+        )}
       </section>
     );
   }
@@ -260,11 +272,23 @@ export function StorageStatus({ className }: { className?: string }) {
     <div className={className} role="status">
       {status !== 'idle' && (
         <span className={`${statusStyles.badge} ${status === 'error' ? statusStyles.error : ''}`}>
-          {status === 'saving' ? <CloudUpload size={14} aria-hidden="true" /> : <AlertCircle size={14} aria-hidden="true" />}
+          {status === 'saving' ? (
+            <CloudUpload size={14} aria-hidden="true" />
+          ) : (
+            <AlertCircle size={14} aria-hidden="true" />
+          )}
           {status === 'saving' ? 'Đang lưu thay đổi…' : 'Lỗi lưu'}
         </span>
       )}
-      {storage?.error && <div role="alert">Kho dữ liệu project chưa được cấu hình.<details><summary>Chi tiết kỹ thuật</summary>{storage.error}</details></div>}
+      {storage?.error && (
+        <div role="alert">
+          Kho dữ liệu project chưa được cấu hình.
+          <details>
+            <summary>Chi tiết kỹ thuật</summary>
+            {storage.error}
+          </details>
+        </div>
+      )}
     </div>
   );
 }
