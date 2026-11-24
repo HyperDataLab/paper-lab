@@ -1,13 +1,12 @@
-import { Card } from '@/shared/ui/Card';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { BlurField } from './BlurField';
 import type { Props } from './types';
 export function DecisionCard({ check, change }: Props) {
   return (
-    <Card>
-      <h3>Quyết định của nhà nghiên cứu</h3>
+    <section className="topic-decision">
       <SegmentedControl
         label="Quyết định"
+        showLabel
         value={check.decision.verdict ?? ''}
         options={[
           { value: 'go', label: 'Tiếp tục' },
@@ -25,17 +24,23 @@ export function DecisionCard({ check, change }: Props) {
           }))
         }
       />
-      <BlurField
-        label="Ghi chú quyết định"
-        value={check.decision.note}
-        save={(note) => change((c) => ({ ...c, decision: { ...c.decision, note } }))}
-      />
-      <BlurField
-        label="Bước tiếp theo với người khác"
-        placeholder="Ví dụ: trao đổi với người hướng dẫn"
-        value={check.decision.nextHumanStep}
-        save={(nextHumanStep) => change((c) => ({ ...c, decision: { ...c.decision, nextHumanStep } }))}
-      />
-    </Card>
+      <div className="topic-decision-fields">
+        <BlurField
+          id="topic-decision-note"
+          label="Ghi chú quyết định"
+          value={check.decision.note}
+          rows={2}
+          save={(note) => change((c) => ({ ...c, decision: { ...c.decision, note } }))}
+        />
+        <BlurField
+          id="topic-next-step"
+          label="Bước tiếp theo"
+          placeholder="Ví dụ: trao đổi với người hướng dẫn"
+          value={check.decision.nextHumanStep}
+          rows={2}
+          save={(nextHumanStep) => change((c) => ({ ...c, decision: { ...c.decision, nextHumanStep } }))}
+        />
+      </div>
+    </section>
   );
 }

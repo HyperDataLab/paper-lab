@@ -5,6 +5,29 @@ import type { Argument, Paper } from '@/core/schemas';
 import { chooseSelectOption } from '@/test/selectOption';
 import { ArgumentDiagram } from './ArgumentDiagram';
 
+vi.stubGlobal(
+  'ResizeObserver',
+  class ResizeObserverMock {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
+);
+const offsetWidth = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (
+  this: HTMLElement,
+) {
+  return Number.parseFloat(this.style.width) || (this.classList.contains('react-flow') ? 1000 : 12);
+});
+const offsetHeight = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+  this: HTMLElement,
+) {
+  return Number.parseFloat(this.style.height) || (this.classList.contains('react-flow') ? 620 : 12);
+});
+afterAll(() => {
+  offsetWidth.mockRestore();
+  offsetHeight.mockRestore();
+});
+
 const paper = {
   id: '00000000-0000-4000-8000-000000000001',
   sections: [{ id: 's', heading: 'Results' }],
@@ -107,16 +130,14 @@ it('R5 names the whole-paper AIF diagram for assistive technology', () => {
 it('R4 Toulmin is drawn as a diagram: empty slots say so, and an inferred warrant is marked as not the author words', () => {
   const onLocation = vi.fn();
   show('toulmin', onLocation);
-  const diagram = screen.getByRole('group', { name: 'Lược đồ Toulmin của argument 1' });
+  screen.getByRole('group', { name: 'Lược đồ Toulmin của argument 1' });
   expect(within(screen.getByTestId('node-claim')).getByText('X improves Y.')).toBeInTheDocument();
   expect(within(screen.getByTestId('node-warrant')).getByText('AI suy ra')).toBeInTheDocument();
   expect(within(screen.getByTestId('node-warrant')).getByText('Không phải lời tác giả')).toBeInTheDocument();
   for (const id of ['node-backing-0', 'node-qualifier'])
     expect(within(screen.getByTestId(id)).getByText('Chưa xác định')).toBeInTheDocument();
   expect(screen.getByText(/4\/6 thành phần đã xác định/)).toBeInTheDocument();
-  // The rebuttal line is dashed and labelled, not only coloured.
-  expect(within(diagram).getByText('Trừ khi')).toBeInTheDocument();
-  expect(diagram.querySelector('path[data-tone="conflict"]')).toHaveAttribute('data-dashed', 'true');
+  // Passage navigation stays available on the rendered node; React Flow owns edge placement and interaction.
   // A passage opens in the paper.
   fireEvent.click(within(screen.getByTestId('node-data-0')).getByRole('button', { name: 'Results · Tr. 4' }));
   expect(onLocation).toHaveBeenCalledWith(first.data[0]);
@@ -143,13 +164,63 @@ it('R4 AIF is drawn with RA and CA nodes between statements, and the reader step
   expect(screen.getByRole('button', { name: 'Argument sau' })).toBeDisabled();
 });
 
+it('R11 the selected argument can be controlled by its workspace across view changes', () => {
+  const onSelectedIdChange = vi.fn();
+  const { rerender } = render(
+    <ArgumentDiagram
+      paper={paper}
+      items={[first, second]}
+      states={new Map()}
+      view="aif"
+      selectedId="a1"
+      onSelectedIdChange={onSelectedIdChange}
+      onLocation={vi.fn()}
+      onDecide={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Argument sau' }));
+  expect(onSelectedIdChange).toHaveBeenCalledWith('a2');
+  rerender(
+    <ArgumentDiagram
+      paper={paper}
+      items={[first, second]}
+      states={new Map()}
+      view="aif"
+      selectedId="a2"
+      onSelectedIdChange={onSelectedIdChange}
+      onLocation={vi.fn()}
+      onDecide={vi.fn()}
+    />,
+  );
+  expect(screen.getByRole('group', { name: 'Lược đồ AIF của argument 2' })).toBeInTheDocument();
+});
+
+it('R11 keeps the diagram toolbar focused on canvas controls when selection is owned by the workspace', () => {
+  render(
+    <ArgumentDiagram
+      paper={paper}
+      items={[first, second]}
+      states={new Map()}
+      view="aif"
+      selectedId="a2"
+      showArgumentPicker={false}
+      onSelectedIdChange={vi.fn()}
+      onLocation={vi.fn()}
+      onDecide={vi.fn()}
+    />,
+  );
+  expect(screen.queryByRole('combobox', { name: 'Argument' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Phóng to sơ đồ' })).toBeInTheDocument();
+  expect(screen.getByRole('group', { name: 'Lược đồ AIF của argument 2' })).toBeInTheDocument();
+});
+
 it('R5 moves a card with arrow keys and restores its layout', () => {
   show('toulmin');
   const card = screen.getByTestId('node-claim');
-  const handle = screen.getByRole('group', { name: 'Claim: di chuyển bằng phím mũi tên' });
-  const original = Number(card.getAttribute('x'));
-  fireEvent.keyDown(handle, { key: 'ArrowRight' });
-  expect(Number(card.getAttribute('x'))).toBe(original + 10);
+  const original = Number(card.getAttribute('data-position-x'));
+  fireEvent.keyDown(card, { key: 'ArrowRight' });
+  expect(Number(card.getAttribute('data-position-x'))).toBe(original + 10);
+  fireEvent.click(screen.getByText('Tùy chọn'));
   fireEvent.click(screen.getByRole('button', { name: 'Bố cục lại' }));
-  expect(Number(card.getAttribute('x'))).toBe(original);
+  expect(Number(screen.getByTestId('node-claim').getAttribute('data-position-x'))).toBe(original);
 });

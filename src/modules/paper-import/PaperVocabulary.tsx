@@ -66,24 +66,26 @@ export function PaperVocabulary({
         <p className={styles.tabHelp}>
           Số mô tả, không phải điểm. Mức phù hợp khác nhau theo lĩnh vực nên cần đọc cùng mốc so sánh.
         </p>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th scope="col">Metric</th>
-              <th scope="col">Bài này</th>
-              <th scope="col">{baseline ? `Trung vị ${baseline.papers} bài khác` : 'Mốc so sánh'}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ROWS.map((row) => (
-              <tr key={row.key}>
-                <th scope="row">{row.label}</th>
-                <td>{row.show(overall[row.key])}</td>
-                <td>{baseline ? row.show(baseline[row.key]) : '—'}</td>
+        <div className={styles.vocabularyTableWrap}>
+          <table className={`${styles.table} ${styles.metricTable}`}>
+            <thead>
+              <tr>
+                <th scope="col">Chỉ số</th>
+                <th scope="col">Bài này</th>
+                <th scope="col">{baseline ? `Trung vị ${baseline.papers} bài khác` : 'Mốc so sánh'}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {ROWS.map((row) => (
+                <tr key={row.key}>
+                  <th scope="row">{row.label}</th>
+                  <td>{row.show(overall[row.key])}</td>
+                  <td>{baseline ? row.show(baseline[row.key]) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {!baseline && (
           <p className={styles.tabHelp}>
             Mốc so sánh xuất hiện khi đã nhập ít nhất {BASELINE_MIN_PAPERS} bài khác. Nên chọn bài cùng lĩnh
@@ -93,32 +95,34 @@ export function PaperVocabulary({
       </Card>
       <Card>
         <h2>So sánh giữa các section</h2>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th scope="col">Section</th>
-              <th scope="col">Số từ</th>
-              {SECTION_ROWS.map((row) => (
-                <th scope="col" key={row.key}>
-                  {row.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {sections.map(({ section, metrics }) => (
-              <tr key={section.id}>
-                <th scope="row">
-                  {SECTION_ROLE_LABELS[section.role]} · {section.heading}
-                </th>
-                <td>{metrics.words}</td>
+        <div className={styles.vocabularyTableWrap}>
+          <table className={`${styles.table} ${styles.sectionComparisonTable}`}>
+            <thead>
+              <tr>
+                <th scope="col">Section</th>
+                <th scope="col">Số từ</th>
                 {SECTION_ROWS.map((row) => (
-                  <td key={row.key}>{row.show(metrics[row.key])}</td>
+                  <th scope="col" key={row.key}>
+                    {row.label}
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {sections.map(({ section, metrics }) => (
+                <tr key={section.id}>
+                  <th scope="row">
+                    {SECTION_ROLE_LABELS[section.role]} · {section.heading}
+                  </th>
+                  <td>{metrics.words}</td>
+                  {SECTION_ROWS.map((row) => (
+                    <td key={row.key}>{row.show(metrics[row.key])}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Card>
       <Card>
         <h2>Cụm từ lặp lại</h2>
@@ -129,30 +133,32 @@ export function PaperVocabulary({
         {phrases.length === 0 ? (
           <p>Không có cụm từ lặp lại đáng kể.</p>
         ) : (
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th scope="col">Cụm từ</th>
-                <th scope="col">Số lần</th>
-                <th scope="col">Số đoạn</th>
-                <th scope="col">Lần đầu</th>
-              </tr>
-            </thead>
-            <tbody>
-              {phrases.map((item) => (
-                <tr key={item.phrase}>
-                  <th scope="row">{item.phrase}</th>
-                  <td>{item.count}</td>
-                  <td>{item.paragraphs}</td>
-                  <td>
-                    <Button variant="ghost" size="sm" onClick={() => onLocation(item.location)}>
-                      <PlaceText paper={paper} paragraphId={item.location.paragraphId} />
-                    </Button>
-                  </td>
+          <div className={styles.vocabularyTableWrap}>
+            <table className={`${styles.table} ${styles.phraseTable}`}>
+              <thead>
+                <tr>
+                  <th scope="col">Cụm từ</th>
+                  <th scope="col">Số lần</th>
+                  <th scope="col">Số đoạn</th>
+                  <th scope="col">Lần đầu</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {phrases.map((item) => (
+                  <tr key={item.phrase}>
+                    <th scope="row">{item.phrase}</th>
+                    <td>{item.count}</td>
+                    <td>{item.paragraphs}</td>
+                    <td>
+                      <Button variant="ghost" size="sm" onClick={() => onLocation(item.location)}>
+                        <PlaceText paper={paper} paragraphId={item.location.paragraphId} />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
     </>

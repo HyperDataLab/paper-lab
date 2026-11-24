@@ -57,6 +57,31 @@ it('ADR-0003 joins server-sent chunks that a router returns without being asked 
   expect(result.meta).toMatchObject({ repaired: false, usage: { prompt_tokens: 3, completion_tokens: 5 } });
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
+it('streams response chunks and keeps the 60-second timeout as an inactivity limit', async () => {
+  vi.useFakeTimers();
+  const encoder = new TextEncoder();
+  const chunk = (content: string) => `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`;
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      setTimeout(() => controller.enqueue(encoder.encode(chunk('{"ok":'))), 40_000);
+      setTimeout(() => {
+        controller.enqueue(encoder.encode(`${chunk('true,"model":"test"}')}data: [DONE]\n\n`));
+        controller.close();
+      }, 80_000);
+    },
+  });
+  const fetchMock = vi.fn<typeof fetch>(async () => new Response(stream));
+  const client = createLlmClient(config, { fetch: fetchMock, sleep: async () => {}, now: () => 0 });
+  const onStreamStart = vi.fn();
+  const result = client.completeJson({ ...options, stream: true, onStreamStart });
+  const assertion = expect(result).resolves.toMatchObject({ data: { ok: true, model: 'test' } });
+
+  await vi.advanceTimersByTimeAsync(80_000);
+  await assertion;
+  expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({ stream: true });
+  expect(onStreamStart).toHaveBeenCalledTimes(1);
+  vi.useRealTimers();
+});
 it('ADR-0003 joins streamed tool-call arguments', async () => {
   const part = (args: string) => ({
     choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: args } }] } }],

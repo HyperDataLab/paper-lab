@@ -4,7 +4,8 @@ import { ConsentRequiredError } from './errors';
 export const CONSENT_VERSION = 1;
 export const PAPER_CONSENT_VERSION = 2;
 const AUTORESEARCH_CONSENT_VERSION = 1;
-export type ConsentScope = 'paper' | 'autoresearch' | 'kg';
+const KG_ANSWER_CONSENT_VERSION = 1;
+export type ConsentScope = 'paper' | 'autoresearch' | 'kg' | 'kgAnswer';
 const consentSchema = z.object({
   version: z.number(),
   provider: z.string(),
@@ -29,16 +30,22 @@ export function getConsent(): Consent | null {
     return null;
   }
 }
-export function acceptConsent(config: LlmConfig, paper = false, autoresearch = false): Consent | null {
+export function acceptConsent(
+  config: LlmConfig,
+  paper = false,
+  autoresearch = false,
+  kgAnswer = false,
+): Consent | null {
   const consent = {
-    version: paper ? PAPER_CONSENT_VERSION : CONSENT_VERSION,
+    version: kgAnswer ? KG_ANSWER_CONSENT_VERSION : paper ? PAPER_CONSENT_VERSION : CONSENT_VERSION,
     provider: providerFor(config),
     baseUrl: config.baseUrl,
     model: config.model,
     acceptedAt: new Date().toISOString(),
   };
   try {
-    localStorage.setItem(paper ? 'pl.paperConsent' : 'pl.consent', JSON.stringify(consent));
+    if (kgAnswer) localStorage.setItem('pl.kgAnswerConsent', JSON.stringify(consent));
+    else localStorage.setItem(paper ? 'pl.paperConsent' : 'pl.consent', JSON.stringify(consent));
     if (paper) localStorage.setItem('pl.consent', JSON.stringify({ ...consent, version: CONSENT_VERSION }));
     if (autoresearch)
       localStorage.setItem(
@@ -59,6 +66,7 @@ export function revokeConsent(): void {
     localStorage.removeItem('pl.consent');
     localStorage.removeItem('pl.paperConsent');
     localStorage.removeItem('pl.autoresearchConsent');
+    localStorage.removeItem('pl.kgAnswerConsent');
   } catch {
     /* Storage is unavailable. */
   }
@@ -69,6 +77,21 @@ export function hasPaperConsent(config: LlmConfig): boolean {
     return (
       parsed.success &&
       parsed.data.version === PAPER_CONSENT_VERSION &&
+      parsed.data.provider === providerFor(config) &&
+      parsed.data.baseUrl === config.baseUrl &&
+      parsed.data.model === config.model
+    );
+  } catch {
+    return false;
+  }
+}
+export function hasKgAnswerConsent(config: LlmConfig): boolean {
+  try {
+    const parsed = consentSchema.safeParse(JSON.parse(localStorage.getItem('pl.kgAnswerConsent') || 'null'));
+    return (
+      hasValidConsent(config) &&
+      parsed.success &&
+      parsed.data.version === KG_ANSWER_CONSENT_VERSION &&
       parsed.data.provider === providerFor(config) &&
       parsed.data.baseUrl === config.baseUrl &&
       parsed.data.model === config.model

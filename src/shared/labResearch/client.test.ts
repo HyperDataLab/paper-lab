@@ -37,6 +37,11 @@ it('reports invalid input', async () => {
     client(vi.fn().mockResolvedValue(new Response('{}', { status: 400 }))).callTool('x', {}),
   ).rejects.toMatchObject({ code: 'invalid_input' });
 });
+it('distinguishes a rejected SSO session from a locally signed-out user', async () => {
+  await expect(
+    client(vi.fn().mockResolvedValue(new Response('{}', { status: 401 }))).listTools(),
+  ).rejects.toMatchObject({ code: 'unauthorized', status: 401 });
+});
 it('requires configuration', async () => {
   await expect(client(vi.fn(), '').callTool('x', {})).rejects.toMatchObject({ code: 'not_configured' });
 });

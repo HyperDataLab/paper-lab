@@ -74,10 +74,10 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
     if (chip.getAttribute('aria-pressed') !== 'true') fireEvent.click(chip);
   };
   await screen.findByRole('tab', { name: 'Full text' });
-  // Minh bạch is in the paper's action menu.
   fireEvent.click(screen.getByRole('button', { name: 'Thao tác bài báo' }));
-  expect(screen.getByRole('menuitem', { name: 'Minh bạch' })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Thao tác bài báo' }));
+  fireEvent.click(await screen.findByRole('menuitem', { name: 'Minh bạch' }));
+  expect(await screen.findByRole('dialog', { name: 'Thông tin minh bạch' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
   openChecks();
   fireEvent.click(screen.getByRole('button', { name: 'Chạy lại kiểm tra' }));
   const list = await screen.findByRole('region', { name: 'Issues' });
@@ -115,7 +115,10 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
       .getAllByRole('article')
       .map((card) => card.getAttribute('aria-label')),
   ).toEqual(['Diễn ngôn và Tu từ', 'Viết học thuật']);
-  fireEvent.click(screen.getByRole('button', { name: 'Quay lại bài' }));
+  // The paper is the first tab of the Spaces bar.
+  fireEvent.click(
+    within(screen.getByRole('tablist', { name: 'Spaces' })).getByRole('tab', { name: 'Bài báo' }),
+  );
   // On a narrow screen the page's tab bar holds the analysis tabs; the analysis drawer repeats them.
   const citationsTab = () =>
     within(screen.getByRole('tablist', { name: 'Bài báo' })).getByRole('tab', { name: 'Citations' });
@@ -265,8 +268,14 @@ it('R7 on a wide screen the paper is the centre column beside the analysis, and 
   fireEvent.click(screen.getByRole('radio', { name: 'Paragraph structure & flow' }));
   // A space takes the whole width; going back shows the paper beside the right column again.
   expect(document.querySelector('section[aria-label="Paper"]')).not.toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'Quay lại bài' }));
+  // The paper is the first tab of the Spaces bar.
+  fireEvent.click(
+    within(screen.getByRole('tablist', { name: 'Spaces' })).getByRole('tab', { name: 'Bài báo' }),
+  );
   expect(screen.getByRole('region', { name: 'Paper' })).toBeVisible();
+  // Choosing the paper closes the analysis column; the toggle opens it beside the paper again.
+  expect(toggle()).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(toggle());
   // The rule checks ran when the paper opened: their finding is in the Issues list beside the paper.
   fireEvent.click(screen.getByRole('tab', { name: 'Issues' }));
   const list = await screen.findByRole('region', { name: 'Issues' });

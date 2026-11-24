@@ -1,6 +1,14 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { KG_EDGE_TABLES, KG_NODE_TABLES } from '@/core/schemas/labKg';
-import { enqueueLabKg, getLabKgStats, getLabKgStatus, labKgIds, LabKgError } from './client';
+import {
+  enqueueLabKg,
+  getLabKgEntity,
+  getLabKgStats,
+  getLabKgStatus,
+  labKgIds,
+  LabKgError,
+  queryLabKg,
+} from './client';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -60,6 +68,26 @@ it('does not call the worker without an active ResearchHub project', async () =>
   expect(fetcher).not.toHaveBeenCalled();
 });
 
+it('loads validated project-scoped author detail with an encoded entity ID', async () => {
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+    Response.json({
+      kind: 'author',
+      entity: { id: 'A1', name: 'Author A1', orcid: '0000-0000-0000-0001', ror: null, countryCode: null },
+      paperCount: 1,
+      papers: [{ id: 'W1', title: 'Paper title', doi: null, year: 2024, citations: 5 }],
+      related: [{ id: 'topics/T1', name: 'Topic', kind: 'topic', count: null }],
+    }),
+  );
+  vi.stubGlobal('fetch', fetcher);
+
+  const detail = await getLabKgEntity('author', 'A1', 'lab', 'rh-1');
+  expect(fetcher.mock.calls[0]?.[0]).toMatch(/\/v1\/kg\/entities\/author\/A1\?projectId=rh-1$/u);
+  expect(fetcher.mock.calls[0]?.[1]).toMatchObject({
+    headers: { Authorization: 'Bearer lab', 'X-Project-Id': 'rh-1' },
+  });
+  expect(detail).toMatchObject({ kind: 'author', paperCount: 1, papers: [{ id: 'W1' }] });
+});
+
 const stats = {
   nodes: Object.fromEntries(KG_NODE_TABLES.map((name) => [name, 0])),
   edges: Object.fromEntries(KG_EDGE_TABLES.map((name) => [name, 0])),
@@ -98,6 +126,18 @@ it('names the failure by status and keeps the status and code for the page', asy
   }
   fetcher.mockResolvedValueOnce(Response.json({ error: 'not_found' }, { status: 404 }));
   await expect(getLabKgStats('lab', 'rh-1')).rejects.toMatchObject({ status: 404, code: 'not_found' });
+});
+
+it('explains that the active Worker is missing the KG SQL route', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn<typeof fetch>().mockResolvedValue(Response.json({ error: 'not_found' }, { status: 404 })),
+  );
+  await expect(queryLabKg('SELECT title FROM paper', 'lab', 'rh-1')).rejects.toMatchObject({
+    message: 'Worker hiện tại chưa hỗ trợ truy vấn Hỏi KG. Cần cập nhật Worker PaperLab.',
+    detail: 'HTTP 404 · not_found',
+    status: 404,
+  });
 });
 
 it('asks again without revalidation when a bodiless 304 reaches the client', async () => {

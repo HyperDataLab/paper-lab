@@ -2,8 +2,7 @@ import type { Argument } from '../schemas';
 import type { ArgumentNode, ArgumentEdge } from './index';
 
 /**
- * Geometry for drawing one argument as a diagram. The layout is computed, not dragged: the same argument
- * always draws the same way, and the screen only has to render boxes and lines.
+ * Computes the default geometry for an argument diagram; readers can adjust node positions in the view.
  */
 type Span = Argument['claim'];
 export type DiagramRole =

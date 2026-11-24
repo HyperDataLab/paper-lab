@@ -54,42 +54,284 @@
   height: 12px;
   border-radius: 50%;
 }
-.graph {
-  display: block;
-  width: 100%;
+.graphNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-md);
+}
+.graphWorkspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 310px);
+  align-items: stretch;
+  gap: var(--space-3);
+}
+.graphCanvas {
+  height: min(72vh, 700px);
+  min-height: 520px;
+  min-width: 0;
+  overflow: hidden;
   border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   background: var(--surface);
 }
-.edgeLabel {
-  fill: var(--text);
+.graphCanvas :global(.react-flow__pane) {
+  cursor: grab;
+}
+.graphCanvas :global(.react-flow__pane:active) {
+  cursor: grabbing;
+}
+.graphCanvas :global(.react-flow__controls) {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.graphCanvas :global(.react-flow__controls-button) {
+  width: 30px;
+  height: 30px;
+  border-bottom-color: var(--border);
+  background: var(--surface);
+  fill: var(--text-secondary);
+}
+.graphCanvas :global(.react-flow__controls-button:hover) {
+  background: var(--hover);
+}
+.graphCanvas :global(.react-flow__attribution) {
   font-size: var(--text-xs);
-  paint-order: stroke;
-  stroke: var(--surface);
-  stroke-width: 4px;
-  stroke-linejoin: round;
+  opacity: 0.7;
 }
-.node {
-  cursor: pointer;
-  fill: var(--text);
+.graphNode {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  transition:
+    border-color 140ms ease-out,
+    opacity 140ms ease-out;
+}
+.graphNodeDot {
+  position: absolute;
+  z-index: 1;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
+  border: 3px solid var(--surface);
+  border-radius: 50%;
+  background: var(--graph-node-color, var(--accent));
+  box-shadow: 0 0 0 1px var(--graph-node-color, var(--accent));
+  transition:
+    background-color 140ms ease-out,
+    box-shadow 140ms ease-out,
+    transform 140ms ease-out;
+}
+.graphNodeDot[data-stage='0'] {
+  --graph-node-color: var(--sec-introduction);
+}
+.graphNodeDot[data-stage='1'] {
+  --graph-node-color: var(--sec-methods);
+}
+.graphNodeDot[data-stage='2'] {
+  --graph-node-color: var(--sec-related);
+}
+.graphNodeDot[data-stage='3'] {
+  --graph-node-color: var(--sec-results);
+}
+.graphNodeCentral .graphNodeDot {
+  border-width: 4px;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--soft);
+}
+.graphNode:focus-visible .graphNodeDot {
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
+}
+.graphNodeLabel {
+  position: absolute;
+  z-index: 2;
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+.graphNodeTooltip {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, calc(-100% - 12px));
+  width: max-content;
+  max-width: min(280px, 40vw);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+}
+.graphNode small {
+  color: var(--text-muted);
   font-size: var(--text-xs);
+  line-height: 1.2;
 }
-.node circle {
-  fill: var(--surface);
-  stroke: var(--accent);
-  stroke-width: 3px;
+.graphNodeSelected {
+  z-index: 1;
 }
-.node[aria-pressed='true'] circle {
-  fill: var(--accent);
+.graphNodeSelected .graphNodeDot {
+  box-shadow:
+    0 0 0 5px var(--soft),
+    0 0 0 7px var(--graph-node-color, var(--accent));
+  transform: scale(1.08);
 }
-.node:focus {
-  outline: none;
+.graphNodeRelated {
+  opacity: 1;
 }
-.node:focus-visible circle {
-  stroke: var(--text);
-  stroke-width: 5px;
+.graphNode:not(.graphNodeRelated) {
+  opacity: 0.3;
+}
+.graphHandle {
+  position: absolute;
+  z-index: 3;
+  width: 1px;
+  height: 1px;
+  border: 0;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+.graphEdgeHitArea {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 20px;
+  pointer-events: stroke;
+}
+.graphEdgeLabel {
+  display: block;
+  max-width: min(220px, 24vw);
+  overflow: hidden;
+  padding: 3px var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+}
+.graphInspector {
+  display: flex;
+  min-width: 0;
+  min-height: 520px;
+  max-height: min(72vh, 700px);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.graphInspectorHead {
+  flex: none;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+.graphInspectorHead > span {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.graphInspectorHead h3 {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-md);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+.graphConnections {
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-2);
+}
+.graphConnections .card {
+  margin: 0 0 var(--space-2);
+  background: var(--bg);
+}
+.graphEmpty {
+  display: grid;
+  flex: 1;
+  align-content: center;
+  justify-items: start;
+  gap: var(--space-2);
+  padding: var(--space-5);
+}
+.graphEmptyMark {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: var(--radius);
+  background: var(--soft);
+  color: var(--accent);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+.graphEmpty h3,
+.graphEmpty p {
+  margin: 0;
+}
+.graphEmpty h3 {
+  font-size: var(--text-md);
+}
+.graphEmpty p {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
 }
 @media (max-width: 900px) {
   .flow {
     grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 960px) {
+  .graphWorkspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .graphCanvas {
+    height: min(68vh, 620px);
+    min-height: 440px;
+  }
+  .graphInspector {
+    min-height: 180px;
+    max-height: 420px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .graphNode {
+    transition: none;
+  }
+  .graphNodeDot {
+    transition: none;
   }
 }

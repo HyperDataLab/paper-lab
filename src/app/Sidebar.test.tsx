@@ -21,11 +21,11 @@ it('renders groups, entries, disabled upcoming items and the active page', () =>
 });
 it('marks the active link and persists collapse', () => {
   const view = render(
-    <MemoryRouter initialEntries={['/corpus']}>
+    <MemoryRouter initialEntries={['/papers']}>
       <Sidebar />
     </MemoryRouter>,
   );
-  expect(screen.getByRole('link', { name: 'Corpus' })).toHaveAttribute('aria-current', 'page');
+  expect(screen.getByRole('link', { name: 'Bài báo' })).toHaveAttribute('aria-current', 'page');
   fireEvent.click(screen.getByRole('button', { name: 'Thu gọn thanh bên' }));
   expect(localStorage.getItem('sidebar-collapsed')).toBe('true');
   view.unmount();
@@ -64,4 +64,24 @@ it('has no entry for the retired paragraph screens and keeps a module active on 
   for (const name of [/^Paragraph$/u, /Chỉnh sửa/u, /Soạn paragraph/u, /Lịch sử/u, /Hiệu chuẩn/u])
     expect(screen.queryByRole('link', { name })).toBeNull();
   expect(screen.getByRole('link', { name: 'Bài báo' }).className).toMatch(/active/);
+});
+
+it('keeps Bài báo active on a paper detail route with an analysis tab selected', () => {
+  render(
+    <MemoryRouter initialEntries={['/papers/paper-123?view=arguments']}>
+      <Sidebar />
+    </MemoryRouter>,
+  );
+  expect(screen.getByRole('link', { name: 'Bài báo' })).toHaveAttribute('aria-current', 'page');
+});
+
+it('provides a close control on the mobile navigation drawer', () => {
+  const onNavigate = vi.fn();
+  render(
+    <MemoryRouter>
+      <Sidebar mobile onNavigate={onNavigate} />
+    </MemoryRouter>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Đóng menu' }));
+  expect(onNavigate).toHaveBeenCalledOnce();
 });

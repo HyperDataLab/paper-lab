@@ -1,4 +1,4 @@
-import { ArrowLeft, Download, Library, Pencil, Plus } from 'lucide-react';
+import { ArrowLeft, Download, Library, LoaderCircle, Pencil, Plus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { labKgIds } from '@/shared/labKg/client';
@@ -14,6 +14,7 @@ import { Card } from '@/shared/ui/Card';
 import { Dialog } from '@/shared/ui/Dialog';
 import { IconButton } from '@/shared/ui/IconButton';
 import { DataTable } from '@/shared/ui/DataTable';
+import { PageHeader } from '@/shared/ui/PageHeader';
 import { Select } from '@/shared/ui/Select';
 import { AppraisalPanel } from './AppraisalPanel';
 import { Intake } from './Intake';
@@ -33,6 +34,34 @@ import { TopicSearch } from './TopicSearch';
 import styles from './corpus.module.css';
 
 type SaveOptions = { checkpoint?: boolean; expectedVersion?: number };
+const CORPUS_AREAS = [
+  {
+    id: 'collection',
+    label: 'Thu thập',
+    description: 'Tìm bài theo chủ đề hoặc lấy mẫu từ tạp chí.',
+  },
+  {
+    id: 'quality',
+    label: 'Sàng lọc & chất lượng',
+    description: 'Theo dõi PRISMA, đánh giá chất lượng, dựng paper model và nhãn.',
+  },
+  {
+    id: 'analysis',
+    label: 'Phân tích',
+    description: 'Profile, chủ đề, từ khóa và các đồ thị nghiên cứu.',
+  },
+  {
+    id: 'members',
+    label: 'Thành viên',
+    description: 'Danh sách bài, định danh và trạng thái thu thập.',
+  },
+  {
+    id: 'protocol',
+    label: 'Giao thức & phát hành',
+    description: 'Tiêu chí nghiên cứu và lịch sử các phiên bản đã phát hành.',
+  },
+] as const;
+type CorpusArea = (typeof CORPUS_AREAS)[number]['id'];
 
 export default function DetailPage() {
   const { id } = useParams();
@@ -46,6 +75,16 @@ export default function DetailPage() {
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [workspace, setWorkspace] = useState<{
+    corpusId: string | undefined;
+    active: CorpusArea;
+    visited: Set<CorpusArea>;
+  }>(() => ({ corpusId: id, active: 'collection', visited: new Set(['collection']) }));
+  const currentWorkspace =
+    workspace.corpusId === id
+      ? workspace
+      : { corpusId: id, active: 'collection' as const, visited: new Set<CorpusArea>(['collection']) };
+  const { active: activeArea, visited: visitedAreas } = currentWorkspace;
   const [error, setError] = useState('');
   const [topicsData, setTopicsData] = useState<{ snapshot: TopicsSnapshot | undefined; names: TopicName[] }>({
     snapshot: undefined,
@@ -55,6 +94,15 @@ export default function DetailPage() {
     (snapshot: TopicsSnapshot | undefined, names: TopicName[]) => setTopicsData({ snapshot, names }),
     [],
   );
+  const openArea = (area: CorpusArea) => {
+    setWorkspace((current) => {
+      const base =
+        current.corpusId === id
+          ? current
+          : { corpusId: id, active: 'collection' as const, visited: new Set<CorpusArea>(['collection']) };
+      return { ...base, active: area, visited: new Set(base.visited).add(area) };
+    });
+  };
   useEffect(() => {
     if (id)
       void repo.corpora
@@ -94,7 +142,23 @@ export default function DetailPage() {
       setError(String(e));
     }
   }
-  if (!loaded) return <p>Đang tải…</p>;
+  if (!loaded)
+    return (
+      <section className={styles.loadingState} role="status" aria-live="polite" aria-busy="true">
+        <span className={styles.loadingIcon} aria-hidden="true">
+          <LoaderCircle size={22} />
+        </span>
+        <div>
+          <strong>Đang mở không gian Corpus</strong>
+          <p>Đang tải thành viên, giao thức và dữ liệu phân tích.</p>
+        </div>
+        <div className={styles.loadingPreview} aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+      </section>
+    );
   if (!corpus) return <p role="alert">Không tìm thấy corpus. {error}</p>;
   const protocol = corpus.protocol.at(-1);
   async function release() {
@@ -147,20 +211,21 @@ export default function DetailPage() {
   const pending = corpus.pendingConfirmations?.length ?? 0;
   return (
     <div className={styles.page}>
-      <header className={styles.detailHead}>
-        <div className={styles.detailTitle}>
+      <PageHeader
+        title={corpus.title}
+        lead={
+          <span className={styles.badges}>
+            <Badge>{kinds[corpus.kind]}</Badge>
+            <Badge>Giao thức v{protocol?.version ?? '—'}</Badge>
+            {!user && <Badge>Chỉ trên máy này</Badge>}
+          </span>
+        }
+      >
+        <div className={styles.detailActions}>
           <Link to="/corpus" className={styles.back}>
             <ArrowLeft size={14} aria-hidden="true" />
             Corpus
           </Link>
-          <h1>{corpus.title}</h1>
-          <div className={styles.badges}>
-            <Badge>{kinds[corpus.kind]}</Badge>
-            <Badge>Giao thức v{protocol?.version ?? '—'}</Badge>
-            {!user && <Badge>Chỉ trên máy này</Badge>}
-          </div>
-        </div>
-        <div className={styles.detailActions}>
           <IconButton label="Sửa giao thức" onClick={() => setEditing(true)}>
             <Pencil size={18} />
           </IconButton>
@@ -175,7 +240,7 @@ export default function DetailPage() {
             Phát hành
           </Button>
         </div>
-      </header>
+      </PageHeader>
       {error && !conflict && <p role="alert">Có lỗi xảy ra. {error}</p>}
       {conflict && (
         <div role="alert" className={styles.conflict}>
@@ -199,174 +264,265 @@ export default function DetailPage() {
         ))}
       </dl>
 
-      <LabKgActions key={user?.uid} ids={labKgIds(corpus.members.map(({ identifiers }) => identifiers))} />
+      <nav className={styles.workspaceNav} aria-label="Khu vực làm việc trong corpus">
+        {CORPUS_AREAS.map((area) => (
+          <Button
+            key={area.id}
+            type="button"
+            variant="ghost"
+            size="sm"
+            className={styles.workspaceNavItem}
+            aria-current={activeArea === area.id ? 'page' : undefined}
+            aria-controls={`corpus-area-${area.id}`}
+            onClick={() => openArea(area.id)}
+          >
+            <span>{area.label}</span>
+          </Button>
+        ))}
+      </nav>
+      <p className={styles.workspaceDescription} role="status">
+        {CORPUS_AREAS.find((area) => area.id === activeArea)?.description}
+      </p>
 
-      {corpus.kind !== 'topic' && <JournalHarvest corpus={corpus} save={save} />}
-      {corpus.kind === 'topic' && <TopicSearch corpus={corpus} save={save} />}
-      {corpus.kind === 'topic' && <PrismaPanel corpus={corpus} />}
-      {corpus.kind === 'topic' && <AppraisalPanel corpus={corpus} save={save} />}
-      <CorpusBuild key={JSON.stringify([corpus.id, user?.uid])} corpus={corpus} save={save} />
-      <CorpusLabels corpus={corpus} save={save} />
-      {corpus.kind === 'journal' && <CorpusProfileCard corpus={corpus} />}
-      <CorpusTopics corpus={corpus} onData={receiveTopics} />
-      <CorpusKeywords corpus={corpus} />
-      <CorpusScgRoadmap corpus={corpus} />
-      <CorpusOpenKg key={corpus.id} corpus={corpus} save={save} />
-
-      <Card>
-        <section aria-labelledby="corpus-members" className={styles.members}>
-          <div className={styles.cardHead}>
-            <h2 id="corpus-members">Thành viên</h2>
-            <div className={styles.cardTools}>
-              {corpus.members.length > 0 && (
-                <Select
-                  label="Trạng thái thu thập"
-                  hideLabel
-                  size="sm"
-                  inline
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                >
-                  <option value="all">Mọi trạng thái</option>
-                  <option value="sought">Đang tìm</option>
-                  <option value="retrieved">Đã lấy</option>
-                  <option value="not_retrieved">Không lấy được</option>
-                </Select>
-              )}
-              <Button
-                size="sm"
-                leadingIcon={<Plus size={16} aria-hidden="true" />}
-                onClick={() => setAdding(true)}
-              >
-                Thêm bài vào corpus
-              </Button>
-            </div>
-          </div>
-          {pending > 0 && (
-            <div className={styles.notice}>
-              <span>{pending} bài trùng tên và năm với bài đã có, cần bạn xác nhận.</span>
-              <Button size="sm" variant="ghost" onClick={() => setAdding(true)}>
-                Xác nhận
-              </Button>
-            </div>
-          )}
-          {corpus.members.length === 0 ? (
-            <div className={styles.emptyMembers}>
-              <Library size={28} aria-hidden="true" />
-              <strong>Corpus chưa có bài nào</strong>
-              <span>Thêm bài từ Library, từ bài đã nhập hoặc dán một danh sách DOI.</span>
-            </div>
-          ) : (
-            <DataTable>
-              <thead>
-                <tr>
-                  <th>Title / DOI</th>
-                  <th>Định danh</th>
-                  <th>Vai trò</th>
-                  <th>Thu thập</th>
-                  <th>Đã đọc</th>
-                  <th>Phiên bản</th>
-                </tr>
-              </thead>
-              <tbody>
-                {members.map((m) => (
-                  <tr key={m.memberId}>
-                    <td className={styles.memberTitle}>
-                      {m.title || m.identifiers.doi || m.exportId}
-                      {topicsData.snapshot?.members
-                        .filter((member) => member.corpusId === corpus.id && member.memberId === m.memberId)
-                        .map((member) => (
-                          <div key={member.memberId}>
-                            Chủ đề:{' '}
-                            {topicsData.names.find((name) => name.topicId === member.topicId)?.name ||
-                              topicsData.snapshot?.topics
-                                .find((topic) => topic.topicId === member.topicId)
-                                ?.words.join(', ') ||
-                              'Ngoại lệ'}{' '}
-                            ·{' '}
-                            {member.probability === null ? '—' : `${(member.probability * 100).toFixed(1)}%`}{' '}
-                            {member.weak && '· gán yếu'} · {member.keyphrases.join(', ')}
-                          </div>
-                        ))}
-                    </td>
-                    <td className={styles.ids}>
-                      {[
-                        m.identifiers.doi,
-                        m.identifiers.openalexId,
-                        ...m.identifiers.paperIds,
-                        ...m.identifiers.libraryIds,
-                      ]
-                        .filter(Boolean)
-                        .join(', ') || '—'}
-                    </td>
-                    <td>{memberRoleLabel(m.role)}</td>
-                    <td>
-                      {
-                        { sought: 'Đang tìm', retrieved: 'Đã lấy', not_retrieved: 'Không lấy được' }[
-                          m.retrieval
-                        ]
-                      }
-                    </td>
-                    <td>
-                      {
-                        { FULL_TEXT: 'Toàn văn', ABSTRACT_ONLY: 'Abstract', METADATA_ONLY: 'Siêu dữ liệu' }[
-                          m.textRead
-                        ]
-                      }
-                    </td>
-                    <td>{versionLabel(m.version)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </DataTable>
-          )}
+      {visitedAreas.has('collection') && (
+        <section
+          id="corpus-area-collection"
+          className={styles.workspacePanel}
+          aria-label="Thu thập"
+          hidden={activeArea !== 'collection'}
+        >
+          {corpus.kind !== 'topic' && <JournalHarvest corpus={corpus} save={save} />}
+          {corpus.kind === 'topic' && <TopicSearch corpus={corpus} save={save} />}
         </section>
-      </Card>
-
-      <div className={styles.lower}>
-        <Card>
-          <div className={styles.cardHead}>
-            <h2>Giao thức v{protocol?.version ?? '—'}</h2>
-            <IconButton size="sm" label="Sửa giao thức" onClick={() => setEditing(true)}>
-              <Pencil size={16} />
-            </IconButton>
-          </div>
-          <dl className={styles.facts}>
-            {facts.map(([label, value]) => (
-              <div key={label}>
-                <dt>{label}</dt>
-                <dd>{value}</dd>
+      )}
+      {visitedAreas.has('quality') && (
+        <section
+          className={styles.workspacePanel}
+          id="corpus-area-quality"
+          aria-label="Sàng lọc và chất lượng"
+          hidden={activeArea !== 'quality'}
+        >
+          {corpus.kind === 'topic' && <PrismaPanel corpus={corpus} />}
+          {corpus.kind === 'topic' && <AppraisalPanel corpus={corpus} save={save} />}
+          <CorpusBuild key={JSON.stringify([corpus.id, user?.uid])} corpus={corpus} save={save} />
+          <CorpusLabels corpus={corpus} save={save} />
+        </section>
+      )}
+      {visitedAreas.has('analysis') && (
+        <section
+          id="corpus-area-analysis"
+          className={styles.workspacePanel}
+          aria-label="Phân tích"
+          hidden={activeArea !== 'analysis'}
+        >
+          {corpus.kind === 'journal' && <CorpusProfileCard corpus={corpus} />}
+          <LabKgActions
+            key={user?.uid}
+            ids={labKgIds(corpus.members.map(({ identifiers }) => identifiers))}
+          />
+          <CorpusTopics corpus={corpus} onData={receiveTopics} />
+          <CorpusKeywords corpus={corpus} />
+          <CorpusScgRoadmap corpus={corpus} />
+          <CorpusOpenKg key={corpus.id} corpus={corpus} save={save} />
+        </section>
+      )}
+      {visitedAreas.has('members') && (
+        <section
+          id="corpus-area-members"
+          className={styles.workspacePanel}
+          aria-label="Thành viên"
+          hidden={activeArea !== 'members'}
+        >
+          <section
+            aria-labelledby="corpus-members"
+            className={`${styles.members} ${styles.membersTableShell}`}
+          >
+            <div className={styles.membersToolbar}>
+              <div>
+                <h2 id="corpus-members">Thành viên</h2>
+                <p className={styles.muted}>Danh sách bài và trạng thái thu thập trong corpus.</p>
               </div>
-            ))}
-          </dl>
-        </Card>
-        <Card>
-          <div className={styles.cardHead}>
-            <h2>Lịch sử phát hành</h2>
+              <div className={styles.cardTools}>
+                {corpus.members.length > 0 && (
+                  <Select
+                    label="Trạng thái thu thập"
+                    hideLabel
+                    size="sm"
+                    inline
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                  >
+                    <option value="all">Mọi trạng thái</option>
+                    <option value="sought">Đang tìm</option>
+                    <option value="retrieved">Đã lấy</option>
+                    <option value="not_retrieved">Không lấy được</option>
+                  </Select>
+                )}
+                <Button
+                  size="sm"
+                  leadingIcon={<Plus size={16} aria-hidden="true" />}
+                  onClick={() => setAdding(true)}
+                >
+                  Thêm bài vào corpus
+                </Button>
+              </div>
+            </div>
+            {pending > 0 && (
+              <div className={styles.notice}>
+                <span>{pending} bài trùng tên và năm với bài đã có, cần bạn xác nhận.</span>
+                <Button size="sm" variant="ghost" onClick={() => setAdding(true)}>
+                  Xác nhận
+                </Button>
+              </div>
+            )}
+            {corpus.members.length === 0 ? (
+              <div className={styles.emptyMembers}>
+                <Library size={28} aria-hidden="true" />
+                <strong>Corpus chưa có bài nào</strong>
+                <span>Thêm bài từ Library, từ bài đã nhập hoặc dán một danh sách DOI.</span>
+              </div>
+            ) : (
+              <DataTable
+                aria-label="Thành viên trong corpus"
+                className={styles.membersTable}
+                scrollClassName={styles.membersTableScroll}
+              >
+                <thead>
+                  <tr>
+                    <th>Title / DOI</th>
+                    <th>Định danh</th>
+                    <th>Vai trò</th>
+                    <th>Thu thập</th>
+                    <th>Đã đọc</th>
+                    <th>Phiên bản</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {members.map((m) => (
+                    <tr key={m.memberId}>
+                      <td className={styles.memberTitle}>
+                        {m.title || m.identifiers.doi || m.exportId}
+                        {topicsData.snapshot?.members
+                          .filter((member) => member.corpusId === corpus.id && member.memberId === m.memberId)
+                          .map((member) => (
+                            <div key={member.memberId}>
+                              Chủ đề:{' '}
+                              {topicsData.names.find((name) => name.topicId === member.topicId)?.name ||
+                                topicsData.snapshot?.topics
+                                  .find((topic) => topic.topicId === member.topicId)
+                                  ?.words.join(', ') ||
+                                'Ngoại lệ'}{' '}
+                              ·{' '}
+                              {member.probability === null
+                                ? '—'
+                                : `${(member.probability * 100).toFixed(1)}%`}{' '}
+                              {member.weak && '· gán yếu'} · {member.keyphrases.join(', ')}
+                            </div>
+                          ))}
+                      </td>
+                      <td className={styles.ids}>
+                        {[
+                          m.identifiers.doi,
+                          m.identifiers.openalexId,
+                          ...m.identifiers.paperIds,
+                          ...m.identifiers.libraryIds,
+                        ]
+                          .filter(Boolean)
+                          .join(', ') || '—'}
+                      </td>
+                      <td>{memberRoleLabel(m.role)}</td>
+                      <td className={styles.memberStatusCell}>
+                        <Badge
+                          tone={
+                            m.retrieval === 'retrieved'
+                              ? 'success'
+                              : m.retrieval === 'not_retrieved'
+                                ? 'danger'
+                                : 'accent'
+                          }
+                        >
+                          {
+                            {
+                              sought: 'Đang tìm',
+                              retrieved: 'Đã lấy',
+                              not_retrieved: 'Không lấy được',
+                            }[m.retrieval]
+                          }
+                        </Badge>
+                      </td>
+                      <td className={styles.memberStatusCell}>
+                        <Badge tone={m.textRead === 'FULL_TEXT' ? 'success' : 'neutral'}>
+                          {
+                            {
+                              FULL_TEXT: 'Toàn văn',
+                              ABSTRACT_ONLY: 'Abstract',
+                              METADATA_ONLY: 'Siêu dữ liệu',
+                            }[m.textRead]
+                          }
+                        </Badge>
+                      </td>
+                      <td>{versionLabel(m.version)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </DataTable>
+            )}
+          </section>
+        </section>
+      )}
+      {visitedAreas.has('protocol') && (
+        <section
+          className={styles.workspacePanel}
+          id="corpus-area-protocol"
+          aria-label="Giao thức và phát hành"
+          hidden={activeArea !== 'protocol'}
+        >
+          <div className={styles.lower}>
+            <Card>
+              <div className={styles.cardHead}>
+                <h2>Giao thức v{protocol?.version ?? '—'}</h2>
+                <IconButton size="sm" label="Sửa giao thức" onClick={() => setEditing(true)}>
+                  <Pencil size={16} />
+                </IconButton>
+              </div>
+              <dl className={styles.facts}>
+                {facts.map(([label, value]) => (
+                  <div key={label}>
+                    <dt>{label}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </Card>
+            <Card>
+              <div className={styles.cardHead}>
+                <h2>Lịch sử phát hành</h2>
+              </div>
+              {corpus.releases.length === 0 ? (
+                <p className={styles.muted}>
+                  Chưa phát hành lần nào. Phát hành chốt danh sách bài bằng một mã băm để dẫn lại về sau.
+                </p>
+              ) : (
+                <ol className={styles.releases}>
+                  {[...corpus.releases].reverse().map((r) => {
+                    const index = corpus.releases.indexOf(r);
+                    const same = index > 0 && corpus.releases[index - 1]?.digest === r.digest;
+                    return (
+                      <li key={r.id}>
+                        <code>{r.digest.replace(/^sha256:/u, '').slice(0, 12)}</code>
+                        <span>
+                          {new Date(r.createdAt).toLocaleString('vi-VN')}, {r.memberCount} bài
+                          {same ? ', không đổi so với bản trước' : ''}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </Card>
           </div>
-          {corpus.releases.length === 0 ? (
-            <p className={styles.muted}>
-              Chưa phát hành lần nào. Phát hành chốt danh sách bài bằng một mã băm để dẫn lại về sau.
-            </p>
-          ) : (
-            <ol className={styles.releases}>
-              {[...corpus.releases].reverse().map((r) => {
-                const index = corpus.releases.indexOf(r);
-                const same = index > 0 && corpus.releases[index - 1]?.digest === r.digest;
-                return (
-                  <li key={r.id}>
-                    <code>{r.digest.replace(/^sha256:/u, '').slice(0, 12)}</code>
-                    <span>
-                      {new Date(r.createdAt).toLocaleString('vi-VN')}, {r.memberCount} bài
-                      {same ? ', không đổi so với bản trước' : ''}
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
-          )}
-        </Card>
-      </div>
+        </section>
+      )}
 
       {adding && (
         <Dialog

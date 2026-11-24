@@ -1,5 +1,5 @@
 import { Menu, Monitor, Moon, Search, Sun } from 'lucide-react';
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Drawer } from '@/shared/ui/Drawer';
 import { IconButton } from '@/shared/ui/IconButton';
@@ -27,11 +27,11 @@ const NEXT_THEME: Record<Theme, Theme> = { system: 'light', light: 'dark', dark:
 function readTheme(): Theme {
   try {
     const value = localStorage.getItem('theme');
-    if (value === 'light' || value === 'dark') return value;
+    if (value === 'light' || value === 'dark' || value === 'system') return value;
   } catch {
     /* Storage may be unavailable. */
   }
-  return 'system';
+  return 'light';
 }
 export function App() {
   const [drawer, setDrawer] = useState(false);
@@ -63,13 +63,27 @@ export function App() {
     /^\/(?:report|papers|extraction|corpus)\/[^/]+$/u.test(location.pathname);
   // Workspaces and wide tables use the whole window; lists, forms and home stay at a readable width.
   const wideContent =
-    location.pathname.startsWith('/report/') ||
+    location.pathname === '/' ||
     location.pathname === '/compare' ||
+    location.pathname === '/extraction' ||
+    location.pathname === '/papers' ||
     location.pathname.startsWith('/extraction/') ||
     location.pathname.startsWith('/corpus/') ||
-    location.pathname.startsWith('/papers/');
+    location.pathname.startsWith('/papers/') ||
+    location.pathname === '/lab-kg' ||
+    location.pathname === '/playground';
   // A paper is a workspace: on wide screens it fills the window and its columns scroll on their own.
   const appContent = /^\/papers\/[^/]+/.test(location.pathname);
+  const projectDetailContent = /^\/extraction\/[^/]+$/u.test(location.pathname);
+  const corpusDetailContent = /^\/corpus\/[^/]+$/u.test(location.pathname);
+  const fullWidthPageContent =
+    location.pathname === '/' ||
+    location.pathname === '/papers' ||
+    location.pathname === '/extraction' ||
+    location.pathname === '/corpus' ||
+    location.pathname === '/lab-kg' ||
+    location.pathname === '/playground' ||
+    location.pathname === '/transfer';
   useEffect(() => {
     if (invalidProjectId) {
       // Route changes may remove projectId for one render; keep the last accepted ID for that transition.
@@ -97,9 +111,8 @@ export function App() {
     rawProjectId,
     validProjectId,
   ]);
-  useEffect(() => {
-    if (theme === 'system') delete document.documentElement.dataset.theme;
-    else document.documentElement.dataset.theme = theme;
+  useLayoutEffect(() => {
+    document.documentElement.dataset.theme = theme;
     try {
       localStorage.setItem('theme', theme);
     } catch {
@@ -124,7 +137,7 @@ export function App() {
           <div className={styles.main}>
             <header className={styles.topbar}>
               <div className={styles.mobileMenu}>
-                <IconButton label="Mở menu" onClick={() => setDrawer(true)}>
+                <IconButton label="Mở menu" aria-expanded={drawer} onClick={() => setDrawer(true)}>
                   <Menu size={20} />
                 </IconButton>
               </div>
@@ -162,7 +175,7 @@ export function App() {
               </div>
             </header>
             <main
-              className={`${styles.content} ${wideContent ? styles.wideContent : ''} ${appContent ? styles.appContent : ''}`}
+              className={`${styles.content} ${wideContent ? styles.wideContent : ''} ${appContent ? styles.appContent : ''} ${projectDetailContent ? styles.projectDetailContent : ''} ${corpusDetailContent ? styles.corpusDetailContent : ''} ${fullWidthPageContent ? styles.fullWidthPageContent : ''}`}
             >
               <StorageProvider
                 key={workspaceProjectId ?? 'local-workspace'}

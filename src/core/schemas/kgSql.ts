@@ -25,3 +25,15 @@ export const KgSqlResultSchema = z.object({
   concepts: z.array(z.string()),
 });
 export type KgSqlResult = z.infer<typeof KgSqlResultSchema>;
+
+export const KgAnswerSchema = z.strictObject({
+  claims: z
+    .array(
+      z.strictObject({
+        text: z.string().min(1).max(1_500),
+        sourceIds: z.array(z.string().min(1)).max(8),
+      }),
+    )
+    .max(12),
+});
+export type KgAnswer = z.infer<typeof KgAnswerSchema>;

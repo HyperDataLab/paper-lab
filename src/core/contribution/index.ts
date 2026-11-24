@@ -1,6 +1,7 @@
 import type { ContributionOutput, ContributionRun, PaperModel, PaperModelSentence } from '../schemas';
 export * from './ncgZip';
 export * from './graph';
+export * from './layout';
 
 export function contributionChunks(sentences: PaperModelSentence[]) {
   const chunks: PaperModelSentence[][] = [];

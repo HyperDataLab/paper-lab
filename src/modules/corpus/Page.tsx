@@ -93,11 +93,22 @@ export default function Page() {
         >
           Corpus mới
         </Button>
+      </PageHeader>
+      <section className={styles.eswaSeedPanel} aria-label="Bộ corpus ESWA">
+        <span className={styles.eswaSeedIcon} aria-hidden="true">
+          <Library size={19} />
+        </span>
+        <div className={styles.eswaSeedCopy}>
+          <Badge tone="accent">Bộ mẫu</Badge>
+          <strong>Tạo cặp corpus ESWA</strong>
+          <span>
+            Seed dùng để tái lập kết quả: <code>{ESWA_SEED}</code>
+          </span>
+        </div>
         <Button disabled={creatingEswa} onClick={() => void createEswa()}>
           {creatingEswa ? 'Đang tạo cặp ESWA…' : 'Tạo cặp ESWA'}
         </Button>
-      </PageHeader>
-      <p>Seed cho cặp ESWA: {ESWA_SEED}</p>
+      </section>
       {error && <p role="alert">{error}</p>}
       {!user && <p className={styles.muted}>Đăng nhập tài khoản lab để lưu corpus trong kho dữ liệu lab.</p>}
       {items.length === 0 ? (
@@ -105,62 +116,73 @@ export default function Page() {
           <Button onClick={() => setCreating(true)}>Tạo corpus đầu tiên</Button>
         </Empty>
       ) : (
-        <ItemGrid label="Các corpus">
-          {items.map((item) => {
-            const body = item.protocol.at(-1)?.body;
-            const about = !body
-              ? ''
-              : 'researchQuestion' in body
-                ? body.researchQuestion
-                : body.venues.map((venue) => venue.name).join(', ');
-            const retrieved = item.members.filter((m) => m.retrieval === 'retrieved').length;
-            return (
-              <li key={item.id}>
-                <ItemCard
-                  to={`/corpus/${item.id}`}
-                  icon={<Library size={20} />}
-                  title={item.title}
-                  description={about}
-                  badges={<Badge>{kinds[item.kind]}</Badge>}
-                  actions={[
-                    { label: 'Mở', onSelect: () => navigate(`/corpus/${item.id}`) },
-                    {
-                      label: 'Xuất manifest',
-                      onSelect: () => {
-                        try {
-                          downloadManifest(item);
-                        } catch (e) {
-                          setError(String(e));
-                        }
+        <section className={styles.corpusCollection} aria-labelledby="corpus-list-title">
+          <header className={styles.corpusCollectionHeading}>
+            <div>
+              <h2 id="corpus-list-title">Corpus của bạn</h2>
+              <p>Mở một corpus để tiếp tục thu thập, sàng lọc và phân tích bài báo.</p>
+            </div>
+            <Badge>
+              {items.length} {items.length === 1 ? 'corpus' : 'corpora'}
+            </Badge>
+          </header>
+          <ItemGrid label="Các corpus">
+            {items.map((item) => {
+              const body = item.protocol.at(-1)?.body;
+              const about = !body
+                ? ''
+                : 'researchQuestion' in body
+                  ? body.researchQuestion
+                  : body.venues.map((venue) => venue.name).join(', ');
+              const retrieved = item.members.filter((m) => m.retrieval === 'retrieved').length;
+              return (
+                <li key={item.id}>
+                  <ItemCard
+                    to={`/corpus/${item.id}`}
+                    icon={<Library size={20} />}
+                    title={item.title}
+                    description={about}
+                    badges={<Badge>{kinds[item.kind]}</Badge>}
+                    actions={[
+                      { label: 'Mở', onSelect: () => navigate(`/corpus/${item.id}`) },
+                      {
+                        label: 'Xuất manifest',
+                        onSelect: () => {
+                          try {
+                            downloadManifest(item);
+                          } catch (e) {
+                            setError(String(e));
+                          }
+                        },
                       },
-                    },
-                    { label: 'Xoá', danger: true, onSelect: () => setRemoving(item) },
-                  ]}
-                  stats={[
-                    { label: 'Bài', value: item.members.length },
-                    { label: 'Đã lấy', value: retrieved },
-                    { label: 'Phát hành', value: item.releases.length },
-                  ]}
-                  progress={
-                    item.members.length
-                      ? {
-                          value: retrieved,
-                          max: item.members.length,
-                          label: `Đã lấy ${retrieved}/${item.members.length} bài`,
-                        }
-                      : undefined
-                  }
-                  footer={
-                    <>
-                      <span>Giao thức v{item.protocol.at(-1)?.version ?? 1}</span>
-                      <span>Cập nhật {new Date(item.updatedAt).toLocaleDateString('vi-VN')}</span>
-                    </>
-                  }
-                />
-              </li>
-            );
-          })}
-        </ItemGrid>
+                      { label: 'Xoá', danger: true, onSelect: () => setRemoving(item) },
+                    ]}
+                    stats={[
+                      { label: 'Bài', value: item.members.length },
+                      { label: 'Đã lấy', value: retrieved },
+                      { label: 'Phát hành', value: item.releases.length },
+                    ]}
+                    progress={
+                      item.members.length
+                        ? {
+                            value: retrieved,
+                            max: item.members.length,
+                            label: `Đã lấy ${retrieved}/${item.members.length} bài`,
+                          }
+                        : undefined
+                    }
+                    footer={
+                      <>
+                        <span>Giao thức v{item.protocol.at(-1)?.version ?? 1}</span>
+                        <span>Cập nhật {new Date(item.updatedAt).toLocaleDateString('vi-VN')}</span>
+                      </>
+                    }
+                  />
+                </li>
+              );
+            })}
+          </ItemGrid>
+        </section>
       )}
       {creating && (
         <Dialog

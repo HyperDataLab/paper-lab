@@ -178,6 +178,7 @@ export function ExtractionMatrix({
   return (
     <div className={styles.matrixArea}>
       <ActionBar
+        busy={running}
         status={
           running ? (
             <span role="status">Đang trích xuất… {progress}</span>

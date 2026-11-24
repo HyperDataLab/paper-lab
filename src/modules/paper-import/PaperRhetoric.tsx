@@ -239,6 +239,7 @@ export function PaperRhetoric({
           </p>
         )}
         <ActionBar
+          busy={running}
           status={
             running ? (
               <span role="status">

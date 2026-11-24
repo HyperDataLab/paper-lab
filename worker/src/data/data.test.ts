@@ -200,7 +200,7 @@ describe('/v1/data/{col}/{id}', () => {
     const body = doiKeywords(doi);
     expect((await call('PUT', path('doiKeywords', doi), body, { 'if-none-match': '*' })).status).toBe(201);
     const other = await call('GET', path('doiKeywords', doi), undefined, { 'X-Project-Id': OTHER_PROJECT });
-    expect(other.status).toBe(404);
+    expect(other.status).toBe(204);
     expect(
       (
         await call(
@@ -229,7 +229,7 @@ describe('/v1/data/{col}/{id}', () => {
         START.toISOString(),
         START.toISOString(),
       );
-    expect((await call('GET', path('doiKeywords', unassignedDoi))).status).toBe(404);
+    expect((await call('GET', path('doiKeywords', unassignedDoi))).status).toBe(204);
   });
 
   it('creates with If-None-Match: *, reads with an ETag and answers 304', async () => {
@@ -263,7 +263,7 @@ describe('/v1/data/{col}/{id}', () => {
     expect((await call('GET', path('doiKeywords', doi), undefined, { 'if-none-match': '"v1"' })).status).toBe(
       304,
     );
-    expect((await call('GET', path('doiKeywords', '10.1/none'))).status).toBe(404);
+    expect((await call('GET', path('doiKeywords', '10.1/none'))).status).toBe(204);
   });
 
   it('updates with If-Match, stamps the updater and keeps the creator', async () => {
@@ -363,7 +363,7 @@ describe('/v1/data/{col}/{id}', () => {
       updated_by: B,
       r2_key: null,
     });
-    expect((await call('GET', path('doiKeywords', doi))).status).toBe(404);
+    expect((await call('GET', path('doiKeywords', doi))).status).toBe(204);
     // The tombstone's version carries on, so the new body never reuses an older key.
     const recreated = await call('PUT', path('doiKeywords', doi), doiKeywords(doi), { 'if-none-match': '*' });
     expect(recreated.headers.get('etag')).toBe('"v3"');

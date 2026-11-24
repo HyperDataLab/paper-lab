@@ -56,7 +56,7 @@ it('creates an extraction project and edits its research design through the sign
     fireEvent.change(screen.getByLabelText('Tên project'), { target: { value: 'Shared extraction' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tạo project' }));
     await screen.findByRole('heading', { name: 'Shared extraction' });
-    fireEvent.click(await screen.findByRole('tab', { name: 'Topic và research gaps' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Topic và research gaps' }));
     const statement = await screen.findByRole('textbox', { name: 'Phát biểu đề tài' });
     fireEvent.change(statement, { target: { value: 'A topic stored by the lab.' } });
     fireEvent.blur(statement);
@@ -130,29 +130,21 @@ async function mountProject(
   return { repo, projectId: project.id };
 }
 
-it('shows the ordered sections on a multi-paper project and changes the linked section', async () => {
+it('groups Research Design sections and keeps AutoResearch available as a project tab', async () => {
   await mountProject(null, '?other=kept');
-  const tablist = screen.getByRole('tablist', { name: 'Research design' });
-  const deepResearchHeading = screen.getByRole('heading', { name: 'Kế hoạch tìm kiếm' });
+  const tablist = screen.getByRole('tablist', { name: 'Không gian project' });
   expect(
-    tablist.compareDocumentPosition(deepResearchHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
-  ).toBeTruthy();
-  const tabs = within(tablist).getAllByRole('tab');
-  expect(tabs.map((tab) => tab.textContent)).toEqual([
-    'Topic và research gaps',
-    'Research questions và hypotheses',
-    'Research design',
-    'Measurement',
-    'Writing Bank',
-    'Statistical analysis',
-    'Ma trận chạy',
-    'Bảng so sánh',
-    'Gói kế hoạch',
-  ]);
+    within(tablist)
+      .getAllByRole('tab')
+      .map((tab) => tab.textContent),
+  ).toEqual(['Research Design', 'AutoResearch']);
+  expect(screen.queryByRole('heading', { name: 'Kế hoạch tìm kiếm' })).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Định hình nghiên cứu' })).toBeInTheDocument();
   expect(
-    await screen.findByRole('button', { name: 'Thêm bài gần nhất' }, { timeout: 5000 }),
+    // The nearest-papers editor now has its add button beside the heading.
+    await screen.findByRole('button', { name: '+ Thêm bài' }, { timeout: 5000 }),
   ).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('tab', { name: 'Writing Bank' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Writing Bank' }));
   await act(() => vi.dynamicImportSettled());
   await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('?other=kept&design=bank'));
   expect(
@@ -166,7 +158,7 @@ it('shows the ordered sections on a multi-paper project and changes the linked s
 
 it('opens a section from a deep link', async () => {
   await mountProject(null, '?design=evidence');
-  expect(screen.getByRole('tab', { name: 'Bảng so sánh' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('button', { name: 'Bảng so sánh' })).toHaveAttribute('aria-current', 'page');
   expect(
     await within(screen.getByRole('tabpanel')).findByText('Chưa có bài báo nào được chọn', undefined, {
       timeout: 5000,
@@ -174,9 +166,17 @@ it('opens a section from a deep link', async () => {
   ).toBeInTheDocument();
 });
 
-it('does not show the area on a paper-owned project', async () => {
+it('keeps grouped section choices available in the compact picker', async () => {
+  await mountProject(null, '?design=topic');
+  fireEvent.click(screen.getByRole('combobox', { name: 'Mục nghiên cứu' }));
+  fireEvent.click(screen.getByRole('option', { name: 'Phương pháp · Measurement' }));
+  expect(await screen.findByRole('heading', { name: 'Measurement' })).toBeInTheDocument();
+});
+
+it('keeps both project workspaces available when the project is linked to a paper', async () => {
   await mountProject('00000000-0000-4000-8000-000000000001');
-  expect(screen.queryByRole('tablist', { name: 'Research design' })).not.toBeInTheDocument();
+  expect(screen.getByRole('tablist', { name: 'Không gian project' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Định hình nghiên cứu' })).toBeInTheDocument();
 });
 
 it('AR1 opens a stage deep link and copies selected hypotheses into Research design as candidates', async () => {

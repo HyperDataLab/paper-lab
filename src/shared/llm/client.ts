@@ -18,9 +18,11 @@ type Options<T> = {
   temperature?: number;
   /** Ask OpenAI-compatible providers to send the completion incrementally. */
   stream?: boolean;
+  /** Called once when the first streamed response bytes arrive. */
+  onStreamStart?: () => void;
   signal?: AbortSignal;
   onRequest?: () => Promise<void>;
-  /** Per-request limit; defaults to 60 s. */
+  /** Timeout defaults to 60 s; streamed requests use it as an inactivity limit. */
   timeoutMs?: number;
 };
 export type LlmClient = {
@@ -149,6 +151,24 @@ function parseBody(text: string): unknown {
   };
 }
 
+async function readStream(stream: ReadableStream<Uint8Array>, onChunk: () => void): Promise<string> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let text = '';
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return text + decoder.decode();
+      if (value?.byteLength) {
+        onChunk();
+        text += decoder.decode(value, { stream: true });
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 export function createLlmClient(config: LlmConfig, deps: Deps = defaults): LlmClient {
   return {
     async completeJson<T>(options: Options<T>) {
@@ -183,10 +203,15 @@ export function createLlmClient(config: LlmConfig, deps: Deps = defaults): LlmCl
           await options.onRequest?.();
           const controller = new AbortController();
           let timedOut = false;
-          const timer = setTimeout(() => {
-            timedOut = true;
-            controller.abort();
-          }, options.timeoutMs ?? 60000);
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          const armTimeout = () => {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(() => {
+              timedOut = true;
+              controller.abort();
+            }, options.timeoutMs ?? 60000);
+          };
+          armTimeout();
           const abort = () => controller.abort();
           options.signal?.addEventListener('abort', abort, { once: true });
           if (options.signal?.aborted) controller.abort();
@@ -237,7 +262,17 @@ export function createLlmClient(config: LlmConfig, deps: Deps = defaults): LlmCl
               if (!retryable || attempt === 2) throw new LlmHttpError(response.status, retryable);
             } else {
               try {
-                const text = await response.text();
+                let streamStarted = false;
+                const text =
+                  options.stream && response.body
+                    ? await readStream(response.body, () => {
+                        armTimeout();
+                        if (!streamStarted) {
+                          streamStarted = true;
+                          options.onStreamStart?.();
+                        }
+                      })
+                    : await response.text();
                 streamed = isStreamed(text);
                 body = parseBody(text);
               } catch (error) {
@@ -252,7 +287,7 @@ export function createLlmClient(config: LlmConfig, deps: Deps = defaults): LlmCl
             if (error instanceof LlmHttpError) throw error;
             if (attempt === 2) throw new LlmNetworkError();
           } finally {
-            clearTimeout(timer);
+            if (timer) clearTimeout(timer);
             options.signal?.removeEventListener('abort', abort);
           }
           if (!formatRejected) {

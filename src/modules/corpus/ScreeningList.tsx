@@ -166,7 +166,7 @@ export function ScreeningList({
   return (
     <section aria-labelledby="corpus-screening">
       <h3 id="corpus-screening">Sàng lọc</h3>
-      <div className={styles.row}>
+      <div className={styles.screeningFields}>
         <TextField label="Người quyết định" value={name} onChange={(event) => setName(event.target.value)} />
         <Select
           label="Giai đoạn"
@@ -196,8 +196,8 @@ export function ScreeningList({
           onChange={(event) => setReasonText(event.target.value)}
         />
       </div>
-      <div className={styles.cardTools}>
-        <Button disabled={!estimate.papers || Boolean(busy)} onClick={() => void triage()}>
+      <div className={styles.screeningActions}>
+        <Button variant="primary" disabled={!estimate.papers || Boolean(busy)} onClick={() => void triage()}>
           Gợi ý sàng lọc (AI) · {estimate.calls} lượt gọi
         </Button>
         {busy && (

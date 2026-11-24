@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { KgGraph, KgGraphNode, KgKeywordDetail, KgPaperDetail } from '@/core/schemas/labKg';
+import type {
+  KgDetailEntityKind,
+  KgEntityDetail,
+  KgGraph,
+  KgGraphNode,
+  KgKeywordDetail,
+  KgPaperDetail,
+} from '@/core/schemas/labKg';
 import { useAuth } from '@/shared/auth/authContext';
 import { useHubProjectId } from '@/shared/storage/StorageProvider';
-import { getLabKgKeyword, getLabKgPaper, LabKgError } from '@/shared/labKg/client';
+import { getLabKgEntity, getLabKgKeyword, getLabKgPaper, LabKgError } from '@/shared/labKg/client';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Chip } from '@/shared/ui/Chip';
@@ -13,7 +20,10 @@ import openkg from '@/shared/ui/openkg/openkg.module.css';
 import { KIND_LABELS } from './labels';
 import styles from './labKg.module.css';
 
-type Detail = { kind: 'paper'; data: KgPaperDetail } | { kind: 'keyword'; data: KgKeywordDetail };
+type Detail =
+  | { kind: 'paper'; data: KgPaperDetail }
+  | { kind: 'keyword'; data: KgKeywordDetail }
+  | { kind: 'entity'; data: KgEntityDetail };
 
 /** A small line of papers per year; the table below it carries the numbers. */
 export function Sparkline({ counts, label }: { counts: number[]; label: string }) {
@@ -174,6 +184,73 @@ function KeywordDetails({ data, onCentre }: { data: KgKeywordDetail; onCentre: (
   );
 }
 
+function EntityDetails({ data, onCentre }: { data: KgEntityDetail; onCentre: (id: string) => void }) {
+  const entityMeta = [
+    data.entity.orcid ? `ORCID ${data.entity.orcid}` : null,
+    data.entity.ror ? `ROR ${data.entity.ror}` : null,
+    data.entity.countryCode,
+  ].filter((value): value is string => Boolean(value));
+  return (
+    <>
+      <p className={openkg.muted}>
+        {data.paperCount} bài trong KG{entityMeta.length ? ` · ${entityMeta.join(' · ')}` : ''}
+      </p>
+      <section className={styles.section}>
+        <h4>Bài báo liên quan ({data.paperCount})</h4>
+        {data.papers.length ? (
+          <PaperList
+            items={data.papers.map(({ id, title, year }) => ({ id, title, year }))}
+            onCentre={onCentre}
+          />
+        ) : (
+          <p className={openkg.muted}>Chưa có bài báo nào thuộc thực thể này trong KG.</p>
+        )}
+        {data.paperCount > data.papers.length && (
+          <small className={openkg.muted}>
+            Đang hiển thị {data.papers.length} trong {data.paperCount} bài.
+          </small>
+        )}
+      </section>
+      {data.related.length > 0 && (
+        <section className={styles.section}>
+          <h4>
+            {data.kind === 'topic' ||
+            data.kind === 'subfield' ||
+            data.kind === 'field' ||
+            data.kind === 'domain'
+              ? 'Phân cấp và chủ đề liên quan'
+              : 'Mạng lưới liên quan'}
+          </h4>
+          <ul className={styles.links}>
+            {data.related.map((item) => (
+              <li key={`${item.kind}:${item.id}`}>
+                <Button variant="ghost" size="sm" onClick={() => onCentre(item.id)}>
+                  {item.name ?? item.id}
+                </Button>{' '}
+                <small>
+                  {KIND_LABELS[item.kind]}
+                  {item.count !== null ? ` · ${item.count} bài/liên kết` : ''}
+                </small>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </>
+  );
+}
+
+const ENTITY_KINDS: readonly KgDetailEntityKind[] = [
+  'author',
+  'institution',
+  'topic',
+  'subfield',
+  'field',
+  'domain',
+];
+const isEntityKind = (kind: KgGraphNode['kind']): kind is KgDetailEntityKind =>
+  (ENTITY_KINDS as readonly string[]).includes(kind);
+
 /** Neighbours of a node inside the loaded graph, for kinds the worker has no detail route for. */
 function GraphNeighbours({
   node,
@@ -240,11 +317,12 @@ export function NodeDetails({
   const projectId = useHubProjectId();
   // Results are keyed by node, so a newly selected node never shows the previous node's details.
   const [loaded, setLoaded] = useState<{ id: string; detail?: Detail; error?: LabKgError }>();
-  const remote = node.kind === 'paper' || node.kind === 'keyword';
+  const remote = node.kind === 'paper' || node.kind === 'keyword' || isEntityKind(node.kind);
   const { detail, error } = loaded?.id === node.id ? loaded : {};
 
   useEffect(() => {
-    if (!uid || !projectId || (node.kind !== 'paper' && node.kind !== 'keyword')) return;
+    if (!uid || !projectId || (node.kind !== 'paper' && node.kind !== 'keyword' && !isEntityKind(node.kind)))
+      return;
     const controller = new AbortController();
     void (async () => {
       try {
@@ -252,7 +330,12 @@ export function NodeDetails({
         const next: Detail =
           node.kind === 'paper'
             ? { kind: 'paper', data: await getLabKgPaper(node.id, token, projectId, controller.signal) }
-            : { kind: 'keyword', data: await getLabKgKeyword(node.id, token, projectId, controller.signal) };
+            : node.kind === 'keyword'
+              ? { kind: 'keyword', data: await getLabKgKeyword(node.id, token, projectId, controller.signal) }
+              : {
+                  kind: 'entity',
+                  data: await getLabKgEntity(node.kind, node.id, token, projectId, controller.signal),
+                };
         if (!controller.signal.aborted) setLoaded({ id: node.id, detail: next });
       } catch (cause) {
         if (controller.signal.aborted) return;
@@ -293,6 +376,7 @@ export function NodeDetails({
         <PaperDetails data={detail.data} localPaperId={localPaperId} onCentre={onCentre} />
       )}
       {detail?.kind === 'keyword' && <KeywordDetails data={detail.data} onCentre={onCentre} />}
+      {detail?.kind === 'entity' && <EntityDetails data={detail.data} onCentre={onCentre} />}
       {!remote && <GraphNeighbours node={node} graph={graph} onCentre={onCentre} />}
     </>
   );

@@ -1,14 +1,26 @@
 import { ChevronDown, MoreHorizontal } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { isValidElement, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button } from './Button';
 import { IconButton } from './IconButton';
 import styles from './ui.module.css';
+import { ActivityStatus } from './ActivityStatus';
 
 /** Status on the left, actions on the right, on every screen that runs something. */
-export function ActionBar({ status, children }: { status: ReactNode; children?: ReactNode }) {
+export function ActionBar({
+  status,
+  children,
+  busy = false,
+}: {
+  status: ReactNode;
+  children?: ReactNode;
+  busy?: boolean;
+}) {
+  const statusLabel = isValidElement<{ children?: ReactNode }>(status) ? status.props.children : status;
   return (
     <div className={styles.actionBar}>
-      <div className={styles.actionStatus}>{status}</div>
+      <div className={styles.actionStatus} aria-busy={busy || undefined}>
+        {busy ? <ActivityStatus label={statusLabel} /> : status}
+      </div>
       <div className={styles.actionButtons}>{children}</div>
     </div>
   );

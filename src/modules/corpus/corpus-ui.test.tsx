@@ -1,5 +1,5 @@
 import { webcrypto } from 'node:crypto';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { expect, it, vi } from 'vitest';
 import { exampleCorpus } from '@/core/corpus/contract';
@@ -35,6 +35,11 @@ function setup(path: string, auth?: AuthValue) {
   };
   return { repo, mount };
 }
+/** The corpus page shows one work area at a time; open one from its area navigation. */
+async function openArea(name: string) {
+  const nav = await screen.findByRole('navigation', { name: 'Khu vực làm việc trong corpus' });
+  fireEvent.click(within(nav).getByRole('button', { name }));
+}
 
 it('queues eligible members even when filtered out and refreshes the lab KG counts', async () => {
   let corpus = { ...exampleCorpus(), members: [] as ReturnType<typeof exampleCorpus>['members'] };
@@ -55,8 +60,9 @@ it('queues eligible members even when filtered out and refreshes the lab KG coun
   let pending = 0;
   const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     // Worker URLs carry the ResearchHub project in the query.
-    const [path = '', search = ''] = String(input).split('?', 2);
-    expect(new URLSearchParams(search).get('projectId')).toBe('00000000-0000-4000-8000-000000000001');
+    const url = new URL(String(input), 'http://localhost');
+    expect(url.searchParams.get('projectId')).toBe('00000000-0000-4000-8000-000000000001');
+    const path = url.pathname;
     if (path.endsWith('/kg/ingest/status'))
       return Response.json({ counts: { pending, done: 0, processing: 0, failed: 0 }, logs: [] });
     if (path.endsWith('/kg/ingest')) {
@@ -70,10 +76,13 @@ it('queues eligible members even when filtered out and refreshes the lab KG coun
   try {
     await repo.corpora.save(corpus);
     mount();
+    await openArea('Phân tích');
     expect(await screen.findByText(/KG của lab · Chờ 0/)).toBeInTheDocument();
+    await openArea('Thành viên');
     fireEvent.click(screen.getByRole('combobox', { name: 'Trạng thái thu thập' }));
     fireEvent.click(screen.getByRole('option', { name: 'Không lấy được' }));
     expect(screen.queryByRole('cell', { name: 'DOI record' })).toBeNull();
+    await openArea('Phân tích');
     fireEvent.click(screen.getByRole('button', { name: 'Đưa vào KG của lab' }));
     expect(await screen.findByText(/Đã xếp 2/)).toBeInTheDocument();
     expect(await screen.findByText(/KG của lab · Chờ 2/)).toBeInTheDocument();
@@ -138,6 +147,9 @@ it('shows the saved topic and weak assignment on a corpus member row', async () 
     ],
   });
   mount();
+  // The topic snapshot loads with the analysis area, and the member rows then show it.
+  await openArea('Phân tích');
+  await openArea('Thành viên');
   expect(await screen.findByText(/Chủ đề: topic word/)).toHaveTextContent('gán yếu');
   expect(screen.getByText(/Chủ đề: topic word/)).toHaveTextContent('key phrase');
 });
@@ -184,6 +196,7 @@ it('saves a changed bank link in a new protocol version', async () => {
     target: { value: 'Manual article' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Lưu phiên bản mới' }));
+  await openArea('Giao thức & phát hành');
   await screen.findByRole('heading', { name: 'Giao thức v2' });
   await waitFor(async () => {
     const saved = await repo.corpora.get(corpus.id);
@@ -197,13 +210,14 @@ it('saves a changed bank link in a new protocol version', async () => {
 });
 it('C1c reports DOI intake counts', async () => {
   await detail();
+  await openArea('Thành viên');
   fireEvent.click(screen.getByRole('button', { name: 'Thêm bài vào corpus' }));
   fireEvent.click(screen.getByRole('radio', { name: 'Danh sách DOI' }));
   fireEvent.change(screen.getByLabelText('Danh sách DOI'), {
     target: { value: '10.1000/a\n10.1000/b\n10.1000/c\nbad' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Thêm bài' }));
-  expect(await screen.findByRole('status')).toHaveTextContent(
+  expect(await screen.findByText(/Đã thêm:/)).toHaveTextContent(
     'Đã thêm: 3 · Đã khớp: 0 · Cần xác nhận: 0 · Không hợp lệ: 1',
   );
 });
@@ -221,6 +235,7 @@ it('C1c confirms and merges title-year matches', async () => {
   if (!item) throw new Error('missing item');
   await repo.library.update(item.id, { title: 'A study', year: 2020 });
   mount();
+  await openArea('Thành viên');
   fireEvent.click(await screen.findByRole('button', { name: 'Thêm bài vào corpus' }));
   fireEvent.click(await screen.findByRole('checkbox', { name: 'A study' }));
   fireEvent.click(screen.getByRole('button', { name: 'Thêm bài' }));
@@ -232,11 +247,14 @@ it('C1c confirms and merges title-year matches', async () => {
 });
 it('C1c releases the same digest twice without changes', async () => {
   const { repo, corpus } = await detail();
+  await openArea('Thành viên');
   fireEvent.click(screen.getByRole('button', { name: 'Thêm bài vào corpus' }));
   fireEvent.click(screen.getByRole('radio', { name: 'Danh sách DOI' }));
   fireEvent.change(screen.getByLabelText('Danh sách DOI'), { target: { value: '10.1000/example' } });
   fireEvent.click(screen.getByRole('button', { name: 'Thêm bài' }));
-  await screen.findByRole('status');
+  await screen.findByText(/Đã thêm: 1/);
+  fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
+  await openArea('Giao thức & phát hành');
   fireEvent.click(screen.getByRole('button', { name: 'Phát hành' }));
   await screen.findByText(/, 1 bài$/);
   fireEvent.click(screen.getByRole('button', { name: 'Phát hành' }));
@@ -279,6 +297,7 @@ it('C1d shows Vietnamese member labels', async () => {
   const { repo, mount } = setup(`/corpus/${corpus.id}`);
   await repo.corpora.save(corpus);
   mount();
+  await openArea('Thành viên');
   expect(await screen.findByRole('cell', { name: 'Đang tìm' })).toBeInTheDocument();
   expect(screen.getByRole('cell', { name: 'Siêu dữ liệu' })).toBeInTheDocument();
   expect(screen.getByRole('cell', { name: 'Giữ riêng kiểm tra' })).toBeInTheDocument();

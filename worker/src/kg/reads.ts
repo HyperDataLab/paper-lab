@@ -4,6 +4,8 @@ import {
   KG_EDGE_TABLES,
   KG_NODE_TABLES,
   kgIdentifier,
+  type KgDetailEntityKind,
+  type KgEntityDetail,
   type KgKeywordDetail,
   type KgOverview,
   type KgPaperDetail,
@@ -196,6 +198,143 @@ export async function readKgKeyword(
   };
 }
 
+const ENTITY_DETAILS: Record<
+  KgDetailEntityKind,
+  {
+    table: string;
+    paperJoin: string;
+    relatedSql: string;
+  }
+> = {
+  author: {
+    table: 'author',
+    paperJoin: 'JOIN authored rel ON rel.paper_id = p.id AND rel.author_id = ?1',
+    relatedSql: `SELECT * FROM (
+      SELECT au.id, au.display_name AS name, 'author' AS kind, co.count AS count
+      FROM coauthor co JOIN author au ON au.id = CASE WHEN co.left_id = ?1 THEN co.right_id ELSE co.left_id END
+      WHERE (co.left_id = ?1 OR co.right_id = ?1) AND EXISTS (
+        SELECT 1 FROM authored a JOIN paper p ON p.id = a.paper_id
+        WHERE a.author_id = ?1 AND p.id LIKE ?2
+      ) AND au.id LIKE ?2
+      UNION ALL
+      SELECT i.id, i.display_name AS name, 'institution' AS kind, count(DISTINCT af.paper_id) AS count
+      FROM affiliated af JOIN institution i ON i.id = af.institution_id JOIN paper p ON p.id = af.paper_id
+      WHERE af.author_id = ?1 AND p.id LIKE ?2 AND i.id LIKE ?2 GROUP BY i.id
+    ) ORDER BY count DESC, kind, id LIMIT 30`,
+  },
+  institution: {
+    table: 'institution',
+    paperJoin: 'JOIN affiliated rel ON rel.paper_id = p.id AND rel.institution_id = ?1',
+    relatedSql: `SELECT au.id, au.display_name AS name, 'author' AS kind, count(DISTINCT af.paper_id) AS count
+      FROM affiliated af JOIN author au ON au.id = af.author_id JOIN paper p ON p.id = af.paper_id
+      WHERE af.institution_id = ?1 AND p.id LIKE ?2 AND au.id LIKE ?2 GROUP BY au.id ORDER BY count DESC, au.id LIMIT 30`,
+  },
+  topic: {
+    table: 'topic',
+    paperJoin: 'JOIN has_topic rel ON rel.paper_id = p.id AND rel.topic_id = ?1 AND rel.topic_id LIKE ?2',
+    relatedSql: `SELECT sf.id, sf.display_name AS name, 'subfield' AS kind, NULL AS count
+      FROM subfield_of so JOIN subfield sf ON sf.id = so.subfield_id
+      WHERE so.topic_id = ?1 AND sf.id LIKE ?2 LIMIT 1`,
+  },
+  subfield: {
+    table: 'subfield',
+    paperJoin: `JOIN has_topic ht ON ht.paper_id = p.id AND ht.topic_id LIKE ?2
+      JOIN subfield_of so ON so.topic_id = ht.topic_id AND so.subfield_id = ?1 AND so.topic_id LIKE ?2`,
+    relatedSql: `SELECT f.id, f.display_name AS name, 'field' AS kind, NULL AS count
+      FROM field_of fo JOIN field f ON f.id = fo.field_id WHERE fo.subfield_id = ?1 AND f.id LIKE ?2
+      UNION ALL
+      SELECT t.id, t.display_name AS name, 'topic' AS kind, count(DISTINCT ht.paper_id) AS count
+      FROM subfield_of so JOIN topic t ON t.id = so.topic_id LEFT JOIN has_topic ht ON ht.topic_id = t.id
+      WHERE so.subfield_id = ?1 AND t.id LIKE ?2 GROUP BY t.id ORDER BY kind, name LIMIT 31`,
+  },
+  field: {
+    table: 'field',
+    paperJoin: `JOIN has_topic ht ON ht.paper_id = p.id AND ht.topic_id LIKE ?2
+      JOIN subfield_of so ON so.topic_id = ht.topic_id AND so.subfield_id LIKE ?2
+      JOIN field_of fo ON fo.subfield_id = so.subfield_id AND fo.field_id = ?1 AND fo.field_id LIKE ?2`,
+    relatedSql: `SELECT d.id, d.display_name AS name, 'domain' AS kind, NULL AS count
+      FROM domain_of dof JOIN domain d ON d.id = dof.domain_id WHERE dof.field_id = ?1 AND d.id LIKE ?2
+      UNION ALL
+      SELECT sf.id, sf.display_name AS name, 'subfield' AS kind, count(DISTINCT ht.paper_id) AS count
+      FROM field_of fo JOIN subfield sf ON sf.id = fo.subfield_id
+      LEFT JOIN subfield_of so ON so.subfield_id = sf.id LEFT JOIN has_topic ht ON ht.topic_id = so.topic_id
+      WHERE fo.field_id = ?1 AND sf.id LIKE ?2 GROUP BY sf.id ORDER BY kind, name LIMIT 31`,
+  },
+  domain: {
+    table: 'domain',
+    paperJoin: `JOIN has_topic ht ON ht.paper_id = p.id AND ht.topic_id LIKE ?2
+      JOIN subfield_of so ON so.topic_id = ht.topic_id AND so.subfield_id LIKE ?2
+      JOIN field_of fo ON fo.subfield_id = so.subfield_id AND fo.field_id LIKE ?2
+      JOIN domain_of dof ON dof.field_id = fo.field_id AND dof.domain_id = ?1 AND dof.domain_id LIKE ?2`,
+    relatedSql: `SELECT f.id, f.display_name AS name, 'field' AS kind, count(DISTINCT ht.paper_id) AS count
+      FROM domain_of dof JOIN field f ON f.id = dof.field_id
+      LEFT JOIN field_of fo ON fo.field_id = f.id LEFT JOIN subfield_of so ON so.subfield_id = fo.subfield_id
+      LEFT JOIN has_topic ht ON ht.topic_id = so.topic_id
+      WHERE dof.domain_id = ?1 AND f.id LIKE ?2 GROUP BY f.id ORDER BY count DESC, f.id LIMIT 30`,
+  },
+};
+
+/** Reads a graph entity and its complete project-scoped counts plus capped useful neighbours. */
+export async function readKgEntity(
+  db: D1Database,
+  kind: KgDetailEntityKind,
+  id: string,
+  projectId: string,
+): Promise<KgEntityDetail | null> {
+  const spec = ENTITY_DETAILS[kind];
+  const prefix = `@rh/${projectId}/`;
+  const scopedId = `${prefix}${id}`;
+  const projectPapers = `${prefix}%`;
+  const relatedStatement = db.prepare(spec.relatedSql).bind(scopedId, projectPapers);
+  const [entityResult, countResult, paperResult, relatedResult] = await db.batch<Row>([
+    db
+      .prepare(
+        `SELECT id, display_name AS name, ${kind === 'author' ? 'orcid' : 'NULL'} AS orcid,
+      ${kind === 'institution' ? 'ror' : 'NULL'} AS ror,
+      ${kind === 'institution' ? 'country_code' : 'NULL'} AS countryCode
+      FROM ${spec.table} WHERE id = ?1 AND id LIKE ?2 LIMIT 1`,
+      )
+      .bind(scopedId, `${prefix}%`),
+    db
+      .prepare(`SELECT count(DISTINCT p.id) AS count FROM paper p ${spec.paperJoin} WHERE p.id LIKE ?2`)
+      .bind(scopedId, projectPapers),
+    db
+      .prepare(
+        `SELECT DISTINCT p.id, p.title, p.doi, p.publication_year AS year, p.cited_by_count AS citations
+      FROM paper p ${spec.paperJoin} WHERE p.id LIKE ?2
+      ORDER BY p.cited_by_count DESC, p.publication_year DESC, p.id LIMIT 25`,
+      )
+      .bind(scopedId, projectPapers),
+    relatedStatement,
+  ]);
+  const entity = entityResult?.results[0];
+  if (!entity) return null;
+  return {
+    kind,
+    entity: {
+      id: String(entity.id),
+      name: str(entity.name),
+      orcid: str(entity.orcid),
+      ror: str(entity.ror),
+      countryCode: str(entity.countryCode),
+    },
+    paperCount: Number(countResult?.results[0]?.count ?? 0),
+    papers: (paperResult?.results ?? []).map((paper) => ({
+      id: String(paper.id),
+      title: String(paper.title),
+      doi: str(paper.doi),
+      year: num(paper.year),
+      citations: num(paper.citations),
+    })),
+    related: (relatedResult?.results ?? []).map((row) => ({
+      id: String(row.id),
+      name: str(row.name),
+      kind: String(row.kind) as KgDetailEntityKind,
+      count: num(row.count),
+    })),
+  };
+}
+
 export async function readKgStats(db: D1Database, projectId: string): Promise<KgStats> {
   // One row of scalar subqueries: D1 rejects a compound SELECT of more than five terms.
   const tables = [...KG_NODE_TABLES, ...KG_EDGE_TABLES];
@@ -307,6 +446,29 @@ export async function handleKgRead(
     return detail
       ? withEtag(request, publicBody(detail), headers)
       : publishedError(404, 'not_found', 'The keyword is not in the lab KG.', headers);
+  }
+  const entityPath = /^\/v1\/kg\/entities\/(author|institution|topic|subfield|field|domain)\/(.+)$/u.exec(
+    path,
+  );
+  if (entityPath) {
+    const kind = entityPath[1] as KgDetailEntityKind;
+    let id: string;
+    try {
+      id = decodeURIComponent(entityPath[2] ?? '');
+    } catch {
+      return publishedError(400, 'bad_request', 'Malformed graph entity ID.', headers);
+    }
+    const identifier =
+      kind === 'author'
+        ? /^A\d+$/u.test(id)
+        : kind === 'institution'
+          ? /^I\d+$/u.test(id)
+          : new RegExp(`^${kind === 'topic' ? 'topics' : `${kind}s`}\\/[A-Za-z0-9_-]+$`, 'u').test(id);
+    if (!identifier) return publishedError(400, 'bad_request', 'Invalid graph entity ID.', headers);
+    const detail = await readKgEntity(db, kind, id, projectId);
+    return detail
+      ? withEtag(request, publicBody(detail), headers)
+      : publishedError(404, 'not_found', 'The graph entity is not in the lab KG.', headers);
   }
   return publishedError(400, 'bad_request', 'Invalid path or method.', headers);
 }

@@ -15,8 +15,8 @@ import type { Props } from './types';
 type Kind = TopicCheck['evidence'][number]['kind'];
 const metadata = z.object({ query_used: z.string().optional(), broadened_from: z.string().optional() });
 /** The text the literature tools search with: the English keywords when given, else the statement. */
-export function topicSearchText(check: TopicCheck): string {
-  return check.searchQuery?.trim() || check.statement.trim();
+export function topicSearchText(check: TopicCheck, searchQuery = check.searchQuery): string {
+  return searchQuery?.trim() || check.statement.trim();
 }
 export function useTopicTools({ check, change }: Props) {
   const { getIdToken } = useAuth();
@@ -26,11 +26,11 @@ export function useTopicTools({ check, change }: Props) {
   );
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  const query = topicSearchText(check);
-  const run = async (kind: Kind) => {
+  const run = async (kind: Kind, searchQuery = check.searchQuery) => {
     setRunning(true);
     setError(null);
     try {
+      const query = topicSearchText(check, searchQuery);
       const refs = check.neighbours
         .map((n) => n.ref.trim())
         .filter(Boolean)

@@ -6,7 +6,11 @@ import { testDb } from './testDb';
 function setup() {
   const { db, sqlite } = testDb();
   const projectId = '00000000-0000-4000-8000-000000000101';
-  sqlite.exec("INSERT INTO author (id, display_name) VALUES ('A1', 'Synthetic author')");
+  sqlite.exec(`
+    INSERT INTO author (id, display_name) VALUES
+      ('@rh/${projectId}/A1', 'Synthetic author'),
+      ('@rh/00000000-0000-4000-8000-000000000202/A2', 'Other project author');
+  `);
   const deps: Deps = {
     verifyToken: async (token) => {
       if (token === 'outside') throw new NotAllowedError();
@@ -51,15 +55,18 @@ it.each([
   { sql: 'SELECT * FROM doc' },
   { sql: 'SELECT missing FROM author' },
   { sql: 'SELECT id FROM author', limit: 0 },
-])('semantic step 4 blocks unscoped SQL for %j', async (body) => {
+])('semantic step 4 rejects invalid or unregistered SQL for %j', async (body) => {
   const response = await setup()(body);
-  expect(response.status).toBe(404);
-  expect(await response.json()).toMatchObject({ error: 'not_found' });
+  expect(response.status).toBe(400);
 });
 
-it('semantic step 4 returns 200 and SQL data from the KG binding alone', async () => {
+it('semantic step 4 returns only SQL data from the authenticated project scope', async () => {
   const sql = 'SELECT display_name FROM author';
   const response = await setup()({ sql });
-  expect(response.status).toBe(404);
-  expect(await response.json()).toMatchObject({ error: 'not_found' });
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({
+    sql,
+    rows: [['Synthetic author']],
+    concepts: ['kg-author'],
+  });
 });

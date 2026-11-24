@@ -82,3 +82,18 @@ it('TC-25 searches with the English keywords when given, else the statement', as
   await waitFor(() => expect(mocks.callTool).toHaveBeenCalledTimes(2));
   expect(mocks.callTool.mock.calls[1]?.[1]).toMatchObject({ question: 'llm screening', mode: 'general' });
 });
+it('saves and searches the current keyword draft without changing query syntax', async () => {
+  const check = { ...emptyTopicCheck(), statement: 'Fallback topic' };
+  const change = vi.fn((update: (current: TopicCheck) => TopicCheck) => update(check));
+  mocks.callTool.mockResolvedValue({ mode: 'general', neighbours: [] });
+  render(<EvidencePanel check={check} change={change} />);
+
+  const query = '(large language models OR LLMs) AND screening';
+  fireEvent.change(screen.getByLabelText('Từ khoá tìm kiếm (tiếng Anh)'), { target: { value: query } });
+  fireEvent.click(screen.getByRole('button', { name: 'Tìm bài gần nhất' }));
+
+  await waitFor(() => expect(mocks.callTool).toHaveBeenCalledTimes(1));
+  expect(mocks.callTool.mock.calls[0]?.[1]).toMatchObject({ question: query });
+  expect(change).toHaveBeenCalled();
+  expect(screen.getByLabelText('Từ khoá tìm kiếm (tiếng Anh)')).toHaveValue(query);
+});

@@ -29,15 +29,18 @@ export function normalizePhrase(text: string) {
 
 export function contributionGraph(knowledge: PaperModel['knowledge']) {
   const phrases = new Map(knowledge.phrases.map((phrase) => [phrase.id, phrase.text]));
+  const entityIdsByPhraseId = new Map(
+    knowledge.phrases.map((phrase) => [phrase.id, normalizePhrase(phrase.text)]),
+  );
   const nodes = new Map<string, { id: string; label: string; degree: number; stage: number }>();
   const edges = knowledge.triples.flatMap((triple, index) => {
+    const source = entityIdsByPhraseId.get(triple.subject);
+    const target = entityIdsByPhraseId.get(triple.object);
+    const predicate = phrases.get(triple.predicate);
     const subject = phrases.get(triple.subject);
     const object = phrases.get(triple.object);
-    const predicate = phrases.get(triple.predicate);
-    if (!subject || !object || !predicate) return [];
+    if (!source || !target || !subject || !object || !predicate) return [];
     const stage = CONTRIBUTION_STAGES.findIndex((item) => item.units.includes(triple.unit));
-    const source = normalizePhrase(subject);
-    const target = normalizePhrase(object);
     for (const [id, label] of [
       [source, subject],
       [target, object],

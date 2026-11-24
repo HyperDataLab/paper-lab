@@ -9,6 +9,7 @@ import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
+import { ActivityStatus } from '@/shared/ui/ActivityStatus';
 import { Empty, Loading } from '@/shared/ui/StateNote';
 import { useReportJob, useStoredChanged } from './paperJobs';
 import styles from './digest.module.css';
@@ -119,7 +120,7 @@ export function PaperDigest({
         <Button variant="primary" disabled={running} onClick={() => void start()}>
           {running ? 'Đang tóm tắt…' : 'Tóm tắt bài (AI)'}
         </Button>
-        {running && <span role="status">Đang đọc và tóm tắt bài…</span>}
+        {running && <ActivityStatus label="Đang đọc và tóm tắt bài…" />}
         {error && <p role="alert">{error}</p>}
       </Empty>
     );
@@ -167,6 +168,7 @@ export function PaperDigest({
             Tạo lúc {new Date(run.createdAt).toLocaleString('vi-VN')}
             {run.read < run.total && ` · AI đọc ${run.read}/${run.total} đoạn đầu của bài`}
           </span>
+          {running && <ActivityStatus label="Đang tạo tóm tắt…" />}
           <Button size="sm" variant="ghost" disabled={running} onClick={() => void start()}>
             {running ? 'Đang tóm tắt…' : 'Tóm tắt lại'}
           </Button>

@@ -198,6 +198,7 @@ export default function Page() {
     <div className={styles.page}>
       <h1>Chỉnh sửa</h1>
       <ActionBar
+        busy={running}
         status={
           running ? (
             <span role="status">Đang tạo bản sửa…</span>

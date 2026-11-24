@@ -16,7 +16,7 @@ export function SidebarGroup({
   onNavigate?: () => void;
 }) {
   return (
-    <div className={group.id === 'system' ? styles.system : styles.group}>
+    <div className={group.id === 'system' ? styles.system : styles.group} data-group={group.id}>
       {group.label && (
         <div className={styles.groupTitle}>
           {rail ? <span aria-label={group.label}>···</span> : group.label}
