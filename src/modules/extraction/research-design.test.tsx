@@ -141,7 +141,8 @@ it('groups Research Design sections and keeps AutoResearch available as a projec
   expect(screen.queryByRole('heading', { name: 'Kế hoạch tìm kiếm' })).not.toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'Định hình nghiên cứu' })).toBeInTheDocument();
   expect(
-    await screen.findByRole('button', { name: 'Thêm bài gần nhất' }, { timeout: 5000 }),
+    // The nearest-papers editor now has its add button beside the heading.
+    await screen.findByRole('button', { name: '+ Thêm bài' }, { timeout: 5000 }),
   ).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Writing Bank' }));
   await act(() => vi.dynamicImportSettled());

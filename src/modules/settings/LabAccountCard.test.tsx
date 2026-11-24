@@ -19,8 +19,9 @@ const workerPath = (url: URL) =>
 function setup(admin: boolean) {
   const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const url = new URL(String(input), window.location.origin);
-    if (url.searchParams.get('projectId') !== projectId) throw new Error('Missing project scope');
+    // The admin role is account-wide, so /v1/me carries no project; the import stays project-scoped.
     if (workerPath(url) === '/v1/me') return Response.json({ email: user.email, admin });
+    if (url.searchParams.get('projectId') !== projectId) throw new Error('Missing project scope');
     if (workerPath(url) !== route) throw new Error('Unexpected route');
     return url.searchParams.has('cursor')
       ? Response.json({ imported: 4, skipped: 1, failed: 2, cursor: null })
