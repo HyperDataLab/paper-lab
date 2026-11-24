@@ -51,9 +51,14 @@ it('C3b excluding needs a reason, full text follows an include, and PRISMA count
   const fullTextRow = await screen.findByRole('group', { name });
   chooseSelectOption('Lý do loại', 'Sai research design');
   fireEvent.click(within(fullTextRow).getByRole('button', { name: 'Loại' }));
-  const flow = within(screen.getByLabelText('PRISMA: Sàng lọc'));
+  // PRISMA counts live in the screening and quality area of the corpus.
+  const nav = screen.getByRole('navigation', { name: 'Khu vực làm việc trong corpus' });
+  fireEvent.click(within(nav).getByRole('button', { name: 'Sàng lọc & chất lượng' }));
+  // The PRISMA flow is one table; each label cell is followed by its count.
+  const flow = within(await screen.findByRole('table', { name: 'Bảng lưu chuyển PRISMA 2020' }));
   expect((await flow.findByText('— Sai research design')).nextSibling).toHaveTextContent('1');
-  expect(flow.getByText('Báo cáo bị loại, kèm lý do').nextSibling).toHaveTextContent('1');
+  // The databases column comes before the citation column.
+  expect(flow.getAllByText('Báo cáo bị loại, kèm lý do')[0]?.nextSibling).toHaveTextContent('1');
   expect((await repo.corpora.get(id))?.members[0]?.decisions).toHaveLength(2);
   expect(screen.getByRole('button', { name: 'Tải PRISMA (CSV)' })).toBeInTheDocument();
 });
@@ -62,7 +67,8 @@ it('C3b imports a RIS export as a search entry and deduplicates it', async () =>
   const { repo, id } = await setup();
   const ris =
     'TY  - JOUR\nTI  - Synthetic record\nDO  - 10.1000/syn1\nER  -\nTY  - JOUR\nTI  - Another\nDO  - 10.1000/syn2\nER  -\n';
-  fireEvent.change(screen.getByLabelText('Nhập kết quả tìm kiếm'), {
+  // The import section shares its name with the file input, so pick the input.
+  fireEvent.change(screen.getByLabelText('Nhập kết quả tìm kiếm', { selector: 'input' }), {
     target: { files: [new File([ris], 'scopus.ris', { type: 'application/x-research-info-systems' })] },
   });
   expect(await screen.findByText(/Đã nhập 2 bản ghi: thêm 1 · trùng 1/u)).toBeInTheDocument();
