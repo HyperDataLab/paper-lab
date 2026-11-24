@@ -165,8 +165,8 @@ export function pagesForConcept(conceptId: string): Page[] {
   );
 }
 
-/** Version 2 added `pages` (step 2, the page map). */
-export const SEMANTIC_REGISTRY_VERSION = 2;
+/** Version 2 added `pages` (step 2, the page map); version 3 the `data-table` store kind (passage index). */
+export const SEMANTIC_REGISTRY_VERSION = 3;
 
 /** A stable, JSON-safe export of the registry (registry order, no timestamps), for the MCP server. */
 export function toJson() {
