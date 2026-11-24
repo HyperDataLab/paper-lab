@@ -1,3 +1,4 @@
+import { projectHeader } from '@/shared/scope';
 import type { SciAtlasSearchRequest } from '@/core/openkg';
 import { KgSqlResultSchema } from '@/core/schemas/kgSql';
 import {
@@ -82,7 +83,7 @@ async function request(
       return await fetch(url, {
         ...init,
         ...(cache ? { cache } : {}),
-        headers: { Authorization: `Bearer ${token}`, 'X-Project-Id': projectId, ...init?.headers },
+        headers: { Authorization: `Bearer ${token}`, ...projectHeader(projectId), ...init?.headers },
       });
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;

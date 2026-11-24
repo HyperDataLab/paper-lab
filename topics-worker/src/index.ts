@@ -1,6 +1,7 @@
 import { Container, getContainer } from '@cloudflare/containers';
-import { handle, refreshJob, type Bucket } from './app';
-import { verifySsoToken } from './auth';
+import { createRemoteJWKSet, customFetch } from 'jose';
+import { handle, refreshJob, type Bucket, type Deps } from './app';
+import { cachedSsoVerifier, dualVerifier, SECURETOKEN_JWKS, verifyFirebaseToken } from './auth';
 
 export class TopicsContainer extends Container<Env> {
   private bucket: Bucket;
@@ -63,16 +64,43 @@ interface Env {
   BUCKET: Bucket;
   TOPICS: Parameters<typeof getContainer>[0];
   NLP: Parameters<typeof getContainer>[0];
+  DATA: Deps['data'];
+  FIREBASE_PROJECT_ID: string;
+  ACCEPTED_PROJECT_IDS?: string;
   SSO_BASE_URL: string;
   ALLOWED_DOMAIN: string;
   ALLOWED_ORIGINS: string;
+}
+// A Worker's fetch goes through Cloudflare's cache, which keeps Google's key set for its ~7 h max-age; after a key
+// rotation every newly signed token would fail. jose already caches the keys in the isolate.
+const jwks = createRemoteJWKSet(new URL(SECURETOKEN_JWKS), {
+  [customFetch]: (url, options) => fetch(url, { ...options, cache: 'no-store' }),
+});
+// One verifier per isolate, so the SSO userinfo cache outlives a single request.
+let verifier: { key: string; verify: ReturnType<typeof dualVerifier> } | undefined;
+function verifyToken(env: Env) {
+  const projects = (env.ACCEPTED_PROJECT_IDS ?? env.FIREBASE_PROJECT_ID ?? '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
+  const key = JSON.stringify([projects, env.SSO_BASE_URL, env.ALLOWED_DOMAIN]);
+  if (verifier?.key !== key)
+    verifier = {
+      key,
+      verify: dualVerifier({
+        firebase: (token) => verifyFirebaseToken(token, jwks, projects, env.ALLOWED_DOMAIN),
+        sso: cachedSsoVerifier({ ssoBaseUrl: env.SSO_BASE_URL, domain: env.ALLOWED_DOMAIN }),
+      }),
+    };
+  return verifier.verify;
 }
 export default {
   fetch(request: Request, env: Env) {
     return handle(request, {
       bucket: env.BUCKET,
+      data: env.DATA,
       origins: env.ALLOWED_ORIGINS.split(',').map((s) => s.trim()),
-      verify: (token) => verifySsoToken(token, env.SSO_BASE_URL, env.ALLOWED_DOMAIN),
+      verify: verifyToken(env),
       container: (path, init) => getContainer(env.TOPICS).fetch(`http://container${path}`, init),
       nlp: (path, init) => getContainer(env.NLP).fetch(`http://container${path}`, init),
       refresh: async (jobId) => {

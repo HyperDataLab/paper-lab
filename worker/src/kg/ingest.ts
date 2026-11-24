@@ -29,7 +29,14 @@ export async function drainKgQueue(
     limit = CRON_JOBS,
     ids,
     projectId,
-  }: { now: () => Date; fetcher?: typeof fetch; limit?: number; ids?: string[]; projectId?: string },
+  }: {
+    now: () => Date;
+    fetcher?: typeof fetch;
+    limit?: number;
+    ids?: string[];
+    /** The project whose queue to drain; absent drains the lab's own queue (ADR 0008). */
+    projectId?: string;
+  },
 ): Promise<Pick<KgIngestResult, 'processed' | 'errors'>> {
   const openAlex = openAlexClient(fetcher, kg.mailto, kg.apiKey);
   const repo = kgRepo(kg.db, projectId);

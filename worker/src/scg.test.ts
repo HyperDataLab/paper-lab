@@ -46,7 +46,7 @@ function setup(kg?: KgBindings) {
     verifyToken: async (token) => {
       if (token === 'outsider') throw new NotAllowedError();
       if (token !== 'token') throw new Error('bad token');
-      return { uid: '1', email: 'test@example.org' };
+      return { uid: '1', email: 'test@example.org', kind: 'sso' as const };
     },
     allowedOrigins: ['https://example.org'],
     getOwnedProject: async (projectId) => ({ id: projectId, name: 'Test project' }),

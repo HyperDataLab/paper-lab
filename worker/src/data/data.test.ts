@@ -29,8 +29,8 @@ function setup(options: { data?: boolean; wrapDb?: (db: D1Database) => D1Databas
     bucket,
     verifyToken: async (token) => {
       if (token === 'outsider') throw new NotAllowedError();
-      if (token === 'lab') return { uid: 'a', email: A };
-      if (token === 'lab-b') return { uid: 'b', email: B };
+      if (token === 'lab') return { uid: 'a', email: A, kind: 'sso' as const };
+      if (token === 'lab-b') return { uid: 'b', email: B, kind: 'sso' as const };
       throw new Error('bad token');
     },
     allowedOrigins: ['https://app.example'],

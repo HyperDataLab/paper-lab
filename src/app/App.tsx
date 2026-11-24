@@ -10,6 +10,7 @@ import { Skeleton } from '@/shared/ui/Skeleton';
 import { StorageProvider, StorageStatus } from '@/shared/storage/StorageProvider';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { AuthProvider } from '@/shared/auth/AuthProvider';
+import { AUTH_MODE } from '@/shared/auth/config';
 import { AccountButton } from './AccountButton';
 import { CommandPalette } from './CommandPalette';
 import { modules } from './modules';
@@ -39,7 +40,9 @@ export function App() {
   const closeDrawer = useCallback(() => setDrawer(false), []);
   const location = useLocation();
   const navigate = useNavigate();
-  const rawProjectId = new URLSearchParams(location.search).get('projectId');
+  // The Firebase build works in the lab store and ignores ResearchHub project links (ADR 0008).
+  const rawProjectId =
+    AUTH_MODE === 'firebase' ? null : new URLSearchParams(location.search).get('projectId');
   const validProjectId =
     rawProjectId &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(rawProjectId)

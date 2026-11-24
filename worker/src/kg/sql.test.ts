@@ -41,7 +41,7 @@ describe('semantic step 4 SQL validator', () => {
   it('accepts joins, quoted identifiers and a single trailing semicolon', () => {
     const sql =
       'SELECT p.title, a.display_name FROM ("Paper" p JOIN authored e ON p.id = e.paper_id) JOIN [author] a ON a.id = e.author_id';
-    expect(validateKgSql(`\n${sql};  `)).toEqual({
+    expect(validateKgSql(`\n${sql};  `)).toMatchObject({
       sql,
       concepts: ['kg-paper', 'kg-authored', 'kg-author'],
     });
@@ -50,13 +50,13 @@ describe('semantic step 4 SQL validator', () => {
   it('accepts multiple CTEs with scoped names and gathers physical source concepts once', () => {
     const sql =
       'WITH recent(id) AS (SELECT id FROM paper), cited AS (SELECT * FROM cites WHERE paper_id IN (SELECT id FROM recent)) SELECT target_id FROM cited JOIN paper ON paper.id = cited.paper_id';
-    expect(validateKgSql(sql)).toEqual({ sql, concepts: ['kg-paper', 'kg-cites'] });
+    expect(validateKgSql(sql)).toMatchObject({ sql, concepts: ['kg-paper', 'kg-cites'] });
   });
 
   it('treats comment markers, semicolons and keywords inside quoted strings as data', () => {
     const sql =
       "SELECT 'a''; -- PRAGMA /* DROP sqlite_master */' AS text FROM paper WHERE title IS DISTINCT FROM 'other'";
-    expect(validateKgSql(sql)).toEqual({ sql, concepts: ['kg-paper'] });
+    expect(validateKgSql(sql)).toMatchObject({ sql, concepts: ['kg-paper'] });
   });
 });
 
@@ -114,7 +114,10 @@ describe('semantic step 4 read-only D1 runner', () => {
       });
       await vi.advanceTimersByTimeAsync(5_000);
       await expectTimeout;
-      expect(db.prepare).toHaveBeenCalledWith('SELECT * FROM (SELECT id FROM paper) LIMIT ?');
+      // Lab scope: every table read is narrowed to the lab's unprefixed rows (ADR 0008).
+      expect(db.prepare).toHaveBeenCalledWith(
+        `SELECT * FROM (select id from (select * from "paper" where "id" not like '@rh/%') as "paper") LIMIT ?`,
+      );
       expect(statement.bind).toHaveBeenCalledWith(101);
     } finally {
       vi.useRealTimers();

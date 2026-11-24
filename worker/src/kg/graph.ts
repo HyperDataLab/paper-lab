@@ -25,6 +25,7 @@ import {
 import { publishedError } from '../published';
 import type { D1Database } from './bindings';
 import { withEtag } from './reads';
+import { logicalId, scopeBind, scopedDb, scopePrefix, scopeSqlLiteral, type ProjectScope } from '../scope';
 
 type Headers = Record<string, string>;
 type Row = Record<string, string | number | null>;
@@ -109,7 +110,7 @@ const RELATIONS: Record<KgGraphNodeKind, Relation[]> = {
       sql: `SELECT ${PAPER}, max(b.review = 'accepted') AS accepted FROM paper me
         JOIN contribution c ON c.paper_doi = me.doi ${BUILDS_ON}
         JOIN paper p ON p.doi = b.target_id
-        WHERE me.id = ?1 AND c.published_paper_id LIKE '__PROJECT_PREFIX__'
+        WHERE me.id = ?1 AND c.published_paper_id LIKE '__PROJECT_PREFIX__' AND p.id LIKE '__PROJECT_PREFIX__'
           AND b.target_kind = 'paper' AND p.id <> me.id GROUP BY p.id ORDER BY p.id ${LIMIT}`,
       link: (row, id) => toPaper(row, id, 'builds_on', true, kgEdgeWeight.buildsOn),
     },
@@ -118,7 +119,7 @@ const RELATIONS: Record<KgGraphNodeKind, Relation[]> = {
         JOIN builds_on b ON b.target_kind = 'paper' AND b.target_id = me.doi
         JOIN contribution c ON c.published_paper_id = b.published_paper_id AND c.id = b.contribution_id
         JOIN paper p ON p.doi = c.paper_doi
-        WHERE me.id = ?1 AND c.published_paper_id LIKE '__PROJECT_PREFIX__'
+        WHERE me.id = ?1 AND c.published_paper_id LIKE '__PROJECT_PREFIX__' AND p.id LIKE '__PROJECT_PREFIX__'
           AND p.id <> me.id GROUP BY p.id ORDER BY p.id ${LIMIT}`,
       link: (row, id) => toPaper(row, id, 'builds_on', false, kgEdgeWeight.buildsOn),
     },
@@ -314,13 +315,18 @@ const CENTRE_SQL: Record<KgGraphNodeKind, string> = {
   domain: 'SELECT id, display_name AS name FROM domain WHERE id = ?1',
 };
 
-async function expand(db: D1Database, from: Pick<KgNodeInfo, 'id' | 'kind'>[], projectId: string) {
+async function expand(db: D1Database, from: Pick<KgNodeInfo, 'id' | 'kind'>[], projectId: ProjectScope) {
   const plan = from.flatMap(({ id, kind }) => RELATIONS[kind].map((relation) => ({ id, relation })));
   if (!plan.length) return [];
-  const projectPrefix = `@rh/${projectId}/%`;
   const results = await db.batch<Row>(
     plan.map(({ id, relation }) =>
-      db.prepare(relation.sql.replaceAll('__PROJECT_PREFIX__', projectPrefix)).bind(id),
+      db
+        .prepare(
+          relation.sql.replace(/([\w.]+) LIKE '__PROJECT_PREFIX__'/gu, (_match, column: string) =>
+            scopeSqlLiteral(projectId, column),
+          ),
+        )
+        .bind(id),
     ),
   );
   return plan.flatMap(({ id, relation }, index) =>
@@ -331,13 +337,14 @@ async function expand(db: D1Database, from: Pick<KgNodeInfo, 'id' | 'kind'>[], p
 export async function readKgGraph(
   db: D1Database,
   options: { centre: string; kind: KgGraphNodeKind; depth: 1 | 2; layers: KgGraphLayer[]; limit: number },
-  projectId: string,
+  projectId: ProjectScope,
 ): Promise<KgGraph | null> {
-  const prefix = `@rh/${projectId}/`;
+  db = scopedDb(db, projectId);
+  const prefix = scopePrefix(projectId);
   const scopedCentre = options.centre.startsWith('10.') ? options.centre : `${prefix}${options.centre}`;
   const centreStatement =
     options.kind === 'paper'
-      ? db.prepare(CENTRE_SQL[options.kind]).bind(scopedCentre, `${prefix}%`)
+      ? db.prepare(CENTRE_SQL[options.kind]).bind(scopedCentre, scopeBind(projectId))
       : db.prepare(CENTRE_SQL[options.kind]).bind(scopedCentre);
   const [found] = await db.batch<Row>([centreStatement]);
   const row = found?.results[0];
@@ -362,16 +369,19 @@ export async function readKgGraph(
         .bind(centre.id),
     ]);
     outside = (missing?.results ?? []).map(({ id }) => {
-      const value = String(id);
-      const prefix = `@rh/${projectId}/`;
-      return value.startsWith(prefix) ? value.slice(prefix.length) : value;
+      return logicalId(projectId, String(id));
     });
   }
   return { centre: centre.id, depth: options.depth, layers: options.layers, ...graph, outside };
 }
 
-export async function readKgTrend(db: D1Database, requested: string[], projectId: string): Promise<KgTrend> {
-  const prefix = `@rh/${projectId}/`;
+export async function readKgTrend(
+  db: D1Database,
+  requested: string[],
+  projectId: ProjectScope,
+): Promise<KgTrend> {
+  db = scopedDb(db, projectId);
+  const prefix = scopePrefix(projectId);
   const ids = requested.filter((value) => value.startsWith('keywords/')).map((value) => `${prefix}${value}`);
   const texts = requested.filter((value) => !value.startsWith('keywords/')).map(normalizeText);
   const [found] = await db.batch<Row>([
@@ -382,7 +392,7 @@ export async function readKgTrend(db: D1Database, requested: string[], projectId
           AND id LIKE ?3
         ORDER BY id`,
       )
-      .bind(JSON.stringify(ids), JSON.stringify(texts), `${prefix}%`),
+      .bind(JSON.stringify(ids), JSON.stringify(texts), scopeBind(projectId)),
   ]);
   const rows = found?.results ?? [];
   const keywords = new Map<string, { id: string; text: string; total: number }>();
@@ -453,7 +463,7 @@ export async function handleKgGraph(
   request: Request,
   path: string,
   headers: Headers,
-  projectId: string,
+  projectId: ProjectScope,
 ) {
   if (request.method !== 'GET') return publishedError(405, 'bad_request', 'Use GET.', headers);
   const params = new URL(request.url).searchParams;
@@ -489,16 +499,11 @@ export async function handleKgGraph(
     : publishedError(404, 'not_found', 'The centre is not in the lab KG.', headers);
 }
 
-function stripProjectIds(value: unknown, projectId: string): unknown {
-  const prefix = `@rh/${projectId}/`;
+function stripProjectIds(value: unknown, projectId: ProjectScope): unknown {
+  if (typeof value === 'string') return logicalId(projectId, value);
   if (Array.isArray(value)) return value.map((item) => stripProjectIds(item, projectId));
   if (!value || typeof value !== 'object') return value;
   return Object.fromEntries(
-    Object.entries(value).map(([key, item]) => [
-      key,
-      typeof item === 'string' && item.startsWith(prefix)
-        ? item.slice(prefix.length)
-        : stripProjectIds(item, projectId),
-    ]),
+    Object.entries(value).map(([key, item]) => [key, stripProjectIds(item, projectId)]),
   );
 }

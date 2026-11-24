@@ -41,7 +41,7 @@ function setup() {
   };
   const deps: Deps = {
     bucket,
-    verifyToken: async () => ({ uid: '1', email: 'test@example.org' }),
+    verifyToken: async () => ({ uid: '1', email: 'test@example.org', kind: 'sso' as const }),
     allowedOrigins: ['https://example.org'],
     getOwnedProject: async (projectId) => ({ id: projectId, name: 'Test project' }),
     now: () => new Date('2026-11-17T00:00:00Z'),

@@ -1,3 +1,4 @@
+import { projectHeader } from '@/shared/scope';
 import { PDF_WORKER_URL, PdfRemoteError, projectScopedUrl } from './index';
 
 const TIMEOUT_MS = 180_000;
@@ -39,7 +40,7 @@ export async function fetchGrobidTei(
         projectScopedUrl(`${PDF_WORKER_URL}/grobid/fulltext/${encodeURIComponent(sha)}`, projectId),
         {
           method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'X-Project-Id': projectId },
+          headers: { Authorization: `Bearer ${token}`, ...projectHeader(projectId) },
           signal: controller.signal,
         },
       );

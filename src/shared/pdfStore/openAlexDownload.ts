@@ -1,3 +1,4 @@
+import { projectHeader } from '@/shared/scope';
 import { guardPaperSize } from '@/shared/paper/sizeGuard';
 import { PDF_WORKER_URL, projectScopedUrl } from './index';
 
@@ -17,7 +18,7 @@ export async function downloadOpenAlexPdf(
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
-        'X-Project-Id': projectId,
+        ...projectHeader(projectId),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ doi, pdfUrl }),
