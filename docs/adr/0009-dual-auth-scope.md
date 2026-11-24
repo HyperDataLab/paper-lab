@@ -1,4 +1,4 @@
-# ADR-0008: Two sign-ins, two scopes (Firebase lab scope, SSO project scope)
+# ADR-0009: Two sign-ins, two scopes (Firebase lab scope, SSO project scope)
 
 Status: Accepted
 

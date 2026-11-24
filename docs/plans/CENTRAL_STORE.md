@@ -4,7 +4,7 @@ Decision: `docs/adr/0007-central-lab-store.md`. Existing local data is sample da
 
 ## Two scopes (ADR 0008, owner 2026-11-25)
 
-The store has a lab scope and a project scope. Details: `docs/adr/0008-dual-auth-scope.md`.
+The store has a lab scope and a project scope. Details: `docs/adr/0009-dual-auth-scope.md`.
 
 - **Lab scope.** A request without `X-Project-Id` or `?projectId=` reads and writes the global lab store, as
   before ResearchHub projects. Rows are `hub_project_id IS NULL` with unprefixed ids. Either a Firebase ID token
