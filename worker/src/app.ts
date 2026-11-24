@@ -13,6 +13,8 @@ import { DATA_PATH_PREFIX, handleData } from './data/routes';
 import { handleKg } from './kg/routes';
 import { handleSciAtlas, SCIATLAS_PATH } from './sciatlas';
 import type { D1Database, KgBindings } from './kg/bindings';
+import type { PassageVectorIndex } from './passages/bindings';
+import { handlePassages, PASSAGES_PATH_PREFIX } from './passages/routes';
 
 /** The part of an R2 bucket this worker uses, so the logic runs in tests without Cloudflare. */
 export interface Bucket {
@@ -71,6 +73,8 @@ export interface Deps extends KgBindings {
   /** Project-scoped central record store. */
   data?: D1Database;
   kg?: KgBindings;
+  /** The `PASSAGE_VECTORS` Vectorize index; absent → /v1/passages/* answers 503. */
+  passageVectors?: PassageVectorIndex;
   sciatlasTimeoutMs?: number;
   /** SciAtlas API key, configured as a Worker secret. */
   sciatlasKey?: string;
@@ -426,6 +430,8 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
       if (path.startsWith(DATA_PATH_PREFIX))
         return await handleData(deps, request, path, caller.email, headers, projectId);
       if (path.startsWith('/v1/kg/')) return await handleKg(projectDeps, request, path, headers, projectId);
+      if (path.startsWith(PASSAGES_PATH_PREFIX))
+        return await handlePassages(projectDeps, request, path, headers, projectId);
       if (path === '/v1/pdfs/openalex')
         return await handleOpenAlexPdf(request, headers, {
           fetch: deps.externalFetch ?? fetch,

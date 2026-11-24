@@ -60,21 +60,28 @@ function nodesOf(concept: Concept): z.ZodType[] {
 
 // --- KG migrations ---------------------------------------------------------------------------------------------
 
-const migrations = import.meta.glob('/worker/migrations/*.sql', {
-  query: '?raw',
-  import: 'default',
-  eager: true,
-});
-const KG_TABLES = new Map<string, Set<string>>();
-for (const sql of Object.values(migrations) as string[])
-  for (const match of sql.matchAll(/CREATE TABLE (\w+) \(([\s\S]*?)\)(?: WITHOUT ROWID)?;/gu)) {
-    const [, table = '', body = ''] = match;
-    const columns = body
-      .split(/,\s*(?![^()]*\))/u)
-      .map((part) => /^\s*(\w+)\s/u.exec(part)?.[1])
-      .filter((name): name is string => !!name && !['PRIMARY', 'FOREIGN', 'CHECK', 'UNIQUE'].includes(name));
-    KG_TABLES.set(table, new Set(columns));
-  }
+function migrationTables(migrations: Record<string, unknown>) {
+  const tables = new Map<string, Set<string>>();
+  for (const sql of Object.values(migrations) as string[])
+    for (const match of sql.matchAll(/CREATE TABLE (\w+) \(([\s\S]*?)\)(?: WITHOUT ROWID)?;/gu)) {
+      const [, table = '', body = ''] = match;
+      const columns = body
+        .split(/,\s*(?![^()]*\))/u)
+        .map((part) => /^\s*(\w+)\s/u.exec(part)?.[1])
+        .filter(
+          (name): name is string => !!name && !['PRIMARY', 'FOREIGN', 'CHECK', 'UNIQUE'].includes(name),
+        );
+      tables.set(table, new Set(columns));
+    }
+  return tables;
+}
+const KG_TABLES = migrationTables(
+  import.meta.glob('/worker/migrations/*.sql', { query: '?raw', import: 'default', eager: true }),
+);
+/** Tables of the central store's D1, for `data-table` concepts (the passage index). */
+const DATA_TABLES = migrationTables(
+  import.meta.glob('/worker/migrations-data/*.sql', { query: '?raw', import: 'default', eager: true }),
+);
 
 const schemaModules = import.meta.glob(['/src/core/**/*.ts', '!/src/core/**/*.test.ts']);
 
@@ -144,6 +151,18 @@ describe('semantic concept registry', () => {
     }
   });
 
+  it('maps every data-table concept to a central store migration table and its real columns', () => {
+    const concepts = CONCEPTS.filter((c) => c.store.kind === 'data-table');
+    expect(concepts.map((c) => c.id)).toContain('passage');
+    for (const concept of concepts) {
+      if (concept.store.kind !== 'data-table') continue;
+      const columns = DATA_TABLES.get(concept.store.table);
+      expect(columns, concept.id).toBeDefined();
+      for (const field of concept.fields)
+        expect(columns?.has(field.name), `${concept.id}.${field.name}`).toBe(true);
+    }
+  });
+
   it('covers every KG node and edge table', () => {
     const tables = new Set(CONCEPTS.flatMap((c) => (c.store.kind === 'kg' ? [c.store.table] : [])));
     for (const table of [...KG_NODE_TABLES, ...KG_EDGE_TABLES]) expect(tables.has(table), table).toBe(true);
@@ -158,7 +177,9 @@ describe('semantic concept registry', () => {
         const viaOk =
           store.kind === 'kg'
             ? (KG_TABLES.get(store.table)?.has(relation.via) ?? false) || KG_TABLES.has(relation.via)
-            : store.kind === 'r2' || resolve(nodesOf(concept), relation.via).length > 0;
+            : store.kind === 'data-table'
+              ? (DATA_TABLES.get(store.table)?.has(relation.via) ?? false)
+              : store.kind === 'r2' || resolve(nodesOf(concept), relation.via).length > 0;
         if (!viaOk) bad.push(`${concept.id} via ${relation.via}`);
       }
     expect(bad).toEqual([]);

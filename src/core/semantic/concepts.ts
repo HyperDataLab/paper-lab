@@ -11,6 +11,8 @@ export type ConceptStore =
   | { kind: 'central'; collection: CollectionName }
   /** A table of the lab KG (D1, `worker/migrations/*.sql`). */
   | { kind: 'kg'; table: string }
+  /** A derived table in the central store's D1 (`worker/migrations-data/*.sql`), such as the passage index. */
+  | { kind: 'data-table'; table: string }
   /** An object inside another concept's record. `path` is dotted; `[]` steps into array elements. */
   | { kind: 'nested'; parent: string; path: string }
   /** Raw objects in R2 under a key prefix. */
@@ -81,6 +83,7 @@ function concept(input: ConceptInput): Concept {
 const central = (collection: CollectionName): ConceptStore => ({ kind: 'central', collection });
 const nested = (parent: string, path: string): ConceptStore => ({ kind: 'nested', parent, path });
 const kg = (table: string): ConceptStore => ({ kind: 'kg', table });
+const dataTable = (table: string): ConceptStore => ({ kind: 'data-table', table });
 
 const S = 'src/core/schemas/';
 const DRAFT = 'src/core/researchDesign/draft/schema.ts';
@@ -2128,8 +2131,57 @@ const KG_CONCEPTS: Concept[] = [
   }),
 ];
 
+// ---------------------------------------------------------------------------------------------------------------
+// Passage index (docs/plans/PASSAGE_INDEX.md): derived from `papers`, in the central store's D1
+// ---------------------------------------------------------------------------------------------------------------
+
+const PASSAGE_CONCEPTS: Concept[] = [
+  concept({
+    id: 'passage',
+    name: 'Passage',
+    labelVi: 'Đoạn văn trong chỉ mục',
+    description:
+      'Một paragraph của full text đã được lập chỉ mục để tìm theo ngữ nghĩa và từ khoá trong một phạm vi dữ liệu: một project ResearchHub, hoặc kho lab (project_id là lab). Mã bài và mã paragraph là neo trích dẫn, mở đúng đoạn trong bài.',
+    synonyms: ['passage', 'đoạn văn', 'tìm đoạn văn', 'passage index', 'full text search', 'trích đoạn'],
+    store: dataTable('passage'),
+    fields: [
+      ['project_id', 'Project ResearchHub chứa bài.'],
+      ['paper_id', 'Mã bài báo.'],
+      ['paragraph_id', 'Mã paragraph trong bài.'],
+      ['section_role', 'Vai trò section: Introduction, Methods, Results…'],
+      ['ord', 'Thứ tự paragraph trong bài.'],
+      ['text', 'Văn bản của paragraph.'],
+      ['text_hash', 'Mã băm văn bản; không đổi thì không tính lại embedding.'],
+      ['indexed_at', 'Thời điểm lập chỉ mục.'],
+    ],
+    relations: [
+      ['belongs-to', 'paper', 'paper_id'],
+      ['refers-to', 'paragraph', 'paragraph_id'],
+    ],
+  }),
+  concept({
+    id: 'passage-queue',
+    name: 'Passage index queue item',
+    labelVi: 'Hàng đợi lập chỉ mục đoạn văn',
+    description:
+      'Một bài chờ được lập chỉ mục đoạn văn: mỗi lần lưu bài hoặc bấm Lập chỉ mục lại thì bài vào hàng đợi, cron xử lý trong vài phút.',
+    synonyms: ['passage queue', 'lập chỉ mục lại', 'reindex', 'hàng đợi chỉ mục'],
+    store: dataTable('passage_queue'),
+    fields: [
+      ['project_id', 'Project ResearchHub.'],
+      ['paper_id', 'Mã bài báo.'],
+      ['status', 'pending, done hoặc failed.'],
+      ['attempts', 'Số lần thử.'],
+      ['next_at', 'Lần chạy hoặc thử lại kế tiếp.'],
+      ['last_error', 'Mã lỗi gần nhất.'],
+    ],
+    relations: [['refers-to', 'paper', 'paper_id']],
+  }),
+];
+
 export const CONCEPTS: readonly Concept[] = [
   ...PAPER_CONCEPTS,
+  ...PASSAGE_CONCEPTS,
   ...PAPER_RECORD_CONCEPTS,
   ...MEASUREMENT_CONCEPTS,
   ...CORPUS_CONCEPTS,

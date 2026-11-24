@@ -6,6 +6,8 @@ import { GrobidStartingError } from './grobid-error';
 import { collectOrphanBodies } from './data/gc';
 import { configuredKg, type D1Database, type KgBindings } from './kg/bindings';
 import { drainKgQueue } from './kg/ingest';
+import { configuredPassages, type PassageVectorIndex } from './passages/bindings';
+import { drainPassageQueue } from './passages/index';
 
 export { GrobidContainer } from './grobid';
 
@@ -26,6 +28,7 @@ interface Env extends KgBindings {
   /** Base URL of the topics worker that serves POST /nlp/parse; unset → POST /v1/measure skips passive and tense. */
   NLP_URL?: string;
   DATA?: D1Database;
+  PASSAGE_VECTORS?: PassageVectorIndex;
   SCIATLAS_API_KEY?: string;
 }
 
@@ -246,6 +249,7 @@ export default {
         sciatlasKey: env.SCIATLAS_API_KEY,
         kg: env,
         data: env.DATA,
+        passageVectors: env.PASSAGE_VECTORS,
       },
       request,
     );
@@ -261,6 +265,18 @@ export default {
       ]);
       for (const { projectId } of rows?.results ?? [])
         await drainKgQueue(kg, { now: () => new Date(), projectId });
+    }
+    const passages = configuredPassages({
+      db: env.DATA,
+      bucket: env.BUCKET,
+      vectors: env.PASSAGE_VECTORS,
+      ai: env.AI,
+    });
+    try {
+      if (passages) await drainPassageQueue(passages, { now: () => new Date() });
+    } catch (error) {
+      // A missing migration or a D1 outage must not stop the orphan-body collector below.
+      console.error('Passage indexing failed', error instanceof Error ? error.name : 'unknown');
     }
     if (env.DATA) await collectOrphanBodies(env.DATA, env.BUCKET, new Date());
   },

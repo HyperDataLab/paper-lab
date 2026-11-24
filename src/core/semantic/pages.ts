@@ -563,10 +563,12 @@ export const PAGES: readonly Page[] = [
       'scg-contribution',
       'scg-prerequisite',
       'kg-paper',
+      'passage',
     ],
     reads: [
       'corpus',
       'paper',
+      'passage',
       'paper-context',
       'paper-insights',
       'stance',
@@ -596,6 +598,7 @@ export const PAGES: readonly Page[] = [
       'corpus-keywords',
       'doi-keywords',
       'kg-ingest-queue',
+      'passage-queue',
     ],
     actions: [
       {
@@ -667,6 +670,16 @@ export const PAGES: readonly Page[] = [
         labelVi: 'Đưa vào KG của lab',
         effect: 'Gửi các bài của corpus vào hàng đợi ingest của KG lab.',
         writes: ['kg-ingest-queue'],
+      },
+      {
+        labelVi: 'Tìm đoạn văn',
+        effect:
+          'Tìm paragraph trong full text của các bài thuộc corpus (ngữ nghĩa và từ khoá); mỗi kết quả mở đúng paragraph trong bài.',
+      },
+      {
+        labelVi: 'Lập chỉ mục lại',
+        effect: 'Đưa các bài của corpus vào hàng đợi lập chỉ mục đoạn văn; máy chủ xử lý trong vài phút.',
+        writes: ['passage-queue'],
       },
       {
         labelVi: 'Sửa giao thức',

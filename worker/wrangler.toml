@@ -45,6 +45,11 @@ migrations_dir = "migrations-data"
 binding = "KG_VECTORS"
 index_name = "paperlab-kg-papers"
 
+# Passage index (docs/plans/PASSAGE_INDEX.md): 768 dimensions, cosine, metadata indexes on projectId and paperId.
+[[vectorize]]
+binding = "PASSAGE_VECTORS"
+index_name = "paperlab-passages"
+
 [ai]
 binding = "AI"
 

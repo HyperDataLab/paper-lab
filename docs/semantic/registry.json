@@ -1,6 +1,6 @@
 {
   "format": "paperlab-semantic-concepts",
-  "version": 2,
+  "version": 3,
   "concepts": [
     {
       "id": "paper",
@@ -695,6 +695,121 @@
       },
       "fields": [],
       "relations": [],
+      "schema": null
+    },
+    {
+      "id": "passage",
+      "name": "Passage",
+      "labelVi": "Đoạn văn trong chỉ mục",
+      "description": "Một paragraph của full text đã được lập chỉ mục để tìm theo ngữ nghĩa và từ khoá trong một phạm vi dữ liệu: một project ResearchHub, hoặc kho lab (project_id là lab). Mã bài và mã paragraph là neo trích dẫn, mở đúng đoạn trong bài.",
+      "synonyms": [
+        "passage",
+        "đoạn văn",
+        "tìm đoạn văn",
+        "passage index",
+        "full text search",
+        "trích đoạn"
+      ],
+      "store": {
+        "kind": "data-table",
+        "table": "passage"
+      },
+      "fields": [
+        {
+          "name": "project_id",
+          "description": "Project ResearchHub chứa bài."
+        },
+        {
+          "name": "paper_id",
+          "description": "Mã bài báo."
+        },
+        {
+          "name": "paragraph_id",
+          "description": "Mã paragraph trong bài."
+        },
+        {
+          "name": "section_role",
+          "description": "Vai trò section: Introduction, Methods, Results…"
+        },
+        {
+          "name": "ord",
+          "description": "Thứ tự paragraph trong bài."
+        },
+        {
+          "name": "text",
+          "description": "Văn bản của paragraph."
+        },
+        {
+          "name": "text_hash",
+          "description": "Mã băm văn bản; không đổi thì không tính lại embedding."
+        },
+        {
+          "name": "indexed_at",
+          "description": "Thời điểm lập chỉ mục."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper",
+          "kind": "belongs-to",
+          "via": "paper_id"
+        },
+        {
+          "to": "paragraph",
+          "kind": "refers-to",
+          "via": "paragraph_id"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "passage-queue",
+      "name": "Passage index queue item",
+      "labelVi": "Hàng đợi lập chỉ mục đoạn văn",
+      "description": "Một bài chờ được lập chỉ mục đoạn văn: mỗi lần lưu bài hoặc bấm Lập chỉ mục lại thì bài vào hàng đợi, cron xử lý trong vài phút.",
+      "synonyms": [
+        "passage queue",
+        "lập chỉ mục lại",
+        "reindex",
+        "hàng đợi chỉ mục"
+      ],
+      "store": {
+        "kind": "data-table",
+        "table": "passage_queue"
+      },
+      "fields": [
+        {
+          "name": "project_id",
+          "description": "Project ResearchHub."
+        },
+        {
+          "name": "paper_id",
+          "description": "Mã bài báo."
+        },
+        {
+          "name": "status",
+          "description": "pending, done hoặc failed."
+        },
+        {
+          "name": "attempts",
+          "description": "Số lần thử."
+        },
+        {
+          "name": "next_at",
+          "description": "Lần chạy hoặc thử lại kế tiếp."
+        },
+        {
+          "name": "last_error",
+          "description": "Mã lỗi gần nhất."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper",
+          "kind": "refers-to",
+          "via": "paper_id"
+        }
+      ],
       "schema": null
     },
     {
@@ -6274,11 +6389,13 @@
         "scg-run",
         "scg-contribution",
         "scg-prerequisite",
-        "kg-paper"
+        "kg-paper",
+        "passage"
       ],
       "reads": [
         "corpus",
         "paper",
+        "passage",
         "paper-context",
         "paper-insights",
         "stance",
@@ -6307,7 +6424,8 @@
         "topic-name",
         "corpus-keywords",
         "doi-keywords",
-        "kg-ingest-queue"
+        "kg-ingest-queue",
+        "passage-queue"
       ],
       "actions": [
         {
@@ -6425,6 +6543,20 @@
           "effect": "Gửi các bài của corpus vào hàng đợi ingest của KG lab.",
           "writes": [
             "kg-ingest-queue"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Tìm đoạn văn",
+          "effect": "Tìm paragraph trong full text của các bài thuộc corpus (ngữ nghĩa và từ khoá); mỗi kết quả mở đúng paragraph trong bài.",
+          "writes": [],
+          "ai": false
+        },
+        {
+          "labelVi": "Lập chỉ mục lại",
+          "effect": "Đưa các bài của corpus vào hàng đợi lập chỉ mục đoạn văn; máy chủ xử lý trong vài phút.",
+          "writes": [
+            "passage-queue"
           ],
           "ai": false
         },
