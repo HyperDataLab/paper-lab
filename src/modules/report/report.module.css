@@ -1,6 +1,14 @@
 .report {
   display: grid;
   gap: var(--space-5);
+  min-width: 0;
+}
+.reading {
+  max-width: 90ch;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  font-family: var(--font-reading);
+  line-height: 1.7;
 }
 .report section {
   min-width: 0;
@@ -8,11 +16,6 @@
 .report pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-.reading {
-  white-space: pre-wrap;
-  font-family: var(--font-reading);
-  line-height: 1.7;
 }
 .structure {
   text-decoration: underline solid;
@@ -51,7 +54,16 @@
   padding: var(--space-2);
   overflow-wrap: anywhere;
 }
-@media (max-width: 767px) {
+.tableScroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
+}
+.tableScroll table {
+  min-width: 560px;
+}
+@media (max-width: 900px) {
   .diff {
     grid-template-columns: 1fr;
   }

@@ -2,6 +2,7 @@ import type { Field, Values } from '@/core/playground/formFields';
 import { TextField } from '@/shared/ui/TextField';
 import { Checkbox } from '@/shared/ui/Checkbox';
 import { Select } from '@/shared/ui/Select';
+import styles from './toolForm.module.css';
 
 export function ToolForm({
   fields,
@@ -21,17 +22,18 @@ export function ToolForm({
         const value = values[field.name];
         if (field.kind === 'boolean')
           return (
-            <Checkbox
-              key={field.name}
-              checked={value === true}
-              onChange={(event) => change(field.name, event.target.checked)}
-            >
-              {label}
-            </Checkbox>
+            <div className={styles.booleanField} key={field.name}>
+              <Checkbox
+                checked={value === true}
+                onChange={(event) => change(field.name, event.target.checked)}
+              >
+                {label}
+              </Checkbox>
+            </div>
           );
         if (field.kind === 'enum')
           return (
-            <div key={field.name}>
+            <div className={styles.field} key={field.name}>
               <Select
                 label={label}
                 required={field.required}
@@ -56,28 +58,37 @@ export function ToolForm({
           onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
             change(field.name, event.target.value),
         };
-        return field.multiline || field.kind === 'array' || field.kind === 'json' ? (
-          <TextField
-            key={field.name}
-            {...common}
-            multiline
-            hint={
-              field.kind === 'array'
-                ? 'Mỗi dòng một giá trị.'
-                : field.kind === 'json'
-                  ? 'Nhập JSON.'
-                  : undefined
+        return (
+          <div
+            className={
+              field.multiline || field.kind === 'array' || field.kind === 'json'
+                ? `${styles.field} ${styles.fieldWide}`
+                : styles.field
             }
-          />
-        ) : (
-          <TextField
             key={field.name}
-            {...common}
-            type={field.kind === 'number' || field.kind === 'integer' ? 'number' : 'text'}
-            min={field.minimum}
-            max={field.maximum}
-            step={field.kind === 'integer' ? 1 : 'any'}
-          />
+          >
+            {field.multiline || field.kind === 'array' || field.kind === 'json' ? (
+              <TextField
+                {...common}
+                multiline
+                hint={
+                  field.kind === 'array'
+                    ? 'Mỗi dòng một giá trị.'
+                    : field.kind === 'json'
+                      ? 'Nhập JSON.'
+                      : undefined
+                }
+              />
+            ) : (
+              <TextField
+                {...common}
+                type={field.kind === 'number' || field.kind === 'integer' ? 'number' : 'text'}
+                min={field.minimum}
+                max={field.maximum}
+                step={field.kind === 'integer' ? 1 : 'any'}
+              />
+            )}
+          </div>
         );
       })}
     </>

@@ -40,7 +40,6 @@ export default function RunsSection() {
   };
   return (
     <>
-      <h2>Ma trận chạy</h2>
       <p>Điều kiện × dataset × seed, tên experiment và tag MLflow.</p>
       {message && <p role="status">{message}</p>}
       <Card>

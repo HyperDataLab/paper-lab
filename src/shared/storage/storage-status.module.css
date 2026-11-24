@@ -1,0 +1,27 @@
+.badge {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  color: var(--text-secondary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--text-xs);
+  line-height: 1.2;
+}
+
+.badge svg {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.error {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.error svg {
+  color: var(--danger);
+}

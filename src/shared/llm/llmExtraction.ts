@@ -96,6 +96,8 @@ export async function llmExtraction(
         const result = await client.completeJson({
           ...request,
           temperature: 0,
+          // Keep the Worker response active while large paper prompts are being generated.
+          stream: true,
           timeoutMs: TIMEOUT_MS,
           signal: options.signal,
           onRequest: async () => {

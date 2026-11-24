@@ -91,7 +91,7 @@ export function tokenizeSql(sql: string) {
           : quoted
             ? { kind: 'identifier', value: name ?? quoted }
             : string
-              ? { kind: 'string', value: fold(unquote(string)) }
+              ? { kind: 'string', value: unquote(string) }
               : { kind: 'symbol', value },
       );
     }

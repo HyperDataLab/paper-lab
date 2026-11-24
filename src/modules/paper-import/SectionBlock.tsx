@@ -116,22 +116,26 @@ export function SectionBlock({
       </div>
       <div hidden={!open} className={styles.blockBody}>
         <p className={styles.blockHelp}>{help}</p>
-        {sectionRun && (
-          <ActionMenu
-            label={PAPER_LABELS.runSection}
-            items={sectionRun.sections.map((choice) => ({
-              label: `${choice.label} (~${choice.estimate} lượt)`,
-              onSelect: () => sectionRun.onRun(choice.id),
-            }))}
-          />
-        )}
-        {views.length > 1 && view && onView && (
-          <SegmentedControl
-            label={`Nội dung của ${title}`}
-            value={view}
-            options={views.map((item) => ({ value: item.id, label: item.label }))}
-            onChange={onView}
-          />
+        {(sectionRun || (views.length > 1 && view && onView)) && (
+          <div className={styles.blockTools}>
+            {sectionRun && (
+              <ActionMenu
+                label={PAPER_LABELS.runSection}
+                items={sectionRun.sections.map((choice) => ({
+                  label: `${choice.label} (~${choice.estimate} lượt)`,
+                  onSelect: () => sectionRun.onRun(choice.id),
+                }))}
+              />
+            )}
+            {views.length > 1 && view && onView && (
+              <SegmentedControl
+                label={`Nội dung của ${title}`}
+                value={view}
+                options={views.map((item) => ({ value: item.id, label: item.label }))}
+                onChange={onView}
+              />
+            )}
+          </div>
         )}
         {children}
       </div>

@@ -1,5 +1,6 @@
 import { Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   acceptTriage,
   addPapers,
@@ -84,6 +85,9 @@ interface Draft {
   fromYear: string;
   toYear: string;
 }
+export interface SearchDraft extends Draft {
+  question: string;
+}
 const draftOf = (plan: SearchPlan | null): Draft => ({
   queries: plan?.queries.join('\n') ?? '',
   inclusion: plan?.inclusion.join('\n') ?? '',
@@ -97,9 +101,13 @@ export function DeepResearch({
   onSave,
   onOpenMatrix,
   screeningStorage,
+  draft: savedDraft,
+  onDraftChange,
 }: {
   project: ExtractionProject;
   onSave: Save;
+  draft?: SearchDraft;
+  onDraftChange?: (draft: SearchDraft) => void;
   screeningStorage?: {
     checkpoint: (project: ExtractionProject) => Promise<void>;
     finish: (events: ExtractionEvent[]) => Promise<void>;
@@ -108,9 +116,20 @@ export function DeepResearch({
   onOpenMatrix?: () => void;
 }) {
   const llm = useLlm();
+  const [params, setParams] = useSearchParams();
   const deep = project.deep ?? emptyDeep();
-  const [question, setQuestion] = useState(project.researchQuestion);
-  const [draft, setDraft] = useState(() => draftOf(deep.plan));
+  const [question, setQuestion] = useState(savedDraft?.question ?? project.researchQuestion);
+  const [draft, setDraft] = useState(() =>
+    savedDraft
+      ? {
+          queries: savedDraft.queries,
+          inclusion: savedDraft.inclusion,
+          exclusion: savedDraft.exclusion,
+          fromYear: savedDraft.fromYear,
+          toYear: savedDraft.toYear,
+        }
+      : draftOf(deep.plan),
+  );
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<ScreeningStatus | 'all'>('all');
@@ -118,6 +137,23 @@ export function DeepResearch({
   const [thresholds, setThresholds] = useState<Thresholds>(DEFAULT_THRESHOLDS);
   const [aiFilter, setAiFilter] = useState<TriageFilter>('all');
   const [sort, setSort] = useState<TriageSort>('default');
+  const steps = ['plan', 'find', 'screen', 'synthesis'] as const;
+  type Step = (typeof steps)[number];
+  const requestedStep = params.get('searchStep');
+  const activeStep: Step = steps.includes(requestedStep as Step) ? (requestedStep as Step) : 'plan';
+  const selectStep = (step: Step) => {
+    const next = new URLSearchParams(params);
+    next.set('searchStep', step);
+    setParams(next);
+  };
+  const updateQuestion = (value: string) => {
+    setQuestion(value);
+    onDraftChange?.({ ...draft, question: value });
+  };
+  const updateDraft = (value: Draft) => {
+    setDraft(value);
+    onDraftChange?.({ ...value, question });
+  };
   const controller = useRef<AbortController | null>(null);
   /** The latest project, so a checkpoint saved mid-run merges onto decisions made meanwhile. */
   const current = useRef(project);
@@ -125,6 +161,9 @@ export function DeepResearch({
     current.current = project;
   }, [project]);
   const plan = deep.plan;
+  const queryCount = lines(draft.queries).length;
+  const inclusionCount = lines(draft.inclusion).length;
+  const exclusionCount = lines(draft.exclusion).length;
   const planFromDraft = (): SearchPlan => ({
     concepts: plan?.concepts ?? [],
     queries: lines(draft.queries).slice(0, 8),
@@ -163,7 +202,7 @@ export function DeepResearch({
     task('Đang đề xuất kế hoạch…', async (signal) => {
       if (!(await ai(signal))) return;
       const next = await llmSearchPlan(llm.client, question.trim(), { config: llm.config, signal });
-      setDraft(draftOf(next));
+      updateDraft(draftOf(next));
       await onSave(withDeep({ plan: next }), { action: 'run_extraction', after: { step: 'search_plan' } });
     });
   const approvePlan = () =>
@@ -340,10 +379,19 @@ export function DeepResearch({
     sort,
   );
   const count = (status: ScreeningStatus) => deep.candidates.filter((item) => item.status === status).length;
+  const stepDone = [
+    approved,
+    deep.rounds.length > 0,
+    deep.candidates.some((item) => item.status !== 'candidate'),
+    Boolean(latest),
+  ];
+  const stepBlocked = [false, !approved, deep.candidates.length === 0, ready < 2];
+  const stepLabels = ['Kế hoạch tìm kiếm', 'Tìm bài', 'Sàng lọc', 'Tổng hợp liên bài'] as const;
 
   return (
     <div className={styles.deep}>
       <ActionBar
+        busy={Boolean(busy)}
         status={
           busy ? (
             <span role="status">{busy}</span>
@@ -360,350 +408,544 @@ export function DeepResearch({
       </ActionBar>
       {error && <p role="alert">{error}</p>}
 
-      <Card>
-        <h2>Kế hoạch tìm kiếm</h2>
-        <div className={styles.inlineField}>
-          <TextField
-            label="Research question"
-            multiline
-            rows={2}
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-          />
+      <nav className={styles.researchSteps} aria-label="Các bước AutoResearch">
+        {steps.map((step, index) => (
           <Button
-            leadingIcon={<Sparkles size={16} aria-hidden="true" />}
-            disabled={Boolean(busy) || !question.trim()}
-            onClick={() => void proposePlan()}
+            key={step}
+            variant="ghost"
+            className={styles.researchStep}
+            data-active={activeStep === step}
+            data-complete={stepDone[index]}
+            data-blocked={stepBlocked[index]}
+            aria-current={activeStep === step ? 'step' : undefined}
+            onClick={() => selectStep(step)}
           >
-            Đề xuất kế hoạch (AI)
+            <span className={styles.stepNumber}>{stepDone[index] ? '✓' : index + 1}</span>
+            <span className={styles.stepCopy}>
+              <strong>{stepLabels[index]}</strong>
+              <small>
+                {activeStep === step
+                  ? 'Đang mở'
+                  : stepDone[index]
+                    ? 'Đã hoàn thành'
+                    : stepBlocked[index]
+                      ? 'Còn điều kiện'
+                      : 'Chưa bắt đầu'}
+              </small>
+            </span>
           </Button>
-        </div>
-        <TextField
-          label="Truy vấn (mỗi dòng một truy vấn, tối đa 8)"
-          multiline
-          rows={4}
-          value={draft.queries}
-          onChange={(event) => setDraft({ ...draft, queries: event.target.value })}
-        />
-        <div className={styles.twoCols}>
-          <TextField
-            label="Tiêu chí chọn (mỗi dòng một tiêu chí)"
-            multiline
-            rows={3}
-            value={draft.inclusion}
-            onChange={(event) => setDraft({ ...draft, inclusion: event.target.value })}
-          />
-          <TextField
-            label="Tiêu chí loại"
-            multiline
-            rows={3}
-            value={draft.exclusion}
-            onChange={(event) => setDraft({ ...draft, exclusion: event.target.value })}
-          />
-          <TextField
-            label="Từ năm"
-            inputMode="numeric"
-            value={draft.fromYear}
-            onChange={(event) => setDraft({ ...draft, fromYear: event.target.value })}
-          />
-          <TextField
-            label="Đến năm"
-            inputMode="numeric"
-            value={draft.toYear}
-            onChange={(event) => setDraft({ ...draft, toYear: event.target.value })}
-          />
-        </div>
-        <div className={styles.actions}>
-          <Button variant="primary" disabled={approved || !lines(draft.queries).length} onClick={approvePlan}>
-            {approved ? 'Đã duyệt' : 'Duyệt kế hoạch'}
-          </Button>
-          {plan?.approvedAt && dirty && <Badge tone="warning">Đã sửa, cần duyệt lại</Badge>}
-        </div>
-      </Card>
+        ))}
+      </nav>
 
-      <Card>
-        <h2>Tìm bài</h2>
-        <p className={styles.note}>
-          Chỉ truy vấn và khoảng năm được gửi tới OpenAlex. Bài trùng (theo DOI, hoặc tên và năm) chỉ giữ một
-          lần.
-        </p>
-        <div className={styles.actions}>
-          <Button variant="primary" disabled={!approved || Boolean(busy)} onClick={() => void search()}>
-            Tìm theo kế hoạch
-          </Button>
-          <Button disabled={!count('included') || Boolean(busy)} onClick={() => void expand()}>
-            Mở rộng theo trích dẫn
-          </Button>
+      {activeStep === 'plan' && (
+        <div className={styles.planLayout}>
+          <Card className={`${styles.stepContent} ${styles.planForm}`}>
+            <header className={styles.planHeader}>
+              <div>
+                <span className={styles.planEyebrow}>BƯỚC 1 / 4</span>
+                <h2>Kế hoạch tìm kiếm</h2>
+                <p>Chuẩn bị câu hỏi, truy vấn và tiêu chí trước khi tìm bài.</p>
+              </div>
+              {approved ? <Badge tone="success">Đã duyệt</Badge> : <Badge>Bản nháp</Badge>}
+            </header>
+            <TextField
+              label="Research question"
+              multiline
+              rows={2}
+              controlClassName={styles.planControl}
+              value={question}
+              onChange={(event) => updateQuestion(event.target.value)}
+              labelAction={
+                <Button
+                  size="sm"
+                  leadingIcon={<Sparkles size={16} aria-hidden="true" />}
+                  disabled={Boolean(busy) || !question.trim()}
+                  onClick={() => void proposePlan()}
+                >
+                  Đề xuất kế hoạch (AI)
+                </Button>
+              }
+            />
+            <div className={styles.planQueries}>
+              <TextField
+                label="Truy vấn (mỗi dòng một truy vấn · tối đa 8 dòng)"
+                multiline
+                rows={2}
+                controlClassName={styles.planControl}
+                value={draft.queries}
+                onChange={(event) => updateDraft({ ...draft, queries: event.target.value })}
+              />
+              <span className={styles.queryCount}>{queryCount} / 8 truy vấn</span>
+            </div>
+            <div className={styles.twoCols}>
+              <TextField
+                label="Tiêu chí chọn (mỗi dòng một tiêu chí)"
+                multiline
+                rows={2}
+                controlClassName={styles.planControl}
+                value={draft.inclusion}
+                onChange={(event) => updateDraft({ ...draft, inclusion: event.target.value })}
+              />
+              <TextField
+                label="Tiêu chí loại"
+                multiline
+                rows={2}
+                controlClassName={styles.planControl}
+                value={draft.exclusion}
+                onChange={(event) => updateDraft({ ...draft, exclusion: event.target.value })}
+              />
+              <TextField
+                label="Từ năm"
+                type="number"
+                step={1}
+                controlClassName={styles.planControl}
+                value={draft.fromYear}
+                onChange={(event) => updateDraft({ ...draft, fromYear: event.target.value })}
+              />
+              <TextField
+                label="Đến năm"
+                type="number"
+                step={1}
+                controlClassName={styles.planControl}
+                value={draft.toYear}
+                onChange={(event) => updateDraft({ ...draft, toYear: event.target.value })}
+              />
+            </div>
+            <footer className={styles.planActions}>
+              <div>
+                {approved ? (
+                  <span className={styles.planHint}>Kế hoạch đã sẵn sàng cho bước Tìm bài.</span>
+                ) : queryCount > 8 ? (
+                  <span className={styles.planHint}>Giảm truy vấn còn tối đa 8 dòng để duyệt.</span>
+                ) : queryCount === 0 ? (
+                  <span className={styles.planHint}>Thêm ít nhất một truy vấn để duyệt kế hoạch.</span>
+                ) : (
+                  <span className={styles.planHint}>
+                    Bạn có thể chỉnh truy vấn và tiêu chí trước khi duyệt.
+                  </span>
+                )}
+                {plan?.approvedAt && dirty && <Badge tone="warning">Đã sửa, cần duyệt lại</Badge>}
+              </div>
+              <Button
+                variant="primary"
+                disabled={approved || queryCount === 0 || queryCount > 8 || Boolean(busy)}
+                onClick={approvePlan}
+              >
+                {approved ? 'Đã duyệt' : 'Duyệt kế hoạch'}
+              </Button>
+            </footer>
+          </Card>
+          <aside className={styles.planAside} aria-label="Tóm tắt kế hoạch">
+            <span className={styles.planEyebrow}>TÌNH TRẠNG KẾ HOẠCH</span>
+            <h3 className={styles.planAsideTitle}>
+              {approved ? 'Sẵn sàng tìm bài' : plan?.approvedAt && dirty ? 'Cần duyệt lại' : 'Đang soạn'}
+            </h3>
+            <p className={styles.planAsideCopy}>
+              AI chỉ đề xuất. Bạn kiểm tra và duyệt kế hoạch trước khi truy vấn OpenAlex.
+            </p>
+            <dl className={styles.planStats}>
+              <div>
+                <dt>Truy vấn</dt>
+                <dd>{queryCount} / 8</dd>
+              </div>
+              <div>
+                <dt>Tiêu chí chọn</dt>
+                <dd>{inclusionCount}</dd>
+              </div>
+              <div>
+                <dt>Tiêu chí loại</dt>
+                <dd>{exclusionCount}</dd>
+              </div>
+              <div>
+                <dt>Khoảng năm</dt>
+                <dd>
+                  {year(draft.fromYear) ?? 'Không giới hạn'} – {year(draft.toYear) ?? 'hiện tại'}
+                </dd>
+              </div>
+            </dl>
+          </aside>
         </div>
-        {!approved && <p className={styles.note}>Duyệt kế hoạch trước khi tìm.</p>}
-        {deep.rounds.length > 0 && (
-          <details>
-            <summary>Nhật ký tìm ({deep.rounds.length} lượt)</summary>
-            <ul className={styles.history}>
-              {deep.rounds.map((item) => (
-                <li key={item.id}>
-                  {item.kind === 'query'
-                    ? 'Truy vấn'
-                    : item.kind === 'cites'
-                      ? 'Bài trích dẫn'
-                      : 'Bài được trích'}
-                  : {item.input} · {item.found} tìm thấy · {item.added} mới
-                  {item.note ? ` · ${item.note}` : ''}
+      )}
+
+      {activeStep === 'find' && (
+        <Card className={`${styles.stepContent} ${styles.findStep}`}>
+          <header className={styles.stepHeader}>
+            <div>
+              <span className={styles.planEyebrow}>BƯỚC 2 / 4</span>
+              <h2>Tìm bài</h2>
+              <p className={styles.note}>Tìm theo kế hoạch đã duyệt hoặc mở rộng từ các bài đã chọn.</p>
+            </div>
+            <Badge tone={approved ? 'success' : 'warning'}>
+              {approved ? 'Kế hoạch đã duyệt' : 'Cần duyệt kế hoạch'}
+            </Badge>
+          </header>
+          <div className={styles.findLayout}>
+            <section className={styles.findActions} aria-label="Thao tác tìm bài">
+              <div>
+                <h3>Chạy tìm kiếm</h3>
+                <p className={styles.note}>
+                  Truy vấn và khoảng năm được gửi tới OpenAlex. Bài trùng theo DOI hoặc tên và năm chỉ giữ một
+                  lần.
+                </p>
+              </div>
+              <div className={styles.actions}>
+                <Button variant="primary" disabled={!approved || Boolean(busy)} onClick={() => void search()}>
+                  Tìm theo kế hoạch
+                </Button>
+                <Button disabled={!count('included') || Boolean(busy)} onClick={() => void expand()}>
+                  Mở rộng theo trích dẫn
+                </Button>
+              </div>
+              {!approved && (
+                <p className={styles.stepHint}>
+                  Duyệt kế hoạch trước khi tìm.{' '}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={styles.stepLink}
+                    onClick={() => selectStep('plan')}
+                  >
+                    Mở kế hoạch
+                  </Button>
+                </p>
+              )}
+            </section>
+            <aside className={styles.stepAside} aria-label="Phạm vi tìm kiếm">
+              <span className={styles.planEyebrow}>PHẠM VI TÌM KIẾM</span>
+              <dl className={styles.planStats}>
+                <div>
+                  <dt>Nguồn</dt>
+                  <dd>OpenAlex</dd>
+                </div>
+                <div>
+                  <dt>Truy vấn</dt>
+                  <dd>{plan?.queries.length ?? 0}</dd>
+                </div>
+                <div>
+                  <dt>Khoảng năm</dt>
+                  <dd>
+                    {plan?.fromYear ?? 'Không giới hạn'} – {plan?.toYear ?? 'hiện tại'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Lượt tìm đã chạy</dt>
+                  <dd>{deep.rounds.length}</dd>
+                </div>
+              </dl>
+            </aside>
+          </div>
+          {deep.rounds.length > 0 && (
+            <details className={styles.searchHistory}>
+              <summary>Nhật ký tìm ({deep.rounds.length} lượt)</summary>
+              <ul className={styles.history}>
+                {deep.rounds.map((item) => (
+                  <li key={item.id}>
+                    {item.kind === 'query'
+                      ? 'Truy vấn'
+                      : item.kind === 'cites'
+                        ? 'Bài trích dẫn'
+                        : 'Bài được trích'}
+                    : {item.input} · {item.found} tìm thấy · {item.added} mới
+                    {item.note ? ` · ${item.note}` : ''}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </Card>
+      )}
+
+      {activeStep === 'screen' && (
+        <Card className={styles.stepContent}>
+          <h2>Sàng lọc</h2>
+          <div className={styles.chips}>
+            <Chip
+              aria-pressed={filter === 'all'}
+              count={deep.candidates.length}
+              onClick={() => setFilter('all')}
+            >
+              Tất cả
+            </Chip>
+            {(Object.keys(SCREEN) as ScreeningStatus[]).map((status) => (
+              <Chip
+                key={status}
+                aria-pressed={filter === status}
+                count={count(status)}
+                onClick={() => setFilter(status)}
+              >
+                {SCREEN[status].label}
+              </Chip>
+            ))}
+          </div>
+          <div className={styles.actions}>
+            <Button
+              disabled={!estimate.papers || !(plan || question.trim()) || Boolean(busy)}
+              onClick={() => void screen()}
+            >
+              Gợi ý sàng lọc (AI) · {estimate.calls} lượt gọi
+            </Button>
+            <Button
+              variant="primary"
+              disabled={!incoming.length || Boolean(busy)}
+              onClick={() => void bring()}
+            >
+              Đưa {incoming.length} bài đã chọn vào ma trận
+            </Button>
+          </div>
+          {estimate.papers > 0 && (
+            <p className={styles.note}>
+              {estimate.papers} bài chưa được chấm điểm · khoảng {estimate.tokens.toLocaleString('vi-VN')}{' '}
+              token
+              {criteria.length
+                ? ` · chấm theo ${criteria.length} tiêu chí`
+                : ' · chưa có tiêu chí, chấm theo research question'}
+              . Dừng giữa chừng vẫn giữ các lô đã chấm; chạy lại sẽ tiếp tục từ bài chưa chấm.
+            </p>
+          )}
+          <TriagePanel
+            buckets={buckets}
+            borderline={borderline}
+            thresholds={thresholds}
+            onThresholds={setThresholds}
+            filter={aiFilter}
+            onFilter={setAiFilter}
+            sort={sort}
+            onSort={setSort}
+            disabled={Boolean(busy)}
+            onApply={accept}
+          />
+          {!deep.candidates.length ? (
+            <Empty title="Chưa có bài ứng viên." hint="Duyệt kế hoạch ở bước 1 rồi bấm Tìm theo kế hoạch." />
+          ) : (
+            <ul className={styles.candidates}>
+              {shown.map((item) => (
+                <li key={item.key} className={styles.candidate}>
+                  <details className={styles.candidateDetails}>
+                    <summary className={styles.candidateSummary}>
+                      <span className={styles.paperTitle}>{item.title}</span>
+                      <span className={styles.candidateMeta}>
+                        {item.year ?? 'Năm chưa rõ'} · {SCREEN[item.status].label}
+                      </span>
+                    </summary>
+                    <div className={styles.candidateBody}>
+                      <div className={styles.badges}>
+                        <Badge tone={SCREEN[item.status].tone}>{SCREEN[item.status].label}</Badge>
+                        {item.suggestion && item.status === 'candidate' && (
+                          <Badge tone="accent">
+                            AI gợi ý: {BUCKET_LABEL[bucketOf(item, thresholds) ?? item.suggestion.decision]}
+                          </Badge>
+                        )}
+                        {item.decidedBy === 'ai_accepted' && item.status !== 'candidate' && (
+                          <Badge>Theo đề xuất AI</Badge>
+                        )}
+                        {existing.has(`search:${item.key}`) && <Badge>Trong ma trận</Badge>}
+                      </div>
+                      <span className={styles.note}>
+                        {[
+                          item.year,
+                          item.venue,
+                          item.authors.slice(0, 3).join(', '),
+                          item.citedBy !== null && `${item.citedBy} trích dẫn`,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
+                      {(item.reason ?? item.suggestion?.reason) && (
+                        <span className={styles.note}>
+                          {item.reason ? 'Lý do' : 'Lý do AI gợi ý'}: {item.reason ?? item.suggestion?.reason}
+                        </span>
+                      )}
+                      <TriageDetails
+                        candidate={item}
+                        thresholds={thresholds}
+                        criteria={criteria}
+                        flagged={borderline.includes(item.key)}
+                        disabled={Boolean(busy)}
+                        onAccept={(bucket) => accept(bucket, [item.key])}
+                      />
+                      {item.abstract ? (
+                        <details>
+                          <summary>Abstract</summary>
+                          <p>{item.abstract}</p>
+                        </details>
+                      ) : (
+                        <span className={styles.note}>Không có abstract trên OpenAlex.</span>
+                      )}
+                      <div className={styles.actions}>
+                        {(['included', 'excluded', 'uncertain'] as const).map((status) => (
+                          <Button
+                            key={status}
+                            size="sm"
+                            variant={item.status === status ? 'primary' : 'secondary'}
+                            aria-pressed={item.status === status}
+                            onClick={() => decide(item, item.status === status ? 'candidate' : status)}
+                          >
+                            {SCREEN[status].label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </details>
                 </li>
               ))}
             </ul>
-          </details>
-        )}
-      </Card>
-
-      <Card>
-        <h2>Sàng lọc</h2>
-        <div className={styles.chips}>
-          <Chip
-            aria-pressed={filter === 'all'}
-            count={deep.candidates.length}
-            onClick={() => setFilter('all')}
-          >
-            Tất cả
-          </Chip>
-          {(Object.keys(SCREEN) as ScreeningStatus[]).map((status) => (
-            <Chip
-              key={status}
-              aria-pressed={filter === status}
-              count={count(status)}
-              onClick={() => setFilter(status)}
-            >
-              {SCREEN[status].label}
-            </Chip>
-          ))}
-        </div>
-        <div className={styles.actions}>
-          <Button
-            disabled={!estimate.papers || !(plan || question.trim()) || Boolean(busy)}
-            onClick={() => void screen()}
-          >
-            Gợi ý sàng lọc (AI) · {estimate.calls} lượt gọi
-          </Button>
-          <Button variant="primary" disabled={!incoming.length || Boolean(busy)} onClick={() => void bring()}>
-            Đưa {incoming.length} bài đã chọn vào ma trận
-          </Button>
-        </div>
-        {estimate.papers > 0 && (
-          <p className={styles.note}>
-            {estimate.papers} bài chưa được chấm điểm · khoảng {estimate.tokens.toLocaleString('vi-VN')} token
-            {criteria.length
-              ? ` · chấm theo ${criteria.length} tiêu chí`
-              : ' · chưa có tiêu chí, chấm theo research question'}
-            . Dừng giữa chừng vẫn giữ các lô đã chấm; chạy lại sẽ tiếp tục từ bài chưa chấm.
-          </p>
-        )}
-        <TriagePanel
-          buckets={buckets}
-          borderline={borderline}
-          thresholds={thresholds}
-          onThresholds={setThresholds}
-          filter={aiFilter}
-          onFilter={setAiFilter}
-          sort={sort}
-          onSort={setSort}
-          disabled={Boolean(busy)}
-          onApply={accept}
-        />
-        {!deep.candidates.length ? (
-          <Empty title="Chưa có bài ứng viên." hint="Duyệt kế hoạch ở bước 1 rồi bấm Tìm theo kế hoạch." />
-        ) : (
-          <ul className={styles.candidates}>
-            {shown.map((item) => (
-              <li key={item.key} className={styles.candidate}>
-                <div className={styles.badges}>
-                  <Badge tone={SCREEN[item.status].tone}>{SCREEN[item.status].label}</Badge>
-                  {item.suggestion && item.status === 'candidate' && (
-                    <Badge tone="accent">
-                      AI gợi ý: {BUCKET_LABEL[bucketOf(item, thresholds) ?? item.suggestion.decision]}
-                    </Badge>
-                  )}
-                  {item.decidedBy === 'ai_accepted' && item.status !== 'candidate' && (
-                    <Badge>Theo đề xuất AI</Badge>
-                  )}
-                  {existing.has(`search:${item.key}`) && <Badge>Trong ma trận</Badge>}
-                </div>
-                <span className={styles.paperTitle}>{item.title}</span>
-                <span className={styles.note}>
-                  {[
-                    item.year,
-                    item.venue,
-                    item.authors.slice(0, 3).join(', '),
-                    item.citedBy !== null && `${item.citedBy} trích dẫn`,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </span>
-                {(item.reason ?? item.suggestion?.reason) && (
-                  <span className={styles.note}>
-                    {item.reason ? 'Lý do' : 'Lý do AI gợi ý'}: {item.reason ?? item.suggestion?.reason}
-                  </span>
-                )}
-                <TriageDetails
-                  candidate={item}
-                  thresholds={thresholds}
-                  criteria={criteria}
-                  flagged={borderline.includes(item.key)}
-                  disabled={Boolean(busy)}
-                  onAccept={(bucket) => accept(bucket, [item.key])}
-                />
-                {item.abstract ? (
-                  <details>
-                    <summary>Abstract</summary>
-                    <p>{item.abstract}</p>
-                  </details>
-                ) : (
-                  <span className={styles.note}>Không có abstract trên OpenAlex.</span>
-                )}
-                <div className={styles.actions}>
-                  {(['included', 'excluded', 'uncertain'] as const).map((status) => (
-                    <Button
-                      key={status}
-                      size="sm"
-                      variant={item.status === status ? 'primary' : 'secondary'}
-                      aria-pressed={item.status === status}
-                      onClick={() => decide(item, item.status === status ? 'candidate' : status)}
-                    >
-                      {SCREEN[status].label}
-                    </Button>
-                  ))}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-
-      <Card>
-        <h2>Tổng hợp liên bài</h2>
-        <p className={styles.note}>
-          Chỉ dùng giá trị đang hiện trong ma trận ({ready} bài có giá trị); ô mâu thuẫn và ô bị giữ lại không
-          được đưa vào. Nên chạy High Quality trước.
-        </p>
-        <div className={styles.actions}>
-          <Button variant="primary" disabled={ready < 2 || Boolean(busy)} onClick={() => void synthesize()}>
-            Tổng hợp (AI) · 1 lượt gọi
-          </Button>
-          {latest && (
-            <Button
-              onClick={() =>
-                downloadText(
-                  `synthesis-${project.title.replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 40)}.md`,
-                  synthesisMarkdown(project, latest),
-                  'text/markdown;charset=utf-8',
-                )
-              }
-            >
-              Xuất Markdown
-            </Button>
           )}
-        </div>
-        {ready < 2 && <p className={styles.note}>Cần ít nhất 2 bài có giá trị trong ma trận.</p>}
-        {latest && (
-          <div className={styles.synthesis}>
-            <p className={styles.note}>
-              {new Date(latest.createdAt).toLocaleString('vi-VN')} · {latest.model} · {latest.promptVersion}
-              {latest.droppedRefs > 0 &&
-                ` · bỏ ${latest.droppedRefs} trích dẫn tới bài không có trong ma trận`}
-            </p>
-            {(Object.keys(CLAIM_TITLES) as (keyof typeof CLAIM_TITLES)[]).map((kind) => {
-              const claims = latest.claims.filter((claim) => claim.kind === kind);
-              if (!claims.length) return null;
-              return (
-                <section key={kind}>
-                  <h3>{CLAIM_TITLES[kind]}</h3>
-                  <ul className={styles.list}>
-                    {claims.map((claim, index) => (
-                      <li key={index}>
-                        <p>
-                          {claim.text}{' '}
-                          {!claim.supported && <Badge tone="warning">Chưa có nguồn trong ma trận</Badge>}
-                          {hasGrounding && claim.supported && claim.kind !== 'gap' && !isGrounded(claim) && (
-                            <Badge tone="warning">Chưa có đoạn trích kiểm chứng</Badge>
-                          )}
-                        </p>
-                        {claim.citations.length > 0 && (
-                          <span className={styles.badges}>
-                            {claim.citations.map((citation) => (
-                              <Chip
-                                key={`${citation.paperKey}:${citation.fieldKey}`}
-                                title={citation.quotes[0]?.quote ?? 'Không có đoạn trích'}
-                                aria-label={`Trích dẫn ${numberOf(citation.paperKey)}: ${titleOf(citation.paperKey)} · ${citation.fieldLabel}`}
-                                onClick={() =>
-                                  setGrounding({ kind: 'citation', citation, claim: claim.text })
-                                }
-                              >
-                                [{numberOf(citation.paperKey)}] {citation.fieldLabel} ·{' '}
-                                {!citation.quotes.length
-                                  ? 'không có đoạn trích'
-                                  : citation.fullText
-                                    ? 'toàn văn'
-                                    : 'abstract'}
-                              </Chip>
-                            ))}
-                          </span>
-                        )}
-                        {claim.paperKeys.some(
-                          (key) => !claim.citations.some((citation) => citation.paperKey === key),
-                        ) && (
-                          <span className={styles.note}>
-                            Chỉ nêu title:{' '}
-                            {claim.paperKeys
-                              .filter((key) => !claim.citations.some((citation) => citation.paperKey === key))
-                              .map(titleOf)
-                              .join('; ')}
-                          </span>
-                        )}
-                        {claim.caveat && <span className={styles.note}>Lưu ý: {claim.caveat}</span>}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              );
-            })}
-            <p className={styles.note}>
-              Cần kiểm tra research gap như một hypothesis, không phải kết luận rằng chưa ai nghiên cứu.
-            </p>
-            {latest.paperKeys.length > 0 && (
-              <section>
-                <h3>Tài liệu và đoạn trích</h3>
-                {!hasGrounding && (
-                  <p className={styles.note}>
-                    Bản tổng hợp này tạo trước khi có đối chiếu trích dẫn. Chạy lại tổng hợp để xem đoạn trích
-                    đứng sau từng claim.
-                  </p>
-                )}
-                <ol className={styles.references}>
-                  {latest.paperKeys.map((key) => {
-                    const quotes = paperEvidence(latest, key).reduce(
-                      (total, item) => total + item.citation.quotes.length,
-                      0,
-                    );
-                    return (
-                      <li key={key}>
-                        {titleOf(key)}{' '}
-                        {hasGrounding && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setGrounding({ kind: 'paper', paperKey: key })}
-                          >
-                            {quotes} đoạn trích
-                          </Button>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ol>
-              </section>
-            )}
+        </Card>
+      )}
+
+      {activeStep === 'synthesis' && (
+        <Card className={`${styles.stepContent} ${styles.synthesisStep}`}>
+          <header className={styles.stepHeader}>
+            <div>
+              <span className={styles.planEyebrow}>BƯỚC 4 / 4</span>
+              <h2>Tổng hợp liên bài</h2>
+              <p className={styles.note}>Tạo các chủ đề và kết luận có dẫn chứng từ dữ liệu trong ma trận.</p>
+            </div>
+            {latest && <Badge tone="success">Đã có bản tổng hợp</Badge>}
+          </header>
+          <div className={styles.synthesisLaunch}>
+            <section className={styles.synthesisPrompt} aria-label="Điều kiện tổng hợp">
+              <div className={styles.readinessValue}>
+                <strong>{ready}</strong>
+                <span>bài có giá trị trong ma trận</span>
+              </div>
+              <p className={styles.note}>
+                {ready >= 2
+                  ? 'Đủ dữ liệu để tổng hợp. Ô mâu thuẫn và ô bị giữ lại sẽ được loại khỏi đầu vào.'
+                  : `Cần ít nhất 2 bài có giá trị; còn thiếu ${2 - ready}. Ô mâu thuẫn và ô bị giữ lại không được tính.`}
+              </p>
+            </section>
+            <div className={styles.synthesisActions}>
+              <Button
+                variant="primary"
+                disabled={ready < 2 || Boolean(busy)}
+                onClick={() => void synthesize()}
+              >
+                Tổng hợp (AI) · 1 lượt gọi
+              </Button>
+              {latest && (
+                <Button
+                  onClick={() =>
+                    downloadText(
+                      `synthesis-${project.title.replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 40)}.md`,
+                      synthesisMarkdown(project, latest),
+                      'text/markdown;charset=utf-8',
+                    )
+                  }
+                >
+                  Xuất Markdown
+                </Button>
+              )}
+              <span className={styles.note}>Nên chạy High Quality trước khi tổng hợp.</span>
+            </div>
           </div>
-        )}
-      </Card>
+          {latest && (
+            <div className={styles.synthesis}>
+              <p className={styles.note}>
+                {new Date(latest.createdAt).toLocaleString('vi-VN')} · {latest.model} · {latest.promptVersion}
+                {latest.droppedRefs > 0 &&
+                  ` · bỏ ${latest.droppedRefs} trích dẫn tới bài không có trong ma trận`}
+              </p>
+              {(Object.keys(CLAIM_TITLES) as (keyof typeof CLAIM_TITLES)[]).map((kind) => {
+                const claims = latest.claims.filter((claim) => claim.kind === kind);
+                if (!claims.length) return null;
+                return (
+                  <section key={kind}>
+                    <h3>{CLAIM_TITLES[kind]}</h3>
+                    <ul className={styles.list}>
+                      {claims.map((claim, index) => (
+                        <li key={index}>
+                          <p>
+                            {claim.text}{' '}
+                            {!claim.supported && <Badge tone="warning">Chưa có nguồn trong ma trận</Badge>}
+                            {hasGrounding &&
+                              claim.supported &&
+                              claim.kind !== 'gap' &&
+                              !isGrounded(claim) && (
+                                <Badge tone="warning">Chưa có đoạn trích kiểm chứng</Badge>
+                              )}
+                          </p>
+                          {claim.citations.length > 0 && (
+                            <span className={styles.badges}>
+                              {claim.citations.map((citation) => (
+                                <Chip
+                                  key={`${citation.paperKey}:${citation.fieldKey}`}
+                                  title={citation.quotes[0]?.quote ?? 'Không có đoạn trích'}
+                                  aria-label={`Trích dẫn ${numberOf(citation.paperKey)}: ${titleOf(citation.paperKey)} · ${citation.fieldLabel}`}
+                                  onClick={() =>
+                                    setGrounding({ kind: 'citation', citation, claim: claim.text })
+                                  }
+                                >
+                                  [{numberOf(citation.paperKey)}] {citation.fieldLabel} ·{' '}
+                                  {!citation.quotes.length
+                                    ? 'không có đoạn trích'
+                                    : citation.fullText
+                                      ? 'toàn văn'
+                                      : 'abstract'}
+                                </Chip>
+                              ))}
+                            </span>
+                          )}
+                          {claim.paperKeys.some(
+                            (key) => !claim.citations.some((citation) => citation.paperKey === key),
+                          ) && (
+                            <span className={styles.note}>
+                              Chỉ nêu title:{' '}
+                              {claim.paperKeys
+                                .filter(
+                                  (key) => !claim.citations.some((citation) => citation.paperKey === key),
+                                )
+                                .map(titleOf)
+                                .join('; ')}
+                            </span>
+                          )}
+                          {claim.caveat && <span className={styles.note}>Lưu ý: {claim.caveat}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                );
+              })}
+              <p className={styles.note}>
+                Cần kiểm tra research gap như một hypothesis, không phải kết luận rằng chưa ai nghiên cứu.
+              </p>
+              {latest.paperKeys.length > 0 && (
+                <section>
+                  <h3>Tài liệu và đoạn trích</h3>
+                  {!hasGrounding && (
+                    <p className={styles.note}>
+                      Bản tổng hợp này tạo trước khi có đối chiếu trích dẫn. Chạy lại tổng hợp để xem đoạn
+                      trích đứng sau từng claim.
+                    </p>
+                  )}
+                  <ol className={styles.references}>
+                    {latest.paperKeys.map((key) => {
+                      const quotes = paperEvidence(latest, key).reduce(
+                        (total, item) => total + item.citation.quotes.length,
+                        0,
+                      );
+                      return (
+                        <li key={key}>
+                          {titleOf(key)}{' '}
+                          {hasGrounding && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setGrounding({ kind: 'paper', paperKey: key })}
+                            >
+                              {quotes} đoạn trích
+                            </Button>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </section>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
       {grounding && latest && (
         <GroundingDrawer
           project={project}

@@ -65,7 +65,7 @@ function setup() {
     );
   }
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={['/?workspace=auto&searchStep=screen']}>
       <LlmProvider innerClient={{ completeJson: vi.fn() }}>
         <Host />
       </LlmProvider>
@@ -79,7 +79,10 @@ it('R1 shows the triage summary, scores, matched criteria, and the estimate befo
   expect(screen.getByText('AI đề xuất: Chọn 1 · Loại 3 · Chưa chắc 1')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Gợi ý sàng lọc (AI) · 1 lượt gọi' })).toBeEnabled();
   expect(screen.getByText(/1 bài chưa được chấm điểm · khoảng/)).toBeInTheDocument();
+  fireEvent.click(screen.getByText('Paper 1'));
+  expect(screen.getByText('AI gợi ý: Chọn')).toBeInTheDocument();
   const second = screen.getByText('Paper 2').closest('li') as HTMLElement;
+  fireEvent.click(within(second).getByText('Paper 2'));
   expect(
     within(second).getByText(/Relevance 0\.85 · Quality 0\.40 · AI m · screening-triage-1/),
   ).toBeInTheDocument();
@@ -127,9 +130,11 @@ it('R1 bulk apply waits for the confirmation and records the decisions as AI-acc
 
   // One paper: accepting its suggestion needs no dialog, and overriding stays a person's decision.
   const first = screen.getByText('Paper 1').closest('li') as HTMLElement;
+  fireEvent.click(within(first).getByText('Paper 1'));
   fireEvent.click(within(first).getByRole('button', { name: 'Nhận đề xuất: Chọn' }));
   await waitFor(() => expect(saves).toHaveLength(2));
   const fifth = screen.getByText('Paper 5').closest('li') as HTMLElement;
+  fireEvent.click(within(fifth).getByText('Paper 5'));
   fireEvent.click(within(fifth).getByRole('button', { name: 'Loại' }));
   await waitFor(() => expect(saves).toHaveLength(3));
   expect(saves[2]!.project.deep!.candidates.find((item) => item.key === 'W5')).toMatchObject({

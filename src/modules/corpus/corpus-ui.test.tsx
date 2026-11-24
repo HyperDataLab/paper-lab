@@ -55,8 +55,9 @@ it('queues eligible members even when filtered out and refreshes the lab KG coun
   let pending = 0;
   const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     // Worker URLs carry the ResearchHub project in the query.
-    const [path = '', search = ''] = String(input).split('?', 2);
-    expect(new URLSearchParams(search).get('projectId')).toBe('00000000-0000-4000-8000-000000000001');
+    const url = new URL(String(input), 'http://localhost');
+    expect(url.searchParams.get('projectId')).toBe('00000000-0000-4000-8000-000000000001');
+    const path = url.pathname;
     if (path.endsWith('/kg/ingest/status'))
       return Response.json({ counts: { pending, done: 0, processing: 0, failed: 0 }, logs: [] });
     if (path.endsWith('/kg/ingest')) {

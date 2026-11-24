@@ -157,6 +157,7 @@ export function PaperProbe({ paper, analyses }: { paper: Paper; analyses: Analys
           />
         </div>
         <ActionBar
+          busy={running}
           status={
             running ? (
               <span role="status">

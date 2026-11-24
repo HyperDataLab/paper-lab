@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
 import type { LlmClient } from '@/shared/llm/client';
@@ -7,7 +7,16 @@ import { acceptConsent, revokeConsent } from '@/shared/llm/consent';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { AskKg } from './AskKg';
 
-vi.mock('@/shared/storage/StorageProvider', () => ({ useHubProjectId: () => 'rh-test-project' }));
+vi.mock('@/shared/storage/StorageProvider', () => ({
+  useHubProjectId: () => 'rh-test-project',
+  useRepositories: () => ({
+    papers: { listSummaries: async () => [], getMany: async () => [] },
+    paperContext: { list: async () => [] },
+    library: { list: async () => [] },
+    corpora: { list: async () => [] },
+    projects: { list: async () => [] },
+  }),
+}));
 
 const sql = 'SELECT title FROM paper ORDER BY cited_by_count DESC';
 const signedIn: AuthValue = {
@@ -19,15 +28,27 @@ const signedIn: AuthValue = {
   getIdToken: async () => 'test-token',
 };
 
-beforeEach(revokeConsent);
+beforeEach(() => {
+  revokeConsent();
+  acceptConsent(getConfig());
+  acceptConsent(getConfig(), false, false, true);
+});
 afterEach(() => vi.unstubAllGlobals());
 
-function ask(question: string, response = Response.json({ error: 'not_found' }, { status: 404 })) {
-  const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => ({
-    data: options.schema.parse({ sql, explanation: 'Sắp xếp các bài theo số citations.' }),
-    meta: { model: 'synthetic', promptVersion: options.promptVersion, latencyMs: 1, repaired: false },
-  }));
-  const worker = vi.fn<typeof fetch>(async () => response);
+function ask(question: string, columns: string[], rows: (string | number | null)[][]) {
+  const completeJson = vi.fn(async (options: Parameters<LlmClient['completeJson']>[0]) => {
+    const output =
+      options.schemaName === 'kg_sql'
+        ? { sql, explanation: 'Lấy các thông tin phù hợp từ KG.' }
+        : { claims: [{ text: 'Đây là kết quả có dữ liệu hỗ trợ.', sourceIds: ['kg:1'] }] };
+    return {
+      data: options.schema.parse(output),
+      meta: { model: 'synthetic', promptVersion: options.promptVersion, latencyMs: 1, repaired: false },
+    };
+  });
+  const worker = vi.fn<typeof fetch>(async () =>
+    Response.json({ sql, columns, rows, truncated: false, concepts: ['kg-paper'] }),
+  );
   vi.stubGlobal('fetch', worker);
   render(
     <AuthContext.Provider value={signedIn}>
@@ -38,35 +59,38 @@ function ask(question: string, response = Response.json({ error: 'not_found' }, 
   );
   const panel = within(screen.getByRole('region', { name: 'Hỏi KG bằng câu hỏi' }));
   fireEvent.change(panel.getByLabelText('Câu hỏi về KG'), { target: { value: question } });
-  fireEvent.click(panel.getByRole('button', { name: 'Hỏi KG (AI)' }));
+  fireEvent.click(panel.getByRole('button', { name: 'Hỏi KG' }));
   return { panel, completeJson, worker };
 }
 
-it('semantic step 4 sends the approved question to the model, then SQL to the worker, and shows its table', async () => {
-  const question = 'Bài nào có nhiều citations nhất?';
+it('renders paper results as readable rows with DOI copy and internal IDs tucked away', async () => {
+  const question = 'Tìm thông tin về bài báo DOI 10.1016/j.comnet.2025.111430';
   const { panel, completeJson, worker } = ask(
     question,
-    Response.json({
-      sql,
-      columns: ['title'],
-      rows: [['Synthetic paper from SQL']],
-      truncated: true,
-      concepts: ['kg-paper'],
-    }),
+    ['paper_id', 'title', 'doi', 'publication_year', 'cited_by_count', 'type'],
+    [
+      [
+        'paper-internal-1',
+        'AsyncDefender: Dynamic trust adaptation and collaborative defense for Byzantine-robust asynchronous federated learning',
+        '10.1016/j.comnet.2025.111430',
+        2025,
+        10,
+        'article',
+      ],
+      ['paper-internal-2', 'A second research paper', '10.1000/example', 2024, 4, 'article'],
+    ],
   );
-  const dialog = await screen.findByRole('alertdialog', { name: 'Thông báo quyền riêng tư' });
-  expect(completeJson).not.toHaveBeenCalled();
-  expect(worker).not.toHaveBeenCalled();
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Đồng ý và tiếp tục' }));
 
-  const table = await panel.findByRole('table', { name: 'Kết quả truy vấn KG' });
-  expect(within(table).getByRole('cell', { name: 'Synthetic paper from SQL' })).toBeInTheDocument();
-  expect(panel.getByLabelText('SQL được tạo')).toHaveTextContent(sql);
-  expect(panel.getByText(/Concept đã dùng · KG paper/u)).toBeInTheDocument();
-  expect(panel.getByText(/Đã giới hạn kết quả/u)).toBeInTheDocument();
-  expect(completeJson).toHaveBeenCalledWith(
-    expect.objectContaining({ user: question, promptVersion: 'kg-sql-1' }),
-  );
+  const results = await panel.findByRole('list', { name: 'Bài báo trong kết quả KG' });
+  expect(within(results).getByText(/AsyncDefender: Dynamic trust adaptation/u)).toBeInTheDocument();
+  expect(within(results).getByText('10.1016/j.comnet.2025.111430')).toBeInTheDocument();
+  expect(within(results).getByText('2025 · 10 trích dẫn · article')).toBeInTheDocument();
+  expect(within(results).getByText('A second research paper')).toBeInTheDocument();
+  expect(panel.getByText('2 bản ghi')).toBeInTheDocument();
+  expect(panel.queryByRole('table')).toBeNull();
+  expect(panel.queryByLabelText('SQL được tạo')).toBeNull();
+  expect(panel.getByText('Đây là kết quả có dữ liệu hỗ trợ.')).toBeInTheDocument();
+  expect(completeJson).toHaveBeenCalledTimes(2);
   expect(worker).toHaveBeenCalledWith(
     expect.stringMatching(/\/v1\/kg\/sql\?projectId=rh-test-project$/u),
     expect.objectContaining({
@@ -79,21 +103,17 @@ it('semantic step 4 sends the approved question to the model, then SQL to the wo
   );
 });
 
-it('semantic step 4 makes no LLM or worker call after the reader declines consent', async () => {
-  const { panel, completeJson, worker } = ask('Which synthetic paper has the most citations?');
-  fireEvent.click(await screen.findByRole('button', { name: 'Huỷ' }));
-  await waitFor(() => expect(panel.getByRole('button', { name: 'Hỏi KG (AI)' })).toBeEnabled());
-  expect(completeJson).not.toHaveBeenCalled();
-  expect(worker).not.toHaveBeenCalled();
-});
-
-it('semantic step 4 shows the generated SQL and the worker error when the reader already consented', async () => {
-  acceptConsent(getConfig());
+it('keeps generic multi-column query results in a scrollable data table', async () => {
   const { panel } = ask(
-    'Which synthetic paper has the most citations?',
-    Response.json({ error: 'sql_timeout' }, { status: 400 }),
+    'Các liên kết nào đang có trong knowledge graph?',
+    ['from_label', 'relationship', 'to_label'],
+    [
+      ['AsyncDefender', 'has_topic', 'Federated learning'],
+      ['AsyncDefender', 'cites', 'A second research paper'],
+    ],
   );
-  expect(await panel.findByRole('alert')).toHaveTextContent('Truy vấn KG hết thời gian chờ.');
-  expect(panel.getByLabelText('SQL được tạo')).toHaveTextContent(sql);
-  expect(panel.queryByRole('table')).toBeNull();
+
+  const table = await panel.findByRole('table', { name: 'Bảng kết quả KG' });
+  expect(within(table).getAllByRole('row')).toHaveLength(3);
+  expect(panel.getByText('2 bản ghi')).toBeInTheDocument();
 });

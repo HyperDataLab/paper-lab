@@ -7,6 +7,7 @@ import { drainKgQueue, REQUEST_JOBS } from './ingest';
 import { kgQueue } from './queue';
 import { handleKgRead } from './reads';
 import { handleKgSearch } from './search';
+import { handleKgSql } from './sql';
 
 export async function handleKg(
   deps: Deps,
@@ -16,8 +17,11 @@ export async function handleKg(
   _projectId: string,
 ) {
   const projectScope = _projectId;
-  // This diagnostics route accepts arbitrary read queries and cannot enforce the project boundary.
-  if (path === '/v1/kg/sql') return publishedError(404, 'not_found', 'Not found.', headers);
+  if (path === '/v1/kg/sql') {
+    if (!deps.kg?.KG)
+      return publishedError(503, 'kg_not_configured', 'The lab KG binding is unavailable.', headers);
+    return handleKgSql(deps.kg.KG, request, headers, projectScope);
+  }
   const kg = configuredKg(deps.kg);
   if (!kg) return publishedError(503, 'kg_not_configured', 'The lab KG bindings are unavailable.', headers);
   if (path === '/v1/kg/search') {
@@ -29,7 +33,8 @@ export async function handleKg(
     path === '/v1/kg/stats' ||
     path === '/v1/kg/overview' ||
     path.startsWith('/v1/kg/papers/') ||
-    path.startsWith('/v1/kg/keywords/')
+    path.startsWith('/v1/kg/keywords/') ||
+    path.startsWith('/v1/kg/entities/')
   )
     return handleKgRead(kg.db, request, path, headers, projectScope);
   if (path === '/v1/kg/graph' || path === '/v1/kg/trend')

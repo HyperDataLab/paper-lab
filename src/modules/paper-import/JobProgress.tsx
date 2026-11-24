@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/shared/ui/Button';
+import { ActivityStatus } from '@/shared/ui/ActivityStatus';
 import styles from './page.module.css';
 import type { RunProgress } from './paperJobs';
 
@@ -27,15 +28,18 @@ export function JobProgress({
   }, [running.length, count, sequence]);
   if (sequence && 'labels' in sequence)
     return (
-      <span role="status" className={styles.runStrip}>
-        Đang phân tích · {sequence.completed}/{sequence.total} mục đích xong
-      </span>
+      <div className={styles.runStrip}>
+        <ActivityStatus
+          label={`Đang phân tích · ${sequence.completed}/${sequence.total} mục đích xong`}
+          progress={{ value: sequence.completed, max: sequence.total }}
+        />
+      </div>
     );
   if (running.length)
     return (
-      <span role="status" className={styles.runStrip}>
-        Đang chạy: {running[0]} 1/{running.length}
-      </span>
+      <div className={styles.runStrip}>
+        <ActivityStatus label={`Đang chạy: ${running[0]} · ${running.length} tác vụ`} />
+      </div>
     );
   if (!done) return null;
   return (

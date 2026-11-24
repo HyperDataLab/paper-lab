@@ -17,8 +17,8 @@
   --space-8: 32px;
   --space-10: 40px;
   --space-12: 48px;
-  --sidebar-width: 224px;
-  --sidebar-rail-width: 60px;
+  --sidebar-width: 208px;
+  --sidebar-rail-width: 56px;
   --header-height: 56px;
   --content-width: 1200px;
   --wide-width: 1440px;
@@ -89,7 +89,7 @@
   --hl-critical: #b91c1c;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
+  :root[data-theme='system'] {
     color-scheme: dark;
     --bg: #0b1220;
     --surface: #101a2b;

@@ -148,6 +148,7 @@ export const PaperReferences = memo(function PaperReferences({
       <Card>
         <h2>Tình trạng rút bài</h2>
         <ActionBar
+          busy={running}
           status={
             running ? (
               <span role="status">Đang tra cứu OpenAlex…</span>

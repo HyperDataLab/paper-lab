@@ -288,6 +288,7 @@ export function PaperStance({
           </p>
         )}
         <ActionBar
+          busy={running}
           status={
             running || used > 0 ? (
               <span role="status">

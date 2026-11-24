@@ -50,10 +50,10 @@ const auth = (token: string, projectId: string) => ({
 });
 
 /** Who the lab server says the caller is. Only the server decides who is an admin. */
-export async function getMe(token: string, projectId: string) {
-  const response = await fetch(projectScopedUrl(`${PDF_WORKER_URL}/v1/me`, projectId), {
-    headers: auth(token, projectId),
-  });
+export async function getMe(token: string, projectId?: string) {
+  const url = projectId ? projectScopedUrl(`${PDF_WORKER_URL}/v1/me`, projectId) : `${PDF_WORKER_URL}/v1/me`;
+  const headers = projectId ? auth(token, projectId) : { Authorization: `Bearer ${token}` };
+  const response = await fetch(url, { headers });
   if (!response.ok) throw new FactRequestError(response.status);
   return MeSchema.parse(await response.json());
 }

@@ -21,8 +21,20 @@ describe('fact requests client', () => {
     const fetchMock = vi.fn(async () => Response.json({ email: 'admin@example.org', admin: true }));
     vi.stubGlobal('fetch', fetchMock);
     expect(await getMe('test-token', PROJECT_ID)).toMatchObject({ admin: true });
-    expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(new RegExp(`/v1/me\\?${SCOPE}$`, 'u')), {
-      headers: { Authorization: 'Bearer test-token', 'X-Project-Id': PROJECT_ID },
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(new RegExp(`/v1/me\\?${SCOPE}$`, 'u')),
+      {
+        headers: { Authorization: 'Bearer test-token', 'X-Project-Id': PROJECT_ID },
+      },
+    );
+  });
+
+  it('checks the account-wide admin role without requiring a project', async () => {
+    const fetchMock = vi.fn(async () => Response.json({ email: 'admin@example.org', admin: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    expect(await getMe('test-token')).toMatchObject({ admin: true });
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/\/v1\/me$/u), {
+      headers: { Authorization: 'Bearer test-token' },
     });
   });
 
@@ -38,7 +50,9 @@ describe('fact requests client', () => {
     expect(page.items).toHaveLength(2);
     expect(page.nextCursor).toBe('c2');
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringMatching(new RegExp(`/v1/admin/fact-requests\\?state=approved&cursor=c1&${SCOPE}$`, 'u')),
+      expect.stringMatching(
+        new RegExp(`/v1/admin/fact-requests\\?state=approved&cursor=c1&${SCOPE}$`, 'u'),
+      ),
       expect.anything(),
     );
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ headers: { 'X-Project-Id': PROJECT_ID } });

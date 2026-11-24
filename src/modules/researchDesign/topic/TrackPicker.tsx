@@ -4,6 +4,7 @@ export function TrackPicker({ check, change }: Props) {
   return (
     <SegmentedControl
       label="Loại nghiên cứu"
+      showLabel
       value={check.track}
       options={[
         { value: 'review', label: 'Tổng quan hệ thống' },

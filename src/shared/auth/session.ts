@@ -1,4 +1,4 @@
-import { isAllowedOrganizationEmail, SSO_CLIENT_ID } from './config';
+import { isAllowedOrganizationEmail } from './config';
 
 export const SESSION_KEY = 'paperlab-sso-session';
 export const SESSION_EVENT = 'paperlab-sso-session-change';
@@ -25,19 +25,10 @@ function fromSession(value: string | null): SsoSession | null {
   try {
     const session = JSON.parse(value) as Partial<SsoSession>;
     const profile = session.profile;
-    const hasRefreshToken =
-      typeof session.refreshToken === 'string' &&
-      typeof session.refreshExpiresAt === 'number' &&
-      session.refreshExpiresAt > Date.now() &&
-      (typeof session.refreshClientId === 'string' || Boolean(SSO_CLIENT_ID));
-    const hasHandoff =
-      !!session.handoff &&
-      typeof session.handoff.state === 'string' &&
-      typeof session.handoff.projectId === 'string';
+    // Keep expired but otherwise valid sessions so AuthProvider can refresh or restart SSO.
     if (
       typeof session.accessToken !== 'string' ||
       typeof session.expiresAt !== 'number' ||
-      (session.expiresAt <= Date.now() && !hasRefreshToken && !hasHandoff) ||
       !profile ||
       typeof profile.sub !== 'string' ||
       !isAllowedOrganizationEmail(profile.email, profile.email_verified)

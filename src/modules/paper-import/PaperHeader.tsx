@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, Cloud, CloudOff, LoaderCircle } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, ChevronUp, Cloud, CloudOff, LoaderCircle } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { paperIdentity } from '@/core/paperIdentity';
@@ -34,6 +34,7 @@ export function PaperHeader({
 }) {
   const workspace = useProjectWorkspaceStatus();
   const [transparencyOpen, setTransparencyOpen] = useState(false);
+  const [detailsCollapsed, setDetailsCollapsed] = useState(false);
   const bodyCount = paper.paragraphs.filter((item) => item.kind === 'body').length;
   const paperTitle = title ?? paperIdentity(paper).title;
   const syncState =
@@ -50,7 +51,7 @@ export function PaperHeader({
             : 'Đã đồng bộ';
   return (
     <>
-      <header className={styles.paperHead}>
+      <header className={styles.paperHead} data-collapsed={detailsCollapsed}>
         <div className={styles.titleRow}>
           <Link to="/papers" className={styles.backLink} aria-label="Quay lại danh sách bài báo">
             <ArrowLeft size={16} aria-hidden="true" />
@@ -82,6 +83,18 @@ export function PaperHeader({
                 { label: 'Thông tin xuất bản', onSelect: onInfo },
               ]}
             />
+            {!detailsCollapsed && (
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label="Thu gọn thông tin bài báo"
+                aria-expanded="true"
+                title="Thu gọn thông tin bài báo"
+                onClick={() => setDetailsCollapsed(true)}
+              >
+                <ChevronUp size={16} aria-hidden="true" />
+              </Button>
+            )}
             <Transparency
               paper={paper}
               open={transparencyOpen}
@@ -115,7 +128,7 @@ export function PaperHeader({
           )}
         </p>
       </header>
-      <div className={styles.spaceTabs}>
+      <div className={styles.spaceTabs} data-collapsed={detailsCollapsed}>
         <Tabs label="Spaces">
           <Button role="tab" aria-selected={!nav.inSpace} onClick={() => nav.setTab('map')}>
             Bài báo
@@ -143,6 +156,18 @@ export function PaperHeader({
             );
           })}
         </Tabs>
+        {detailsCollapsed && (
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label="Mở thông tin bài báo"
+            aria-expanded="false"
+            title="Mở thông tin bài báo"
+            onClick={() => setDetailsCollapsed(false)}
+          >
+            <ChevronDown size={16} aria-hidden="true" />
+          </Button>
+        )}
       </div>
     </>
   );

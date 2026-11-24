@@ -74,10 +74,10 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
     if (chip.getAttribute('aria-pressed') !== 'true') fireEvent.click(chip);
   };
   await screen.findByRole('tab', { name: 'Full text' });
-  // Minh bạch is in the paper's action menu.
   fireEvent.click(screen.getByRole('button', { name: 'Thao tác bài báo' }));
-  expect(screen.getByRole('menuitem', { name: 'Minh bạch' })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Thao tác bài báo' }));
+  fireEvent.click(await screen.findByRole('menuitem', { name: 'Minh bạch' }));
+  expect(await screen.findByRole('dialog', { name: 'Thông tin minh bạch' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
   openChecks();
   fireEvent.click(screen.getByRole('button', { name: 'Chạy lại kiểm tra' }));
   const list = await screen.findByRole('region', { name: 'Issues' });

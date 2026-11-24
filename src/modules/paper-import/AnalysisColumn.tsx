@@ -1,9 +1,7 @@
-import { ArrowLeft } from 'lucide-react';
 import { useLayoutEffect, useMemo, useRef, type RefObject } from 'react';
 import type { Finding, Paper, PaperChecksRecord } from '@/core/schemas';
 import type { FindingInputs, FindingStatus, PaperFinding } from '@/core/paperFindings';
 import type { Criterion } from './criteria';
-import { Button } from '@/shared/ui/Button';
 import { Tabs } from '@/shared/ui/Tabs';
 import { ArgumentsSpace } from './ArgumentsSpace';
 import { FindingsList } from './FindingsList';
@@ -87,31 +85,14 @@ export function AnalysisColumn({
       aria-label={inSpace ? (SPACES.find((item) => item.id === mode)?.label ?? 'Space') : 'Analysis'}
       hidden={inDrawer ? false : wide ? !nav.showRight : nav.focus !== 'right'}
     >
-      {inSpace ? (
-        <div className={styles.spaceHead}>
-          <Button
-            variant="ghost"
-            size="sm"
-            leadingIcon={<ArrowLeft size={16} aria-hidden="true" />}
-            onClick={nav.leaveSpace}
-          >
-            Quay lại bài
-          </Button>
-          <span className={styles.spaceDivider} aria-hidden="true" />
-          <h2>{SPACES.find((item) => item.id === mode)?.label}</h2>
+      {!inSpace && (wide || inDrawer) && (
+        <div className={styles.columnTabs}>
+          <Tabs label="Analysis">
+            {MODES.map((item) => (
+              <ModeTab key={item.id} item={item} nav={nav} />
+            ))}
+          </Tabs>
         </div>
-      ) : (
-        <>
-          {(wide || inDrawer) && (
-            <div className={styles.columnTabs}>
-              <Tabs label="Analysis">
-                {MODES.map((item) => (
-                  <ModeTab key={item.id} item={item} nav={nav} />
-                ))}
-              </Tabs>
-            </div>
-          )}
-        </>
       )}
       <div hidden={mode !== 'issues'} className={styles.blocks}>
         {/* Kept mounted after first visit so filters and expanded issue rows persist across tabs. */}

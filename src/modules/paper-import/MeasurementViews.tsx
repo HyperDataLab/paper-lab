@@ -12,7 +12,7 @@ import {
 } from '@/core/schemas';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
-import { Stat, StatGrid } from '@/shared/ui/ActionBar';
+import { Stat } from '@/shared/ui/ActionBar';
 import { Card } from '@/shared/ui/Card';
 import { FindingCard } from '@/shared/ui/FindingCard';
 import {
@@ -195,31 +195,26 @@ function OverviewDetail({ profile, paper, open }: Pick<ViewProps, 'profile' | 'o
   const heading = (id: string) => paper.sections.find((section) => section.id === id)?.heading ?? id;
   const notRead = [...profile.coverage.failed, ...profile.coverage.not_selected];
   const stat = (value: number, label: string, ref: MeasurementRef) => (
-    <Stat value={value} label={label} onClick={() => open(ref)} />
+    <div className={styles.overviewStat} key={label}>
+      <Stat value={value} label={label} onClick={() => open(ref)} />
+    </div>
   );
   return (
-    <Card>
-      <h2>Tổng quan hồ sơ measurement</h2>
-      <p>
-        Loại bài: <Badge tone="accent">{PAPER_TYPE[profile.paper_type]}</Badge>
-      </p>
-      <p>{profile.paper_type_rationale}</p>
-      <StatGrid>
-        {stat(profile.experiments.length, 'thí nghiệm', { kind: 'experiments' })}
-        {stat(profile.metrics.length, 'metric', { kind: 'experiments' })}
-        {stat(profile.results.length, 'Results', { kind: 'experiments' })}
-        {stat(profile.claims.length, 'claim', { kind: 'claims' })}
-        {profile.atomic_sentences.length > 0 &&
-          stat(profile.atomic_sentences.length, 'câu nguyên tử', { kind: 'atomics' })}
-        {stat(profile.findings.length, 'cảnh báo', { kind: 'findings' })}
-        {stat(reviewQueueSize(profile), 'cần xem lại', { kind: 'review' })}
-      </StatGrid>
-      <p>
-        Có evidence: {evidence.withEvidence}/{evidence.total}
-        {evidence.rate !== null && ` (${Math.round(evidence.rate * 100)} %)`}
-      </p>
+    <Card padding="md">
+      <div className={styles.overviewHead}>
+        <div>
+          <h2>Tổng quan hồ sơ measurement</h2>
+          <p className={styles.overviewType}>
+            Loại bài <Badge tone="accent">{PAPER_TYPE[profile.paper_type]}</Badge>
+          </p>
+        </div>
+        <Badge tone={profile.status === 'partial' ? 'warning' : 'success'}>
+          {profile.status === 'partial' ? 'Phân tích một phần' : 'Đã phân tích'}
+        </Badge>
+      </div>
+      <p className={styles.overviewRationale}>{profile.paper_type_rationale}</p>
       {profile.status === 'partial' && (
-        <p role="status">
+        <p role="status" className={styles.overviewWarning}>
           Phân tích chưa trọn vẹn.
           {profile.coverage.failed.length > 0 &&
             ` Không đọc được: ${profile.coverage.failed.map(heading).join(', ')}.`}
@@ -227,6 +222,26 @@ function OverviewDetail({ profile, paper, open }: Pick<ViewProps, 'profile' | 'o
           {profile.steps.findings === 'failed' && ' Bước cảnh báo không chạy được.'}
         </p>
       )}
+      <div className={styles.overviewStats}>
+        {stat(profile.experiments.length, 'thí nghiệm', { kind: 'experiments' })}
+        {stat(profile.metrics.length, 'chỉ số', { kind: 'experiments' })}
+        {stat(profile.results.length, 'kết quả', { kind: 'experiments' })}
+        {stat(profile.claims.length, 'luận điểm', { kind: 'claims' })}
+        {profile.atomic_sentences.length > 0 &&
+          stat(profile.atomic_sentences.length, 'câu nguyên tử', { kind: 'atomics' })}
+        {stat(profile.findings.length, 'cảnh báo AI', { kind: 'findings' })}
+        {stat(reviewQueueSize(profile), 'cần xem lại', { kind: 'review' })}
+      </div>
+      <div className={styles.evidenceCoverage}>
+        <span>Evidence có nguồn</span>
+        <strong>
+          {evidence.withEvidence}/{evidence.total}
+          {evidence.rate !== null && ` · ${Math.round(evidence.rate * 100)}%`}
+        </strong>
+        {evidence.rate !== null && (
+          <progress aria-label="Tỷ lệ evidence có nguồn" max={1} value={evidence.rate} />
+        )}
+      </div>
       <ProtocolMatrix profile={profile} open={open} />
       {notRead.length > 0 && (
         <details className={styles.missing}>
@@ -234,11 +249,14 @@ function OverviewDetail({ profile, paper, open }: Pick<ViewProps, 'profile' | 'o
           <p>{notRead.map(heading).join(', ')}.</p>
         </details>
       )}
-      <p className={styles.note}>
-        AI đã bỏ {profile.discarded.unverified_quotes} trích dẫn không tìm lại được trong bài,{' '}
-        {profile.discarded.unsupported_findings} cảnh báo không có căn cứ, {profile.discarded.invalid_links}{' '}
-        liên kết không hợp lệ. Hồ sơ này không có điểm tổng và không đánh giá phương pháp đúng hay sai.
-      </p>
+      <details className={styles.qualityDetails}>
+        <summary>Độ tin cậy và giới hạn hồ sơ</summary>
+        <p>
+          AI đã bỏ {profile.discarded.unverified_quotes} trích dẫn không tìm lại được trong bài,{' '}
+          {profile.discarded.unsupported_findings} cảnh báo không có căn cứ, {profile.discarded.invalid_links}{' '}
+          liên kết không hợp lệ. Hồ sơ này không có điểm tổng và không đánh giá phương pháp đúng hay sai.
+        </p>
+      </details>
     </Card>
   );
 }

@@ -83,7 +83,7 @@ it('R10b without a measurement the list says where atomic sentences come from', 
   expect(onOpen).toHaveBeenCalled();
 });
 
-it('R10b the Arguments space opens on gap, claims and atomic sentences, ahead of the AI analyses', async () => {
+it('R10b the Arguments space opens on Claims & reasoning before the supporting analyses', async () => {
   const { repo } = await seeded();
   render(
     <MemoryRouter initialEntries={[`/papers/${PAPER_ID}`]}>
@@ -116,14 +116,18 @@ it('R10b the Arguments space opens on gap, claims and atomic sentences, ahead of
           ].includes(label),
       ),
   ).toEqual([
+    'Claims & reasoning',
     'Research gap & contribution',
     'Claims & grounds',
     'Atomic sentences',
-    'Claims & reasoning',
     'Evidence & measurement',
     'AI peer review',
     'Validity & rhetorical moves',
   ]);
+  expect(screen.getByRole('button', { name: 'Thu gọn Claims & reasoning' })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
   expect(await screen.findByText('Accuracy is the share of correct predictions.')).toBeInTheDocument();
   // Parts with nothing stored yet say so and point to the analysis that fills them.
   expect(screen.getByText('Chưa phân tích cách tác giả dẫn dắt.')).toBeInTheDocument();

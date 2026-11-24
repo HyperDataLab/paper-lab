@@ -8,6 +8,7 @@ import {
   hasValidConsent,
   hasPaperConsent,
   hasAutoResearchConsent,
+  hasKgAnswerConsent,
   providerFor,
   revokeConsent,
   type Consent,
@@ -81,9 +82,11 @@ export function LlmProvider({
     if (
       requestedScope === 'autoresearch'
         ? hasAutoResearchConsent(config)
-        : requestedScope === 'paper'
-          ? hasPaperConsent(config) && hasValidConsent(config)
-          : hasValidConsent(config)
+        : requestedScope === 'kgAnswer'
+          ? hasKgAnswerConsent(config)
+          : requestedScope === 'paper'
+            ? hasPaperConsent(config) && hasValidConsent(config)
+            : hasValidConsent(config)
     )
       return Promise.resolve(true);
     setScope(requestedScope);
@@ -92,7 +95,9 @@ export function LlmProvider({
   };
   const close = (accepted: boolean) => {
     const paper = scope === 'paper' || scope === 'autoresearch';
-    const record = accepted ? acceptConsent(config, paper, scope === 'autoresearch') : null;
+    const record = accepted
+      ? acceptConsent(config, paper, scope === 'autoresearch', scope === 'kgAnswer')
+      : null;
     if (record) setConsent(record);
     setOpen(false);
     pending.current.splice(0).forEach((resolve) => resolve(Boolean(record)));
@@ -126,7 +131,9 @@ export function LlmProvider({
                 ? 'Các đoạn được chọn của bản thảo sẽ được gửi tới mô hình đã cấu hình. Bạn có thể thu hồi đồng ý trong Cài đặt.'
                 : scope === 'kg'
                   ? 'Câu hỏi và schema của KG sẽ được gửi tới model đã cấu hình qua 9router. SQL được chạy trên máy chủ lab. Bạn có thể thu hồi đồng ý trong Cài đặt.'
-                  : 'Văn bản của paragraph sẽ được gửi tới endpoint 9router đã cấu hình. Không tải lên nơi nào khác; dữ liệu còn lại nằm trong trình duyệt này. Bạn có thể thu hồi đồng ý trong Cài đặt.'
+                  : scope === 'kgAnswer'
+                    ? 'Để tạo câu trả lời có dẫn chứng, câu hỏi, các dòng KG liên quan và tối đa 10 đoạn liên quan từ toàn văn, phân tích đã lưu, ma trận trích xuất, corpus, thiết kế nghiên cứu hoặc AutoResearch trong project ResearchHub hiện tại sẽ được gửi tới model đã cấu hình qua 9router. PaperLab tìm và xếp hạng dữ liệu ngay trong workspace trước; không gửi toàn bộ project. Bạn có thể thu hồi đồng ý trong Cài đặt.'
+                    : 'Văn bản của paragraph sẽ được gửi tới endpoint 9router đã cấu hình. Không tải lên nơi nào khác; dữ liệu còn lại nằm trong trình duyệt này. Bạn có thể thu hồi đồng ý trong Cài đặt.'
           }
           onClose={() => close(false)}
         >
