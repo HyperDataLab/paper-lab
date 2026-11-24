@@ -345,7 +345,7 @@
   max-width: 80ch;
   margin: 0;
   overflow-wrap: anywhere;
-  font-size: clamp(var(--text-xl), 2vw, var(--text-2xl));
+  font-size: var(--text-2xl);
   line-height: 1.25;
 }
 .projectIdentity p {
@@ -1263,7 +1263,7 @@
 }
 .readinessValue strong {
   color: var(--accent-strong);
-  font-size: 28px;
+  font-size: var(--text-3xl);
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
@@ -1336,8 +1336,8 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 .planForm :global(.field) {
-  gap: 6px;
-  font-size: 13px;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
   font-weight: 550;
 }
 .planForm .planControl:disabled,
