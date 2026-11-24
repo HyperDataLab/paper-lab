@@ -1,6 +1,7 @@
--- Passage index (docs/plans/PASSAGE_INDEX.md): the paragraphs of a ResearchHub project's papers, for hybrid
--- retrieval with citation anchors (paper id + paragraph id). Rows are derived from `papers` records and rebuilt by
--- the cron indexer; the embeddings live in the `paperlab-passages` Vectorize index under `vector_id`.
+-- Passage index (docs/plans/PASSAGE_INDEX.md): the paragraphs of the papers of one scope, for hybrid retrieval
+-- with citation anchors (paper id + paragraph id). `project_id` is the ResearchHub project id, or 'lab' for lab
+-- scope (ADR-0009). Rows are derived from `papers` records and rebuilt by the cron indexer; the embeddings live in
+-- the `paperlab-passages` Vectorize index under `vector_id`.
 CREATE TABLE passage (
   project_id TEXT NOT NULL,
   paper_id TEXT NOT NULL,
@@ -48,21 +49,40 @@ CREATE TABLE passage_queue (
 );
 CREATE INDEX passage_queue_due ON passage_queue (status, next_at);
 
--- Every write of a project's `papers` record (PUT, commit or delete, which all bump `version`) queues the paper in
--- the same transaction, so the index never misses a change made through the data store.
+-- Every write of a `papers` record (PUT, commit or delete, which all bump `version`) queues the paper in the same
+-- transaction, so the index never misses a change made through the data store. Both scopes (ADR-0009):
+-- - project scope: `hub_project_id` set, id `@rh/<project>/<paper>` → (project_id = <project>, paper_id = <paper>);
+-- - lab scope: `hub_project_id IS NULL`, unprefixed id → (project_id = 'lab', paper_id = id). The worker accepts
+--   only UUIDs as project ids, so the 'lab' sentinel never collides with a project.
 CREATE TRIGGER passage_enqueue_insert AFTER INSERT ON doc
-WHEN new.collection = 'papers' AND new.hub_project_id IS NOT NULL
-  AND substr(new.id, 1, length(new.hub_project_id) + 5) = '@rh/' || new.hub_project_id || '/' BEGIN
+WHEN new.collection = 'papers' AND (
+  (new.hub_project_id IS NOT NULL
+    AND substr(new.id, 1, length(new.hub_project_id) + 5) = '@rh/' || new.hub_project_id || '/')
+  OR (new.hub_project_id IS NULL AND substr(new.id, 1, 4) <> '@rh/')
+) BEGIN
   INSERT INTO passage_queue (project_id, paper_id, next_at, enqueued_at)
-  VALUES (new.hub_project_id, substr(new.id, length(new.hub_project_id) + 6), new.updated_at, new.updated_at)
+  VALUES (
+    coalesce(new.hub_project_id, 'lab'),
+    CASE WHEN new.hub_project_id IS NULL THEN new.id ELSE substr(new.id, length(new.hub_project_id) + 6) END,
+    new.updated_at,
+    new.updated_at
+  )
   ON CONFLICT (project_id, paper_id) DO UPDATE SET status = 'pending', generation = generation + 1,
     attempts = 0, next_at = excluded.next_at, enqueued_at = excluded.enqueued_at, last_error = NULL;
 END;
 CREATE TRIGGER passage_enqueue_update AFTER UPDATE OF version ON doc
-WHEN new.collection = 'papers' AND new.hub_project_id IS NOT NULL AND new.version IS NOT old.version
-  AND substr(new.id, 1, length(new.hub_project_id) + 5) = '@rh/' || new.hub_project_id || '/' BEGIN
+WHEN new.collection = 'papers' AND new.version IS NOT old.version AND (
+  (new.hub_project_id IS NOT NULL
+    AND substr(new.id, 1, length(new.hub_project_id) + 5) = '@rh/' || new.hub_project_id || '/')
+  OR (new.hub_project_id IS NULL AND substr(new.id, 1, 4) <> '@rh/')
+) BEGIN
   INSERT INTO passage_queue (project_id, paper_id, next_at, enqueued_at)
-  VALUES (new.hub_project_id, substr(new.id, length(new.hub_project_id) + 6), new.updated_at, new.updated_at)
+  VALUES (
+    coalesce(new.hub_project_id, 'lab'),
+    CASE WHEN new.hub_project_id IS NULL THEN new.id ELSE substr(new.id, length(new.hub_project_id) + 6) END,
+    new.updated_at,
+    new.updated_at
+  )
   ON CONFLICT (project_id, paper_id) DO UPDATE SET status = 'pending', generation = generation + 1,
     attempts = 0, next_at = excluded.next_at, enqueued_at = excluded.enqueued_at, last_error = NULL;
 END;

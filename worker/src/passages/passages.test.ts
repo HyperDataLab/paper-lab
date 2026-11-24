@@ -5,7 +5,7 @@ import { handle, type Deps } from '../app';
 import { NotAllowedError } from '../auth';
 import { memoryBucket } from '../data/testBucket';
 import { testDb } from '../kg/testDb';
-import { configuredPassages, passageVectorId } from './bindings';
+import { configuredPassages, LAB_PASSAGE_SCOPE, passageVectorId } from './bindings';
 import { drainPassageQueue } from './index';
 import { fuseRankings, RRF_K, searchPassages } from './search';
 import { MIN_PASSAGE_CHARS } from './split';
@@ -79,7 +79,8 @@ function setup(options: { vectors?: boolean; ignoreFilters?: boolean } = {}) {
     bucket,
     verifyToken: async (token) => {
       if (token === 'outsider') throw new NotAllowedError();
-      if (token === 'lab') return { uid: 'a', email: 'a@hyperdatalab.org' };
+      if (token === 'lab') return { uid: 'a', email: 'a@hyperdatalab.org', kind: 'sso' };
+      if (token === 'firebase') return { uid: 'a', email: 'a@hyperdatalab.org', kind: 'firebase' };
       throw new Error('bad token');
     },
     allowedOrigins: [],
@@ -115,7 +116,7 @@ function setup(options: { vectors?: boolean; ignoreFilters?: boolean } = {}) {
       }),
     );
   const versions = new Map<string, number>();
-  const put = async (collection: string, id: string, body: unknown, project = PROJECT) => {
+  const put = async (collection: string, id: string, body: unknown, project: string | null = PROJECT) => {
     const key = `${project}/${collection}/${id}`;
     const version = versions.get(key);
     const response = await call('PUT', `/v1/data/${collection}/${id}`, body, {
@@ -135,8 +136,12 @@ function setup(options: { vectors?: boolean; ignoreFilters?: boolean } = {}) {
     versions.delete(key);
   };
   const drain = () => drainPassageQueue(env, { now });
-  const search = async (body: Record<string, unknown>, project = PROJECT) => {
-    const response = await call('POST', '/v1/passages/search', body, { project });
+  const search = async (
+    body: Record<string, unknown>,
+    project: string | null = PROJECT,
+    token = project ? 'lab' : 'firebase',
+  ) => {
+    const response = await call('POST', '/v1/passages/search', body, { project, token });
     return { status: response.status, body: (await response.json()) as Record<string, unknown> };
   };
   const rows = (project = PROJECT) =>
@@ -378,13 +383,115 @@ describe('POST /v1/passages/search', () => {
     expect(await response.json()).toMatchObject({ error: 'passages_not_configured' });
   });
 
-  it('requires a lab sign-in and a ResearchHub project', async () => {
+  it('requires a lab sign-in, and SSO for project scope', async () => {
     const t = setup();
     expect((await t.call('POST', '/v1/passages/search', { query: 'x' }, { token: null })).status).toBe(401);
     expect((await t.call('POST', '/v1/passages/search', { query: 'x' }, { token: 'outsider' })).status).toBe(
       403,
     );
-    expect((await t.call('POST', '/v1/passages/search', { query: 'x' }, { project: null })).status).toBe(400);
+    // A Firebase token has lab scope only (ADR-0009).
+    expect((await t.call('POST', '/v1/passages/search', { query: 'x' }, { token: 'firebase' })).status).toBe(
+      403,
+    );
+    expect(
+      (await t.call('POST', '/v1/passages/search', { query: 'x' }, { token: 'firebase', project: null }))
+        .status,
+    ).toBe(200);
+  });
+});
+
+describe('lab scope (no project id)', () => {
+  async function both() {
+    const t = setup();
+    // The lab and a project hold the same paper id; only the lab also holds PAPER_B.
+    await t.put('papers', PAPER_A, paperA(), null);
+    await t.put(
+      'papers',
+      PAPER_B,
+      paper(PAPER_B, 'Lab only paper', [
+        {
+          id: 'q1',
+          section: 's-results',
+          text: `Lab measurements of staleness in asynchronous training. ${INTRO}`,
+        },
+      ]),
+      null,
+    );
+    await t.put('papers', PAPER_A, paperA());
+    await t.drain();
+    return t;
+  }
+
+  it('indexes lab papers under the lab scope key and Vectorize projectId', async () => {
+    const t = await both();
+    expect(
+      t.sqlite.prepare('SELECT DISTINCT project_id FROM passage_queue ORDER BY project_id').all(),
+    ).toEqual([{ project_id: PROJECT }, { project_id: LAB_PASSAGE_SCOPE }]);
+    expect(
+      t
+        .rows(LAB_PASSAGE_SCOPE)
+        .map((row) => row.paper_id)
+        .sort(),
+    ).toEqual([PAPER_A, PAPER_A, PAPER_A, PAPER_B]);
+    const vectorId = await passageVectorId(LAB_PASSAGE_SCOPE, PAPER_B, 'q1');
+    expect(t.vectors.stored.get(vectorId)?.metadata.projectId).toBe(LAB_PASSAGE_SCOPE);
+  });
+
+  it('searches, reindexes and reports status without a project id', async () => {
+    const t = await both();
+    const { status, body } = await t.search({ query: 'staleness measurement', limit: 50 }, null);
+    expect(status).toBe(200);
+    expect(new Set(hits(body).map((hit) => hit.paperId))).toEqual(new Set([PAPER_A, PAPER_B]));
+    expect(hits(body).find((hit) => hit.paperId === PAPER_B)?.paperTitle).toBe('Lab only paper');
+    expect(t.vectors.queries.at(-1)).toEqual({ projectId: { $eq: LAB_PASSAGE_SCOPE } });
+
+    t.sqlite.exec('DELETE FROM passage_queue');
+    const reindex = await t.call('POST', '/v1/passages/reindex', {}, { project: null, token: 'firebase' });
+    expect(await reindex.json()).toMatchObject({ queued: 2, status: { passages: 4, papers: 2 } });
+    // The project's paper was not queued by the lab's reindex.
+    expect(
+      t.sqlite.prepare('SELECT count(*) AS n FROM passage_queue WHERE project_id = ?').get(PROJECT),
+    ).toEqual({ n: 0 });
+    const statusResponse = await t.call('GET', '/v1/passages/status', undefined, { project: null });
+    expect(await statusResponse.json()).toMatchObject({ passages: 4, papers: 2 });
+  });
+
+  it('keeps the lab and projects apart in both directions, even without vector filters', async () => {
+    for (const ignoreFilters of [false, true]) {
+      const t = setup({ ignoreFilters });
+      await t.put(
+        'papers',
+        PAPER_B,
+        paper(PAPER_B, 'Lab only paper', [
+          { id: 'q1', section: 's-results', text: `Lab measurements of staleness in training. ${INTRO}` },
+        ]),
+        null,
+      );
+      await t.put('papers', PAPER_A, paperA());
+      await t.drain();
+      const lab = await t.search({ query: 'staleness', limit: 50 }, null);
+      expect(new Set(hits(lab.body).map((hit) => hit.paperId))).toEqual(new Set([PAPER_B]));
+      const project = await t.search({ query: 'staleness', limit: 50 });
+      expect(new Set(hits(project.body).map((hit) => hit.paperId))).toEqual(new Set([PAPER_A]));
+      // A project paper id named from the lab finds nothing, and the reverse.
+      expect(hits((await t.search({ query: 'staleness', paperIds: [PAPER_A] }, null)).body)).toEqual([]);
+      expect(hits((await t.search({ query: 'staleness', paperIds: [PAPER_B] })).body)).toEqual([]);
+    }
+  });
+
+  it('resolves lab corpora in lab scope only', async () => {
+    const t = await both();
+    const corpus = exampleCorpus();
+    const [member] = corpus.members;
+    if (!member) throw new Error('Missing synthetic member');
+    corpus.members = [{ ...member, identifiers: { ...member.identifiers, paperIds: [PAPER_B] } }];
+    await t.put('corpora', corpus.id, corpus, null);
+    const lab = await t.search({ query: 'staleness', corpusId: corpus.id }, null);
+    expect(new Set(hits(lab.body).map((hit) => hit.paperId))).toEqual(new Set([PAPER_B]));
+    expect((await t.search({ query: 'staleness', corpusId: corpus.id })).status).toBe(404);
+    expect(
+      (await t.search({ query: 'staleness', corpusId: `@rh/${PROJECT}/${corpus.id}` }, null)).status,
+    ).toBe(404);
   });
 });
 

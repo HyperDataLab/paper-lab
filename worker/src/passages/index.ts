@@ -1,13 +1,14 @@
 // Passage indexing (docs/plans/PASSAGE_INDEX.md). Papers reach `passage_queue` through the triggers of migration
-// 0004 (every write of a `papers` record) or POST /v1/passages/reindex; the cron drains the queue in bounded
+// 0005 (every write of a `papers` record, lab or project scope) or POST /v1/passages/reindex; the cron drains the queue in bounded
 // batches: read the paper body, split its paragraphs, embed the new or changed ones through Workers AI, upsert
 // them to Vectorize, then upsert the D1 rows (which keep the FTS5 index in step). Removed paragraphs and deleted
 // papers lose their rows and vectors.
 import { PaperSchema } from '../../../src/core/schemas/paper';
 import type { PassageStatus } from '../../../src/core/schemas/passages';
-import { chunk, projectRecordId, type DocRow } from '../data/store';
+import { chunk, type DocRow } from '../data/store';
+import { physicalId, scopePrefix } from '../scope';
 import { EMBEDDING_MODEL, type D1Database, type D1Statement } from '../kg/bindings';
-import { passageVectorId, sha256Hex, type PassageEnv } from './bindings';
+import { passageVectorId, scopeOfKey, sha256Hex, type PassageEnv } from './bindings';
 import { EMBED_CHARS, splitPassages, type SplitPassage } from './split';
 
 export const MAX_ATTEMPTS = 5;
@@ -53,37 +54,35 @@ const UPSERT_QUEUE = `ON CONFLICT (project_id, paper_id) DO UPDATE SET status = 
   enqueued_at = excluded.enqueued_at, last_error = NULL`;
 
 /**
- * Queues a project's papers: the live `papers` records (all, or those in `paperIds`) and the papers that still have
- * passages but no live record, so their rows and vectors are removed. Returns how many queue rows changed.
+ * Queues the papers of one scope (`scope` is a project id or `LAB_PASSAGE_SCOPE`): the live `papers` records (all,
+ * or those in `paperIds`) and the papers that still have passages but no live record, so their rows and vectors are
+ * removed. Returns how many queue rows changed.
  */
-export async function enqueuePapers(
-  db: D1Database,
-  projectId: string,
-  paperIds: string[] | null,
-  at: string,
-) {
-  const prefix = `@rh/${projectId}/`;
+export async function enqueuePapers(db: D1Database, scope: string, paperIds: string[] | null, at: string) {
+  const hub = scopeOfKey(scope);
+  const prefix = scopePrefix(hub);
   const ids = paperIds ? JSON.stringify([...new Set(paperIds)]) : null;
   const results = await db.batch([
     db
       .prepare(
         `INSERT INTO passage_queue (project_id, paper_id, next_at, enqueued_at)
         SELECT ?1, substr(id, ?4), ?2, ?2 FROM doc
-        WHERE collection = 'papers' AND hub_project_id = ?1 AND substr(id, 1, ?4 - 1) = ?5 AND deleted_at IS NULL
+        WHERE collection = 'papers' AND hub_project_id IS ?6 AND substr(id, 1, ?4 - 1) = ?5
+          AND (?6 IS NOT NULL OR substr(id, 1, 4) <> '@rh/') AND deleted_at IS NULL
           AND (?3 IS NULL OR substr(id, ?4) IN (SELECT value FROM json_each(?3)))
         ${UPSERT_QUEUE}`,
       )
-      .bind(projectId, at, ids, prefix.length + 1, prefix),
+      .bind(scope, at, ids, prefix.length + 1, prefix, hub),
     db
       .prepare(
         `INSERT INTO passage_queue (project_id, paper_id, next_at, enqueued_at)
         SELECT DISTINCT project_id, paper_id, ?2, ?2 FROM passage
         WHERE project_id = ?1 AND (?3 IS NULL OR paper_id IN (SELECT value FROM json_each(?3)))
           AND NOT EXISTS (SELECT 1 FROM doc WHERE collection = 'papers' AND id = ?4 || passage.paper_id
-            AND deleted_at IS NULL)
+            AND hub_project_id IS ?5 AND deleted_at IS NULL)
         ${UPSERT_QUEUE}`,
       )
-      .bind(projectId, at, ids, prefix),
+      .bind(scope, at, ids, prefix, hub),
   ]);
   return results.reduce((sum, result) => sum + result.meta.changes, 0);
 }
@@ -128,11 +127,12 @@ async function finishJob(db: D1Database, job: PassageJob, now: Date, error?: Pas
   ]);
 }
 
-async function readPaper(env: PassageEnv, projectId: string, paperId: string) {
+async function readPaper(env: PassageEnv, scope: string, paperId: string) {
+  const hub = scopeOfKey(scope);
   const [result] = await env.db.batch<DocRow>([
     env.db
-      .prepare("SELECT * FROM doc WHERE collection = 'papers' AND id = ?")
-      .bind(projectRecordId(projectId, paperId)),
+      .prepare("SELECT * FROM doc WHERE collection = 'papers' AND id = ? AND hub_project_id IS ?")
+      .bind(physicalId(hub, paperId), hub),
   ]);
   const row = result?.results[0];
   if (!row || row.deleted_at) return null;

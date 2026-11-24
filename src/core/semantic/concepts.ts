@@ -2141,7 +2141,7 @@ const PASSAGE_CONCEPTS: Concept[] = [
     name: 'Passage',
     labelVi: 'Đoạn văn trong chỉ mục',
     description:
-      'Một paragraph của full text đã được lập chỉ mục để tìm theo ngữ nghĩa và từ khoá trong một project. Mã bài và mã paragraph là neo trích dẫn, mở đúng đoạn trong bài.',
+      'Một paragraph của full text đã được lập chỉ mục để tìm theo ngữ nghĩa và từ khoá trong một phạm vi dữ liệu: một project ResearchHub, hoặc kho lab (project_id là lab). Mã bài và mã paragraph là neo trích dẫn, mở đúng đoạn trong bài.',
     synonyms: ['passage', 'đoạn văn', 'tìm đoạn văn', 'passage index', 'full text search', 'trích đoạn'],
     store: dataTable('passage'),
     fields: [

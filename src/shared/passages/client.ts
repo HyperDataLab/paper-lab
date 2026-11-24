@@ -6,6 +6,7 @@ import {
   type PassageSearchRequest,
 } from '@/core/schemas/passages';
 import { PDF_WORKER_URL, projectScopedUrl } from '@/shared/pdfStore';
+import { projectHeader } from '@/shared/scope';
 
 export class PassageError extends Error {
   constructor(
@@ -20,7 +21,7 @@ export class PassageError extends Error {
 
 function errorMessage(status: number, code: string) {
   if (code === 'passages_not_configured') return 'Chỉ mục đoạn văn chưa được cấu hình trên máy chủ lab.';
-  if (code === 'corpus_not_found') return 'Không tìm thấy corpus này trong project.';
+  if (code === 'corpus_not_found') return 'Không tìm thấy corpus này trong phạm vi dữ liệu hiện tại.';
   if (status === 401) return 'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.';
   if (status === 403) return 'Tài khoản này không được dùng chỉ mục đoạn văn.';
   if (status === 400) return 'Yêu cầu tìm đoạn văn chưa hợp lệ.';
@@ -42,7 +43,8 @@ async function request(
       ...init,
       headers: {
         Authorization: `Bearer ${token}`,
-        'X-Project-Id': projectId,
+        // Lab scope (`LAB_SCOPE`, the Firebase build) sends no project id (ADR-0009).
+        ...projectHeader(projectId),
         ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
       },
     });

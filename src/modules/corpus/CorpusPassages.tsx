@@ -10,6 +10,7 @@ import {
   reindexPassages,
   searchPassages,
 } from '@/shared/passages/client';
+import { isLabScope } from '@/shared/scope';
 import { useHubProjectId } from '@/shared/storage/StorageProvider';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
@@ -101,7 +102,7 @@ export function CorpusPassages({ corpus }: { corpus: Corpus }) {
           Tìm paragraph trong full text của {paperCount} bài có paper model; mỗi kết quả mở đúng paragraph
           trong bài.
           {status &&
-            ` Chỉ mục của project: ${status.passages} đoạn từ ${status.papers} bài${status.queue.pending ? `, còn ${status.queue.pending} bài đang chờ` : ''}.`}
+            ` Chỉ mục ${isLabScope(projectId) ? 'của lab' : 'của project'}: ${status.passages} đoạn từ ${status.papers} bài${status.queue.pending ? `, còn ${status.queue.pending} bài đang chờ` : ''}.`}
         </p>
         {!user ? (
           <p className={styles.muted}>Cần đăng nhập bằng tài khoản lab để tìm đoạn văn.</p>

@@ -1,18 +1,21 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { exampleCorpus } from '@/core/corpus/contract';
 import type { Corpus } from '@/core/schemas/corpus';
 import { CorpusPassages } from './CorpusPassages';
 
 const PROJECT = '00000000-0000-4000-8000-000000000101';
 const PAPER = '00000000-0000-4000-8000-0000000000a1';
-const mocks = vi.hoisted(() => ({ token: vi.fn(), user: null as object | null }));
+const mocks = vi.hoisted(() => ({ token: vi.fn(), user: null as object | null, project: '' }));
 vi.mock('@/shared/auth/authContext', () => ({
   useAuth: () => ({ user: mocks.user, getIdToken: mocks.token }),
 }));
-vi.mock('@/shared/storage/StorageProvider', () => ({ useHubProjectId: () => PROJECT }));
+vi.mock('@/shared/storage/StorageProvider', () => ({ useHubProjectId: () => mocks.project }));
 
+beforeEach(() => {
+  mocks.project = PROJECT;
+});
 afterEach(() => {
   vi.restoreAllMocks();
   mocks.user = null;
@@ -82,6 +85,34 @@ it('searches the corpus passages and links each hit to its paragraph', async () 
   expect(await within(region).findByRole('status')).toHaveTextContent('Đã xếp 1 bài');
   const reindexCall = fetchMock.mock.calls.find(([url]) => String(url).includes('/reindex'));
   expect(JSON.parse(String(reindexCall?.[1]?.body))).toEqual({ corpusId: value.id });
+});
+
+it('searches in lab scope (Firebase build) without sending a project id', async () => {
+  mocks.user = { uid: 'u-1' };
+  mocks.project = 'lab';
+  mocks.token.mockResolvedValue('token');
+  const fetchMock = vi
+    .spyOn(globalThis, 'fetch')
+    .mockImplementation(async (url) =>
+      String(url).includes('/status')
+        ? Response.json(status)
+        : Response.json({ passages: [], truncated: false }),
+    );
+  render(
+    <MemoryRouter>
+      <CorpusPassages corpus={corpus()} />
+    </MemoryRouter>,
+  );
+  expect(await screen.findByText(/Chỉ mục của lab: 3 đoạn/u)).toBeInTheDocument();
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Câu hỏi hoặc từ khoá' }), {
+    target: { value: 'staleness' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Tìm' }));
+  expect(await screen.findByText(/Không tìm thấy đoạn văn phù hợp/u)).toBeInTheDocument();
+  for (const [url, init] of fetchMock.mock.calls) {
+    expect(String(url)).not.toContain('projectId');
+    expect(new Headers(init?.headers).has('X-Project-Id')).toBe(false);
+  }
 });
 
 it('explains an unconfigured index and asks for sign-in', async () => {

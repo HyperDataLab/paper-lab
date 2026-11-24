@@ -6,7 +6,7 @@ import {
 } from '../../../src/core/schemas/passages';
 import type { Deps } from '../app';
 import { publishedError } from '../published';
-import { configuredPassages } from './bindings';
+import { configuredPassages, passageScopeKey } from './bindings';
 import { drainPassageQueue, enqueuePapers, passageStatus, REQUEST_PAPERS } from './index';
 import { corpusPaperIds, CorpusNotFoundError, searchPassages } from './search';
 
@@ -25,14 +25,18 @@ async function readJson(request: Request) {
   }
 }
 
-/** The passage index routes. The caller has verified the SSO token and the caller's ResearchHub project. */
+/**
+ * The passage index routes. The caller has verified the token and, in project scope, the caller's ResearchHub
+ * project; `scope` null is lab scope (ADR-0009).
+ */
 export async function handlePassages(
   deps: Deps,
   request: Request,
   path: string,
   headers: Record<string, string>,
-  projectId: string,
+  scope: string | null,
 ) {
+  const projectId = passageScopeKey(scope);
   const reply = { ...headers, 'Cache-Control': 'no-store' };
   const fail = (status: number, error: string, message: string) =>
     publishedError(status, error, message, reply);

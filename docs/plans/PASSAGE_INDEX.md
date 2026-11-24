@@ -1,18 +1,25 @@
 # Passage index
 
 Owner decision 2026-11-25: build a passage index on Cloudflare instead of adopting RAGFlow. It retrieves paragraphs
-from the full text of a ResearchHub project's papers, with citation anchors, for idea2hypothesis (hpl-autoresearch)
-and the AutoResearch PI / Critic. A typical question: "which papers measure staleness and how, with what result".
+from the full text of the papers of one scope, with citation anchors, for idea2hypothesis (hpl-autoresearch) and
+the AutoResearch PI / Critic. A typical question: "which papers measure staleness and how, with what result".
 
-Everything stays in the PaperLab worker: HyperDataLab SSO, the project scope of the central store (ADR-0007,
-`X-Project-Id` / `?projectId=`, physical ids `@rh/<projectId>/…`), one D1 database (`paperlab-data`) and one
-Vectorize index.
+Everything stays in the PaperLab worker, with one D1 database (`paperlab-data`) and one Vectorize index. Both scopes
+of ADR-0009 work:
+
+- **Project scope**: SSO token and `X-Project-Id` / `?projectId=`; papers are `@rh/<projectId>/…` rows with
+  `hub_project_id`. Passages store `project_id = <projectId>`.
+- **Lab scope**: no project id (Firebase or SSO token); papers are unprefixed rows with `hub_project_id IS NULL`.
+  Passages store the sentinel `project_id = 'lab'`, and their vectors carry `projectId = 'lab'`. The worker accepts
+  only UUIDs as project ids, so `'lab'` can never collide with a project.
+
+Every statement filters on that scope key, so neither scope sees the other's passages.
 
 ## Design
 
 | Part     | Where                                                      | What                                                                                                                                           |
 | -------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Rows     | `passage` (migration `0004_passages.sql`)                  | One row per indexed paragraph: `project_id`, `paper_id`, `paragraph_id`, `section_role`, `ord`, `text`, `text_hash`, `vector_id`, `indexed_at` |
+| Rows     | `passage` (migration `0005_passages.sql`)                  | One row per indexed paragraph: `project_id`, `paper_id`, `paragraph_id`, `section_role`, `ord`, `text`, `text_hash`, `vector_id`, `indexed_at` |
 | Keywords | `passage_fts` (FTS5, external content, `porter unicode61`) | Kept in step with `passage` by triggers; BM25 ranking                                                                                          |
 | Vectors  | Vectorize `paperlab-passages` (binding `PASSAGE_VECTORS`)  | 768 dimensions, cosine, `@cf/baai/bge-base-en-v1.5` (the KG's model); metadata `projectId`, `paperId`, `paragraphId`, `sectionRole`            |
 | Queue    | `passage_queue`                                            | One row per project paper; `generation` grows on every enqueue                                                                                 |
@@ -85,13 +92,17 @@ indexes before the first upsert: vectors written earlier cannot be filtered.
 npx wrangler vectorize create paperlab-passages --dimensions=768 --metric=cosine
 npx wrangler vectorize create-metadata-index paperlab-passages --property-name=projectId --type=string
 npx wrangler vectorize create-metadata-index paperlab-passages --property-name=paperId --type=string
-npx wrangler d1 migrations apply paperlab-data --remote     # 0004_passages.sql
+npx wrangler d1 migrations apply paperlab-data --remote     # 0004_lab_scope_library_doi.sql, 0005_passages.sql
 npx wrangler deploy
 ```
 
-Then backfill each project once (papers saved after the migration are queued by the triggers):
+Then backfill the lab and each project once (papers saved after the migration are queued by the triggers):
 
 ```bash
+# lab scope: no project id
+curl -X POST "$WORKER/v1/passages/reindex" -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' -d '{}'
+# a project: SSO token and its id
 curl -X POST "$WORKER/v1/passages/reindex" -H "Authorization: Bearer $SSO_TOKEN" \
   -H "X-Project-Id: $PROJECT" -H 'Content-Type: application/json' -d '{}'
 ```
@@ -103,9 +114,10 @@ or press "Lập chỉ mục lại" on each corpus. The cron indexes about 10 pap
 
 The lab-research-mcp server gets a read-only tool after that repository accepts SSO tokens (`_coord` 013):
 
-| Tool              | Input                                                               | Output                                        |
-| ----------------- | ------------------------------------------------------------------- | --------------------------------------------- |
-| `search_passages` | `{ projectId, query, corpusId?, paperIds?, sectionRoles?, limit? }` | the `POST /v1/passages/search` response as is |
+| Tool              | Input                                                                | Output                                        |
+| ----------------- | -------------------------------------------------------------------- | --------------------------------------------- |
+| `search_passages` | `{ projectId?, query, corpusId?, paperIds?, sectionRoles?, limit? }` | the `POST /v1/passages/search` response as is |
 
-The tool forwards the caller's SSO token and project id to the worker, so the worker keeps enforcing project scope;
-it never holds its own credentials for PaperLab data. Answers cite `paperId` + `paragraphId`.
+The tool forwards the caller's token, and the project id when there is one, to the worker, so the worker keeps
+enforcing the scope; without a project id it searches the lab scope, which a Firebase token reaches today. It never
+holds its own credentials for PaperLab data. Answers cite `paperId` + `paragraphId`.

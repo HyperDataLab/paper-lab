@@ -1,12 +1,14 @@
-// POST /v1/passages/search: hybrid passage retrieval inside one ResearchHub project. Vectorize gives the passages
-// nearest to the query embedding, D1 FTS5 gives BM25 keyword matches, and reciprocal rank fusion merges the two.
-// Every hit is read back from D1 with `project_id = ?`, so a vector from another project can never surface even if
-// a metadata filter were missing. The query text is never logged.
+// POST /v1/passages/search: hybrid passage retrieval inside one scope, a ResearchHub project or the lab (ADR-0009).
+// Here `projectId` is the stored scope key: the project id, or 'lab'. Vectorize gives the passages nearest to the
+// query embedding, D1 FTS5 gives BM25 keyword matches, and reciprocal rank fusion merges the two. Every hit is read
+// back from D1 with `project_id = ?`, so a vector from another scope can never surface even if a metadata filter
+// were missing. The query text is never logged.
 import { ftsQuery } from '../../../src/core/labKg';
 import type { PassageHit, PassageSearchRequestSchema } from '../../../src/core/schemas/passages';
-import { chunk, projectRecordId } from '../data/store';
+import { chunk } from '../data/store';
 import { EMBEDDING_MODEL, type D1Database } from '../kg/bindings';
-import type { PassageEnv } from './bindings';
+import { isProjectPhysicalId, physicalId, scopePrefix } from '../scope';
+import { scopeOfKey, type PassageEnv } from './bindings';
 import type { z } from 'zod';
 
 /** Reciprocal rank fusion constant (Cormack et al., 2009). */
@@ -44,20 +46,28 @@ export function fuseRankings(channels: { source: Source; keys: Key[] }[], k = RR
     .sort((a, b) => b.score - a.score || (a.key < b.key ? -1 : 1));
 }
 
-/** The paper ids of a corpus's members, or null when the project has no such corpus. */
+/**
+ * The paper ids of a corpus's members, or null when the scope (`scope`: a project id or `LAB_PASSAGE_SCOPE`) has no
+ * such corpus.
+ */
 export async function corpusPaperIds(
   env: Pick<PassageEnv, 'db' | 'bucket'>,
-  projectId: string,
+  scope: string,
   corpusId: string,
 ) {
+  const hub = scopeOfKey(scope);
+  // A lab caller cannot name a project row (ADR-0009).
+  if (isProjectPhysicalId(corpusId)) return null;
   const [result] = await env.db.batch<{
     r2_key: string | null;
     body_json: string | null;
     deleted_at: string | null;
   }>([
     env.db
-      .prepare("SELECT r2_key, body_json, deleted_at FROM doc WHERE collection = 'corpora' AND id = ?")
-      .bind(projectRecordId(projectId, corpusId)),
+      .prepare(
+        "SELECT r2_key, body_json, deleted_at FROM doc WHERE collection = 'corpora' AND id = ? AND hub_project_id IS ?",
+      )
+      .bind(physicalId(hub, corpusId), hub),
   ]);
   const row = result?.results[0];
   if (!row || row.deleted_at) return null;
@@ -194,9 +204,14 @@ export async function searchPassages(env: PassageEnv, input: SearchInput, projec
         FROM json_each(?2) k
         JOIN passage p ON p.project_id = ?1 AND p.paper_id = json_extract(k.value, '$[0]')
           AND p.paragraph_id = json_extract(k.value, '$[1]')
-        LEFT JOIN doc d ON d.collection = 'papers' AND d.id = ?3 || p.paper_id`,
+        LEFT JOIN doc d ON d.collection = 'papers' AND d.id = ?3 || p.paper_id AND d.hub_project_id IS ?4`,
       )
-      .bind(projectId, `[${top.map(({ key }) => key).join(',')}]`, `@rh/${projectId}/`),
+      .bind(
+        projectId,
+        `[${top.map(({ key }) => key).join(',')}]`,
+        scopePrefix(scopeOfKey(projectId)),
+        scopeOfKey(projectId),
+      ),
   ]);
   const rows = new Map((result?.results ?? []).map((row) => [keyOf(row.paper_id, row.paragraph_id), row]));
   const passages: PassageHit[] = top.flatMap(({ key, score, sources }) => {

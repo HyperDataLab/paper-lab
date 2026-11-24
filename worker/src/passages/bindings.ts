@@ -39,6 +39,16 @@ export function configuredPassages(bindings: {
   return db && bucket && vectors && ai ? { db, bucket, vectors, ai } : null;
 }
 
+/**
+ * The `project_id` of lab-scope passages (ADR-0009: no project id), also their Vectorize `projectId`. Project ids
+ * are validated UUIDs, so the sentinel never collides with a project.
+ */
+export const LAB_PASSAGE_SCOPE = 'lab';
+/** The stored scope key of a request scope: the project id, or `LAB_PASSAGE_SCOPE`. */
+export const passageScopeKey = (projectId: string | null | undefined) => projectId || LAB_PASSAGE_SCOPE;
+/** The request scope of a stored key: null (lab) for `LAB_PASSAGE_SCOPE`. */
+export const scopeOfKey = (key: string) => (key === LAB_PASSAGE_SCOPE ? null : key);
+
 /** Vectorize ids are at most 64 bytes. */
 export const VECTOR_ID_MAX_BYTES = 64;
 
