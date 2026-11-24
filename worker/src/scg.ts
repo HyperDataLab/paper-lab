@@ -1,3 +1,4 @@
+import { r2Prefix, type ProjectScope } from './scope';
 import { scgBodyEtag, ScgPaperPublishSchema } from '../../src/core/scg/publish';
 import { normalizeDoi } from '../../src/core/library/doi';
 import type { Deps } from './app';
@@ -8,8 +9,8 @@ import { publishedError } from './published';
  * One paper's published contribution graph (`paperlab-scg-paper` v1), next to its published paper model.
  * A PUT overwrites: a graph can be re-reviewed after it is published, and each new body gets a new ETag.
  */
-const PREFIX = (projectId: string) => `paperlab/projects/${projectId}/scg/`;
-const MODEL_PREFIX = (projectId: string) => `paperlab/projects/${projectId}/published/`;
+const PREFIX = (projectId: ProjectScope) => r2Prefix(projectId, 'scg');
+const MODEL_PREFIX = (projectId: ProjectScope) => r2Prefix(projectId, 'published');
 export const SCG_PATH =
   /^\/v1\/papers\/(sha256-[0-9a-f]{64}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/scg$/;
 export const SCG_LIST_PATH = '/v1/scg';
@@ -29,7 +30,7 @@ export async function handleScg(deps: Deps, request: Request, email: string, hea
     if (request.method !== 'GET')
       return publishedError(400, 'bad_request', 'Invalid path or method.', headers);
     const page = await deps.bucket.list({
-      prefix: PREFIX(deps.projectId ?? 'unassigned'),
+      prefix: PREFIX(deps.projectId),
       cursor: url.searchParams.get('cursor') || undefined,
       limit: 100,
       include: ['customMetadata'],
@@ -39,7 +40,7 @@ export async function handleScg(deps: Deps, request: Request, email: string, hea
       .map((object) => {
         const meta = object.customMetadata ?? {};
         return {
-          paperId: object.key.slice(PREFIX(deps.projectId ?? 'unassigned').length, -'.json'.length),
+          paperId: object.key.slice(PREFIX(deps.projectId).length, -'.json'.length),
           doi: meta.doi || null,
           s2CorpusId: meta.s2CorpusId || null,
           idBase: meta.idBase || null,
@@ -55,8 +56,8 @@ export async function handleScg(deps: Deps, request: Request, email: string, hea
   if (!match || (request.method !== 'GET' && request.method !== 'PUT'))
     return publishedError(400, 'bad_request', 'Invalid path or method.', headers);
   const id = match[1] as string;
-  const key = `${PREFIX(deps.projectId ?? 'unassigned')}${id}.json`;
-  const modelKey = `${MODEL_PREFIX(deps.projectId ?? 'unassigned')}${id}/model.json`;
+  const key = `${PREFIX(deps.projectId)}${id}.json`;
+  const modelKey = `${MODEL_PREFIX(deps.projectId)}${id}/model.json`;
 
   if (request.method === 'GET') {
     const object = await deps.bucket.get(key);

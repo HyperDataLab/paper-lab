@@ -1,13 +1,9 @@
 import type { KgIngestSource, KgIngestStatus, KgQueueState } from '../../../src/core/schemas/labKg';
 import type { D1Database } from './bindings';
+import { logicalId, physicalId as scopeId, scopeBind, scopeSql, type ProjectScope } from '../scope';
 
 export const MAX_ATTEMPTS = 5;
 const LEASE_MS = 5 * 60_000;
-const scopeId = (projectId: string | undefined, id: string) => (projectId ? `@rh/${projectId}/${id}` : id);
-const logicalId = (projectId: string | undefined, id: string) => {
-  const prefix = projectId ? `@rh/${projectId}/` : '';
-  return prefix && id.startsWith(prefix) ? id.slice(prefix.length) : id;
-};
 
 type Job = { id: string; depth: number; attempts: number; claim_token: string };
 type JobOutcome = { at: string } & (
@@ -38,7 +34,9 @@ export function enqueueStatement(
     .bind(depth, source, at, JSON.stringify(ids), parent?.id ?? null, parent?.claim_token ?? null);
 }
 
-export function kgQueue(db: D1Database, projectId?: string) {
+/** The ingest queue of one scope: a project's `@rh/<projectId>/` jobs, or the lab's unprefixed jobs. */
+export function kgQueue(db: D1Database, projectId: ProjectScope) {
+  const scope = scopeBind(projectId);
   return {
     async enqueue(ids: string[], depth: number, source: KgIngestSource, at: string) {
       const [queued] = await db.batch([
@@ -63,24 +61,24 @@ export function kgQueue(db: D1Database, projectId?: string) {
             `INSERT INTO ingest_log (id, code, attempts, at)
           SELECT id, 'lease_expired', attempts, ?1 FROM ingest_queue
           WHERE status = 'processing' AND next_at <= ?1 AND attempts >= ?2
-            AND (?3 IS NULL OR id LIKE ?3)`,
+            AND ${scopeSql(projectId, 'id', '?3')}`,
           )
-          .bind(at, MAX_ATTEMPTS, projectId ? `@rh/${projectId}/%` : null),
+          .bind(at, MAX_ATTEMPTS, scope),
         db
           .prepare(
             `UPDATE ingest_queue SET status = 'failed', claim_token = NULL
           WHERE status = 'processing' AND next_at <= ?1 AND attempts >= ?2
-            AND (?3 IS NULL OR id LIKE ?3)`,
+            AND ${scopeSql(projectId, 'id', '?3')}`,
           )
-          .bind(at, MAX_ATTEMPTS, projectId ? `@rh/${projectId}/%` : null),
+          .bind(at, MAX_ATTEMPTS, scope),
         db
           .prepare(
             `UPDATE ingest_queue SET status = 'processing', attempts = attempts + 1, next_at = ?1, claim_token = ?2
           WHERE id = (SELECT id FROM ingest_queue WHERE status IN ('pending', 'processing') AND next_at <= ?3
             AND attempts < ?4 AND (?5 IS NULL OR id IN (SELECT value FROM json_each(?5)))
-            AND (?6 IS NULL OR id LIKE ?6)
+            AND ${scopeSql(projectId, 'id', '?6')}
             AND NOT EXISTS (SELECT 1 FROM ingest_log
-              WHERE code = 'openalex_rate_limited' AND retry_at > ?3 AND (?7 IS NULL OR id LIKE ?7))
+              WHERE code = 'openalex_rate_limited' AND retry_at > ?3 AND ${scopeSql(projectId, 'id', '?7')})
             ORDER BY next_at, enqueued_at, source = 'expansion', id LIMIT 1)
           RETURNING id, depth, attempts, claim_token`,
           )
@@ -90,8 +88,8 @@ export function kgQueue(db: D1Database, projectId?: string) {
             at,
             MAX_ATTEMPTS,
             ids ? JSON.stringify(ids.map((id) => scopeId(projectId, id))) : null,
-            projectId ? `@rh/${projectId}/%` : null,
-            projectId ? `@rh/${projectId}/%` : null,
+            scope,
+            scope,
           ),
       ]);
       const job = result?.results[0];
@@ -152,14 +150,14 @@ export function kgQueue(db: D1Database, projectId?: string) {
       >([
         db
           .prepare(
-            `SELECT status, count(*) AS count FROM ingest_queue ${projectId ? 'WHERE id LIKE ?' : ''} GROUP BY status`,
+            `SELECT status, count(*) AS count FROM ingest_queue WHERE ${scopeSql(projectId, 'id')} GROUP BY status`,
           )
-          .bind(...(projectId ? [`@rh/${projectId}/%`] : [])),
+          .bind(scope),
         db
           .prepare(
-            `SELECT id, code, attempts, at FROM ingest_log ${projectId ? 'WHERE id LIKE ?' : ''} ORDER BY sequence DESC LIMIT 20`,
+            `SELECT id, code, attempts, at FROM ingest_log WHERE ${scopeSql(projectId, 'id')} ORDER BY sequence DESC LIMIT 20`,
           )
-          .bind(...(projectId ? [`@rh/${projectId}/%`] : [])),
+          .bind(scope),
       ]);
       for (const row of queue?.results ?? []) if ('status' in row) counts[row.status] = row.count;
       return {

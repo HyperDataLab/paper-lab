@@ -114,7 +114,7 @@ async function setup({ seed = true } = {}) {
     },
     verifyToken: async (token) => {
       if (token !== 'lab') throw new Error('bad token');
-      return { uid: 'test', email: 'test@example.invalid' };
+      return { uid: 'test', email: 'test@example.invalid', kind: 'sso' as const };
     },
     allowedOrigins: ['https://example.invalid'],
     getOwnedProject: async (id) => (id === PROJECT_ID ? { id, name: 'Test project' } : null),

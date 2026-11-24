@@ -33,7 +33,7 @@ function setup() {
     },
     verifyToken: async (token) => {
       if (token !== 'lab') throw new NotAllowedError();
-      return { uid: 'test', email: 'test@example.invalid' };
+      return { uid: 'test', email: 'test@example.invalid', kind: 'sso' as const };
     },
     allowedOrigins: ['https://example.invalid'],
     getOwnedProject: async (id) => (id === PROJECT_ID ? { id, name: 'Test project' } : null),
