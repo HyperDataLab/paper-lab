@@ -24,8 +24,11 @@ handoff.
 - PaperLab accepts handoff messages only from exact origins in `VITE_RESEARCH_HUB_ORIGINS`, with matching project
   and state. The opener is detached after the handshake. The Worker still checks project ownership before reading
   or writing the R2 workspace.
-- A direct visit without a project is gated and directs the user to ResearchHub. A direct visit with a project but
-  without a valid session uses the existing OIDC Authorization Code + PKCE login flow.
+- A direct visit without a project is gated. The user can sign in with the existing OIDC Authorization Code + PKCE
+  flow, then choose from the authenticated account's server-authorized project list before the workspace mounts.
+  Project discovery uses the PaperLab Worker and ResearchHub owned-project API; the browser never supplies an
+  arbitrary project list. A direct visit with a project but without a valid session uses the same login flow and
+  returns to that project URL.
 - Existing local IndexedDB records are not exposed as a standalone PaperLab workspace. Project-scoped data remains
   synchronized through the PaperLab Worker and R2 as described in ADR-0007.
 
@@ -33,6 +36,9 @@ handoff.
 
 - PaperLab Hosting needs `VITE_RESEARCH_HUB_URL` and the exact comma-separated origins in
   `VITE_RESEARCH_HUB_ORIGINS`; deployed ResearchHub and local development origins must be listed.
+- Direct OIDC login requires a registered public client ID in `VITE_HYPERDATALAB_SSO_CLIENT_ID` and the current
+  origin's `/auth/callback` URI registered with HyperDataLab SSO. The Worker must be deployed with its ResearchHub
+  API binding before the project picker can retrieve projects.
 - ResearchHub tool settings must point PaperLab at the deployed app URL. Local ResearchHub development must point
   to the local PaperLab origin and that origin must also be allowed in PaperLab's handoff configuration.
 - Browser popup blocking can prevent launch. The project page reports this and asks the user to allow the ResearchHub

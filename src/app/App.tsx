@@ -15,6 +15,7 @@ import { CommandPalette } from './CommandPalette';
 import { modules } from './modules';
 import { Sidebar } from './Sidebar';
 import { PageEnter } from '@/shared/motion/PageEnter';
+import { ProjectSelectionGate } from './ProjectSelectionGate';
 import PaperMapPage from '@/modules/paper-import/PaperMapPage';
 import ExtractionProjectPage from '@/modules/extraction/ProjectPage';
 import CorpusDetail from '@/modules/corpus/DetailPage';
@@ -54,6 +55,7 @@ export function App() {
     (item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`),
   );
   const knownRoute =
+    location.pathname === '/auth/callback' ||
     modules.some(
       (item) =>
         location.pathname === item.path ||
@@ -177,39 +179,41 @@ export function App() {
             <main
               className={`${styles.content} ${wideContent ? styles.wideContent : ''} ${appContent ? styles.appContent : ''} ${projectDetailContent ? styles.projectDetailContent : ''} ${corpusDetailContent ? styles.corpusDetailContent : ''} ${fullWidthPageContent ? styles.fullWidthPageContent : ''}`}
             >
-              <StorageProvider
-                key={workspaceProjectId ?? 'local-workspace'}
-                projectId={workspaceProjectId}
-                invalidProjectId={invalidProjectId}
-                hideStatusBanner={appContent}
-              >
-                <StorageStatus className={styles.storageStatus} />
-                <LlmProvider>
-                  <Suspense fallback={<Skeleton />}>
-                    <PageEnter key={location.pathname}>
-                      <Routes>
-                        {modules.map((item) => (
-                          <Route key={item.id} path={item.path} element={<item.page />} />
-                        ))}
-                        <Route path="/report/:id" element={<ReportPage />} />
-                        <Route path="/compare" element={<ComparePage />} />
-                        <Route path="/papers/:id" element={<PaperMapPage />} />
-                        <Route path="/extraction/:id" element={<ExtractionProjectPage />} />
-                        <Route path="/corpus/:id" element={<CorpusDetail />} />
-                        <Route
-                          path="*"
-                          element={
-                            <div>
-                              <h1>Không tìm thấy trang</h1>
-                              <p>Đường dẫn này không tồn tại.</p>
-                            </div>
-                          }
-                        />
-                      </Routes>
-                    </PageEnter>
-                  </Suspense>
-                </LlmProvider>
-              </StorageProvider>
+              <ProjectSelectionGate projectId={validProjectId}>
+                <StorageProvider
+                  key={workspaceProjectId ?? 'local-workspace'}
+                  projectId={workspaceProjectId}
+                  invalidProjectId={invalidProjectId}
+                  hideStatusBanner={appContent}
+                >
+                  <StorageStatus className={styles.storageStatus} />
+                  <LlmProvider>
+                    <Suspense fallback={<Skeleton />}>
+                      <PageEnter key={location.pathname}>
+                        <Routes>
+                          {modules.map((item) => (
+                            <Route key={item.id} path={item.path} element={<item.page />} />
+                          ))}
+                          <Route path="/report/:id" element={<ReportPage />} />
+                          <Route path="/compare" element={<ComparePage />} />
+                          <Route path="/papers/:id" element={<PaperMapPage />} />
+                          <Route path="/extraction/:id" element={<ExtractionProjectPage />} />
+                          <Route path="/corpus/:id" element={<CorpusDetail />} />
+                          <Route
+                            path="*"
+                            element={
+                              <div>
+                                <h1>Không tìm thấy trang</h1>
+                                <p>Đường dẫn này không tồn tại.</p>
+                              </div>
+                            }
+                          />
+                        </Routes>
+                      </PageEnter>
+                    </Suspense>
+                  </LlmProvider>
+                </StorageProvider>
+              </ProjectSelectionGate>
             </main>
           </div>
           <CommandPalette />

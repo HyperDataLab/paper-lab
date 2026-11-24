@@ -1,9 +1,22 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AuthContext, type LabUser } from './authContext';
-import { isAllowedOrganizationEmail, SSO_BASE_URL, SSO_CALLBACK_URL, SSO_CLIENT_ID } from './config';
+import {
+  isAllowedOrganizationEmail,
+  SSO_BASE_URL,
+  SSO_CALLBACK_URL,
+  SSO_CLIENT_ID,
+  ssoConfigurationError,
+} from './config';
 import { clearHandoffFromUrl, getHandoffRequest, requestResearchHubSession } from './researchHubHandoff';
 import { refreshSsoSessionIfNeeded } from './refreshSession';
-import { clearSsoSession, readSsoSession, SESSION_EVENT, storeSsoSession, type SsoProfile, type SsoSession } from './session';
+import {
+  clearSsoSession,
+  readSsoSession,
+  SESSION_EVENT,
+  storeSsoSession,
+  type SsoProfile,
+  type SsoSession,
+} from './session';
 
 const ATTEMPT_KEY = 'paperlab-sso-attempt';
 const MAX_LOGIN_AGE_MS = 10 * 60 * 1000;
@@ -39,10 +52,11 @@ function safeReturnTo(value: string) {
 }
 
 function configurationError() {
-  if (!SSO_BASE_URL || !SSO_CLIENT_ID || !SSO_CALLBACK_URL) {
-    return 'PaperLab chưa được cấu hình kết nối HyperDataLab SSO.';
-  }
-  return '';
+  return ssoConfigurationError({
+    baseUrl: SSO_BASE_URL,
+    clientId: SSO_CLIENT_ID,
+    callbackUrl: SSO_CALLBACK_URL,
+  });
 }
 
 async function startLogin(returnTo: string) {
@@ -149,7 +163,7 @@ function finishCallbackOnce() {
 }
 
 async function revokeSession(session: SsoSession | null) {
-  const token = session?.handoff ? null : session?.refreshToken ?? session?.accessToken;
+  const token = session?.handoff ? null : (session?.refreshToken ?? session?.accessToken);
   if (token && SSO_BASE_URL) {
     await fetch(new URL('/oauth/revoke', SSO_BASE_URL), {
       method: 'POST',
@@ -161,7 +175,9 @@ async function revokeSession(session: SsoSession | null) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const isCallback = window.location.pathname === new URL(SSO_CALLBACK_URL || `${window.location.origin}/auth/callback`).pathname;
+  const isCallback =
+    window.location.pathname ===
+    new URL(SSO_CALLBACK_URL || `${window.location.origin}/auth/callback`).pathname;
   const initialUrl = new URL(window.location.href);
   const initialHandoff = getHandoffRequest(initialUrl);
   const hasHandoffParameter = initialUrl.searchParams.has('rh_handoff');
@@ -169,7 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const projectId = initialUrl.searchParams.get('projectId');
     const hasProjectContext = Boolean(
       projectId &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(projectId),
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(projectId),
     );
     return !hasHandoffParameter && hasProjectContext && !readSsoSession();
   });
@@ -177,20 +193,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     hasHandoffParameter && !initialHandoff ? null : readSsoSession(),
   );
   const [ready, setReady] = useState(() => !isCallback && !initialHandoff && !shouldStartLogin);
-  const [error, setError] = useState(() => hasHandoffParameter && !initialHandoff ? 'Liên kết handoff ResearchHub không hợp lệ. Hãy đăng nhập lại.' : '');
+  const [error, setError] = useState(() =>
+    hasHandoffParameter && !initialHandoff
+      ? 'Liên kết handoff ResearchHub không hợp lệ. Hãy đăng nhập lại.'
+      : '',
+  );
   const [handoffFailed, setHandoffFailed] = useState(() => hasHandoffParameter && !initialHandoff);
 
-  const reauthenticate = useCallback(async (message = 'Phiên làm việc đã hết hạn. Đang kết nối lại HyperDataLab SSO…') => {
-    setError(message);
-    try {
-      await startLogin(`${window.location.pathname}${window.location.search}${window.location.hash}`);
-    } catch (cause) {
-      loginRedirectInProgress = false;
-      clearSsoSession();
-      setSession(null);
-      setError(cause instanceof Error ? cause.message : 'Không thể bắt đầu đăng nhập lại bằng HyperDataLab SSO.');
-    }
-  }, []);
+  const reauthenticate = useCallback(
+    async (message = 'Phiên làm việc đã hết hạn. Đang kết nối lại HyperDataLab SSO…') => {
+      setError(message);
+      try {
+        await startLogin(`${window.location.pathname}${window.location.search}${window.location.hash}`);
+      } catch (cause) {
+        loginRedirectInProgress = false;
+        clearSsoSession();
+        setSession(null);
+        setError(
+          cause instanceof Error ? cause.message : 'Không thể bắt đầu đăng nhập lại bằng HyperDataLab SSO.',
+        );
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     let active = true;
@@ -242,7 +267,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           })
           .catch(async (cause: unknown) => {
             if (!active) return;
-            const handoffError = cause instanceof Error ? cause.message : 'Không nhận được phiên đăng nhập từ ResearchHub.';
+            const handoffError =
+              cause instanceof Error ? cause.message : 'Không nhận được phiên đăng nhập từ ResearchHub.';
             clearSsoSession();
             setSession(null);
             setHandoffFailed(true);
@@ -261,7 +287,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       void startLogin(`${url.pathname}${url.search}${url.hash}`).catch((cause: unknown) => {
         if (!active) return;
         loginRedirectInProgress = false;
-        setError(cause instanceof Error ? cause.message : 'Không thể bắt đầu đăng nhập lại bằng HyperDataLab SSO.');
+        setError(
+          cause instanceof Error ? cause.message : 'Không thể bắt đầu đăng nhập lại bằng HyperDataLab SSO.',
+        );
         setReady(true);
       });
     }
@@ -303,7 +331,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return next.expiresAt > Date.now() ? next.accessToken : null;
     } catch (cause) {
       if (current.handoff || current.expiresAt <= Date.now()) {
-        await reauthenticate(cause instanceof Error ? 'Không gia hạn được phiên ResearchHub. Đang kết nối lại bằng HyperDataLab SSO…' : undefined);
+        await reauthenticate(
+          cause instanceof Error
+            ? 'Không gia hạn được phiên ResearchHub. Đang kết nối lại bằng HyperDataLab SSO…'
+            : undefined,
+        );
         return null;
       }
       return current.expiresAt > Date.now() ? current.accessToken : null;
@@ -317,11 +349,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const canRefresh = (candidate: SsoSession) =>
       candidate.handoff
         ? Boolean(window.opener)
-        : Boolean(candidate.refreshToken && (!candidate.refreshExpiresAt || candidate.refreshExpiresAt > Date.now()));
+        : Boolean(
+            candidate.refreshToken &&
+            (!candidate.refreshExpiresAt || candidate.refreshExpiresAt > Date.now()),
+          );
     const schedule = (candidate: SsoSession) => {
       if (timer !== undefined) window.clearTimeout(timer);
       const refreshEarlyBy = canRefresh(candidate) ? 5 * 60 * 1000 : 0;
-      timer = window.setTimeout(() => void refresh(), Math.max(1_000, candidate.expiresAt - Date.now() - refreshEarlyBy));
+      timer = window.setTimeout(
+        () => void refresh(),
+        Math.max(1_000, candidate.expiresAt - Date.now() - refreshEarlyBy),
+      );
     };
     const refresh = async () => {
       const current = readSsoSession();
@@ -359,11 +397,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [reauthenticate, session]);
   const user: LabUser | null = useMemo(
-    () => (session ? { uid: session.profile.sub, email: session.profile.email, name: session.profile.name ?? null } : null),
+    () =>
+      session
+        ? { uid: session.profile.sub, email: session.profile.email, name: session.profile.name ?? null }
+        : null,
     [session],
   );
   const value = useMemo(
-    () => ({ user, ready, error, handoffFailed, signIn, signOut, getAccessToken, getIdToken: getAccessToken }),
+    () => ({
+      user,
+      ready,
+      error,
+      handoffFailed,
+      signIn,
+      signOut,
+      getAccessToken,
+      getIdToken: getAccessToken,
+    }),
     [user, ready, error, handoffFailed, signIn, signOut, getAccessToken],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

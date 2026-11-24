@@ -49,8 +49,9 @@ function deps(
   overrides: Partial<Deps> = {},
 ): Deps & { objects: Map<string, { data: ArrayBuffer; meta: Record<string, string>; etag: string }> } {
   const { bucket, objects } = memoryBucket();
-  const downloadProjectFile = vi.fn(async (_projectId: string, _fileId: string, _token: string) =>
-    new Response(pdf, { headers: { 'Content-Type': 'application/pdf' } }),
+  const downloadProjectFile = vi.fn(
+    async (_projectId: string, _fileId: string, _token: string) =>
+      new Response(pdf, { headers: { 'Content-Type': 'application/pdf' } }),
   );
   return {
     verifyToken: async () => ({ uid: 'u1', email: 'a@hyperdatalab.org' }),
@@ -140,9 +141,12 @@ describe('R8 PDF worker', () => {
 
   it('returns a bounded upload error detail without exposing bearer tokens', async () => {
     const sha = await hex(pdf);
-    const uploadFailure = Object.assign(new Error('ResearchHub rejected Bearer secret-token\nR2 unavailable'), {
-      status: 500,
-    });
+    const uploadFailure = Object.assign(
+      new Error('ResearchHub rejected Bearer secret-token\nR2 unavailable'),
+      {
+        status: 500,
+      },
+    );
     const d = deps({
       uploadProjectFile: async () => {
         throw uploadFailure;
@@ -194,6 +198,47 @@ describe('R8 PDF worker', () => {
       }),
     );
     expect(other.headers.get('access-control-allow-origin')).toBeNull();
+  });
+});
+
+describe('ResearchHub project picker endpoint', () => {
+  it('returns only the projects from the authenticated ResearchHub account without project scope', async () => {
+    const listOwnedProjects = vi.fn(async (token: string) => {
+      expect(token).toBe('good');
+      return [{ id: PROJECT_ID, name: 'Test project' }];
+    });
+    const d = deps({ listOwnedProjects });
+    const response = await handle(
+      d,
+      new Request('https://worker.test/v1/me/projects', {
+        headers: { origin: ORIGIN, authorization: 'Bearer good' },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('access-control-allow-origin')).toBe(ORIGIN);
+    expect(await response.json()).toEqual({ items: [{ id: PROJECT_ID, name: 'Test project' }] });
+    expect(listOwnedProjects).toHaveBeenCalledOnce();
+  });
+
+  it('requires SSO and reports a disabled project list explicitly', async () => {
+    const noSession = deps({
+      verifyToken: async () => {
+        throw new Error('invalid');
+      },
+    });
+    const requestWithoutSession = new Request('https://worker.test/v1/me/projects', {
+      headers: { origin: ORIGIN },
+    });
+    expect((await handle(noSession, requestWithoutSession)).status).toBe(401);
+
+    const response = await handle(
+      deps(),
+      new Request('https://worker.test/v1/me/projects', {
+        headers: { origin: ORIGIN, authorization: 'Bearer good' },
+      }),
+    );
+    expect(response.status).toBe(503);
   });
 });
 
