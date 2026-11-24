@@ -15,6 +15,8 @@ import {
 import { memoryBucket } from './data/testBucket';
 import type { KgBindings } from './kg/bindings';
 import { kgRepo } from './kg/repo';
+import { validateKgSql } from './kg/sql';
+import { KG_TABLE_CONCEPTS } from '../../src/core/semantic/kgSchema';
 import { testDb } from './kg/testDb';
 import { r2Prefix, scopeLikes } from './scope';
 
@@ -74,7 +76,7 @@ async function setup() {
     sso: cachedSsoVerifier({ ssoBaseUrl: 'https://sso.example', domain: 'hyperdatalab.org', fetcher }),
   });
   const { db: data } = testDb('migrations-data');
-  const { db: kgDb } = testDb();
+  const { db: kgDb, sqlite: kgSql } = testDb();
   // One paper in the lab KG, another in the project's KG.
   await kgRepo(kgDb).upsertWork(work('W1', 'Lab paper on asynchronous federated learning'));
   await kgRepo(kgDb, PROJECT_ID).upsertWork(work('W2', 'Project paper on asynchronous federated learning'));
@@ -113,7 +115,7 @@ async function setup() {
         body: options.raw ?? (options.body === undefined ? undefined : JSON.stringify(options.body)),
       }),
     );
-  return { call, fetcher, getOwnedProject, objects };
+  return { call, fetcher, getOwnedProject, objects, kgSql };
 }
 
 const doiKeywords = (doi: string) => ({ doi, fetchedAt: NOW.toISOString(), keywords: [] });
@@ -287,6 +289,43 @@ describe('ADR 0008 lab and project isolation', () => {
     expect(status.status).toBe(200);
   });
 
+  it('keeps graph links that join by DOI inside the scope, in both directions', async () => {
+    const { call, kgSql } = await setup();
+    const lab = await firebaseToken();
+    const P = `@rh/${PROJECT_ID}/`;
+    const paper = kgSql.prepare('INSERT INTO paper (id, doi, title, title_normalized) VALUES (?, ?, ?, ?)');
+    kgSql.prepare('UPDATE paper SET doi = ? WHERE id IN (?, ?)').run('10.1/source', 'W1', `${P}W2`);
+    // The same target DOI exists as a lab paper and as a project paper.
+    paper.run('W3', '10.1/target', 'Lab target', 'lab target');
+    paper.run(`${P}W3`, '10.1/target', 'Project target', 'project target');
+    const contribution = kgSql.prepare(
+      `INSERT INTO contribution (id, published_paper_id, paper_doi, name, description, review, body)
+       VALUES ('c1', ?, '10.1/source', 'C', 'D', 'accepted', '{}')`,
+    );
+    const buildsOn = kgSql.prepare(
+      `INSERT INTO builds_on (published_paper_id, contribution_id, prerequisite_id, target_kind, target_id,
+       relation, review) VALUES (?, 'c1', 'p1', 'paper', '10.1/target', 'reference', 'accepted')`,
+    );
+    contribution.run('pub-lab');
+    buildsOn.run('pub-lab');
+    contribution.run(`${P}pub`);
+    buildsOn.run(`${P}pub`);
+
+    const nodes = async (token: string, centre: string, project?: string) => {
+      const response = await call('GET', `/v1/kg/graph?centre=${centre}`, token, { project });
+      expect(response.status).toBe(200);
+      return ((await response.json()) as { nodes: { id: string }[] }).nodes.map(({ id }) => id).sort();
+    };
+    const labNodes = await nodes(lab, 'W1');
+    expect(labNodes).toEqual(expect.arrayContaining(['W1', 'W3']));
+    expect(labNodes.some((id) => id.startsWith('@rh/'))).toBe(false);
+    const projectNodes = await nodes('sso-good', 'W2', PROJECT_ID);
+    expect(projectNodes).toEqual(expect.arrayContaining(['W2', 'W3']));
+    // Project ids come back without their prefix, so a leaked lab row would be a second W3 or W1.
+    expect(projectNodes.filter((id) => id === 'W3')).toHaveLength(1);
+    expect(projectNodes).not.toContain('W1');
+  });
+
   it('keeps lab PDFs in the lab R2 store, out of project scope', async () => {
     const { call, objects } = await setup();
     const lab = await firebaseToken();
@@ -305,6 +344,13 @@ describe('ADR 0008 lab and project isolation', () => {
     expect(new Uint8Array(await got.arrayBuffer())).toEqual(new Uint8Array(pdf));
     // An unassigned lab PDF never shows up in a project.
     expect((await call('HEAD', `/pdfs/${sha}`, 'sso-good', { project: PROJECT_ID })).status).toBe(404);
+  });
+
+  it('can scope every KG table the SQL route allows, in both scopes', () => {
+    for (const { store } of KG_TABLE_CONCEPTS) {
+      expect(() => validateKgSql(`SELECT * FROM ${store.table}`)).not.toThrow();
+      expect(() => validateKgSql(`SELECT * FROM ${store.table}`, PROJECT_ID)).not.toThrow();
+    }
   });
 
   it('uses the legacy R2 prefixes in lab scope and the project prefixes in project scope', () => {

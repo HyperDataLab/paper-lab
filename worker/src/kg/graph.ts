@@ -110,7 +110,7 @@ const RELATIONS: Record<KgGraphNodeKind, Relation[]> = {
       sql: `SELECT ${PAPER}, max(b.review = 'accepted') AS accepted FROM paper me
         JOIN contribution c ON c.paper_doi = me.doi ${BUILDS_ON}
         JOIN paper p ON p.doi = b.target_id
-        WHERE me.id = ?1 AND c.published_paper_id LIKE '__PROJECT_PREFIX__'
+        WHERE me.id = ?1 AND c.published_paper_id LIKE '__PROJECT_PREFIX__' AND p.id LIKE '__PROJECT_PREFIX__'
           AND b.target_kind = 'paper' AND p.id <> me.id GROUP BY p.id ORDER BY p.id ${LIMIT}`,
       link: (row, id) => toPaper(row, id, 'builds_on', true, kgEdgeWeight.buildsOn),
     },
@@ -119,7 +119,7 @@ const RELATIONS: Record<KgGraphNodeKind, Relation[]> = {
         JOIN builds_on b ON b.target_kind = 'paper' AND b.target_id = me.doi
         JOIN contribution c ON c.published_paper_id = b.published_paper_id AND c.id = b.contribution_id
         JOIN paper p ON p.doi = c.paper_doi
-        WHERE me.id = ?1 AND c.published_paper_id LIKE '__PROJECT_PREFIX__'
+        WHERE me.id = ?1 AND c.published_paper_id LIKE '__PROJECT_PREFIX__' AND p.id LIKE '__PROJECT_PREFIX__'
           AND p.id <> me.id GROUP BY p.id ORDER BY p.id ${LIMIT}`,
       link: (row, id) => toPaper(row, id, 'builds_on', false, kgEdgeWeight.buildsOn),
     },

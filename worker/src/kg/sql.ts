@@ -34,6 +34,9 @@ const PROJECT_SCOPE_COLUMN: Record<string, string> = {
   subfield_of: 'topic_id',
   field_of: 'subfield_id',
   domain_of: 'field_id',
+  // Queue ids are scoped like paper ids: `@rh/<projectId>/<id>` in a project, unprefixed in the lab.
+  ingest_queue: 'id',
+  ingest_log: 'id',
 };
 
 function render(tokens: Token[]): string {
