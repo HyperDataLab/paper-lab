@@ -6,25 +6,26 @@ p1_count: 0
 timestamp: 2026-11-11T10-39-55Z
 slug: src-modules-paper-import-papermappage-tsx
 ---
+
 # PaperLab UI review
 
 **Target:** `src/modules/paper-import/PaperMapPage.tsx` and shared paper workspace UI. Review is source-based; the supplied screenshot anchors the target state.
 
 ## Design health score (baseline before this pass)
 
-| # | Heuristic | Score | Key issue |
-|---|-----------|---:|---|
-| 1 | Visibility of system status | 3 | Run status and counts are present, though filters compete with the result status. |
-| 2 | Match between system and real world | 3 | Research terms are domain-appropriate; some technical labels remain dense. |
-| 3 | User control and freedom | 3 | Filters, navigation and decisions are available; the control stack is visually busy. |
-| 4 | Consistency and standards | 2 | Tabs wrap, filter groups and actions use inconsistent density. |
-| 5 | Error prevention | 3 | Human review and uncertainty labels are clear. |
-| 6 | Recognition rather than recall | 3 | Counts and labels aid discovery; secondary grouping controls were too prominent. |
-| 7 | Flexibility and efficiency | 3 | Section runs, filters and batch actions support researchers. |
-| 8 | Aesthetic and minimalist design | 2 | The Issues pane exposes too many controls before findings. |
-| 9 | Error recovery | 3 | Findings can be reviewed, dismissed and revisited. |
-| 10 | Help and documentation | 2 | Explanatory copy exists, but the dense control area makes it easy to overlook. |
-| **Total** | | **27/40** | **Acceptable; near the top of the band.** |
+| #         | Heuristic                           |     Score | Key issue                                                                            |
+| --------- | ----------------------------------- | --------: | ------------------------------------------------------------------------------------ |
+| 1         | Visibility of system status         |         3 | Run status and counts are present, though filters compete with the result status.    |
+| 2         | Match between system and real world |         3 | Research terms are domain-appropriate; some technical labels remain dense.           |
+| 3         | User control and freedom            |         3 | Filters, navigation and decisions are available; the control stack is visually busy. |
+| 4         | Consistency and standards           |         2 | Tabs wrap, filter groups and actions use inconsistent density.                       |
+| 5         | Error prevention                    |         3 | Human review and uncertainty labels are clear.                                       |
+| 6         | Recognition rather than recall      |         3 | Counts and labels aid discovery; secondary grouping controls were too prominent.     |
+| 7         | Flexibility and efficiency          |         3 | Section runs, filters and batch actions support researchers.                         |
+| 8         | Aesthetic and minimalist design     |         2 | The Issues pane exposes too many controls before findings.                           |
+| 9         | Error recovery                      |         3 | Findings can be reviewed, dismissed and revisited.                                   |
+| 10        | Help and documentation              |         2 | Explanatory copy exists, but the dense control area makes it easy to overlook.       |
+| **Total** |                                     | **27/40** | **Acceptable; near the top of the band.**                                            |
 
 ## Anti-patterns verdict
 

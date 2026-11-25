@@ -82,7 +82,7 @@ describe('matchPath and describePage', () => {
     ['/extraction/p-7#top', 'extraction-project'],
     ['/report/a-1', 'report'],
     ['/compare?a=x&b=y', 'compare'],
-    ['/evaluate?id=a-1', 'evaluate'],
+    ['/extraction?design=topic', 'extraction'],
     ['/admin/requests', 'admin-requests'],
   ])('describes %s as %s', (route, id) => {
     expect(describePage(route)?.id).toBe(id);
@@ -104,6 +104,7 @@ describe('pagesForConcept', () => {
     const ids = pagesForConcept('corpus-release').map((page) => page.id);
     expect(ids).toContain('corpus-detail');
     expect(pagesForConcept('kg-ingest-queue').map((page) => page.id)).toEqual(['corpus-detail', 'lab-kg']);
+    expect(pagesForConcept('passage').map((page) => page.id)).toEqual(['corpus-detail']);
     expect(pagesForConcept('no-such-concept')).toEqual([]);
   });
 });
@@ -111,7 +112,7 @@ describe('pagesForConcept', () => {
 describe('toJson', () => {
   it('exports the pages in page-map order as plain JSON', () => {
     const json = toJson();
-    expect(json.version).toBe(2);
+    expect(json.version).toBe(3);
     expect(json.pages.map((page) => page.id)).toEqual(PAGES.map((page) => page.id));
     expect(JSON.parse(JSON.stringify(json))).toEqual(json);
   });

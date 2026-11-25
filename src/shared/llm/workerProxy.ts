@@ -1,4 +1,5 @@
 import { PDF_WORKER_URL, projectScopedUrl } from '@/shared/pdfStore';
+import { isLabScope } from '@/shared/scope';
 
 const ROUTER_HOSTS = new Set(['9router.dcloud.io.vn', '9router.oraltest.site']);
 
@@ -19,7 +20,10 @@ export function createLlmWorkerFetch(
     const sourceUrl = new URL(source.url);
     if (!ROUTER_HOSTS.has(sourceUrl.hostname.toLowerCase())) return send(input, init);
     if (!projectId)
-      return Response.json({ error: 'Mở PaperLab từ một project ResearchHub trước khi gọi 9router.' }, { status: 400 });
+      return Response.json(
+        { error: 'Mở PaperLab từ một project ResearchHub trước khi gọi 9router.' },
+        { status: 400 },
+      );
     const key = /^Bearer (.+)$/u.exec(source.headers.get('Authorization') ?? '')?.[1];
     if (!key) return Response.json({ error: 'Thiếu API key 9router.' }, { status: 400 });
     const token = await getAccessToken();
@@ -27,7 +31,8 @@ export function createLlmWorkerFetch(
 
     const headers = new Headers(source.headers);
     headers.set('Authorization', `Bearer ${token}`);
-    headers.set('X-Project-Id', projectId);
+    // Lab scope (ADR 0008) sends no project id.
+    if (!isLabScope(projectId)) headers.set('X-Project-Id', projectId);
     headers.set('X-LLM-API-Key', key);
     headers.set('X-LLM-Base-URL', baseUrl.replace(/\/$/u, ''));
     headers.delete('content-length');

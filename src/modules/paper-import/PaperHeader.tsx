@@ -37,7 +37,8 @@ export function PaperHeader({
   const [detailsCollapsed, setDetailsCollapsed] = useState(false);
   const bodyCount = paper.paragraphs.filter((item) => item.kind === 'body').length;
   const paperTitle = title ?? paperIdentity(paper).title;
-  const syncState = workspace.status === 'error' || workspace.status === 'conflict' ? 'error' : workspace.status;
+  const syncState =
+    workspace.status === 'error' || workspace.status === 'conflict' ? 'error' : workspace.status;
   const syncLabel =
     syncState === 'syncing'
       ? 'Đang đồng bộ'
@@ -103,9 +104,12 @@ export function PaperHeader({
             />
           </div>
         </div>
-        <p className={styles.paperMeta} title={
-          [metadata?.authors.join(', '), metadata?.venue, metadata?.year, metadata?.doi].filter(Boolean).join(' · ')
-        }>
+        <p
+          className={styles.paperMeta}
+          title={[metadata?.authors.join(', '), metadata?.venue, metadata?.year, metadata?.doi]
+            .filter(Boolean)
+            .join(' · ')}
+        >
           {[
             metadata?.authors[0] && `${metadata.authors[0]}${metadata.authors.length > 1 ? ' et al.' : ''}`,
             metadata?.venue,

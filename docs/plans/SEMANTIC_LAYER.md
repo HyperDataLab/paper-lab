@@ -30,6 +30,7 @@ Shape of a concept:
   store:
     | { kind: 'central', collection }  // a CollectionName
     | { kind: 'kg', table }            // a migration table
+    | { kind: 'data-table', table }    // a derived table in worker/migrations-data (the passage index)
     | { kind: 'nested', parent, path } // dotted path inside the parent concept, `[]` = array element
     | { kind: 'r2', prefix },
   fields: [{ name: 'identifiers.doi', description: '…' }],  // main fields only

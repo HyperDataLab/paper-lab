@@ -5,7 +5,7 @@ import { modules } from './modules';
 beforeEach(() => localStorage.clear());
 it('renders groups, entries, disabled upcoming items and the active page', () => {
   render(
-    <MemoryRouter initialEntries={['/evaluate']}>
+    <MemoryRouter initialEntries={['/lab-kg']}>
       <Sidebar />
     </MemoryRouter>,
   );
@@ -52,6 +52,18 @@ it('continues when storage throws', () => {
   expect(screen.getByRole('button', { name: 'Mở rộng thanh bên' })).toBeInTheDocument();
   get.mockRestore();
   set.mockRestore();
+});
+it('has no entry for the retired paragraph screens and keeps a module active on its own screens', () => {
+  // Production's ResearchHub workspace no longer routes Paragraph, Chỉnh sửa, Soạn paragraph, Lịch sử or
+  // Hiệu chuẩn, so the sidebar must not link to them.
+  render(
+    <MemoryRouter initialEntries={['/papers/synthetic-paper']}>
+      <Sidebar />
+    </MemoryRouter>,
+  );
+  for (const name of [/^Paragraph$/u, /Chỉnh sửa/u, /Soạn paragraph/u, /Lịch sử/u, /Hiệu chuẩn/u])
+    expect(screen.queryByRole('link', { name })).toBeNull();
+  expect(screen.getByRole('link', { name: 'Bài báo' }).className).toMatch(/active/);
 });
 
 it('keeps Bài báo active on a paper detail route with an analysis tab selected', () => {

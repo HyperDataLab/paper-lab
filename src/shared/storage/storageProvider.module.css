@@ -1,7 +1,7 @@
 .sessionGate {
   width: min(100% - 32px, 680px);
-  margin: clamp(32px, 8vh, 88px) auto;
-  padding: clamp(24px, 4vw, 36px);
+  margin: clamp(var(--space-8), 8vh, calc(var(--space-10) + var(--space-12))) auto;
+  padding: clamp(var(--space-6), 4vw, calc(var(--space-8) + var(--space-1)));
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--border);
@@ -42,7 +42,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  margin: var(--space-5) 0 0 56px;
+  margin: var(--space-5) 0 0 calc(var(--space-10) + var(--space-4));
 }
 
 .sessionPrimary,
@@ -81,12 +81,12 @@
 }
 
 .sessionError {
-  margin: var(--space-3) 0 0 56px;
+  margin: var(--space-3) 0 0 calc(var(--space-10) + var(--space-4));
   color: var(--danger);
 }
 
 .sessionDetails {
-  margin: var(--space-4) 0 0 56px;
+  margin: var(--space-4) 0 0 calc(var(--space-10) + var(--space-4));
   color: var(--text-muted);
   font-size: var(--text-sm);
 }

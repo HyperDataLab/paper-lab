@@ -54,7 +54,7 @@ function deps(
       new Response(pdf, { headers: { 'Content-Type': 'application/pdf' } }),
   );
   return {
-    verifyToken: async () => ({ uid: 'u1', email: 'a@hyperdatalab.org' }),
+    verifyToken: async () => ({ uid: 'u1', email: 'a@hyperdatalab.org', kind: 'sso' as const }),
     bucket,
     allowedOrigins: [ORIGIN],
     getOwnedProject: async (projectId) => ({ id: projectId, name: 'Test project' }),
@@ -239,6 +239,18 @@ describe('ResearchHub project picker endpoint', () => {
       }),
     );
     expect(response.status).toBe(503);
+  });
+
+  it('does not expose ResearchHub project listing to Firebase lab accounts', async () => {
+    const response = await handle(
+      deps({ verifyToken: async () => ({ uid: 'u1', email: 'a@hyperdatalab.org', kind: 'firebase' }) }),
+      new Request('https://worker.test/v1/me/projects', {
+        headers: { origin: ORIGIN, authorization: 'Bearer good' },
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: 'project listing needs HyperDataLab SSO' });
   });
 });
 

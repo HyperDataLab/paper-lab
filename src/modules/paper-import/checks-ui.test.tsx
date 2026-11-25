@@ -8,6 +8,9 @@ import { LlmProvider } from '@/shared/llm/LlmProvider';
 import PaperMapPage from './PaperMapPage';
 import { testRepositories } from '@/shared/storage/testRepositories';
 
+/** Whether the reader's analysis column is open, kept for the browser session. */
+const PANEL_KEY = 'paperlab:reader-panel-open';
+
 it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview counts', async () => {
   vi.stubGlobal('crypto', webcrypto);
   const scroll = vi.fn();
@@ -78,10 +81,12 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
   openChecks();
   fireEvent.click(screen.getByRole('button', { name: 'Chạy lại kiểm tra' }));
   const list = await screen.findByRole('region', { name: 'Issues' });
+  // Cards are compact: the quote shows once the card is opened.
+  fireEvent.click(await within(list).findByRole('button', { name: /^Mở rộng / }));
   const quote = await within(list).findByText(/Figure 2/);
-  const article = quote.closest('article');
-  if (!article) throw new Error('Missing finding');
-  fireEvent.click(within(article).getAllByRole('button')[0] as HTMLElement);
+  const row = quote.closest('[id^="finding-"]');
+  if (!(row instanceof HTMLElement)) throw new Error('Missing finding');
+  fireEvent.click(within(row).getByRole('button', { name: /Results/ }));
   // Inside a space the passage opens in the drawer, and from there in the reader.
   expect(screen.getByText('Figure 2', { selector: 'mark' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Mở trong bài' }));
@@ -90,6 +95,8 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
   expect(scroll).toHaveBeenCalled();
   openChecks();
   const cardAgain = screen.getByRole('region', { name: 'Issues' });
+  const fold = within(cardAgain).queryByRole('button', { name: /^Mở rộng / });
+  if (fold) fireEvent.click(fold);
   // A check's finding counts as accepted: the only decision is to reject it, and it can be undone.
   expect(within(cardAgain).queryByRole('button', { name: 'Xác nhận' })).toBeNull();
   fireEvent.click(within(cardAgain).getByRole('button', { name: 'Bác bỏ' }));
@@ -108,16 +115,22 @@ it('R5 P4 runs local checks, navigates to evidence, reviews and shows overview c
       .getAllByRole('article')
       .map((card) => card.getAttribute('aria-label')),
   ).toEqual(['Diễn ngôn và Tu từ', 'Viết học thuật']);
-  fireEvent.click(screen.getByRole('button', { name: 'Quay lại bài' }));
+  // The paper is the first tab of the Spaces bar.
+  fireEvent.click(
+    within(screen.getByRole('tablist', { name: 'Spaces' })).getByRole('tab', { name: 'Bài báo' }),
+  );
+  // On a narrow screen the page's tab bar holds the analysis tabs; the analysis drawer repeats them.
+  const citationsTab = () =>
+    within(screen.getByRole('tablist', { name: 'Bài báo' })).getByRole('tab', { name: 'Citations' });
   // The scholarly context leads the Citations tab.
-  fireEvent.click(screen.getByRole('tab', { name: 'Citations' }));
+  fireEvent.click(citationsTab());
   const context = await within(screen.getByRole('region', { name: 'Context overview' })).findByRole(
     'article',
     { name: 'Bối cảnh học thuật và Nguồn gốc' },
   );
   fireEvent.click(within(context).getByRole('button', { name: 'Xem chi tiết' }));
   // References live in the Citations tab: the card opens that block there, already unfolded.
-  expect(screen.getByRole('tab', { name: 'Citations' })).toHaveAttribute('aria-selected', 'true');
+  expect(citationsTab()).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByRole('button', { name: 'Thu gọn References' })).toHaveAttribute('aria-expanded', 'true');
   expect(await screen.findByRole('heading', { name: 'Tình trạng rút bài' })).toBeInTheDocument();
   expect(completeJson).not.toHaveBeenCalled();
@@ -184,7 +197,7 @@ it('R7 on a wide screen the paper is the centre column beside the analysis, and 
     'matchMedia',
     vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
   );
-  localStorage.removeItem('paper-split');
+  sessionStorage.removeItem(PANEL_KEY);
   Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() });
   const repo = testRepositories();
   const at = '2026-01-01T00:00:00.000Z';
@@ -234,6 +247,10 @@ it('R7 on a wide screen the paper is the centre column beside the analysis, and 
   );
   const pane = await screen.findByRole('region', { name: 'Paper' });
   expect(within(pane).getByText('An introduction.')).toBeInTheDocument();
+  // The paper opens alone; the toggle beside its tabs opens the analysis column.
+  const toggle = () => screen.getByRole('button', { name: /^Vấn đề và trích dẫn/u });
+  expect(toggle()).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(toggle());
   // Two columns, each with its own tabs: the paper in the centre, the analysis on the right.
   expect(
     within(screen.getByRole('tablist', { name: 'Paper' }))
@@ -251,13 +268,20 @@ it('R7 on a wide screen the paper is the centre column beside the analysis, and 
   fireEvent.click(screen.getByRole('radio', { name: 'Paragraph structure & flow' }));
   // A space takes the whole width; going back shows the paper beside the right column again.
   expect(document.querySelector('section[aria-label="Paper"]')).not.toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'Quay lại bài' }));
+  // The paper is the first tab of the Spaces bar.
+  fireEvent.click(
+    within(screen.getByRole('tablist', { name: 'Spaces' })).getByRole('tab', { name: 'Bài báo' }),
+  );
   expect(screen.getByRole('region', { name: 'Paper' })).toBeVisible();
+  // Choosing the paper closes the analysis column; the toggle opens it beside the paper again.
+  expect(toggle()).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(toggle());
   // The rule checks ran when the paper opened: their finding is in the Issues list beside the paper.
   fireEvent.click(screen.getByRole('tab', { name: 'Issues' }));
   const list = await screen.findByRole('region', { name: 'Issues' });
+  fireEvent.click(await within(list).findByRole('button', { name: /^Mở rộng / }));
   const quote = await within(list).findByText('“Figure 2”');
-  const card = quote.closest('article');
+  const card = quote.closest('[id^="finding-"]');
   if (!(card instanceof HTMLElement)) throw new Error('Missing card');
   fireEvent.click(within(card).getByRole('button', { name: /Results/ }));
   // The finding is marked in the paper beside it: no drawer, and the analysis tab stays open.
@@ -290,10 +314,10 @@ it('R7 on a wide screen the paper is the centre column beside the analysis, and 
   // The issues needing review are announced in the header and counted on the tab.
   expect(screen.queryByRole('button', { name: /cần duyệt$/ })).toBeNull();
   // Hiding the analysis leaves the paper alone on the page and remembers the choice.
-  fireEvent.click(screen.getByRole('button', { name: 'Ẩn phân tích' }));
+  fireEvent.click(toggle());
   expect(screen.queryByRole('region', { name: 'Analysis' })).toBeNull();
   expect(screen.getByRole('region', { name: 'Paper' })).toBeVisible();
-  expect(localStorage.getItem('paper-split')).toBe('false');
-  localStorage.removeItem('paper-split');
+  expect(sessionStorage.getItem(PANEL_KEY)).toBe('false');
+  sessionStorage.removeItem(PANEL_KEY);
   vi.unstubAllGlobals();
 });

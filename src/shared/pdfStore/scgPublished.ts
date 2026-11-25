@@ -1,3 +1,4 @@
+import { projectHeader } from '@/shared/scope';
 import { z } from 'zod';
 import { scgBodyEtag, type ScgPaperPublish } from '@/core/scg/publish';
 import { PDF_WORKER_URL, projectScopedUrl } from './index';
@@ -39,7 +40,7 @@ export async function publishScg(graph: ScgPaperPublish, token: string, projectI
     method: 'PUT',
     headers: {
       Authorization: `Bearer ${token}`,
-      'X-Project-Id': projectId,
+      ...projectHeader(projectId),
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(graph),
@@ -62,7 +63,7 @@ export async function scgPublishState(
   const response = await fetch(scgUrl(graph.paperId, projectId), {
     headers: {
       Authorization: `Bearer ${token}`,
-      'X-Project-Id': projectId,
+      ...projectHeader(projectId),
       'If-None-Match': `"${etag}"`,
     },
   });

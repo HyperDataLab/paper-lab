@@ -14,9 +14,11 @@ export async function handleKg(
   request: Request,
   path: string,
   headers: Record<string, string>,
-  _projectId: string,
+  /** The ResearchHub project, or null for the lab KG (ADR 0008). */
+  projectId: string | null,
 ) {
-  const projectScope = _projectId;
+  // `undefined` is the lab scope in the ingest and repo helpers.
+  const projectScope = projectId ?? undefined;
   if (path === '/v1/kg/sql') {
     if (!deps.kg?.KG)
       return publishedError(503, 'kg_not_configured', 'The lab KG binding is unavailable.', headers);

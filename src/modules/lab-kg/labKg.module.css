@@ -267,7 +267,7 @@
 }
 
 .loadingHeading > span {
-  padding: 2px 8px;
+  padding: 2px var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--soft);
   color: var(--accent-strong);
@@ -369,7 +369,7 @@
 }
 
 .resultCount {
-  padding: 3px 9px;
+  padding: 3px var(--space-2);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-pill);
   background: var(--surface-sunken);
@@ -402,7 +402,7 @@
 
 .sqlTable th,
 .sqlTable td {
-  padding: 10px 12px;
+  padding: var(--space-2) var(--space-3);
   border-block-end: 1px solid var(--border-subtle);
   text-align: start;
   vertical-align: top;
@@ -541,7 +541,7 @@
 
 .citation {
   display: inline-flex;
-  margin-inline-start: 4px;
+  margin-inline-start: var(--space-1);
   color: var(--accent-strong);
   font-size: var(--text-xs);
   font-weight: 600;
@@ -690,7 +690,7 @@
 }
 
 .queueBadge {
-  padding: 6px 10px;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--soft);
   color: var(--accent-strong);

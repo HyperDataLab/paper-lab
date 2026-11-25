@@ -231,15 +231,18 @@ export function PdfViewer({
     for (const mark of all.filter(own)) {
       const ranges = findNeedle(page.items, mark, pageText);
       if (!ranges) continue;
-      for (const box of boxesFor(page, ranges)) {
+      for (const [index, box] of boxesFor(page, ranges).entries()) {
         const element = document.createElement('button');
         element.type = 'button';
         element.className = 'pl-mark';
         element.dataset.markId = mark.id;
         element.dataset.criterion = mark.criterion;
         element.dataset.strong = String(mark.strong);
-        element.tabIndex = mark.page === number ? 0 : -1;
-        if (mark.page !== number) element.setAttribute('aria-hidden', 'true');
+        // R16: one tab stop per mark. The other boxes of a wrapped passage, and a passage carried over from the
+        // page before, stay clickable but are hidden from keyboard and screen reader users.
+        const primary = mark.page === number && index === 0;
+        element.tabIndex = primary ? 0 : -1;
+        if (!primary) element.setAttribute('aria-hidden', 'true');
         element.title = `${CRITERIA[mark.criterion].label}: ${mark.title}`;
         element.setAttribute('aria-label', element.title);
         Object.assign(element.style, {

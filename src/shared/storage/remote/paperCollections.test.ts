@@ -59,7 +59,9 @@ it('C4 refuses paper writes on an unconfigured worker instead of keeping them in
   const { repo } = connect(worker);
   await expect(repo.papers.create(paper)).rejects.toBeInstanceOf(DataNotConfiguredError);
   await expect(repo.papers.get(paper.id)).rejects.toBeInstanceOf(DataNotConfiguredError);
-  expect(worker.requests[0]?.url).toMatch(/\/commit$/u);
+  const url = new URL(worker.requests[0]?.url ?? '');
+  expect(url.pathname).toMatch(/\/commit$/u);
+  expect(url.searchParams.get('projectId')).toBe(testId(1));
 });
 
 it('C3 batches collections with the same paper id and unlinks library rows after a remote delete', async () => {
@@ -146,7 +148,7 @@ it('C3 stores large checkpoints in small bodies and flushes the latest calls and
 
     const commits = await Promise.all(
       worker.requests
-        .filter(({ url }) => url.endsWith('/commit'))
+        .filter(({ url }) => new URL(url).pathname.endsWith('/commit'))
         .map(
           (request) =>
             request.json() as Promise<{

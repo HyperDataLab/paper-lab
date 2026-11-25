@@ -87,16 +87,22 @@ async function verifyPdf(url) {
   }
 }
 
-const candidates = results.filter((work) =>
-  work.doi && work.display_name && Number.isInteger(work.publication_year) && work.best_oa_location?.pdf_url,
+const candidates = results.filter(
+  (work) =>
+    work.doi &&
+    work.display_name &&
+    Number.isInteger(work.publication_year) &&
+    work.best_oa_location?.pdf_url,
 );
 for (let index = 0; index < candidates.length && works.length < targetCount; index += 6) {
   const batch = candidates.slice(index, index + 6);
-  const verified = await Promise.all(batch.map(async (work) => ({
-    work,
-    location: work.best_oa_location,
-    downloadable: await verifyPdf(work.best_oa_location.pdf_url),
-  })));
+  const verified = await Promise.all(
+    batch.map(async (work) => ({
+      work,
+      location: work.best_oa_location,
+      downloadable: await verifyPdf(work.best_oa_location.pdf_url),
+    })),
+  );
   for (const item of verified) {
     if (!item.downloadable) continue;
     works.push({ work: item.work, location: item.location });
@@ -241,7 +247,8 @@ const seed = {
           version: 1,
           createdAt: exportedAt,
           body: {
-            researchQuestion: 'How is artificial intelligence being adopted and evaluated in higher education?',
+            researchQuestion:
+              'How is artificial intelligence being adopted and evaluated in higher education?',
             inclusion: [
               'Scholarly work about artificial intelligence or generative AI in higher education',
               'Work with a DOI and an OpenAlex-indexed Open Access PDF URL verified as a downloadable PDF',
@@ -283,4 +290,13 @@ const seed = {
 
 await mkdir(dirname(outputPath), { recursive: true });
 await writeFile(outputPath, `${JSON.stringify(seed, null, 2)}\n`, 'utf8');
-console.log(JSON.stringify({ outputPath: resolve(outputPath), library: library.length, corpusMembers: members.length, downloadablePdfsVerified: works.length, requests: requestUrls.length, totalReported }));
+console.log(
+  JSON.stringify({
+    outputPath: resolve(outputPath),
+    library: library.length,
+    corpusMembers: members.length,
+    downloadablePdfsVerified: works.length,
+    requests: requestUrls.length,
+    totalReported,
+  }),
+);

@@ -9,17 +9,19 @@ const appSource = readFileSync(join(process.cwd(), 'src/app/App.tsx'), 'utf8');
 const extraRoutes = [...appSource.matchAll(/<Route\s+path="([^"]+)"/gu)]
   .map((match) => match[1] ?? '')
   .filter((path) => path !== '*');
-const gatedExtras = new Set(
-  [...appSource.matchAll(/<Route\s+path="([^"]+)"\s+element=\{\s*<LabDataGate>/gu)].map((match) => match[1]),
-);
-// Module routes skip the gate for the ids named in the `item.id === '…'` condition.
-const ungatedModules = new Set([...appSource.matchAll(/item\.id === '([\w-]+)'/gu)].map((match) => match[1]));
+// Every route sits inside the shell's StorageProvider, which shows the ResearchHub project or SSO card
+// instead of the page until both are present. A route outside it, or a LabDataGate exemption, would be ungated.
+const storageBlock = /<StorageProvider[\s\S]*?<\/StorageProvider>/u.exec(appSource)?.[0] ?? '';
+const routesInsideGate = [...storageBlock.matchAll(/<Route\s+(?:key=\{[^}]+\}\s+)?path=/gu)].length;
+const routeCount = [...appSource.matchAll(/<Route\s+(?:key=\{[^}]+\}\s+)?path=/gu)].length;
 const routed = [...modules.map((item) => item.path), ...extraRoutes];
 
 describe('C4 page map against the route and module registry', () => {
-  it('finds the extra routes in App.tsx', () => {
+  it('finds the extra routes in App.tsx, all behind the StorageProvider gate', () => {
     expect(extraRoutes.length).toBeGreaterThan(0);
-    expect(ungatedModules.size).toBeGreaterThan(0);
+    expect(routeCount).toBeGreaterThan(extraRoutes.length);
+    expect(routesInsideGate).toBe(routeCount);
+    expect(appSource).not.toMatch(/item\.id === '/u);
   });
 
   it('has a page for every routed path, and routes every page', () => {
@@ -33,10 +35,9 @@ describe('C4 page map against the route and module registry', () => {
     for (const item of modules) {
       const page = describePage(item.path);
       expect(page?.path).toBe(item.path);
-      expect(page?.requiresSignIn, item.id).toBe(!ungatedModules.has(item.id));
+      expect(page?.requiresSignIn, item.id).toBe(true);
     }
-    for (const path of extraRoutes)
-      expect(describePage(path)?.requiresSignIn, path).toBe(gatedExtras.has(path));
+    for (const path of extraRoutes) expect(describePage(path)?.requiresSignIn, path).toBe(true);
     for (const page of PAGES)
       expect(existsSync(join(process.cwd(), 'src/modules', page.module)), page.id).toBe(true);
   });

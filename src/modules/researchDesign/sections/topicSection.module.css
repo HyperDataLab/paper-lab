@@ -92,12 +92,12 @@
 .assessmentQuickChoices :global(.segments) {
   gap: 2px;
   padding: 3px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface-sunken);
 }
 .assessmentQuickChoices :global(.segments .segment) {
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: transparent;
   box-shadow: none;
   color: var(--text-secondary);
@@ -168,20 +168,20 @@
   box-sizing: border-box;
 }
 .assessmentPanel :global(.field) {
-  gap: 6px;
+  gap: var(--space-1);
 }
 .assessmentPanel :global(.field label) {
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 550;
 }
 .assessmentPanel :global(textarea) {
   border: 1px solid color-mix(in srgb, var(--text-muted) 26%, var(--surface));
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--surface) 78%, var(--surface-sunken));
-  padding: 10px 12px;
+  padding: var(--space-2) var(--space-3);
   color: var(--text);
-  font-size: 14px;
+  font-size: var(--text-base);
   line-height: 1.5;
   transition:
     background-color 120ms ease,
@@ -215,8 +215,8 @@
   min-width: 0;
 }
 .searchInput :global(input) {
-  padding-left: 40px;
-  padding-right: 42px;
+  padding-left: var(--space-10);
+  padding-right: var(--space-10);
 }
 .searchInput :global(input::-webkit-search-cancel-button) {
   display: none;
@@ -339,7 +339,7 @@
 }
 .topicChecklist :global(.topic-checklist button strong) {
   max-width: 82px;
-  padding: 2px 6px;
+  padding: 2px var(--space-1);
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-size: var(--text-xs);

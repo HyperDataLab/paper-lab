@@ -49,10 +49,7 @@ export function IssuesBlock({
     [id, issues.findings, only],
   );
   const onOpenSourceView = issues.onOpenSource;
-  const onOpenSource = useCallback(
-    (view: string) => onOpenSourceView(view as ViewId),
-    [onOpenSourceView],
-  );
+  const onOpenSource = useCallback((view: string) => onOpenSourceView(view as ViewId), [onOpenSourceView]);
   return (
     <PaperBlock id={id} kit={kit} title={`Issues (${own.length})`}>
       {visible && kit.openBlocks.includes(id) && (

@@ -53,7 +53,9 @@ it('retries a conflicting commit once and never applies writes from a failed bat
   expect(fn).toHaveBeenCalledTimes(2);
   expect(await store.get('autoresearchRuns', runId)).toBeNull();
   expect((await store.get(collection, projectId))?.doc).toMatchObject({ title: 'Project' });
-  expect(worker.requests.filter((request) => request.url.endsWith('/commit'))).toHaveLength(2);
+  expect(worker.requests.filter((request) => new URL(request.url).pathname.endsWith('/commit'))).toHaveLength(
+    2,
+  );
 });
 
 it('retries when a matching row is inserted between the query and commit', async () => {

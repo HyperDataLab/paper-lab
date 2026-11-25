@@ -19,6 +19,15 @@ const openKg = 'Đồ thị tri thức (OpenKG)';
 
 beforeEach(() => {
   vi.stubGlobal('crypto', webcrypto);
+  // The graph view (React Flow) measures its nodes with ResizeObserver, which jsdom does not provide.
+  vi.stubGlobal(
+    'ResizeObserver',
+    class ResizeObserverMock {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
   vi.stubGlobal(
     'matchMedia',
     vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),

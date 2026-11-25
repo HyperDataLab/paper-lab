@@ -131,8 +131,8 @@ it('EV-12 previews and imports a JSON package', async () => {
   );
   const file = new File([JSON.stringify(data)], 'data.json', { type: 'application/json' });
   Object.defineProperty(file, 'text', { value: async () => JSON.stringify(data) });
-  fireEvent.change(screen.getByLabelText('Nhập từ tệp'), { target: { files: [file] } });
+  fireEvent.change(screen.getByLabelText('Nhập từ tệp JSON'), { target: { files: [file] } });
   expect(await screen.findByText('Mới')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Nhập' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Nhập dữ liệu' }));
   await waitFor(async () => expect((await repo.analyses.list()).items).toHaveLength(1));
 });

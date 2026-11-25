@@ -1,3 +1,4 @@
+import { projectHeader } from '@/shared/scope';
 import { z } from 'zod';
 import { PDF_WORKER_URL, PdfRemoteError, projectScopedUrl } from './index';
 
@@ -15,20 +16,24 @@ export type ResearchHubProjectFile = z.output<typeof projectFileSchema>;
 
 async function request(path: string, projectId: string, token: string) {
   const response = await fetch(projectScopedUrl(`${PDF_WORKER_URL}${path}`, projectId), {
-    headers: { Authorization: `Bearer ${token}`, 'X-Project-Id': projectId },
+    headers: { Authorization: `Bearer ${token}`, ...projectHeader(projectId) },
     cache: 'no-store',
   });
   if (!response.ok) {
     const body: unknown = await response.json().catch(() => null);
-    const detail = body && typeof body === 'object' && 'error' in body && typeof body.error === 'string'
-      ? body.error
-      : undefined;
+    const detail =
+      body && typeof body === 'object' && 'error' in body && typeof body.error === 'string'
+        ? body.error
+        : undefined;
     throw new PdfRemoteError(response.status, detail);
   }
   return response;
 }
 
-export async function listResearchHubProjectFiles(projectId: string, token: string): Promise<ResearchHubProjectFile[]> {
+export async function listResearchHubProjectFiles(
+  projectId: string,
+  token: string,
+): Promise<ResearchHubProjectFile[]> {
   const files: ResearchHubProjectFile[] = [];
   let cursor: string | null = null;
   do {

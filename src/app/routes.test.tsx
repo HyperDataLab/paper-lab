@@ -1,14 +1,21 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { vi } from 'vitest';
 import { App } from './App';
 
-it('requires a ResearchHub project before the home feature mounts', async () => {
+// These routes are the SSO build's (ADR 0008); the Firebase build's lab scope is covered in authModes.test.tsx.
+vi.mock('@/shared/auth/config', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/shared/auth/config')>()),
+  AUTH_MODE: 'sso',
+}));
+
+it('requires a ResearchHub project before the home feature mounts in the SSO build', async () => {
   render(
     <MemoryRouter initialEntries={['/']}>
       <App />
     </MemoryRouter>,
   );
-  expect(await screen.findByRole('heading', { name: /ResearchHub/u }, { timeout: 5000 })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Đăng nhập vào PaperLab' })).toBeInTheDocument();
 });
 
 it('shows a 404 for unknown paths', () => {

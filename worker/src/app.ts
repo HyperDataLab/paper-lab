@@ -13,6 +13,8 @@ import { DATA_PATH_PREFIX, handleData } from './data/routes';
 import { handleKg } from './kg/routes';
 import { handleSciAtlas, SCIATLAS_PATH } from './sciatlas';
 import type { D1Database, KgBindings } from './kg/bindings';
+import type { PassageVectorIndex } from './passages/bindings';
+import { handlePassages, PASSAGES_PATH_PREFIX } from './passages/routes';
 
 /** The part of an R2 bucket this worker uses, so the logic runs in tests without Cloudflare. */
 export interface Bucket {
@@ -33,8 +35,15 @@ export interface Bucket {
     },
   ): Promise<{ etag: string } | null>;
 }
+/** Who signed the request: a Firebase ID token (lab tools and integrations) or a HyperDataLab SSO access token. */
+export type CallerKind = 'firebase' | 'sso';
+export interface Caller {
+  uid: string;
+  email: string;
+  kind: CallerKind;
+}
 export interface Deps extends KgBindings {
-  verifyToken: (token: string) => Promise<{ uid: string; email: string }>;
+  verifyToken: (token: string) => Promise<Caller>;
   bucket: Bucket;
   allowedOrigins: string[];
   adminEmails?: string[];
@@ -66,10 +75,12 @@ export interface Deps extends KgBindings {
   /** Project-scoped central record store. */
   data?: D1Database;
   kg?: KgBindings;
+  /** The `PASSAGE_VECTORS` Vectorize index; absent → /v1/passages/* answers 503. */
+  passageVectors?: PassageVectorIndex;
   sciatlasTimeoutMs?: number;
   /** SciAtlas API key, configured as a Worker secret. */
   sciatlasKey?: string;
-  /** Active, owner-verified ResearchHub project for this request. */
+  /** Active, owner-verified ResearchHub project for this request; absent in lab scope (ADR 0008). */
   projectId?: string;
   fetch?: typeof fetch;
 }
@@ -192,6 +203,45 @@ async function getProjectPdf(
   return deps.downloadProjectFile(projectId, link.fileId, token);
 }
 
+/** Lab scope: the lab's own R2 PDF store under `paperlab/pdfs/`, exactly as before ResearchHub projects. */
+async function labPdf(
+  deps: Deps,
+  request: Request,
+  sha: string,
+  email: string,
+  headers: Record<string, string>,
+) {
+  const key = legacyPdfKey(sha);
+  if (request.method === 'HEAD')
+    return new Response(null, { status: (await deps.bucket.head(key)) ? 200 : 404, headers });
+  if (request.method === 'GET') {
+    const object = await deps.bucket.get(key);
+    if (!object) return json(404, { error: 'not stored' }, headers);
+    return new Response(object.body, {
+      status: 200,
+      headers: { ...headers, 'Content-Type': 'application/pdf', 'Content-Length': String(object.size) },
+    });
+  }
+  if (request.method !== 'PUT') return json(405, { error: 'method not allowed' }, headers);
+  if ((request.headers.get('content-type') ?? '').split(';')[0]?.trim() !== 'application/pdf')
+    return json(415, { error: 'expected application/pdf' }, headers);
+  const length = request.headers.get('content-length');
+  if (length === null) return json(411, { error: 'length required' }, headers);
+  if (Number(length) > MAX_BYTES) return json(413, { error: 'file too large' }, headers);
+  const body = await request.arrayBuffer();
+  if (body.byteLength > MAX_BYTES) return json(413, { error: 'file too large' }, headers);
+  if (new TextDecoder().decode(body.slice(0, 5)) !== '%PDF-')
+    return json(400, { error: 'not a PDF' }, headers);
+  if ((await sha256Hex(body)) !== sha)
+    return json(422, { error: 'content does not match its name' }, headers);
+  if (await deps.bucket.head(key)) return json(200, { stored: true, existing: true }, headers);
+  await deps.bucket.put(key, body, {
+    httpMetadata: { contentType: 'application/pdf' },
+    customMetadata: { uploadedBy: email, uploadedAt: deps.now().toISOString() },
+  });
+  return json(201, { stored: true }, headers);
+}
+
 /**
  * Proxies PDF storage through the ResearchHub Files API. R2 stores only project/SHA to ResearchHub file-ID links.
  * Every file request verifies the authenticated user's access to the ResearchHub project.
@@ -213,7 +263,7 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
     return isV1
       ? publishedError(401, 'unauthenticated', 'Sign-in required.', headers)
       : json(401, { error: 'sign-in required' }, headers);
-  let caller: { uid: string; email: string };
+  let caller: Caller;
   try {
     caller = await deps.verifyToken(token);
   } catch (cause) {
@@ -231,12 +281,14 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
   if (headerProjectId && queryProjectId && headerProjectId.toLowerCase() !== queryProjectId.toLowerCase())
     return json(400, { error: 'conflicting ResearchHub project ids' }, headers);
   const requestedProjectId = headerProjectId || queryProjectId;
+  // No project id: lab scope, the global lab store. A project id: that ResearchHub project's scope (ADR 0008).
   const projectId = requestedProjectId ? requestedProjectId.toLowerCase() : null;
   const listsProjects = path === '/v1/me/projects' && request.method === 'GET';
-  if (isV1 && path !== '/v1/me' && !listsProjects && !projectId)
-    return json(400, { error: 'X-Project-Id is required for ResearchHub project access' }, headers);
-  if ((match || grobidMatch) && !projectId)
-    return json(400, { error: 'X-Project-Id is required for project PDF access' }, headers);
+  if (listsProjects && caller.kind !== 'sso')
+    return json(403, { error: 'project listing needs HyperDataLab SSO' }, headers);
+  // ResearchHub checks project ownership with the caller's SSO token, so a Firebase token has no project scope.
+  if (projectId && caller.kind !== 'sso')
+    return json(403, { error: 'project scope needs HyperDataLab SSO' }, headers);
   if (
     projectId &&
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(projectId)
@@ -391,15 +443,19 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
         return new Response(response.body, { status: response.status, headers: responseHeaders });
       }
       if (path.startsWith(DATA_PATH_PREFIX))
-        return await handleData(deps, request, path, caller.email, headers, projectId as string);
-      if (path.startsWith('/v1/kg/'))
-        return await handleKg(projectDeps, request, path, headers, projectId as string);
+        return await handleData(deps, request, path, caller.email, headers, projectId);
+      if (path.startsWith('/v1/kg/')) return await handleKg(projectDeps, request, path, headers, projectId);
+      if (path.startsWith(PASSAGES_PATH_PREFIX))
+        return await handlePassages(projectDeps, request, path, headers, projectId);
       if (path === '/v1/pdfs/openalex')
         return await handleOpenAlexPdf(request, headers, {
           fetch: deps.externalFetch ?? fetch,
         });
       if (path === SCIATLAS_PATH) return await handleSciAtlas(projectDeps, request, headers);
       if (path.startsWith('/v1/workspaces/')) {
+        // Workspaces are ResearchHub projects; their ownership check needs the caller's SSO token.
+        if (caller.kind !== 'sso')
+          return json(403, { error: 'project scope needs HyperDataLab SSO' }, headers);
         if (!deps.getOwnedProject)
           return json(503, { error: 'ResearchHub project access is not configured' }, headers);
         return await handleWorkspace(
@@ -427,10 +483,16 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
     const start = Date.now();
     let body: ArrayBuffer;
     let sha = grobidMatch?.[1];
-    if (sha) {
+    if (sha && !projectId) {
+      // Lab scope reads the lab's own R2 PDF store, as before ResearchHub projects.
+      const object = await deps.bucket.get(legacyPdfKey(sha));
+      if (!object) return json(404, { error: 'not stored' }, headers);
+      if (object.size > MAX_BYTES) return json(413, { error: 'file too large' }, headers);
+      body = await new Response(object.body).arrayBuffer();
+    } else if (sha && projectId) {
       let fileResponse: Response | null;
       try {
-        fileResponse = projectId ? await getProjectPdf(deps, sha, projectId, token) : null;
+        fileResponse = await getProjectPdf(deps, sha, projectId, token);
       } catch (error) {
         return json(errorStatus(error), { error: 'ResearchHub file download failed' }, headers);
       }
@@ -558,6 +620,7 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
     return json(create ? 201 : 200, { version: stored.etag }, headers);
   }
   const sha = match?.[1] as string;
+  if (!projectId) return labPdf(deps, request, sha, caller.email, headers);
   if (request.method === 'HEAD') {
     const link = projectId ? await getProjectPdfLink(deps, projectId, sha) : null;
     return new Response(null, {

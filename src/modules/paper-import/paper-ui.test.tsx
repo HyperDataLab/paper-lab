@@ -1,7 +1,8 @@
 import { webcrypto } from 'node:crypto';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
 import { testWorkerData } from '@/shared/storage/remoteTestSupport';
 import { StorageProvider } from '@/shared/storage/StorageProvider';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
@@ -11,23 +12,45 @@ import PaperMapPage from './PaperMapPage';
 import type { LlmClient } from '@/shared/llm/client';
 import { testRepositories } from '@/shared/storage/testRepositories';
 
-beforeEach(() => vi.stubGlobal('crypto', webcrypto));
+const auth: AuthValue = {
+  user: { uid: 'u1', email: 'member@hyperdatalab.org', name: null },
+  ready: true,
+  error: '',
+  signIn: async () => {},
+  signOut: async () => {},
+  getIdToken: async () => 'synthetic-token',
+};
+beforeEach(() => {
+  vi.stubGlobal('crypto', webcrypto);
+  // The papers page lists the project's ResearchHub PDFs when it opens; this project has none.
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes('/v1/researchhub/files')) return Response.json({ items: [], cursor: null });
+      throw new Error(`Unexpected request ${String(input)}`);
+    }),
+  );
+});
+afterEach(() => vi.unstubAllGlobals());
 function setup(repo = testRepositories()) {
   render(
     <MemoryRouter initialEntries={['/papers']}>
-      <StorageProvider repositories={repo}>
-        <LlmProvider>
-          <Routes>
-            <Route path="/papers" element={<Page />} />
-            <Route path="/papers/:id" element={<PaperMapPage />} />
-            <Route path="/evaluate" element={<Evaluate />} />
-          </Routes>
-        </LlmProvider>
-      </StorageProvider>
+      <AuthContext.Provider value={auth}>
+        <StorageProvider repositories={repo}>
+          <LlmProvider>
+            <Routes>
+              <Route path="/papers" element={<Page />} />
+              <Route path="/papers/:id" element={<PaperMapPage />} />
+            </Routes>
+          </LlmProvider>
+        </StorageProvider>
+      </AuthContext.Provider>
     </MemoryRouter>,
   );
   return repo;
 }
+/** The paper page's way back to the list of imported papers. */
+const backToList = () => screen.getByRole('link', { name: 'Quay lại danh sách bài báo' });
 function markdown() {
   const content = '# Introduction\n\nThe first paragraph.\n\n# Results\n\nA result.';
   const file = new File([content], 'study.md', { type: 'text/markdown' });
@@ -39,7 +62,7 @@ async function importPaper() {
   fireEvent.click(await screen.findByRole('tab', { name: 'Full text' }));
   await screen.findByText('The first paragraph.');
 }
-it('imports a paper, persists and audits role edits, then prefills Evaluate', async () => {
+it('imports a paper, and persists and audits role edits', async () => {
   const repo = setup();
   await importPaper();
   expect(await screen.findByText('0 ứng viên cục bộ')).toBeInTheDocument();
@@ -53,8 +76,8 @@ it('imports a paper, persists and audits role edits, then prefills Evaluate', as
   expect((await repo.audit.listByAnalysis(paper.id)).items.map((event) => event.action)).toContain(
     'edit_label',
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Đánh giá đoạn này' }));
-  expect(await screen.findByLabelText('Dán một paragraph tiếng Anh')).toHaveValue('The first paragraph.');
+  // The Evaluate page is retired in the ResearchHub workspace, so a paragraph no longer opens there.
+  expect(screen.queryByRole('button', { name: 'Đánh giá đoạn này' })).toBeNull();
 });
 it('C3 imports and opens a paper from the worker and lists it by summary', async () => {
   const worker = testWorkerData();
@@ -62,13 +85,13 @@ it('C3 imports and opens a paper from the worker and lists it by summary', async
   const repo = testRepositories({ store: worker.connect() });
   setup(repo);
   await importPaper();
-  fireEvent.click(screen.getByRole('link', { name: 'Bài báo đã nhập' }));
+  fireEvent.click(backToList());
   expect(await screen.findByRole('link', { name: 'study' })).toBeInTheDocument();
   const summary = (await repo.papers.listSummaries())[0];
   if (!summary) throw new Error('Remote paper missing');
   expect(summary.paragraphCount).toBe(2);
   expect(await remote.get('papers', summary.id)).not.toBeNull();
-  const queries = worker.requests.filter((request) => request.url.endsWith('/query'));
+  const queries = worker.requests.filter((request) => new URL(request.url).pathname.endsWith('/query'));
   expect(await Promise.all(queries.map((request) => request.json()))).toContainEqual(
     expect.objectContaining({ collection: 'papers', include: 'summary' }),
   );
@@ -80,7 +103,7 @@ it('requires confirmation before deleting a paper', async () => {
   const openCoherence0 = screen.queryByRole('button', { name: 'Mở Coherence & sentences' });
   if (openCoherence0) fireEvent.click(openCoherence0);
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
-  fireEvent.click(screen.getByRole('link', { name: /Bài báo đã nhập/ }));
+  fireEvent.click(backToList());
   await screen.findByRole('link', { name: 'study' });
   fireEvent.click(screen.getByRole('button', { name: /^Xoá / }));
   const dialog = screen.getByRole('alertdialog');
@@ -150,11 +173,12 @@ it('P2 estimates selected calls, asks manuscript consent and opens a completed a
   expect(completeJson).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Đồng ý và tiếp tục' }));
   // The whole journey runs in jsdom. Under CI load the run alone took longer than the 4 s default wait.
-  expect(await screen.findByText(/Tiến độ: 1\/1 đoạn/, {}, { timeout: 15000 })).toBeInTheDocument();
+  expect(await screen.findByText(/^1\/1 đoạn/u, {}, { timeout: 15000 })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('tab', { name: 'Full text' }));
   expect(await screen.findByText('Hoàn tất')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('link', { name: 'Mở trong Đánh giá' }));
-  expect(await screen.findByRole('link', { name: 'Bài báo › Introduction' })).toBeInTheDocument();
+  // The completed analysis is read on the paper; the retired Evaluate page is no longer linked.
+  expect(screen.getByText(/Chưa chấm điểm/u)).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Mở trong Đánh giá' })).toBeNull();
 }, 40000);
 
 it('P2 retries a failed paragraph and restores an interrupted run as paused', async () => {
@@ -388,7 +412,7 @@ it('P2 a run keeps going when the reader opens another tab, and the view is kept
   expect(await screen.findByText(/Đang chạy: /)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('tab', { name: 'Summary' }));
   // Still the same runs: the panels were hidden, not unmounted, so nothing was restarted.
-  expect(screen.getByText('Đang trích Key facts…')).toBeVisible();
+  expect(screen.getByText('Đang trích key facts…')).toBeVisible();
   expect(screen.getByRole('button', { name: 'Đang tóm tắt…' })).toBeDisabled();
   expect(completeJson).toHaveBeenCalledTimes(2);
 });

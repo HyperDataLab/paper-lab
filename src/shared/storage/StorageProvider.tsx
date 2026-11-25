@@ -1,6 +1,16 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { LAB_SCOPE, projectHeader } from '@/shared/scope';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import { useAuth } from '@/shared/auth/authContext';
-import { RESEARCH_HUB_URL } from '@/shared/auth/config';
+import { LAB_DOMAIN, RESEARCH_HUB_URL } from '@/shared/auth/config';
 import { PDF_WORKER_URL, projectScopedUrl } from '@/shared/pdfStore';
 import { RemoteDocStore } from './remoteDocStore';
 import { createRepositories, type Repositories } from './repositories';
@@ -18,6 +28,8 @@ const ProjectStatusContext = createContext<{
   status: ProjectWorkspaceStatus;
   error: string;
 } | null>(null);
+/** What the status shows for the lab store (Firebase build, ADR 0008). */
+const LAB_STORE_NAME = 'Kho chung của lab';
 const noopSubscribe = () => () => {};
 const idle = () => 'idle' as const;
 
@@ -25,7 +37,7 @@ export function StorageProvider({
   children,
   repositories,
   projectId = null,
-  invalidProjectId = false,
+  invalidProjectId: invalidProjectLink = false,
 }: {
   children: ReactNode;
   repositories?: Repositories;
@@ -33,17 +45,33 @@ export function StorageProvider({
   invalidProjectId?: boolean;
   hideStatusBanner?: boolean;
 }) {
-  const { user, ready, error: authError, handoffFailed = false, signIn, getAccessToken, getIdToken } = useAuth();
+  const {
+    mode,
+    user,
+    ready,
+    error: authError,
+    handoffFailed = false,
+    signIn,
+    getAccessToken,
+    getIdToken,
+  } = useAuth();
+  // The Firebase build works in the lab store, with no ResearchHub project (ADR 0008).
+  const labScope = mode === 'firebase';
+  const invalidProjectId = invalidProjectLink && !labScope;
   // A supplied repository is an explicit in-memory/test adapter; production App never supplies one.
   const injectedRepositories = repositories !== undefined;
-  const effectiveProjectId = projectId ?? (
-    injectedRepositories && import.meta.env.MODE === 'test'
-      ? '00000000-0000-4000-8000-000000000001'
-      : null
-  );
+  const effectiveProjectId = labScope
+    ? LAB_SCOPE
+    : (projectId ??
+      (injectedRepositories && import.meta.env.MODE === 'test'
+        ? '00000000-0000-4000-8000-000000000001'
+        : null));
   const uid = user?.uid;
   const token = getAccessToken ?? getIdToken;
-  const [configurationError, setConfigurationError] = useState<{ store: RemoteDocStore; message: string } | null>(null);
+  const [configurationError, setConfigurationError] = useState<{
+    store: RemoteDocStore;
+    message: string;
+  } | null>(null);
   const [verification, setVerification] = useState<{
     key: string;
     status: ProjectWorkspaceStatus;
@@ -58,7 +86,9 @@ export function StorageProvider({
       getToken: token,
       projectId: effectiveProjectId,
       onConfigurationError: (message) =>
-        setConfigurationError((current) => (message ? { store, message } : current?.store === store ? null : current)),
+        setConfigurationError((current) =>
+          message ? { store, message } : current?.store === store ? null : current,
+        ),
     });
     return { store, repositories: createRepositories(store) };
   }, [effectiveProjectId, invalidProjectId, repositories, token, uid]);
@@ -69,21 +99,36 @@ export function StorageProvider({
     let active = true;
     void (async () => {
       const accessToken = await token();
-      if (!accessToken) throw new Error('Không nhận được phiên HyperDataLab SSO từ ResearchHub.');
+      if (!accessToken)
+        throw new Error(
+          labScope
+            ? 'Chưa đăng nhập tài khoản lab.'
+            : 'Không nhận được phiên HyperDataLab SSO từ ResearchHub.',
+        );
       const response = await fetch(projectScopedUrl(`${PDF_WORKER_URL}/v1/me`, effectiveProjectId), {
-        headers: { Authorization: `Bearer ${accessToken}`, 'X-Project-Id': effectiveProjectId },
+        headers: { Authorization: `Bearer ${accessToken}`, ...projectHeader(effectiveProjectId) },
         cache: 'no-store',
       });
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
-        const detail = body && typeof body === 'object' && 'message' in body && typeof body.message === 'string'
-          ? body.message
-          : `Worker trả về HTTP ${response.status}.`;
+        const detail =
+          body && typeof body === 'object' && 'message' in body && typeof body.message === 'string'
+            ? body.message
+            : `Worker trả về HTTP ${response.status}.`;
         throw new Error(detail);
       }
-      const name = body && typeof body === 'object' && 'project' in body && body.project && typeof body.project === 'object' && 'name' in body.project && typeof body.project.name === 'string'
-        ? body.project.name
-        : effectiveProjectId;
+      const name =
+        body &&
+        typeof body === 'object' &&
+        'project' in body &&
+        body.project &&
+        typeof body.project === 'object' &&
+        'name' in body.project &&
+        typeof body.project.name === 'string'
+          ? body.project.name
+          : labScope
+            ? LAB_STORE_NAME
+            : effectiveProjectId;
       if (active) {
         setVerification({ key: `${uid}:${effectiveProjectId}`, status: 'synced', name, error: '' });
       }
@@ -93,53 +138,65 @@ export function StorageProvider({
         key: `${uid}:${effectiveProjectId}`,
         status: 'error',
         name: effectiveProjectId,
-        error: cause instanceof Error ? cause.message : 'Không xác minh được quyền truy cập project ResearchHub.',
+        error:
+          cause instanceof Error ? cause.message : 'Không xác minh được quyền truy cập project ResearchHub.',
       });
     });
     return () => {
       active = false;
     };
-  }, [injectedRepositories, invalidProjectId, effectiveProjectId, ready, token, uid]);
+  }, [injectedRepositories, invalidProjectId, effectiveProjectId, labScope, ready, token, uid]);
 
   const status: ProjectWorkspaceStatus = injectedRepositories
     ? 'synced'
     : invalidProjectId || !effectiveProjectId
-    ? 'error'
-    : !ready
-      ? 'loading'
-      : !uid
-        ? 'signed-out'
-        : verification?.key === verificationKey
-          ? verification.status
-          : 'loading';
-  const projectName = verification?.key === verificationKey ? verification.name : effectiveProjectId ?? '';
+      ? 'error'
+      : !ready
+        ? 'loading'
+        : !uid
+          ? 'signed-out'
+          : verification?.key === verificationKey
+            ? verification.status
+            : 'loading';
+  const projectName = verification?.key === verificationKey ? verification.name : (effectiveProjectId ?? '');
   const projectError = injectedRepositories
     ? ''
     : invalidProjectId
-    ? 'projectId trên liên kết ResearchHub không hợp lệ.'
-    : !effectiveProjectId
-      ? 'Hãy mở PaperLab từ một project ResearchHub.'
-      : !uid
-        ? authError
-        : verification?.key === verificationKey
-          ? verification.error
-          : '';
+      ? 'projectId trên liên kết ResearchHub không hợp lệ.'
+      : !effectiveProjectId
+        ? 'Hãy mở PaperLab từ một project ResearchHub.'
+        : !uid
+          ? authError
+          : verification?.key === verificationKey
+            ? verification.error
+            : '';
 
-  const error = configurationError && configurationError.store === storage?.store ? configurationError.message : '';
+  const error =
+    configurationError && configurationError.store === storage?.store ? configurationError.message : '';
   const saveState = useSyncExternalStore(
     storage?.store.subscribe ?? noopSubscribe,
     storage?.store.getSaveStatus ?? idle,
   );
   const visibleStatus = saveState === 'error' ? 'error' : saveState === 'saving' ? 'syncing' : status;
   const projectStatus = useMemo(
-    () => ({ projectId: effectiveProjectId, projectName, status: visibleStatus, error: projectError || error }),
+    () => ({
+      projectId: effectiveProjectId,
+      projectName,
+      status: visibleStatus,
+      error: projectError || error,
+    }),
     [effectiveProjectId, error, projectError, projectName, visibleStatus],
   );
   const retrySignIn = useCallback(() => void signIn(), [signIn]);
 
   let gate: ReactNode = null;
   if (invalidProjectId) {
-    gate = <section role="alert"><h1>Liên kết project không hợp lệ</h1><p>{projectError}</p></section>;
+    gate = (
+      <section role="alert">
+        <h1>Liên kết project không hợp lệ</h1>
+        <p>{projectError}</p>
+      </section>
+    );
   } else if (!effectiveProjectId) {
     gate = (
       <section>
@@ -156,13 +213,31 @@ export function StorageProvider({
         statusLabel="Đang kiểm tra phiên ResearchHub…"
       />
     );
+  } else if (!user && labScope) {
+    gate = (
+      <section role="alert">
+        <h1>Cần đăng nhập tài khoản lab</h1>
+        <p>
+          {authError || `Đăng nhập bằng tài khoản Google @${LAB_DOMAIN} để dùng kho dữ liệu chung của lab.`}
+        </p>
+        <button type="button" onClick={retrySignIn}>
+          Đăng nhập bằng Google
+        </button>
+      </section>
+    );
   } else if (!user) {
     gate = (
       <section role="alert">
         <h1>{handoffFailed ? 'Không nhận được phiên ResearchHub' : 'Cần phiên HyperDataLab SSO'}</h1>
         <p>{authError || 'Mở PaperLab từ project ResearchHub để chuyển phiên hiện tại.'}</p>
-        {RESEARCH_HUB_URL && <a href={`${RESEARCH_HUB_URL}/projects/${encodeURIComponent(effectiveProjectId)}`}>Mở project ResearchHub</a>}
-        <button type="button" onClick={retrySignIn}>Đăng nhập lại bằng HyperDataLab SSO</button>
+        {RESEARCH_HUB_URL && (
+          <a href={`${RESEARCH_HUB_URL}/projects/${encodeURIComponent(effectiveProjectId)}`}>
+            Mở project ResearchHub
+          </a>
+        )}
+        <button type="button" onClick={retrySignIn}>
+          Đăng nhập lại bằng HyperDataLab SSO
+        </button>
       </section>
     );
   } else if (status === 'loading') {
@@ -173,13 +248,29 @@ export function StorageProvider({
         statusLabel="Đang xác minh quyền truy cập project…"
       />
     );
+  } else if (status === 'error' && labScope) {
+    gate = (
+      <section role="alert">
+        <h1>Không mở được kho dữ liệu của lab</h1>
+        <p>{projectError}</p>
+        <button type="button" onClick={retrySignIn}>
+          Đăng nhập lại bằng Google
+        </button>
+      </section>
+    );
   } else if (status === 'error') {
     gate = (
       <section role="alert">
         <h1>Không mở được project</h1>
         <p>{projectError}</p>
-        <button type="button" onClick={retrySignIn}>Đăng nhập lại bằng HyperDataLab SSO</button>
-        {RESEARCH_HUB_URL && <a href={`${RESEARCH_HUB_URL}/projects/${encodeURIComponent(effectiveProjectId)}`}>Mở project ResearchHub</a>}
+        <button type="button" onClick={retrySignIn}>
+          Đăng nhập lại bằng HyperDataLab SSO
+        </button>
+        {RESEARCH_HUB_URL && (
+          <a href={`${RESEARCH_HUB_URL}/projects/${encodeURIComponent(effectiveProjectId)}`}>
+            Mở project ResearchHub
+          </a>
+        )}
       </section>
     );
   }
@@ -188,8 +279,11 @@ export function StorageProvider({
     <ProjectStatusContext.Provider value={projectStatus}>
       <ProjectContext.Provider value={effectiveProjectId}>
         <StoreContext.Provider value={storage ? { store: storage.store, error } : null}>
-          <Context.Provider value={repositories ?? storage?.repositories ?? null} key={`${uid ?? 'signed-out'}:${effectiveProjectId ?? 'no-project'}`}>
-          {injectedRepositories ? children : gate ?? children}
+          <Context.Provider
+            value={repositories ?? storage?.repositories ?? null}
+            key={`${uid ?? 'signed-out'}:${effectiveProjectId ?? 'no-project'}`}
+          >
+            {injectedRepositories ? children : (gate ?? children)}
           </Context.Provider>
         </StoreContext.Provider>
       </ProjectContext.Provider>
@@ -201,7 +295,10 @@ export function StorageStatus({ className }: { className?: string }) {
   const storage = useContext(StoreContext);
   const store = storage?.store;
   const repo = useContext(Context);
-  const runs = useSyncExternalStore(repo?.paperRuns.subscribe ?? noopSubscribe, repo?.paperRuns.getSaveStatus ?? idle);
+  const runs = useSyncExternalStore(
+    repo?.paperRuns.subscribe ?? noopSubscribe,
+    repo?.paperRuns.getSaveStatus ?? idle,
+  );
   const measurements = useSyncExternalStore(
     repo?.measurements.checkpoints.subscribe ?? noopSubscribe,
     repo?.measurements.checkpoints.getSaveStatus ?? idle,
@@ -214,11 +311,23 @@ export function StorageStatus({ className }: { className?: string }) {
     <div className={className} role="status">
       {status !== 'idle' && (
         <span className={`${statusStyles.badge} ${status === 'error' ? statusStyles.error : ''}`}>
-          {status === 'saving' ? <CloudUpload size={14} aria-hidden="true" /> : <AlertCircle size={14} aria-hidden="true" />}
+          {status === 'saving' ? (
+            <CloudUpload size={14} aria-hidden="true" />
+          ) : (
+            <AlertCircle size={14} aria-hidden="true" />
+          )}
           {status === 'saving' ? 'Đang lưu thay đổi…' : 'Lỗi lưu'}
         </span>
       )}
-      {storage?.error && <div role="alert">Kho dữ liệu project chưa được cấu hình.<details><summary>Chi tiết kỹ thuật</summary>{storage.error}</details></div>}
+      {storage?.error && (
+        <div role="alert">
+          Kho dữ liệu project chưa được cấu hình.
+          <details>
+            <summary>Chi tiết kỹ thuật</summary>
+            {storage.error}
+          </details>
+        </div>
+      )}
     </div>
   );
 }

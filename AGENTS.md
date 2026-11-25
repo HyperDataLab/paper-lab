@@ -10,12 +10,12 @@ Paper-level writing and style analysis stays with each paper; standalone paragra
 
 Modules (see `docs/ROADMAP.md`):
 
-| Module      | Purpose                                          |
-| ----------- | ------------------------------------------------ |
-| Papers      | Import, read, inspect and analyse research papers |
-| Projects    | Organise paper extraction and research plans      |
-| Corpus      | Collect, label, profile and compare paper sets    |
-| Settings    | 9router endpoint / key, privacy consent, account  |
+| Module   | Purpose                                           |
+| -------- | ------------------------------------------------- |
+| Papers   | Import, read, inspect and analyse research papers |
+| Projects | Organise paper extraction and research plans      |
+| Corpus   | Collect, label, profile and compare paper sets    |
+| Settings | 9router endpoint / key, privacy consent, account  |
 
 The UI is in Vietnamese; analysed text is English. Code, identifiers and commit messages are in English.
 

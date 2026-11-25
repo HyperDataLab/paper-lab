@@ -5,9 +5,14 @@ compatibility_date = "2026-10-01"
 account_id = "124949a79dc6c5894bc492942593cb51"
 
 [vars]
+# Two sign-ins, as in the PDF worker (ADR 0008, owner 2026-11-25): Firebase ID tokens of the lab's Firebase projects
+# or HyperDataLab SSO access tokens. The PDF worker forwards the caller's token to POST /nlp/parse, so a Writing Bank
+# token reaches this worker through POST /v1/measure.
+FIREBASE_PROJECT_ID = "hyperdatalab-paragraph-lab"
+ACCEPTED_PROJECT_IDS = "hyperdatalab-paragraph-lab,hyperdatalab-writing-bank,hyperdatalab-idea2hypo"
 SSO_BASE_URL = "https://rpr-grobid-gateway.hpl-storage.workers.dev"
 ALLOWED_DOMAIN = "hyperdatalab.org"
-ALLOWED_ORIGINS = "https://hyperdatalab-paragraph-lab.web.app,https://hyperdatalab-paragraph-lab.firebaseapp.com,http://localhost:5173,http://localhost:5174"
+ALLOWED_ORIGINS = "https://hyperdatalab-paragraph-lab.web.app,https://hyperdatalab-paragraph-lab.firebaseapp.com,https://paperlab.hyperdatalab.org,https://hyperdatalab-writing-bank.web.app,https://hyperdatalab-writing-bank.firebaseapp.com,https://hyperdatalab-idea2hypo.web.app,https://hyperdatalab-idea2hypo.firebaseapp.com,http://localhost:5173,http://localhost:5174"
 
 [[r2_buckets]]
 binding = "BUCKET"

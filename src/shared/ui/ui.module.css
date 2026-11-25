@@ -177,7 +177,7 @@
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   font-family: inherit;
   font-size: var(--text-base);
   line-height: 1.5;
@@ -409,7 +409,7 @@
 }
 .multiline {
   min-height: calc(var(--control-h) + var(--space-4));
-  padding: 10px 13px;
+  padding: var(--space-2) var(--space-3);
   resize: none;
   overflow-y: auto;
   vertical-align: top;
@@ -973,7 +973,7 @@
   display: grid;
   grid-template-columns: 14px minmax(0, 1fr);
   align-items: center;
-  gap: 5px 8px;
+  gap: var(--space-1) var(--space-2);
   width: min(240px, 100%);
   color: var(--text-secondary);
   font-size: var(--text-sm);

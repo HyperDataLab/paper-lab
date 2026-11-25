@@ -10,6 +10,7 @@ import type { Bucket } from '../deps';
 import type { D1Database, D1Statement, SqlValue } from '../kg/bindings';
 import { INDEX_COLUMN } from './indexColumns';
 import { queryPlan, type QueryGuard } from './queryPlan';
+import { logicalId, physicalId, type ProjectScope } from '../scope';
 
 /** Every row is stamped with the lab so permissions (C5) can filter on it later. */
 export const LAB_ID = 'hyperdatalab';
@@ -56,12 +57,9 @@ export const parseEtag = (value: string | null) => {
 export function bodyKey(collection: string, id: string, version: number, suffix?: string) {
   return `${DATA_PREFIX}${collection}/${encodeURIComponent(id)}/v${version}${suffix ? `-${suffix}` : ''}.json`;
 }
-/** Physical IDs isolate project records while leaving legacy unassigned rows untouched. */
-export const projectRecordId = (projectId: string, id: string) => `@rh/${projectId}/${id}`;
-export const logicalRecordId = (projectId: string, id: string) => {
-  const prefix = `@rh/${projectId}/`;
-  return id.startsWith(prefix) ? id.slice(prefix.length) : id;
-};
+/** Physical IDs isolate project records (`@rh/<projectId>/<id>`); lab records keep their unprefixed id. */
+export const projectRecordId = (projectId: ProjectScope, id: string) => physicalId(projectId, id);
+export const logicalRecordId = (projectId: ProjectScope, id: string) => logicalId(projectId, id);
 /** Inverse of `bodyKey`; null for keys this store did not write. */
 export function parseBodyKey(key: string) {
   const match = /^paperlab\/data\/([A-Za-z]+)\/([^/]+)\/v(\d+)(?:-[0-9a-f-]+)?\.json$/u.exec(key);
@@ -186,7 +184,8 @@ export interface StoreEnv {
   bucket: Bucket;
   now: () => Date;
   email: string;
-  projectId: string;
+  /** The ResearchHub project, or null for the lab store (`hub_project_id IS NULL`). */
+  projectId: string | null;
 }
 
 /** The statement a version guard runs: it inserts a 0, which the CHECK rejects, when the doc changed. */
@@ -360,9 +359,13 @@ export async function commit(
   const { db } = env;
   const statements: D1Statement[] = [];
   for (const write of writes)
-    statements.push(guardStatement(db, write.op.collection, projectRecordId(env.projectId, write.op.id), write.prior));
+    statements.push(
+      guardStatement(db, write.op.collection, projectRecordId(env.projectId, write.op.id), write.prior),
+    );
   for (const guard of guards)
-    statements.push(guardStatement(db, guard.collection, projectRecordId(env.projectId, guard.id), rows.get(refKey(guard))));
+    statements.push(
+      guardStatement(db, guard.collection, projectRecordId(env.projectId, guard.id), rows.get(refKey(guard))),
+    );
   for (const guard of queryGuards) {
     const { conditions, values, ordering } = queryPlan(guard, false, env.projectId);
     // Compare inside the committing batch, including rows inserted after the client's query.
@@ -388,7 +391,15 @@ export async function commit(
           .prepare(
             'UPDATE doc SET version = ?, deleted_at = ?, updated_by = ?, updated_at = ?, r2_key = NULL, body_json = NULL WHERE collection = ? AND id = ? AND version = ?',
           )
-          .bind(write.version, at, env.email, at, write.op.collection, projectRecordId(env.projectId, write.op.id), write.version - 1),
+          .bind(
+            write.version,
+            at,
+            env.email,
+            at,
+            write.op.collection,
+            projectRecordId(env.projectId, write.op.id),
+            write.version - 1,
+          ),
       );
     } else if (write.prior) {
       statements.push(
@@ -435,21 +446,23 @@ export async function commit(
       ),
     );
   const writeLog = (write: (typeof writes)[number]): [string, string, number, string, string, string] => [
-      write.op.collection,
-      projectRecordId(env.projectId, write.op.id),
-      write.version,
-      write.op.op,
-      env.email,
-      at,
-    ];
-  const appendLog = ({ append }: (typeof fresh)[number]): [string, string, number, string, string, string] => [
-      append.collection,
-      projectRecordId(env.projectId, append.id),
-      1,
-      'put',
-      env.email,
-      at,
-    ];
+    write.op.collection,
+    projectRecordId(env.projectId, write.op.id),
+    write.version,
+    write.op.op,
+    env.email,
+    at,
+  ];
+  const appendLog = ({
+    append,
+  }: (typeof fresh)[number]): [string, string, number, string, string, string] => [
+    append.collection,
+    projectRecordId(env.projectId, append.id),
+    1,
+    'put',
+    env.email,
+    at,
+  ];
   const log = [...writes.map(writeLog), ...fresh.map(appendLog)];
   for (const part of chunk(log, Math.floor(MAX_PARAMS / 6)))
     statements.push(
@@ -581,7 +594,7 @@ export async function readBody(bucket: Bucket, row: DocRow) {
 }
 
 /** The public shape of a doc row (camelCase, summary parsed). */
-export function docMeta(row: DocRow, projectId: string) {
+export function docMeta(row: DocRow, projectId: ProjectScope) {
   return {
     collection: row.collection,
     id: logicalRecordId(projectId, row.id),

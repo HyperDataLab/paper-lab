@@ -98,9 +98,13 @@ export default function Page() {
       })
       .then((files) => {
         if (active) {
-          setProjectPdfCount(files.filter((file) =>
-            file.contentType.toLowerCase() === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'),
-          ).length);
+          setProjectPdfCount(
+            files.filter(
+              (file) =>
+                file.contentType.toLowerCase() === 'application/pdf' ||
+                file.name.toLowerCase().endsWith('.pdf'),
+            ).length,
+          );
         }
       })
       .catch(() => {

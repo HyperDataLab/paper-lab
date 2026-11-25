@@ -12,7 +12,11 @@ import { LlmProvider } from '@/shared/llm/LlmProvider';
 import type { LlmClient } from '@/shared/llm/client';
 import PaperMapPage from './PaperMapPage';
 
-beforeEach(() => vi.stubGlobal('crypto', webcrypto));
+beforeEach(() => {
+  vi.stubGlobal('crypto', webcrypto);
+  // The reader keeps whether the analysis is open for the session; each test starts from the default.
+  sessionStorage.clear();
+});
 const at = '2026-01-01T00:00:00.000Z';
 async function setup(modelConfirmed = false) {
   let time = Date.parse(at);
@@ -184,17 +188,16 @@ it('P3 shows distributions, recurring filters, transition review and stale notic
   if (openCoherence1) fireEvent.click(openCoherence1);
   fireEvent.click(screen.getByRole('radio', { name: 'Paragraph structure & flow' }));
   expect(
-    await screen.findByText('Đã phân tích 3/4 paragraph trong phạm vi (4 paragraph cả bài)'),
+    await screen.findByText('Đã phân tích 3/4 đoạn trong phạm vi · 4 đoạn trong toàn bài'),
   ).toBeInTheDocument();
   expect(screen.getByText(/Kết quả chuyển đoạn đã cũ/)).toBeInTheDocument();
   expect(screen.getAllByText('Chưa đủ dữ liệu').length).toBeGreaterThan(0);
-  expect(screen.getByText(/Tổng quan chỉ thống kê kết quả/)).toBeInTheDocument();
+  expect(screen.getByText(/Bảng thống kê các đoạn đã phân tích/)).toBeInTheDocument();
   expect(screen.queryByText(/tổng điểm|điểm tổng/i)).not.toBeInTheDocument();
   expect(screen.getByText(/Chuyển chủ đề · Không có/)).toHaveTextContent('Không liên kết');
-  expect(screen.getByRole('link', { name: 'p1' })).toHaveAttribute(
-    'href',
-    expect.stringContaining('/evaluate?id='),
-  );
+  // The paragraph ids name the pair as plain text: the Evaluate page they used to link to is retired.
+  expect(screen.queryByRole('link', { name: 'p1' })).toBeNull();
+  expect(screen.getAllByText(/p1 → p2/u).length).toBeGreaterThan(0);
   fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
   expect(await screen.findByText(/Đã xác nhận/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }));
@@ -208,7 +211,7 @@ it('P3 shows distributions, recurring filters, transition review and stale notic
   if (openCoherence2) fireEvent.click(openCoherence2);
   fireEvent.click(screen.getByRole('radio', { name: 'Sentences & word choice' }));
   expect(await screen.findByText('62,5 (56,25–68,75, n = 2)')).toBeInTheDocument();
-  fireEvent.click(await screen.findByRole('button', { name: /Động từ chưa cụ thể · 3 lần/ }));
+  fireEvent.click(await screen.findByRole('button', { name: /Động từ chưa cụ thể: 3 lần/ }));
   expect(screen.getByRole('tab', { name: 'Full text' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByText('Paragraph 1.')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('treeitem', { name: /Results/ }));
@@ -241,9 +244,12 @@ it('R5 decides writing and transition findings from the unified list', async () 
   const transition = list.querySelector('[id^="finding-transition:"]');
   if (!(writing instanceof HTMLElement) || !(transition instanceof HTMLElement))
     throw new Error('Missing findings');
+  // Cards are compact until opened.
+  fireEvent.click(within(writing).getByRole('button', { name: /^Mở rộng / }));
   fireEvent.click(within(writing).getByRole('button', { name: 'Bác bỏ' }));
   await within(writing).findByText('Đã bác bỏ');
   expect((await repo.analyses.get(analyses[0]!.id))?.issues[0]?.status).toBe('dismissed_by_human');
+  fireEvent.click(within(transition).getByRole('button', { name: /^Mở rộng / }));
   fireEvent.click(within(transition).getByRole('button', { name: 'Bác bỏ' }));
   await within(transition).findByText('Đã bác bỏ');
   expect((await repo.paperOverviews.get(paper.id))?.transitions?.findings[0]?.status).toBe(
@@ -263,6 +269,8 @@ it('R5 restores model verdicts after human decisions on writing and transition f
   if (!(writing instanceof HTMLElement) || !(transition instanceof HTMLElement))
     throw new Error('Missing findings');
   for (const row of [writing, transition]) {
+    // Cards are compact until opened.
+    fireEvent.click(within(row).getByRole('button', { name: /^Mở rộng / }));
     fireEvent.click(within(row).getByRole('button', { name: 'Bác bỏ' }));
     await within(row).findByText('Đã bác bỏ');
     fireEvent.click(within(row).getByRole('button', { name: 'Hoàn tác' }));

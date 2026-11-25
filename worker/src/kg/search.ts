@@ -22,6 +22,7 @@ import {
 import type { KgSearchResponse } from '../../../src/core/schemas/labKg';
 import { publishedError } from '../published';
 import { EMBEDDING_MODEL, type ConfiguredKg, type D1Statement, type SqlValue } from './bindings';
+import { inScope, logicalId, scopeBind, scopeSql, type ProjectScope } from '../scope';
 
 const MAX_BODY = 64 * 1024;
 const POOL = 100;
@@ -52,23 +53,24 @@ async function readBody(request: Request) {
   }
 }
 
-const scopePrefix = (projectId: string) => `@rh/${projectId}/`;
-const logicalId = (projectId: string, id: string) => {
-  const prefix = scopePrefix(projectId);
-  return id.startsWith(prefix) ? id.slice(prefix.length) : id;
-};
-
-async function queryVector(kg: ConfiguredKg, text: string, projectId: string) {
+async function queryVector(kg: ConfiguredKg, text: string, projectId: ProjectScope) {
   const values = (await kg.ai.run(EMBEDDING_MODEL, { text: [text] })).data?.[0];
   if (values?.length !== 768 || values.some((value) => !Number.isFinite(value)))
     throw new Error('embedding_failed');
   const { matches } = await kg.vectors.query(values, { topK: VECTOR_TOP_K });
-  return new Map(matches
-    .filter(({ id }) => id.startsWith(scopePrefix(projectId)))
-    .map(({ id, score }) => [id, Math.max(0, Math.min(1, score))]));
+  return new Map(
+    matches
+      .filter(({ id }) => inScope(projectId, id))
+      .map(({ id, score }) => [id, Math.max(0, Math.min(1, score))]),
+  );
 }
 
-export async function searchKg(kg: ConfiguredKg, input: SciAtlasSearchInput, now: Date, projectId: string) {
+export async function searchKg(
+  kg: ConfiguredKg,
+  input: SciAtlasSearchInput,
+  now: Date,
+  projectId: ProjectScope,
+) {
   const { db } = kg;
   const mode = input.mode;
   const ranking = input.ranking ?? 'balanced';
@@ -80,8 +82,10 @@ export async function searchKg(kg: ConfiguredKg, input: SciAtlasSearchInput, now
   const useTitle = mode === 'title' || mode === 'hybrid';
   const useVector = mode === 'semantic' || mode === 'hybrid';
 
-  const prefix = `${scopePrefix(projectId)}%`;
-  const [count] = await db.batch<{ n: number }>([db.prepare('SELECT count(*) AS n FROM paper WHERE id LIKE ?').bind(prefix)]);
+  const prefix = scopeBind(projectId);
+  const [count] = await db.batch<{ n: number }>([
+    db.prepare(`SELECT count(*) AS n FROM paper WHERE ${scopeSql(projectId, 'id')}`).bind(prefix),
+  ]);
   if (!count?.results[0]?.n) return { papers: [], hint: 'kg_empty' as const };
 
   // Vectorize runs alongside D1. In hybrid mode a failed embedding only drops that channel.
@@ -101,7 +105,7 @@ export async function searchKg(kg: ConfiguredKg, input: SciAtlasSearchInput, now
       db
         .prepare(
           `SELECT p.id AS id, bm25(paper_fts) AS rank FROM paper_fts JOIN paper p ON p.rowid = paper_fts.rowid
-        WHERE paper_fts MATCH ?1 AND ${YEAR_SQL} AND p.id LIKE ?4 ORDER BY rank LIMIT ${POOL}`,
+        WHERE paper_fts MATCH ?1 AND ${YEAR_SQL} AND ${scopeSql(projectId, 'p.id', '?4')} ORDER BY rank LIMIT ${POOL}`,
         )
         .bind(fts, ...years(range), prefix),
     );
@@ -115,9 +119,9 @@ export async function searchKg(kg: ConfiguredKg, input: SciAtlasSearchInput, now
         .prepare(
           // Exact matches come first so a one-word anchor keeps its own keyword under the limit.
           `SELECT id, max(exact) AS exact FROM (
-          SELECT k.id AS id, 1 AS exact FROM keyword k WHERE k.text_normalized = ?1 AND k.id LIKE ?3
+          SELECT k.id AS id, 1 AS exact FROM keyword k WHERE k.text_normalized = ?1 AND ${scopeSql(projectId, 'k.id', '?3')}
           UNION ALL SELECT k.id, 0 FROM keyword_fts JOIN keyword k ON k.rowid = keyword_fts.rowid
-          WHERE keyword_fts MATCH ?2 AND k.id LIKE ?3
+          WHERE keyword_fts MATCH ?2 AND ${scopeSql(projectId, 'k.id', '?3')}
         ) GROUP BY id ORDER BY exact DESC, id LIMIT 5`,
         )
         .bind(normalizeText(keyword.text), phrase, prefix),
@@ -132,13 +136,14 @@ export async function searchKg(kg: ConfiguredKg, input: SciAtlasSearchInput, now
         db
           .prepare(
             `SELECT p.id AS id FROM paper_fts JOIN paper p ON p.rowid = paper_fts.rowid
-          WHERE paper_fts MATCH ?1 AND ${YEAR_SQL} AND p.id LIKE ?4 ORDER BY bm25(paper_fts) LIMIT 50`,
+          WHERE paper_fts MATCH ?1 AND ${YEAR_SQL} AND ${scopeSql(projectId, 'p.id', '?4')} ORDER BY bm25(paper_fts) LIMIT 50`,
           )
           .bind(query, ...years(range), prefix),
       );
       slots.push({ kind: 'title', anchor });
     });
-  const anchorSql = 'SELECT id FROM paper WHERE title_normalized IN (SELECT value FROM json_each(?1)) AND id LIKE ?2';
+  const anchorSql = `SELECT id FROM paper WHERE title_normalized IN (SELECT value FROM json_each(?1))
+    AND ${scopeSql(projectId, 'id', '?2')}`;
   statements.push(
     db.prepare(anchorSql).bind(JSON.stringify(input.titles.map(({ title }) => normalizeText(title))), prefix),
   );
@@ -250,7 +255,7 @@ export async function searchKg(kg: ConfiguredKg, input: SciAtlasSearchInput, now
       .prepare(
         `SELECT p.id, p.title, p.doi, p.abstract, p.publication_year AS year, p.cited_by_count AS citations,
         s.display_name AS venue FROM paper p LEFT JOIN source s ON s.id = p.source_id
-      WHERE p.id IN (SELECT value FROM json_each(?1)) AND ${YEAR_SQL} AND p.id LIKE ?4`,
+      WHERE p.id IN (SELECT value FROM json_each(?1)) AND ${YEAR_SQL} AND ${scopeSql(projectId, 'p.id', '?4')}`,
       )
       .bind(JSON.stringify(ids), ...years(range), prefix),
   ]);
@@ -310,7 +315,7 @@ export async function handleKgSearch(
   request: Request,
   headers: Record<string, string>,
   now: () => Date,
-  projectId: string,
+  projectId: ProjectScope,
 ) {
   const reply = { ...headers, 'Cache-Control': 'no-store' };
   const fail = (status: number, error: string, message: string) =>

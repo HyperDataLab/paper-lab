@@ -52,6 +52,12 @@ async function setup() {
   return { repo, id: corpus.id };
 }
 
+/** The corpus page shows one work area at a time; open one from its area navigation. */
+function openArea(name: string) {
+  const nav = screen.getByRole('navigation', { name: 'Khu vực làm việc trong corpus' });
+  fireEvent.click(within(nav).getByRole('button', { name }));
+}
+
 it('C3c snowballing from an included seed shows the citation column in PRISMA', async () => {
   const fetch = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
@@ -73,14 +79,17 @@ it('C3c snowballing from an included seed shows the citation column in PRISMA', 
     'snowball-backward',
     'snowball-forward',
   ]);
-  const other = screen.getByLabelText('PRISMA: Nhận diện (trích dẫn)');
-  expect(within(other).getByText('Bản ghi tìm được qua trích dẫn').nextSibling).toHaveTextContent('1');
   expect(screen.getByText(/Chưa có bài nào được chọn thêm kể từ vòng 1/u)).toBeInTheDocument();
+  openArea('Sàng lọc & chất lượng');
+  // The PRISMA flow is one table; each label cell is followed by its count.
+  const other = await screen.findByRole('table', { name: 'Bảng lưu chuyển PRISMA 2020' });
+  expect(within(other).getByText('Bản ghi tìm được qua trích dẫn').nextSibling).toHaveTextContent('1');
 });
 
 it('C3d MMAT appraisal needs an appraiser and shows counts without a total score', async () => {
   const { repo, id } = await setup();
-  fireEvent.click(screen.getByRole('button', { name: 'Đánh giá' }));
+  openArea('Sàng lọc & chất lượng');
+  fireEvent.click(await screen.findByRole('button', { name: 'Đánh giá' }));
   const dialog = await screen.findByRole('dialog');
   fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu đánh giá' }));
   expect(within(dialog).getByRole('alert')).toHaveTextContent('Nhập tên người đánh giá.');

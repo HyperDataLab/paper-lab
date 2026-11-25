@@ -33,10 +33,10 @@ function setup() {
     },
     verifyToken: async (token) => {
       if (token !== 'lab') throw new NotAllowedError();
-      return { uid: 'test', email: 'test@example.invalid' };
+      return { uid: 'test', email: 'test@example.invalid', kind: 'sso' as const };
     },
     allowedOrigins: ['https://example.invalid'],
-    getOwnedProject: async (id) => id === PROJECT_ID ? { id, name: 'Test project' } : null,
+    getOwnedProject: async (id) => (id === PROJECT_ID ? { id, name: 'Test project' } : null),
     now,
     fetch: fetcher,
     kg: bindings,
@@ -229,7 +229,9 @@ it('claims each row once and keeps a depth increase that arrives while a job is 
   if (!job) throw new Error('Job was not claimed');
   expect(job).toMatchObject({ depth: 0, attempts: 1 });
   expect(await queue.enqueue(['W1'], 2, 'seed', at)).toBe(1);
-  sqlite.prepare('INSERT INTO paper (id, title, title_normalized) VALUES (?, ?, ?)').run(`@rh/${PROJECT_ID}/W1`, '', '');
+  sqlite
+    .prepare('INSERT INTO paper (id, title, title_normalized) VALUES (?, ?, ?)')
+    .run(`@rh/${PROJECT_ID}/W1`, '', '');
   await queue.finish(job, { at, status: 'done', paperId: 'W1', targets: [] });
   expect(await queue.claim(now())).toMatchObject({ depth: 2, attempts: 1 });
 });

@@ -15,7 +15,7 @@ function setup() {
     verifyToken: async (token) => {
       if (token === 'outside') throw new NotAllowedError();
       if (token !== 'lab') throw new Error('Invalid token');
-      return { uid: 'synthetic', email: 'synthetic@example.invalid' };
+      return { uid: 'synthetic', email: 'synthetic@example.invalid', kind: 'sso' as const };
     },
     bucket: {
       head: async () => null,

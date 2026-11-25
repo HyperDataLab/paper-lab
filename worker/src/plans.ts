@@ -1,10 +1,11 @@
+import { r2Prefix, type ProjectScope } from './scope';
 import { planSchema, type ExperimentPlan } from '../../src/core/researchDesign/plan/schema';
 import { validatePlan } from '../../src/core/researchDesign/plan/validatePlan';
 import { exportPackage } from '../../src/core/researchDesign/plan/exportPackage';
 import type { Deps } from './app';
 import { publishedError } from './published';
 
-const PREFIX = (projectId: string) => `paperlab/projects/${projectId}/plans/`;
+const PREFIX = (projectId: ProjectScope) => r2Prefix(projectId, 'plans');
 const PATH =
   /^\/v1\/projects\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/plans(?:\/([1-9][0-9]*)(\/package)?)?$/;
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -16,7 +17,7 @@ const json = (status: number, value: unknown, headers: Headers) =>
   });
 
 async function versions(deps: Deps, id: string) {
-  const prefix = `${PREFIX(deps.projectId ?? 'unassigned')}${id}/`;
+  const prefix = `${PREFIX(deps.projectId)}${id}/`;
   const objects: { key: string; customMetadata?: Record<string, string> }[] = [];
   let cursor: string | undefined;
   do {
@@ -45,7 +46,7 @@ export async function handlePlans(deps: Deps, request: Request, email: string, h
   const url = new URL(request.url);
   if (url.pathname === '/v1/projects' && request.method === 'GET') {
     const page = await deps.bucket.list({
-      prefix: PREFIX(deps.projectId ?? 'unassigned'),
+      prefix: PREFIX(deps.projectId),
       cursor: url.searchParams.get('cursor') || undefined,
       limit: 100,
       include: ['customMetadata'],
@@ -54,7 +55,7 @@ export async function handlePlans(deps: Deps, request: Request, email: string, h
       page.objects
         .filter((object) => object.key.endsWith('/project.json'))
         .map(async (object) => {
-          const projectId = object.key.slice(PREFIX(deps.projectId ?? 'unassigned').length, -'/project.json'.length);
+          const projectId = object.key.slice(PREFIX(deps.projectId).length, -'/project.json'.length);
           const meta = object.customMetadata ?? {};
           const entries = await versions(deps, projectId);
           return {
@@ -86,7 +87,7 @@ export async function handlePlans(deps: Deps, request: Request, email: string, h
   }
   if (!Number.isSafeInteger(Number(version)))
     return publishedError(400, 'bad_request', 'Invalid version.', headers);
-  const key = `${PREFIX(deps.projectId ?? 'unassigned')}${id}/${version}.json`;
+  const key = `${PREFIX(deps.projectId)}${id}/${version}.json`;
   if (request.method === 'GET') {
     const object = await deps.bucket.get(key);
     if (!object) return publishedError(404, 'not_found', 'Plan was not found.', headers);
@@ -141,7 +142,7 @@ export async function handlePlans(deps: Deps, request: Request, email: string, h
       publishedBy: email,
     };
     await deps.bucket.put(
-      `${PREFIX(deps.projectId ?? 'unassigned')}${id}/project.json`,
+      `${PREFIX(deps.projectId)}${id}/project.json`,
       new TextEncoder().encode(JSON.stringify(project)).buffer,
       {
         httpMetadata: { contentType: 'application/json' },

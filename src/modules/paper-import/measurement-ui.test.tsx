@@ -39,7 +39,7 @@ const expand = (name: RegExp) =>
 it('M4 shows an overview with counts and no overall score', async () => {
   await setup();
   expect(await screen.findByText('Thực nghiệm')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /1\s*metric/ })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /1\s*chỉ số/u })).toBeInTheDocument();
   expect(screen.getByText(/không có điểm tổng/)).toBeInTheDocument();
   expect(screen.getByRole('table')).toHaveTextContent('Seed ngẫu nhiên');
 });
@@ -275,7 +275,20 @@ it('R5 decides a measurement finding from the unified list', async () => {
   );
   fireEvent.click(await screen.findByRole('tab', { name: 'Issues' }));
   const list = await screen.findByRole('region', { name: 'Issues' });
-  const finding = await within(list).findByText('Chưa thấy nêu seed.');
+  // Cards are compact: once the measurement findings have loaded, open them to read their reasons.
+  const measurementRows = () => [...list.querySelectorAll<HTMLElement>('[id^="finding-measurement:"]')];
+  // Rows can arrive after the first ones render, so keep expanding any collapsed row until the reason shows.
+  await waitFor(
+    () => {
+      for (const row of measurementRows()) {
+        const fold = within(row).queryByRole('button', { name: /^Mở rộng / });
+        if (fold) fireEvent.click(fold);
+      }
+      expect(within(list).getByText('Chưa thấy nêu seed.')).toBeInTheDocument();
+    },
+    { timeout: 5000 },
+  );
+  const finding = within(list).getByText('Chưa thấy nêu seed.');
   const row = finding.closest('[id^="finding-measurement:"]');
   if (!(row instanceof HTMLElement)) throw new Error('Missing measurement finding');
   // Accepted by default: the only decision is to reject it.

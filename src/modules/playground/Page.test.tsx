@@ -103,7 +103,8 @@ it('PG-07 blocks signed-out access before calling the MCP server', async () => {
 it('PG-08 shows an unconfigured server', async () => {
   mocks.url = '';
   mocks.health.mockRejectedValue(new LabResearchError(0, 'not_configured', 'Not configured'));
-  render(<Page />);
+  // The server is only checked for a signed-in admin.
+  show();
   expect(screen.getByText(/Máy chủ chưa được cấu hình/)).toBeInTheDocument();
   expect(await screen.findByText('Không kết nối được')).toBeInTheDocument();
 });

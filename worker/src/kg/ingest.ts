@@ -4,7 +4,7 @@ import { EMBEDDING_MODEL, type ConfiguredKg } from './bindings';
 import { OpenAlexError, openAlexClient } from './openAlex';
 import { kgQueue, MAX_ATTEMPTS } from './queue';
 import { kgRepo } from './repo';
-const scopeId = (projectId: string | undefined, id: string) => projectId ? `@rh/${projectId}/${id}` : id;
+const scopeId = (projectId: string | undefined, id: string) => (projectId ? `@rh/${projectId}/${id}` : id);
 
 export const REQUEST_JOBS = 1;
 /**
@@ -29,7 +29,14 @@ export async function drainKgQueue(
     limit = CRON_JOBS,
     ids,
     projectId,
-  }: { now: () => Date; fetcher?: typeof fetch; limit?: number; ids?: string[]; projectId?: string },
+  }: {
+    now: () => Date;
+    fetcher?: typeof fetch;
+    limit?: number;
+    ids?: string[];
+    /** The project whose queue to drain; absent drains the lab's own queue (ADR 0008). */
+    projectId?: string;
+  },
 ): Promise<Pick<KgIngestResult, 'processed' | 'errors'>> {
   const openAlex = openAlexClient(fetcher, kg.mailto, kg.apiKey);
   const repo = kgRepo(kg.db, projectId);

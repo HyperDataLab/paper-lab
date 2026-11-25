@@ -178,7 +178,9 @@ export function RunAllCard({
         variant={remaining === 0 && !loading ? 'secondary' : 'primary'}
         className={compact ? styles.runAllAction : undefined}
         leadingIcon={compact ? <Play size={14} aria-hidden="true" /> : undefined}
-        aria-label={compact ? (remaining === 0 && !loading ? 'Phân tích lại bài báo' : 'Phân tích bài báo') : undefined}
+        aria-label={
+          compact ? (remaining === 0 && !loading ? 'Phân tích lại bài báo' : 'Phân tích bài báo') : undefined
+        }
         title={remaining === 0 && !loading ? 'Phân tích lại bài báo' : 'Phân tích bài báo'}
         onClick={() => {
           onPrepare();

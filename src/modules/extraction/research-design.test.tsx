@@ -34,7 +34,7 @@ const testAuth = {
 it('creates an extraction project and edits its research design through the signed-in worker store', async () => {
   const worker = testWorkerData();
   vi.stubGlobal('crypto', webcrypto);
-  vi.stubGlobal('fetch', worker.dispatch);
+  vi.stubGlobal('fetch', worker.appFetch);
   try {
     render(
       <AuthContext.Provider value={testAuth}>
@@ -75,7 +75,7 @@ it('creates an extraction project and edits its research design through the sign
 
 it('shows an error, not a browser fallback, when the signed-in worker has no data binding', async () => {
   const worker = testWorkerData(false);
-  vi.stubGlobal('fetch', worker.dispatch);
+  vi.stubGlobal('fetch', worker.appFetch);
   try {
     render(
       <AuthContext.Provider value={testAuth}>
@@ -141,7 +141,8 @@ it('groups Research Design sections and keeps AutoResearch available as a projec
   expect(screen.queryByRole('heading', { name: 'Kế hoạch tìm kiếm' })).not.toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'Định hình nghiên cứu' })).toBeInTheDocument();
   expect(
-    await screen.findByRole('button', { name: 'Thêm bài gần nhất' }, { timeout: 5000 }),
+    // The nearest-papers editor now has its add button beside the heading.
+    await screen.findByRole('button', { name: '+ Thêm bài' }, { timeout: 5000 }),
   ).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Writing Bank' }));
   await act(() => vi.dynamicImportSettled());

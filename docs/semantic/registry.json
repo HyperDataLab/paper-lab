@@ -1,6 +1,6 @@
 {
   "format": "paperlab-semantic-concepts",
-  "version": 2,
+  "version": 3,
   "concepts": [
     {
       "id": "paper",
@@ -695,6 +695,121 @@
       },
       "fields": [],
       "relations": [],
+      "schema": null
+    },
+    {
+      "id": "passage",
+      "name": "Passage",
+      "labelVi": "Đoạn văn trong chỉ mục",
+      "description": "Một paragraph của full text đã được lập chỉ mục để tìm theo ngữ nghĩa và từ khoá trong một phạm vi dữ liệu: một project ResearchHub, hoặc kho lab (project_id là lab). Mã bài và mã paragraph là neo trích dẫn, mở đúng đoạn trong bài.",
+      "synonyms": [
+        "passage",
+        "đoạn văn",
+        "tìm đoạn văn",
+        "passage index",
+        "full text search",
+        "trích đoạn"
+      ],
+      "store": {
+        "kind": "data-table",
+        "table": "passage"
+      },
+      "fields": [
+        {
+          "name": "project_id",
+          "description": "Project ResearchHub chứa bài."
+        },
+        {
+          "name": "paper_id",
+          "description": "Mã bài báo."
+        },
+        {
+          "name": "paragraph_id",
+          "description": "Mã paragraph trong bài."
+        },
+        {
+          "name": "section_role",
+          "description": "Vai trò section: Introduction, Methods, Results…"
+        },
+        {
+          "name": "ord",
+          "description": "Thứ tự paragraph trong bài."
+        },
+        {
+          "name": "text",
+          "description": "Văn bản của paragraph."
+        },
+        {
+          "name": "text_hash",
+          "description": "Mã băm văn bản; không đổi thì không tính lại embedding."
+        },
+        {
+          "name": "indexed_at",
+          "description": "Thời điểm lập chỉ mục."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper",
+          "kind": "belongs-to",
+          "via": "paper_id"
+        },
+        {
+          "to": "paragraph",
+          "kind": "refers-to",
+          "via": "paragraph_id"
+        }
+      ],
+      "schema": null
+    },
+    {
+      "id": "passage-queue",
+      "name": "Passage index queue item",
+      "labelVi": "Hàng đợi lập chỉ mục đoạn văn",
+      "description": "Một bài chờ được lập chỉ mục đoạn văn: mỗi lần lưu bài hoặc bấm Lập chỉ mục lại thì bài vào hàng đợi, cron xử lý trong vài phút.",
+      "synonyms": [
+        "passage queue",
+        "lập chỉ mục lại",
+        "reindex",
+        "hàng đợi chỉ mục"
+      ],
+      "store": {
+        "kind": "data-table",
+        "table": "passage_queue"
+      },
+      "fields": [
+        {
+          "name": "project_id",
+          "description": "Project ResearchHub."
+        },
+        {
+          "name": "paper_id",
+          "description": "Mã bài báo."
+        },
+        {
+          "name": "status",
+          "description": "pending, done hoặc failed."
+        },
+        {
+          "name": "attempts",
+          "description": "Số lần thử."
+        },
+        {
+          "name": "next_at",
+          "description": "Lần chạy hoặc thử lại kế tiếp."
+        },
+        {
+          "name": "last_error",
+          "description": "Mã lỗi gần nhất."
+        }
+      ],
+      "relations": [
+        {
+          "to": "paper",
+          "kind": "refers-to",
+          "via": "paper_id"
+        }
+      ],
       "schema": null
     },
     {
@@ -5492,216 +5607,6 @@
       "tabs": []
     },
     {
-      "id": "evaluate",
-      "path": "/evaluate",
-      "module": "evaluate",
-      "titleVi": "Đánh giá paragraph",
-      "name": "Paragraph evaluation",
-      "purpose": "Dán một paragraph tiếng Anh và phân tích từng bước: tách câu, cấu trúc paragraph, đánh giá theo ngữ cảnh, chấm điểm. AI chỉ gợi ý; người dùng giữ hoặc bỏ từng issue.",
-      "params": [],
-      "query": [
-        {
-          "name": "id",
-          "concept": "analysis"
-        }
-      ],
-      "shows": [
-        "analysis",
-        "sentence",
-        "sentence-annotation",
-        "issue",
-        "audit-event",
-        "style-probe"
-      ],
-      "reads": [
-        "analysis",
-        "audit-event",
-        "paper",
-        "style-probe"
-      ],
-      "writes": [
-        "analysis",
-        "issue",
-        "audit-event"
-      ],
-      "actions": [
-        {
-          "labelVi": "Tách câu",
-          "effect": "Tách câu và chạy các detector trên máy, không gọi AI.",
-          "writes": [],
-          "ai": false
-        },
-        {
-          "labelVi": "Phân tích câu (AI)",
-          "effect": "Gắn nhãn cú pháp cho từng câu (thì, thể, chủ ngữ).",
-          "writes": [],
-          "ai": true
-        },
-        {
-          "labelVi": "Phân tích cấu trúc paragraph (AI)",
-          "effect": "Gán vai trò cho từng câu và mạch nối giữa các câu.",
-          "writes": [],
-          "ai": true
-        },
-        {
-          "labelVi": "Đánh giá theo ngữ cảnh (AI)",
-          "effect": "Mô hình xét lại các ứng viên issue trong ngữ cảnh của paragraph.",
-          "writes": [],
-          "ai": true
-        },
-        {
-          "labelVi": "Chấm điểm (AI)",
-          "effect": "Chấm điểm paragraph theo rubric.",
-          "writes": [],
-          "ai": true
-        },
-        {
-          "labelVi": "Lưu vào lịch sử",
-          "effect": "Lưu kết quả thành một bản phân tích cùng các quyết định về issue.",
-          "writes": [
-            "analysis",
-            "issue",
-            "audit-event"
-          ],
-          "ai": false
-        },
-        {
-          "labelVi": "Xác nhận / bác bỏ issue",
-          "effect": "Ghi quyết định của người dùng cho một issue, kèm audit event.",
-          "writes": [
-            "issue",
-            "audit-event"
-          ],
-          "ai": false
-        },
-        {
-          "labelVi": "Chỉnh sửa các gợi ý đã chọn",
-          "effect": "Mở trang Chỉnh sửa với các issue đã chọn.",
-          "writes": [],
-          "ai": false
-        }
-      ],
-      "requiresSignIn": true,
-      "parent": null,
-      "tabs": [
-        {
-          "id": "text",
-          "labelVi": "Văn bản",
-          "via": "state"
-        },
-        {
-          "id": "scores",
-          "labelVi": "Điểm",
-          "via": "state"
-        }
-      ]
-    },
-    {
-      "id": "revise",
-      "path": "/revise",
-      "module": "revise",
-      "titleVi": "Chỉnh sửa",
-      "name": "Revision",
-      "purpose": "Sửa một paragraph đã phân tích theo các gợi ý đã chọn, so sánh bản sửa với bản gốc và kiểm tra ý nghĩa trước khi áp dụng.",
-      "params": [],
-      "query": [
-        {
-          "name": "analysis",
-          "concept": "analysis"
-        },
-        {
-          "name": "revision",
-          "concept": "revision"
-        },
-        {
-          "name": "issues",
-          "concept": "issue"
-        }
-      ],
-      "shows": [
-        "analysis",
-        "issue",
-        "revision"
-      ],
-      "reads": [
-        "analysis",
-        "revision"
-      ],
-      "writes": [
-        "revision",
-        "analysis"
-      ],
-      "actions": [
-        {
-          "labelVi": "Tạo bản sửa (AI)",
-          "effect": "Mô hình viết lại paragraph theo các issue đã chọn; bản sửa được lưu như một revision.",
-          "writes": [
-            "revision"
-          ],
-          "ai": true
-        },
-        {
-          "labelVi": "Xác nhận áp dụng",
-          "effect": "Áp dụng revision: tạo bản phân tích mới từ văn bản đã sửa rồi mở nó.",
-          "writes": [
-            "revision",
-            "analysis"
-          ],
-          "ai": false
-        }
-      ],
-      "requiresSignIn": true,
-      "parent": "evaluate",
-      "tabs": []
-    },
-    {
-      "id": "generate",
-      "path": "/generate",
-      "module": "generate",
-      "titleVi": "Soạn paragraph",
-      "name": "Paragraph generation",
-      "purpose": "Soạn một paragraph học thuật từ main claim và evidence do người dùng nhập; người dùng xem kết quả rồi mới quyết định dùng.",
-      "params": [],
-      "query": [
-        {
-          "name": "id",
-          "concept": "generation"
-        }
-      ],
-      "shows": [
-        "generation"
-      ],
-      "reads": [
-        "generation"
-      ],
-      "writes": [
-        "generation",
-        "analysis"
-      ],
-      "actions": [
-        {
-          "labelVi": "Soạn paragraph (AI)",
-          "effect": "Mô hình soạn paragraph từ claim và evidence; lưu thành một generation.",
-          "writes": [
-            "generation"
-          ],
-          "ai": true
-        },
-        {
-          "labelVi": "Xác nhận dùng paragraph",
-          "effect": "Chấp nhận generation và tạo bản phân tích từ paragraph đó để đánh giá.",
-          "writes": [
-            "generation",
-            "analysis"
-          ],
-          "ai": false
-        }
-      ],
-      "requiresSignIn": true,
-      "parent": "evaluate",
-      "tabs": []
-    },
-    {
       "id": "papers",
       "path": "/papers",
       "module": "paper-import",
@@ -6484,11 +6389,13 @@
         "scg-run",
         "scg-contribution",
         "scg-prerequisite",
-        "kg-paper"
+        "kg-paper",
+        "passage"
       ],
       "reads": [
         "corpus",
         "paper",
+        "passage",
         "paper-context",
         "paper-insights",
         "stance",
@@ -6517,7 +6424,8 @@
         "topic-name",
         "corpus-keywords",
         "doi-keywords",
-        "kg-ingest-queue"
+        "kg-ingest-queue",
+        "passage-queue"
       ],
       "actions": [
         {
@@ -6635,6 +6543,20 @@
           "effect": "Gửi các bài của corpus vào hàng đợi ingest của KG lab.",
           "writes": [
             "kg-ingest-queue"
+          ],
+          "ai": false
+        },
+        {
+          "labelVi": "Tìm đoạn văn",
+          "effect": "Tìm paragraph trong full text của các bài thuộc corpus (ngữ nghĩa và từ khoá); mỗi kết quả mở đúng paragraph trong bài.",
+          "writes": [],
+          "ai": false
+        },
+        {
+          "labelVi": "Lập chỉ mục lại",
+          "effect": "Đưa các bài của corpus vào hàng đợi lập chỉ mục đoạn văn; máy chủ xử lý trong vài phút.",
+          "writes": [
+            "passage-queue"
           ],
           "ai": false
         },
@@ -6770,49 +6692,6 @@
       "tabs": []
     },
     {
-      "id": "history",
-      "path": "/history",
-      "module": "history",
-      "titleVi": "Lịch sử",
-      "name": "History",
-      "purpose": "Các bản phân tích paragraph, bản sửa và paragraph đã soạn; mở lại, so sánh hai bản hoặc xoá.",
-      "params": [],
-      "query": [],
-      "shows": [
-        "analysis",
-        "revision",
-        "generation"
-      ],
-      "reads": [
-        "analysis",
-        "revision",
-        "generation",
-        "paper"
-      ],
-      "writes": [
-        "analysis"
-      ],
-      "actions": [
-        {
-          "labelVi": "So sánh",
-          "effect": "Mở trang so sánh cho hai bản phân tích đã chọn.",
-          "writes": [],
-          "ai": false
-        },
-        {
-          "labelVi": "Xoá bản phân tích",
-          "effect": "Xoá bản phân tích đã chọn.",
-          "writes": [
-            "analysis"
-          ],
-          "ai": false
-        }
-      ],
-      "requiresSignIn": true,
-      "parent": null,
-      "tabs": []
-    },
-    {
       "id": "transfer",
       "path": "/transfer",
       "module": "transfer",
@@ -6903,55 +6782,6 @@
       "tabs": []
     },
     {
-      "id": "calibration",
-      "path": "/calibration",
-      "module": "calibration",
-      "titleVi": "Hiệu chuẩn",
-      "name": "Calibration",
-      "purpose": "Nhập bộ nhãn của người đánh giá để đo độ chính xác của detector và AI, đồng thuận giữa người đánh giá và hiệu chuẩn điểm.",
-      "params": [],
-      "query": [],
-      "shows": [
-        "calibration-label-set",
-        "measurement"
-      ],
-      "reads": [
-        "calibration-label-set",
-        "paper",
-        "measurement"
-      ],
-      "writes": [
-        "calibration-label-set"
-      ],
-      "actions": [
-        {
-          "labelVi": "Tải mẫu nhãn",
-          "effect": "Tải tệp JSON mẫu cho bộ nhãn.",
-          "writes": [],
-          "ai": false
-        },
-        {
-          "labelVi": "Xác nhận nhập nhãn",
-          "effect": "Nhập bộ nhãn sau khi xem trước.",
-          "writes": [
-            "calibration-label-set"
-          ],
-          "ai": false
-        },
-        {
-          "labelVi": "Xoá bộ nhãn",
-          "effect": "Xoá bộ nhãn đã nhập.",
-          "writes": [
-            "calibration-label-set"
-          ],
-          "ai": false
-        }
-      ],
-      "requiresSignIn": true,
-      "parent": null,
-      "tabs": []
-    },
-    {
       "id": "playground",
       "path": "/playground",
       "module": "playground",
@@ -6971,7 +6801,7 @@
           "ai": false
         }
       ],
-      "requiresSignIn": false,
+      "requiresSignIn": true,
       "parent": null,
       "tabs": []
     },
@@ -7044,7 +6874,7 @@
         },
         {
           "labelVi": "Đăng nhập / Đăng xuất",
-          "effect": "Đăng nhập hoặc đăng xuất tài khoản lab (Google).",
+          "effect": "Đăng nhập hoặc đăng xuất bằng HyperDataLab SSO.",
           "writes": [],
           "ai": false
         },
@@ -7057,7 +6887,7 @@
           "ai": false
         }
       ],
-      "requiresSignIn": false,
+      "requiresSignIn": true,
       "parent": null,
       "tabs": []
     },
@@ -7100,7 +6930,7 @@
         }
       ],
       "requiresSignIn": true,
-      "parent": "evaluate",
+      "parent": null,
       "tabs": []
     },
     {
@@ -7133,7 +6963,7 @@
       "writes": [],
       "actions": [],
       "requiresSignIn": true,
-      "parent": "history",
+      "parent": null,
       "tabs": []
     }
   ]

@@ -54,6 +54,8 @@ beforeEach(() => {
   );
   Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() });
   localStorage.clear();
+  // The reader keeps whether the analysis column is open for the session.
+  sessionStorage.clear();
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -93,6 +95,8 @@ it('shows the related sentence on a claim-strength card', () => {
       onDecide={vi.fn()}
     />,
   );
+  // Cards are compact until opened.
+  fireEvent.click(screen.getByRole('button', { name: /^Mở rộng / }));
   expect(screen.getByText(/Câu liên quan:/)).toHaveTextContent('See Figure 2.');
 });
 
@@ -120,9 +124,16 @@ it('R15 the page switch keeps every space reachable and the split label follows 
   const spaces = await screen.findByRole('tablist', { name: 'Spaces' });
   expect(within(spaces).getByRole('tab', { name: /^Arguments/ })).toHaveAttribute('aria-selected', 'true');
   expect(document.querySelector('section[aria-label="Paper"]')).not.toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'Quay lại bài' }));
+  // The paper is the first tab of the Spaces bar.
+  fireEvent.click(
+    within(screen.getByRole('tablist', { name: 'Spaces' })).getByRole('tab', { name: 'Bài báo' }),
+  );
   const centre = await screen.findByRole('tablist', { name: 'Paper' });
   expect(within(centre).getByRole('tab', { name: 'Full text' })).toHaveAttribute('aria-selected', 'true');
+  // Choosing the paper closes the analysis column; the toggle beside the paper's tabs opens it again.
+  const toggle = () => screen.getByRole('button', { name: /^Vấn đề và trích dẫn/u });
+  expect(toggle()).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(toggle());
   const right = screen.getByRole('tablist', { name: 'Analysis' });
   expect(
     within(right)
@@ -131,13 +142,17 @@ it('R15 the page switch keeps every space reachable and the split label follows 
   ).toEqual(['Issues', 'Citations']);
   expect(within(spaces).getByRole('tab', { name: /^Writing style/ })).toBeInTheDocument();
   expect(within(spaces).getByRole('tab', { name: 'Contribution graph' })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Ẩn phân tích' }));
-  expect(screen.getByRole('button', { name: 'Hiện phân tích' })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Hiện phân tích' }));
+  // The analysis toggle beside the paper's tabs says whether the right column is open.
+  expect(toggle()).toHaveAttribute('aria-expanded', 'true');
+  fireEvent.click(toggle());
+  expect(toggle()).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(toggle());
+  expect(toggle()).toHaveAttribute('aria-expanded', 'true');
   // Results are accepted by default, so nothing announces a queue to review.
   fireEvent.click(within(right).getByRole('tab', { name: 'Issues' }));
   expect(within(right).getByRole('tab', { name: 'Issues' })).toHaveTextContent(/^Issues$/);
   const issues = await screen.findByRole('region', { name: 'Issues' });
+  fireEvent.click(within(issues).getByRole('button', { name: /^Mở rộng / }));
   expect(within(issues).getByRole('button', { name: 'Bác bỏ' })).toBeInTheDocument();
   expect(screen.queryByText(/cần duyệt/)).toBeNull();
   // No help line under the tabs, and the list has only the criterion filter.
@@ -174,7 +189,7 @@ it('R15 Theo trang sorts findings by their source page', () => {
   );
   fireEvent.click(screen.getByRole('button', { name: 'Theo trang' }));
   expect(
-    [...screen.getByRole('region', { name: 'Issues' }).querySelectorAll('article strong')].map(
+    [...screen.getByRole('region', { name: 'Issues' }).querySelectorAll('[id^="finding-"] strong')].map(
       (node) => node.textContent,
     ),
   ).toEqual(['First', 'Second']);
@@ -236,9 +251,10 @@ it('R7 issues are grouped by type of problem, the most severe first, with reject
       onDecide={vi.fn()}
     />,
   );
-  // Writing starts switched off when there is anything else; switch it on to see every group.
+  // Writing starts switched off when there is anything else; switch it on, in the filter menu, to see every group.
+  fireEvent.click(screen.getByRole('button', { name: /^Bộ lọc \(/u }));
   fireEvent.click(
-    within(screen.getByRole('group', { name: 'Filter by criterion' })).getByRole('button', {
+    within(screen.getByRole('group', { name: 'Lọc theo loại vấn đề' })).getByRole('button', {
       name: /Writing/,
     }),
   );
@@ -249,7 +265,7 @@ it('R7 issues are grouped by type of problem, the most severe first, with reject
     'S Sources & citations 1',
     'W Writing 1',
   ]);
-  expect([...list.querySelectorAll('article strong')].map((title) => title.textContent)).toEqual([
+  expect([...list.querySelectorAll('[id^="finding-"] strong')].map((title) => title.textContent)).toEqual([
     'claim confirmed high',
     'claim low',
     'evidence high',
@@ -261,6 +277,7 @@ it('R7 issues are grouped by type of problem, the most severe first, with reject
   const rejected = list.querySelector('[id="finding-evidence low"]');
   if (!(rejected instanceof HTMLElement)) throw new Error('Missing rejected card');
   expect(within(rejected).getByText('Đã bác bỏ')).toBeInTheDocument();
+  fireEvent.click(within(rejected).getByRole('button', { name: /^Mở rộng / }));
   expect(within(rejected).getByRole('button', { name: 'Hoàn tác' })).toBeInTheDocument();
 });
 
@@ -290,15 +307,19 @@ it('R11 each space lists the issues of its own criteria, accepted until rejected
   fireEvent.click(screen.getByRole('tab', { name: /^Writing style/ }));
   fireEvent.click(await screen.findByRole('button', { name: 'Mở Issues (1)' }));
   const list = screen.getByRole('region', { name: 'Issues' });
+  const tools = within(list).getByRole('group', { name: 'Bộ lọc và sắp xếp' });
+  fireEvent.click(within(tools).getByRole('button', { name: /^Bộ lọc \(/u }));
   expect(
-    within(within(list).getByRole('group', { name: 'Filter by criterion' }))
+    within(within(list).getByRole('group', { name: 'Lọc theo loại vấn đề' }))
       .getAllByRole('button')
       .map((chip) => chip.textContent),
   ).toEqual(['WWriting (1)']);
   expect(
-    within(within(list).getByRole('group', { name: 'Sắp xếp và nguồn' }))
+    within(tools)
       .getAllByRole('button')
+      .filter((chip) => !chip.closest('[aria-label="Lọc theo loại vấn đề"]'))
       .map((chip) => chip.textContent),
-  ).toEqual(['Theo trang', 'Kiểm tra tự động', 'Chạy lại kiểm tra']);
+  ).toEqual(['Bộ lọc (1)', 'Theo trang', 'Kiểm tra tự động', 'Chạy lại kiểm tra']);
+  fireEvent.click(within(list).getByRole('button', { name: /^Mở rộng / }));
   expect(within(list).getByRole('button', { name: 'Bác bỏ' })).toBeInTheDocument();
 });

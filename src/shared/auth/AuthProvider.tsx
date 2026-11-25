@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AuthContext, type LabUser } from './authContext';
 import {
+  AUTH_MODE,
   isAllowedOrganizationEmail,
   SSO_BASE_URL,
   SSO_CALLBACK_URL,
   SSO_CLIENT_ID,
   ssoConfigurationError,
+  type AuthMode,
 } from './config';
+import { FirebaseAuthProvider } from './FirebaseAuthProvider';
 import { clearHandoffFromUrl, getHandoffRequest, requestResearchHubSession } from './researchHubHandoff';
 import { refreshSsoSessionIfNeeded } from './refreshSession';
 import {
@@ -174,7 +177,20 @@ async function revokeSession(session: SsoSession | null) {
   clearSsoSession();
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+/**
+ * The build's sign-in (ADR 0008): Firebase (web.app, lab scope) or HyperDataLab SSO (paperlab.hyperdatalab.org,
+ * ResearchHub project scope), chosen by `AUTH_MODE`. Both provide the same `AuthValue`.
+ */
+export function AuthProvider({ children, mode = AUTH_MODE }: { children: ReactNode; mode?: AuthMode }) {
+  return mode === 'firebase' ? (
+    <FirebaseAuthProvider>{children}</FirebaseAuthProvider>
+  ) : (
+    <SsoAuthProvider>{children}</SsoAuthProvider>
+  );
+}
+
+/** HyperDataLab SSO with ResearchHub session handoff; its access token gives project scope on the workers. */
+export function SsoAuthProvider({ children }: { children: ReactNode }) {
   const isCallback =
     window.location.pathname ===
     new URL(SSO_CALLBACK_URL || `${window.location.origin}/auth/callback`).pathname;
@@ -405,6 +421,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
   const value = useMemo(
     () => ({
+      mode: 'sso' as const,
       user,
       ready,
       error,

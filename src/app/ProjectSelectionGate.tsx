@@ -2,7 +2,7 @@ import { ArrowRight, FolderKanban, LogIn, RefreshCw } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/shared/auth/authContext';
-import { RESEARCH_HUB_URL } from '@/shared/auth/config';
+import { AUTH_MODE, RESEARCH_HUB_URL } from '@/shared/auth/config';
 import { listResearchHubProjects, type ResearchHubProject } from '@/shared/pdfStore/researchHubProjects';
 import { Button } from '@/shared/ui/Button';
 import { Loading } from '@/shared/ui/StateNote';
@@ -29,7 +29,7 @@ export function ProjectSelectionGate({
   const loading = Boolean(user && !projects && !error);
 
   useEffect(() => {
-    if (projectId || !user || !ready) return;
+    if (AUTH_MODE === 'firebase' || projectId || !user || !ready) return;
     const controller = new AbortController();
     void (async () => {
       const token = getAccessToken ? await getAccessToken() : await getIdToken();
@@ -50,6 +50,7 @@ export function ProjectSelectionGate({
     return () => controller.abort();
   }, [getAccessToken, getIdToken, projectId, ready, retryKey, user]);
 
+  if (AUTH_MODE === 'firebase') return children;
   if (projectId) return children;
   if (!ready) return <Loading label="Đang kiểm tra phiên đăng nhập…" />;
 

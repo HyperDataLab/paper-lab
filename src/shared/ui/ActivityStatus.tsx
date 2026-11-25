@@ -10,7 +10,8 @@ export function ActivityStatus({
   /** Supply only when the operation reports real completed/total work. */
   progress?: { value: number; max: number };
 }) {
-  const fraction = progress && progress.max > 0 ? Math.max(0, Math.min(1, progress.value / progress.max)) : null;
+  const fraction =
+    progress && progress.max > 0 ? Math.max(0, Math.min(1, progress.value / progress.max)) : null;
   return (
     <div className={styles.activityStatus} role="status" aria-live="polite" aria-busy="true">
       <span className={styles.activitySpinner} aria-hidden="true" />

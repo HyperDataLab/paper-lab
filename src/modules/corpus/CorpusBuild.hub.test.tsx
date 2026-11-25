@@ -29,6 +29,9 @@ vi.mock('@/shared/paper/pdfParser', () => ({
 }));
 
 const doi = '10.1000/synthetic-corpus';
+/** The ResearchHub project StorageProvider supplies to injected test repositories. */
+const projectId = '00000000-0000-4000-8000-000000000001';
+const pdfUrl = (sha: string) => `${PDF_WORKER_URL}/pdfs/${sha}?projectId=${projectId}`;
 const worker = 'https://hub.example.invalid';
 const at = '2026-01-01T00:00:00Z';
 const auth: AuthValue = {
@@ -96,7 +99,7 @@ it('sends a tagged DOI, checks its status and imports a done PDF through the Pap
       return Response.json({ papers: [{ doiKey, status: 'done', updatedAt: at }] });
     if (url === `${worker}/lab/v1/pdf`)
       return Response.json({ r2Key: `paperlab/pdfs/${sha256}.pdf`, sha256, sizeBytes: bytes.length });
-    if (url === `${PDF_WORKER_URL}/pdfs/${sha256}`)
+    if (url === pdfUrl(sha256))
       return new Response(bytes, { headers: { 'Content-Type': 'application/pdf' } });
     throw new Error(`Unexpected endpoint ${url}`);
   });
@@ -129,7 +132,7 @@ it('sends a tagged DOI, checks its status and imports a done PDF through the Pap
     `${worker}/lab/v1/requests`,
     `${worker}/lab/v1/status`,
     `${worker}/lab/v1/pdf`,
-    `${PDF_WORKER_URL}/pdfs/${sha256}`,
+    pdfUrl(sha256),
   ]);
   expect(fetch).toHaveBeenNthCalledWith(
     1,
@@ -145,9 +148,9 @@ it('sends a tagged DOI, checks its status and imports a done PDF through the Pap
   );
   expect(fetch).toHaveBeenNthCalledWith(
     4,
-    `${PDF_WORKER_URL}/pdfs/${sha256}`,
+    pdfUrl(sha256),
     expect.objectContaining({
-      headers: { Authorization: 'Bearer synthetic-id-token' },
+      headers: { Authorization: 'Bearer synthetic-id-token', 'X-Project-Id': projectId },
     }),
   );
 });

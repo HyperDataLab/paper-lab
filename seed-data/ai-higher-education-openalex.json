@@ -23,9 +23,7 @@
       "updatedAt": "2026-11-18T05:24:39.660Z",
       "lookup": "done",
       "title": "Research on Excellent Cases of \"Artificial Intelligence + Higher Education\" Application Scenarios in Chinese Universities",
-      "authors": [
-        "Wang Qiang"
-      ],
+      "authors": ["Wang Qiang"],
       "year": 2025,
       "venue": "World Journal of Education",
       "access": "open",
@@ -89,10 +87,7 @@
       "updatedAt": "2026-11-18T05:24:39.660Z",
       "lookup": "done",
       "title": "The Potential of Artificial Intelligence in Higher Education",
-      "authors": [
-        "Helen Crompton",
-        "Donggil Song"
-      ],
+      "authors": ["Helen Crompton", "Donggil Song"],
       "year": 2021,
       "venue": "Revista Virtual Universidad Católica del Norte",
       "access": "open",
@@ -171,9 +166,7 @@
       "updatedAt": "2026-11-18T05:24:39.660Z",
       "lookup": "done",
       "title": "The Future of Higher Education in the Light of Artificial Intelligence Transformations",
-      "authors": [
-        "Share Aiyed M. Aldosari"
-      ],
+      "authors": ["Share Aiyed M. Aldosari"],
       "year": 2020,
       "venue": "International Journal of Higher Education",
       "access": "open",
@@ -316,9 +309,7 @@
       "updatedAt": "2026-11-18T05:24:39.660Z",
       "lookup": "done",
       "title": "The Impact of Artificial Intelligence on Higher Education: An Empirical Study",
-      "authors": [
-        "Zouhaier Slimi"
-      ],
+      "authors": ["Zouhaier Slimi"],
       "year": 2023,
       "venue": "European Journal of Educational Sciences",
       "access": "open",
@@ -407,10 +398,7 @@
       "updatedAt": "2026-11-18T05:24:39.660Z",
       "lookup": "done",
       "title": "Generative Artificial Intelligence: Implications and Considerations for Higher Education Practice",
-      "authors": [
-        "Tom Farrelly",
-        "Nick Baker"
-      ],
+      "authors": ["Tom Farrelly", "Nick Baker"],
       "year": 2023,
       "venue": "Education Sciences",
       "access": "open",
@@ -524,10 +512,7 @@
       "updatedAt": "2026-11-18T05:24:39.660Z",
       "lookup": "done",
       "title": "Artificial Intelligence, Higher Education, and University Social Responsibility: A Bibliometric Mapping Study of Current Knowledge and Emerging Trends",
-      "authors": [
-        "Hanene Essoussi",
-        "Aziza Saïda Slimane"
-      ],
+      "authors": ["Hanene Essoussi", "Aziza Saïda Slimane"],
       "year": 2026,
       "venue": "International Journal of Learning Teaching and Educational Research",
       "access": "open",
@@ -611,10 +596,7 @@
       "updatedAt": "2026-11-18T05:24:39.660Z",
       "lookup": "done",
       "title": "Managing the Strategic Transformation of Higher Education through Artificial Intelligence",
-      "authors": [
-        "Babu P GEORGE",
-        "Ontario S. Wooden"
-      ],
+      "authors": ["Babu P GEORGE", "Ontario S. Wooden"],
       "year": 2023,
       "venue": "Administrative Sciences",
       "access": "open",
@@ -787,11 +769,7 @@
       "updatedAt": "2026-11-18T05:24:39.660Z",
       "lookup": "done",
       "title": "Integration of Generative Artificial Intelligence in Higher Education: Best Practices",
-      "authors": [
-        "Jorge Cordero",
-        "Jonathan Fernando Torres Zambrano",
-        "Alison Cordero-Castillo"
-      ],
+      "authors": ["Jorge Cordero", "Jonathan Fernando Torres Zambrano", "Alison Cordero-Castillo"],
       "year": 2024,
       "venue": "Education Sciences",
       "access": "open",
@@ -912,18 +890,8 @@
               "Scholarly work about artificial intelligence or generative AI in higher education",
               "Work with a DOI and an OpenAlex-indexed Open Access PDF URL verified as a downloadable PDF"
             ],
-            "exclusion": [
-              "Work unrelated to post-secondary education"
-            ],
-            "years": [
-              2019,
-              2020,
-              2021,
-              2023,
-              2024,
-              2025,
-              2026
-            ]
+            "exclusion": ["Work unrelated to post-secondary education"],
+            "years": [2019, 2020, 2021, 2023, 2024, 2025, 2026]
           }
         }
       ],
@@ -970,9 +938,7 @@
             "openalexId": "https://openalex.org/W4411131152",
             "sha256": [],
             "paperIds": [],
-            "libraryIds": [
-              "cf77f5d5-7810-4817-85ff-74df820c49b3"
-            ]
+            "libraryIds": ["cf77f5d5-7810-4817-85ff-74df820c49b3"]
           },
           "exportId": "seed-116f62ac-c049-42d0-9c4a-6df7e27893db",
           "role": null,
@@ -997,9 +963,7 @@
             "openalexId": "https://openalex.org/W3115633673",
             "sha256": [],
             "paperIds": [],
-            "libraryIds": [
-              "4099dfe0-619c-4057-b480-3d6335311c2c"
-            ]
+            "libraryIds": ["4099dfe0-619c-4057-b480-3d6335311c2c"]
           },
           "exportId": "seed-7bdc4b06-e776-4f81-89b6-b42c28c944d3",
           "role": null,
@@ -1010,10 +974,7 @@
           "version": "publishedVersion",
           "retrieval": "sought",
           "textRead": "METADATA_ONLY",
-          "authorIds": [
-            "https://openalex.org/A5032778716",
-            "https://openalex.org/A5007552962"
-          ],
+          "authorIds": ["https://openalex.org/A5032778716", "https://openalex.org/A5007552962"],
           "countries": [],
           "decisions": [],
           "appraisal": [],
@@ -1027,9 +988,7 @@
             "openalexId": "https://openalex.org/W3010952285",
             "sha256": [],
             "paperIds": [],
-            "libraryIds": [
-              "6b8dcdda-141e-44d0-8651-24cf59c197c8"
-            ]
+            "libraryIds": ["6b8dcdda-141e-44d0-8651-24cf59c197c8"]
           },
           "exportId": "seed-9196a222-103f-4782-bcae-938b3ee8a2d9",
           "role": null,
@@ -1040,9 +999,7 @@
           "version": "publishedVersion",
           "retrieval": "sought",
           "textRead": "METADATA_ONLY",
-          "authorIds": [
-            "https://openalex.org/A5049428881"
-          ],
+          "authorIds": ["https://openalex.org/A5049428881"],
           "countries": [],
           "decisions": [],
           "appraisal": [],
@@ -1056,9 +1013,7 @@
             "openalexId": "https://openalex.org/W2922512717",
             "sha256": [],
             "paperIds": [],
-            "libraryIds": [
-              "9d786e7e-99bd-4875-9aa4-bf43ba3929e6"
-            ]
+            "libraryIds": ["9d786e7e-99bd-4875-9aa4-bf43ba3929e6"]
           },
           "exportId": "seed-f494691f-db84-4399-897b-fece0968d8fb",
           "role": null,
@@ -1088,9 +1043,7 @@
             "openalexId": "https://openalex.org/W4381827210",
             "sha256": [],
             "paperIds": [],
-            "libraryIds": [
-              "ea1005ac-7121-47d0-8ff2-270f2a677022"
-            ]
+            "libraryIds": ["ea1005ac-7121-47d0-8ff2-270f2a677022"]
           },
           "exportId": "seed-5e91d8a4-7b71-4b6f-b065-046f52f11f60",
           "role": null,
@@ -1101,9 +1054,7 @@
           "version": "publishedVersion",
           "retrieval": "sought",
           "textRead": "METADATA_ONLY",
-          "authorIds": [
-            "https://openalex.org/A5013263007"
-          ],
+          "authorIds": ["https://openalex.org/A5013263007"],
           "countries": [],
           "decisions": [],
           "appraisal": [],
@@ -1117,9 +1068,7 @@
             "openalexId": "https://openalex.org/W4388333366",
             "sha256": [],
             "paperIds": [],
-            "libraryIds": [
-              "4ad452fa-0960-4b60-802d-00d4630d2087"
-            ]
+            "libraryIds": ["4ad452fa-0960-4b60-802d-00d4630d2087"]
           },
           "exportId": "seed-089deb14-fa8d-44d7-a5f4-de41c27bc20a",
           "role": null,
@@ -1130,10 +1079,7 @@
           "version": "publishedVersion",
           "retrieval": "sought",
           "textRead": "METADATA_ONLY",
-          "authorIds": [
-            "https://openalex.org/A5029400235",
-            "https://openalex.org/A5038612228"
-          ],
+          "authorIds": ["https://openalex.org/A5029400235", "https://openalex.org/A5038612228"],
           "countries": [],
           "decisions": [],
           "appraisal": [],
@@ -1147,9 +1093,7 @@
             "openalexId": "https://openalex.org/W7165753606",
             "sha256": [],
             "paperIds": [],
-            "libraryIds": [
-              "f6f24130-c6e4-4aca-85c9-5497978f2d9f"
-            ]
+            "libraryIds": ["f6f24130-c6e4-4aca-85c9-5497978f2d9f"]
           },
           "exportId": "seed-1c0c8788-85da-4422-ab60-c5a522869680",
           "role": null,
@@ -1160,10 +1104,7 @@
           "version": "publishedVersion",
           "retrieval": "sought",
           "textRead": "METADATA_ONLY",
-          "authorIds": [
-            "https://openalex.org/A5119800016",
-            "https://openalex.org/A5029580054"
-          ],
+          "authorIds": ["https://openalex.org/A5119800016", "https://openalex.org/A5029580054"],
           "countries": [],
           "decisions": [],
           "appraisal": [],
@@ -1177,9 +1118,7 @@
             "openalexId": "https://openalex.org/W4386285839",
             "sha256": [],
             "paperIds": [],
-            "libraryIds": [
-              "0a06e2ad-7d27-4cc0-a21f-20cf9f793341"
-            ]
+            "libraryIds": ["0a06e2ad-7d27-4cc0-a21f-20cf9f793341"]
           },
           "exportId": "seed-f155d20d-caf2-4663-b157-2a098d1f54e5",
           "role": null,
@@ -1190,10 +1129,7 @@
           "version": "publishedVersion",
           "retrieval": "sought",
           "textRead": "METADATA_ONLY",
-          "authorIds": [
-            "https://openalex.org/A5022993623",
-            "https://openalex.org/A5017820645"
-          ],
+          "authorIds": ["https://openalex.org/A5022993623", "https://openalex.org/A5017820645"],
           "countries": [],
           "decisions": [],
           "appraisal": [],
@@ -1207,9 +1143,7 @@
             "openalexId": "https://openalex.org/W4390459706",
             "sha256": [],
             "paperIds": [],
-            "libraryIds": [
-              "cc1cd32f-a117-427e-8f84-532391ef22a6"
-            ]
+            "libraryIds": ["cc1cd32f-a117-427e-8f84-532391ef22a6"]
           },
           "exportId": "seed-938c092f-f289-42a0-a6d7-74c9d498d020",
           "role": null,
@@ -1239,9 +1173,7 @@
             "openalexId": "https://openalex.org/W4405941286",
             "sha256": [],
             "paperIds": [],
-            "libraryIds": [
-              "fa9ca30b-a419-4e60-b08c-0b4d60083cfd"
-            ]
+            "libraryIds": ["fa9ca30b-a419-4e60-b08c-0b4d60083cfd"]
           },
           "exportId": "seed-e31ab06b-8a65-4e3d-a0e0-880cdabbe50b",
           "role": null,
