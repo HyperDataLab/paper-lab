@@ -7,9 +7,10 @@ import {
 } from '@/core/corpusKeywords';
 import type { Corpus } from '@/core/schemas/corpus';
 import type { CorpusKeywords as Collection } from '@/core/schemas/corpusKeywords';
+import type { PaperKeyword } from '@/core/schemas/library';
 import { createScholarClient, type ScholarClient } from '@/shared/scholar/client';
 import { getScholarEmail } from '@/shared/scholar/settings';
-import type { MemberKeywords } from '@/shared/storage/types';
+import type { KeywordTarget, MemberKeywords } from '@/shared/storage/types';
 import { useRepositories } from '@/shared/storage/StorageProvider';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
@@ -21,9 +22,10 @@ import { KeywordGraph } from './KeywordGraph';
 import { KeywordTable } from './KeywordTable';
 import styles from './keywords.module.css';
 
-/** OpenAlex asks for polite use; three requests at a time keeps a 300-paper backfill to a minute or two. */
-const CONCURRENCY = 3;
-type KeywordClient = Pick<ScholarClient, 'workKeywords'>;
+const OPENALEX_BATCH_SIZE = 50;
+const FALLBACK_CONCURRENCY = 3;
+type KeywordClient = Pick<ScholarClient, 'workKeywords'> &
+  Partial<Pick<ScholarClient, 'workKeywordsBatch'>>;
 const defaultClient = (): KeywordClient => createScholarClient({ email: getScholarEmail() });
 
 export function CorpusKeywords({
@@ -89,37 +91,80 @@ export function CorpusKeywords({
   }
 
   async function backfill() {
-    const targets = [...(members?.missing ?? [])];
-    if (!targets.length) return;
+    const targetsByDoi = new Map<string, KeywordTarget[]>();
+    for (const target of members?.missing ?? []) {
+      const grouped = targetsByDoi.get(target.doi) ?? [];
+      grouped.push(target);
+      targetsByDoi.set(target.doi, grouped);
+    }
+    const doiGroups = [...targetsByDoi.entries()];
+    if (!doiGroups.length) return;
     const controller = new AbortController();
     abort.current = controller;
     const client = makeClient();
-    const total = targets.length;
-    let finished = 0;
+    const total = doiGroups.reduce((count, [, group]) => count + group.length, 0);
+    let processed = 0;
     let failed = 0;
     setProgress(`Đã lấy 0/${total}`);
-    const worker = async () => {
-      for (let target = targets.shift(); target && !controller.signal.aborted; target = targets.shift()) {
+
+    if (client.workKeywordsBatch) {
+      for (let start = 0; start < doiGroups.length && !controller.signal.aborted; start += OPENALEX_BATCH_SIZE) {
+        const batch = doiGroups.slice(start, start + OPENALEX_BATCH_SIZE);
         try {
-          // A DOI OpenAlex does not know has no keywords; saving [] stops it being asked again.
-          const keywords = (await client.workKeywords(target.doi, controller.signal)) ?? [];
-          await repo.corpusKeywords.saveFetched(target, keywords);
+          const fetched = await client.workKeywordsBatch(
+            batch.map(([doi]) => doi),
+            controller.signal,
+          );
+          const writes = batch.flatMap(([doi, group]) =>
+            group.map((target) => ({ target, keywords: fetched.get(doi) ?? [] })),
+          );
+          // An absent OpenAlex work has no keywords; saving [] prevents repeated lookups.
+          await repo.corpusKeywords.saveFetchedBatch(writes);
         } catch {
           if (controller.signal.aborted) return;
-          failed++;
+          failed += batch.reduce((count, [, group]) => count + group.length, 0);
         }
-        finished++;
-        setProgress(`Đã lấy ${finished}/${total}${failed ? ` · ${failed} lỗi` : ''}`);
+        processed += batch.reduce((count, [, group]) => count + group.length, 0);
+        setProgress(`Đã lấy ${processed}/${total}${failed ? ` · ${failed} lỗi` : ''}`);
       }
-    };
-    await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+    } else {
+      const targets = doiGroups.flatMap(([, group]) => group);
+      const results: Array<{ target: KeywordTarget; keywords: PaperKeyword[] }> = [];
+      let next = 0;
+      const worker = async () => {
+        while (next < targets.length && !controller.signal.aborted) {
+          const target = targets[next++];
+          if (!target) continue;
+          try {
+            results.push({
+              target,
+              // Keep injected/legacy clients working while production uses the batched endpoint.
+              keywords: (await client.workKeywords(target.doi, controller.signal)) ?? [],
+            });
+          } catch {
+            if (controller.signal.aborted) return;
+            failed++;
+          }
+          processed++;
+          setProgress(`Đã lấy ${processed}/${total}${failed ? ` · ${failed} lỗi` : ''}`);
+        }
+      };
+      await Promise.all(Array.from({ length: FALLBACK_CONCURRENCY }, worker));
+      if (!controller.signal.aborted && results.length) {
+        try {
+          await repo.corpusKeywords.saveFetchedBatch(results);
+        } catch {
+          failed += results.length;
+        }
+      }
+    }
     if (controller.signal.aborted) return;
     abort.current = null;
     await compute();
     setProgress(
       failed
         ? `Xong, ${failed} bài không lấy được; bấm lại để thử lại.`
-        : `Đã lấy keywords cho ${finished - failed} bài.`,
+        : `Đã lấy keywords cho ${processed} bài.`,
     );
   }
 

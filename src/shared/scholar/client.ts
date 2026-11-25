@@ -6,6 +6,7 @@ import {
   mapOpenAlexKeywords,
   mapUnpaywall,
   mergeLookups,
+  normalizeDoi,
   type CrossrefLookup,
   type LookupPatch,
   type OaLookup,
@@ -143,6 +144,29 @@ export function createScholarClient(options: { email?: string | null }, deps: De
     )) as { keywords?: unknown } | null;
     return work ? mapOpenAlexKeywords(work.keywords) : null;
   }
+  /** Fetches up to STATUS_BATCH DOI keyword records in one OpenAlex request. */
+  async function workKeywordsBatch(dois: string[], signal?: AbortSignal) {
+    const uniqueDois = [...new Set(dois.flatMap((doi) => normalizeDoi(doi) ?? []))];
+    const keywords = new Map<string, ReturnType<typeof mapOpenAlexKeywords>>();
+    for (let start = 0; start < uniqueDois.length; start += STATUS_BATCH) {
+      const filter = uniqueDois
+        .slice(start, start + STATUS_BATCH)
+        .map(encodeURIComponent)
+        .join('|');
+      const body = (await getJson(
+        `https://api.openalex.org/works?filter=doi:${filter}&select=doi,keywords&per-page=${STATUS_BATCH}`,
+        signal,
+      )) as { results?: unknown[] } | null;
+      for (const raw of body?.results ?? []) {
+        if (!raw || typeof raw !== 'object' || !('doi' in raw)) continue;
+        const work = raw as { doi?: unknown; keywords?: unknown };
+        if (typeof work.doi !== 'string') continue;
+        const doi = normalizeDoi(work.doi);
+        if (doi) keywords.set(doi, mapOpenAlexKeywords(work.keywords));
+      }
+    }
+    return keywords;
+  }
   /** Only the DOI leaves the browser. Null when OpenAlex has no record or no abstract. */
   async function workAbstract(doi: string, signal?: AbortSignal) {
     const work = (await getJson(
@@ -248,6 +272,7 @@ export function createScholarClient(options: { email?: string | null }, deps: De
     workStatuses,
     paperMetadata,
     workKeywords,
+    workKeywordsBatch,
     workAbstract,
     searchWorks,
     citationWorks,

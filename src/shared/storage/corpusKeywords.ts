@@ -67,7 +67,7 @@ export function createCorpusKeywordsRepository(
       }
       return result;
     },
-    /** Saves fetched keywords on the library record when there is one, otherwise against the DOI alone. */
+    /** Saves a single lookup for callers that do not fetch a batch. */
     async saveFetched(target: KeywordTarget, keywords: PaperKeyword[]) {
       if (target.libraryId) await library.update(target.libraryId, { keywords });
       else
@@ -76,6 +76,45 @@ export function createCorpusKeywordsRepository(
           target.doi,
           DoiKeywordsSchema.parse({ doi: target.doi, fetchedAt: now(), keywords }),
         );
+    },
+    /** Saves one OpenAlex result page together, keeping remote storage writes proportional to API batches. */
+    async saveFetchedBatch(results: Array<{ target: KeywordTarget; keywords: PaperKeyword[] }>) {
+      if (!results.length) return;
+      const libraryResults = new Map(
+        results.flatMap(({ target, keywords }) =>
+          target.libraryId ? [[target.libraryId, keywords] as const] : [],
+        ),
+      );
+      const doiResults = new Map(
+        results.flatMap(({ target, keywords }) =>
+          target.libraryId ? [] : [[target.doi, keywords] as const],
+        ),
+      );
+      await store.unitOfWork(
+        async (tx) => {
+          const libraryIds = [...libraryResults.keys()];
+          const libraryRows = libraryIds.length ? await tx.getMany('library', libraryIds) : [];
+          for (const [index, id] of libraryIds.entries()) {
+            const row = libraryRows[index];
+            if (!row) throw new Error('Library item not found');
+            const current = LibraryItemSchema.parse(row.doc);
+            const value = LibraryItemSchema.parse({
+              ...current,
+              keywords: libraryResults.get(id),
+              updatedAt: now(),
+            });
+            await tx.put('library', id, value, row.version);
+          }
+
+          const dois = [...doiResults.keys()];
+          const doiRows = dois.length ? await tx.getMany('doiKeywords', dois) : [];
+          for (const [index, doi] of dois.entries()) {
+            const value = DoiKeywordsSchema.parse({ doi, fetchedAt: now(), keywords: doiResults.get(doi) });
+            await tx.put('doiKeywords', doi, value, doiRows[index]?.version ?? null);
+          }
+        },
+        ['library', 'doiKeywords'],
+      );
     },
   };
 }
