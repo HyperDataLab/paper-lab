@@ -125,6 +125,8 @@ export async function llmTriage(
       schema: TriageOutputSchema,
       schemaName: 'screening_triage',
       promptVersion: PROMPT_VERSIONS.screeningTriage,
+      // Keep the router/proxy connection alive while a screening batch is generated.
+      stream: true,
     });
     const output = TriageOutputSchema.parse(result.data);
     const meta = { model: result.meta.model, promptVersion: PROMPT_VERSIONS.screeningTriage };
