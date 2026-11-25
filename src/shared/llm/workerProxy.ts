@@ -1,7 +1,8 @@
-import { PDF_WORKER_URL, projectScopedUrl } from '@/shared/pdfStore';
+import { PDF_WORKER_URL } from '@/shared/pdfStore';
 import { isLabScope } from '@/shared/scope';
 
 const ROUTER_HOSTS = new Set(['9router.dcloud.io.vn', '9router.oraltest.site']);
+const WRITING_LAB_WORKER_URL = 'https://writing-lab-api.hyperdatalab.workers.dev';
 
 /** Routes the configured 9router hosts through the authenticated PaperLab Worker to avoid upstream CORS. */
 export function createLlmWorkerFetch(
@@ -36,7 +37,9 @@ export function createLlmWorkerFetch(
     headers.set('X-LLM-API-Key', key);
     headers.set('X-LLM-Base-URL', baseUrl.replace(/\/$/u, ''));
     headers.delete('content-length');
-    const url = projectScopedUrl(`${PDF_WORKER_URL}/v1/llm/chat/completions`, projectId);
+    const url = isLabScope(projectId)
+      ? `${PDF_WORKER_URL}/v1/llm/chat/completions`
+      : `${WRITING_LAB_WORKER_URL}/v1/llm/chat/completions`;
     return send(url, {
       method: source.method,
       headers,
