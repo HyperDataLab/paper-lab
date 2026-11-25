@@ -1,5 +1,5 @@
-import { ArrowLeft, Download, Library, LoaderCircle, Pencil, Plus } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { ArrowLeft, Download, FileUp, Library, LoaderCircle, Pencil, Plus } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { labKgIds } from '@/shared/labKg/client';
 import { LabKgActions } from '@/shared/labKg/LabKgActions';
@@ -7,7 +7,8 @@ import { CorpusSchema, type Corpus } from '@/core/schemas/corpus';
 import type { CorpusTopics as TopicsSnapshot, TopicName } from '@/core/schemas/corpusTopics';
 import { useAuth } from '@/shared/auth/authContext';
 import { CorpusConflict } from '@/shared/storage/errors';
-import { useRepositories } from '@/shared/storage/StorageProvider';
+import { useHubProjectId, useRepositories } from '@/shared/storage/StorageProvider';
+import { importPaperFile } from '@/modules/paper-import';
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
 import { Card } from '@/shared/ui/Card';
@@ -15,7 +16,6 @@ import { Dialog } from '@/shared/ui/Dialog';
 import { IconButton } from '@/shared/ui/IconButton';
 import { DataTable } from '@/shared/ui/DataTable';
 import { PageHeader } from '@/shared/ui/PageHeader';
-import { Select } from '@/shared/ui/Select';
 import { AppraisalPanel } from './AppraisalPanel';
 import { Intake } from './Intake';
 import { CorpusBuild } from './CorpusBuild';
@@ -31,6 +31,8 @@ import { kinds, memberRoleLabel, versionLabel } from './labels';
 import { downloadManifest } from './manifest';
 import { PrismaPanel } from './PrismaPanel';
 import { ProtocolForm } from './ProtocolForm';
+import { MembersTableToolbar } from './MembersTableToolbar';
+import { retrievedMember } from './acquisition';
 import { TopicSearch } from './TopicSearch';
 import styles from './corpus.module.css';
 
@@ -67,7 +69,8 @@ type CorpusArea = (typeof CORPUS_AREAS)[number]['id'];
 export default function DetailPage() {
   const { id } = useParams();
   const repo = useRepositories();
-  const { user } = useAuth();
+  const { user, getIdToken } = useAuth();
+  const projectId = useHubProjectId() ?? '';
   const [conflict, setConflict] = useState(false);
   const [record, setRecord] = useState<{ doc: Corpus; version: number | null }>();
   const corpus = record?.doc;
@@ -76,6 +79,13 @@ export default function DetailPage() {
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [readFilter, setReadFilter] = useState('all');
+  const [memberQuery, setMemberQuery] = useState('');
+  const [memberSort, setMemberSort] = useState('default');
+  const memberPdfInput = useRef<HTMLInputElement>(null);
+  const pdfTargetMember = useRef<string | null>(null);
+  const [uploadingMemberId, setUploadingMemberId] = useState<string | null>(null);
+  const [memberPdfError, setMemberPdfError] = useState<{ memberId: string; message: string } | null>(null);
   const [workspace, setWorkspace] = useState<{
     corpusId: string | undefined;
     active: CorpusArea;
@@ -128,6 +138,42 @@ export default function DetailPage() {
     } catch (e) {
       if (e instanceof CorpusConflict) setConflict(true);
       throw e;
+    }
+  }
+  async function importMemberPdf(memberId: string, file: File) {
+    if (!corpus || uploadingMemberId) return;
+    const member = corpus.members.find((item) => item.memberId === memberId);
+    if (!member) return;
+    if (!projectId) {
+      setMemberPdfError({ memberId, message: 'Không tìm thấy project để lưu PDF.' });
+      return;
+    }
+    if (file.type !== 'application/pdf' && !file.name.toLocaleLowerCase('en').endsWith('.pdf')) {
+      setMemberPdfError({ memberId, message: 'Chọn tệp PDF để nhập.' });
+      return;
+    }
+    setUploadingMemberId(memberId);
+    setMemberPdfError(null);
+    try {
+      const paper = await importPaperFile(file, repo, {
+        projectId,
+        getIdToken,
+        title: member.title,
+        reuseExisting: true,
+      });
+      const updated = retrievedMember(member, paper);
+      await save({
+        ...corpus,
+        updatedAt: new Date().toISOString(),
+        members: corpus.members.map((item) => (item.memberId === memberId ? updated : item)),
+      });
+    } catch (cause) {
+      setMemberPdfError({
+        memberId,
+        message: cause instanceof Error ? cause.message : String(cause),
+      });
+    } finally {
+      setUploadingMemberId(null);
     }
   }
   /** Shows the lab's current copy after a conflict; edits not yet saved are dropped. */
@@ -184,7 +230,43 @@ export default function DetailPage() {
   }
   const count = (key: 'retrieval' | 'textRead', value: string) =>
     corpus.members.filter((m) => m[key] === value).length;
-  const members = corpus.members.filter((m) => filter === 'all' || m.retrieval === filter);
+  const query = memberQuery.trim().toLocaleLowerCase('vi');
+  const members = corpus.members
+    .filter((member) => filter === 'all' || member.retrieval === filter)
+    .filter((member) => readFilter === 'all' || member.textRead === readFilter)
+    .filter((member) => {
+      if (!query) return true;
+      return [
+        member.title,
+        member.identifiers.doi,
+        ...(member.identifiers.doiAliases ?? []),
+        member.identifiers.openalexId,
+        ...(member.identifiers.openalexIdAliases ?? []),
+        ...member.identifiers.paperIds,
+        ...member.identifiers.libraryIds,
+        member.exportId,
+      ]
+        .filter(Boolean)
+        .some((value) => value?.toLocaleLowerCase('vi').includes(query));
+    })
+    .sort((a, b) => {
+      if (memberSort === 'title_asc' || memberSort === 'title_desc') {
+        const direction = memberSort === 'title_asc' ? 1 : -1;
+        return direction * (a.title ?? a.exportId).localeCompare(b.title ?? b.exportId, 'vi');
+      }
+      if (memberSort === 'year_desc' || memberSort === 'year_asc') {
+        const direction = memberSort === 'year_desc' ? -1 : 1;
+        return (
+          direction *
+          ((a.stratum.year ?? Number.MAX_SAFE_INTEGER) - (b.stratum.year ?? Number.MAX_SAFE_INTEGER))
+        );
+      }
+      if (memberSort === 'retrieved_first') {
+        const rank = { retrieved: 0, sought: 1, not_retrieved: 2 };
+        return rank[a.retrieval] - rank[b.retrieval];
+      }
+      return 0;
+    });
   const stats: [string, number][] = [
     ['Đang tìm', count('retrieval', 'sought')],
     ['Đã lấy', count('retrieval', 'retrieved')],
@@ -345,21 +427,6 @@ export default function DetailPage() {
                 <p className={styles.muted}>Danh sách bài và trạng thái thu thập trong corpus.</p>
               </div>
               <div className={styles.cardTools}>
-                {corpus.members.length > 0 && (
-                  <Select
-                    label="Trạng thái thu thập"
-                    hideLabel
-                    size="sm"
-                    inline
-                    value={filter}
-                    onChange={(e) => setFilter(e.target.value)}
-                  >
-                    <option value="all">Mọi trạng thái</option>
-                    <option value="sought">Đang tìm</option>
-                    <option value="retrieved">Đã lấy</option>
-                    <option value="not_retrieved">Không lấy được</option>
-                  </Select>
-                )}
                 <Button
                   size="sm"
                   leadingIcon={<Plus size={16} aria-hidden="true" />}
@@ -377,11 +444,44 @@ export default function DetailPage() {
                 </Button>
               </div>
             )}
+            <input
+              ref={memberPdfInput}
+              className={styles.memberPdfInput}
+              type="file"
+              accept=".pdf,application/pdf"
+              aria-label="Chọn PDF cho bài báo"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                const memberId = pdfTargetMember.current;
+                event.currentTarget.value = '';
+                pdfTargetMember.current = null;
+                if (file && memberId) void importMemberPdf(memberId, file);
+              }}
+            />
+            {corpus.members.length > 0 && (
+              <MembersTableToolbar
+                query={memberQuery}
+                onQueryChange={setMemberQuery}
+                retrievalFilter={filter}
+                onRetrievalFilterChange={setFilter}
+                readFilter={readFilter}
+                onReadFilterChange={setReadFilter}
+                sort={memberSort}
+                onSortChange={setMemberSort}
+                visibleCount={members.length}
+                totalCount={corpus.members.length}
+              />
+            )}
             {corpus.members.length === 0 ? (
               <div className={styles.emptyMembers}>
                 <Library size={28} aria-hidden="true" />
                 <strong>Corpus chưa có bài nào</strong>
                 <span>Thêm bài từ Library, từ bài đã nhập hoặc dán một danh sách DOI.</span>
+              </div>
+            ) : members.length === 0 ? (
+              <div className={styles.emptyMembers}>
+                <strong>Không tìm thấy bài phù hợp</strong>
+                <span>Thử đổi từ khóa hoặc bộ lọc.</span>
               </div>
             ) : (
               <DataTable
@@ -403,7 +503,17 @@ export default function DetailPage() {
                   {members.map((m) => (
                     <tr key={m.memberId}>
                       <td className={styles.memberTitle}>
-                        {m.title || m.identifiers.doi || m.exportId}
+                        {m.retrieval === 'retrieved' && m.identifiers.paperIds[0] ? (
+                          <Link
+                            className={styles.memberPaperLink}
+                            to={`/papers/${encodeURIComponent(m.identifiers.paperIds[0])}?pane=fulltext`}
+                            aria-label={`Mở bài báo trong trình đọc: ${m.title || m.identifiers.doi || m.exportId}`}
+                          >
+                            {m.title || m.identifiers.doi || m.exportId}
+                          </Link>
+                        ) : (
+                          m.title || m.identifiers.doi || m.exportId
+                        )}
                         {topicsData.snapshot?.members
                           .filter((member) => member.corpusId === corpus.id && member.memberId === m.memberId)
                           .map((member) => (
@@ -433,7 +543,9 @@ export default function DetailPage() {
                           .join(', ') || '—'}
                       </td>
                       <td>{memberRoleLabel(m.role)}</td>
-                      <td className={styles.memberStatusCell}>
+                      <td
+                        className={`${styles.memberStatusCell} ${m.retrieval === 'not_retrieved' ? styles.memberRetrievalCell : ''}`}
+                      >
                         <Badge
                           tone={
                             m.retrieval === 'retrieved'
@@ -451,6 +563,27 @@ export default function DetailPage() {
                             }[m.retrieval]
                           }
                         </Badge>
+                        {m.retrieval === 'not_retrieved' && (
+                          <div className={styles.memberPdfAction}>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              disabled={Boolean(uploadingMemberId)}
+                              leadingIcon={<FileUp size={14} aria-hidden="true" />}
+                              onClick={() => {
+                                pdfTargetMember.current = m.memberId;
+                                memberPdfInput.current?.click();
+                              }}
+                            >
+                              {uploadingMemberId === m.memberId ? 'Đang nhập PDF…' : 'Nhập PDF'}
+                            </Button>
+                            {memberPdfError?.memberId === m.memberId && (
+                              <span className={styles.memberPdfError} role="alert">
+                                {memberPdfError.message}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className={styles.memberStatusCell}>
                         <Badge tone={m.textRead === 'FULL_TEXT' ? 'success' : 'neutral'}>
