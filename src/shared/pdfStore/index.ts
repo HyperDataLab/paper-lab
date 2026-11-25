@@ -3,8 +3,10 @@ import type { Paper } from '@/core/schemas';
 
 /** PaperLab's PDF proxy to the ResearchHub Files API; every request needs a user access token. */
 export const PDF_WORKER_URL: string =
-  (import.meta.env.VITE_PDF_WORKER_URL as string | undefined) ||
-  (import.meta.env.DEV ? '/paperlab-worker' : 'https://paperlab-pdf-worker.hyperdatalab.workers.dev');
+  (
+    (import.meta.env.VITE_PDF_WORKER_URL as string | undefined) ||
+    (import.meta.env.DEV ? '/paperlab-worker' : 'https://paperlab-pdf-worker.hyperdatalab.workers.dev')
+  ).replace(/\/+$/u, '');
 
 /**
  * Keep project scope available if an intermediate proxy drops the custom header. Lab scope (ADR 0008) sends no

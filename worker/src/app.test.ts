@@ -221,6 +221,20 @@ describe('ResearchHub project picker endpoint', () => {
     expect(listOwnedProjects).toHaveBeenCalledOnce();
   });
 
+  it('normalizes duplicate and trailing slashes on the project list route', async () => {
+    const listOwnedProjects = vi.fn(async () => [{ id: PROJECT_ID, name: 'Test project' }]);
+    const response = await handle(
+      deps({ listOwnedProjects }),
+      new Request('https://worker.test//v1/me/projects/', {
+        headers: { origin: ORIGIN, authorization: 'Bearer good' },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ items: [{ id: PROJECT_ID, name: 'Test project' }] });
+    expect(listOwnedProjects).toHaveBeenCalledOnce();
+  });
+
   it('requires SSO and reports a disabled project list explicitly', async () => {
     const noSession = deps({
       verifyToken: async () => {

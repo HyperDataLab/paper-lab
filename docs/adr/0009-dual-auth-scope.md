@@ -1,12 +1,12 @@
-# ADR-0009: Two sign-ins, two scopes (Firebase lab scope, SSO project scope)
+# ADR-0009: Worker token compatibility and ResearchHub project scope
 
 Status: Accepted
 
 Date: 2026-11-25
 
 Supersedes: the "every feature needs a ResearchHub project" part of
-[ADR-0008 (mandatory project)](0008-mandatory-researchhub-project-and-session-handoff.md), for the Firebase build
-and for integrations only. The SSO build keeps that rule.
+[ADR-0008 (mandatory project)](0008-mandatory-researchhub-project-and-session-handoff.md) for lab integrations
+that use Firebase tokens. The PaperLab SPA continues to require an SSO-owned ResearchHub project.
 
 ## Context
 
@@ -21,8 +21,8 @@ broke the lab's own tools and integrations, which sign in with Firebase and have
 - lab-research-mcp;
 - the 20 lab corpora and other records stored before projects, which have no project.
 
-The owner decided on 2026-11-25 to "run both modes" (_chạy hai chế độ_). SSO and ResearchHub project scope stay,
-and the Firebase lab mode comes back beside them.
+The Worker continues accepting Firebase tokens for existing lab integrations, while the PaperLab SPA uses SSO and
+ResearchHub project scope. Project creation is exposed in PaperLab but remains owned by ResearchHub.
 
 ## Decision
 
@@ -85,31 +85,32 @@ null or undefined means lab.
 A new feature can reach lab scope through these helpers. For example, it can use `project_id IS NULL`-style
 columns, or a `'lab'` sentinel on the client.
 
-**Client.** The build picks its sign-in from the environment.
+**Client.** PaperLab always uses HyperDataLab SSO, independent of whether the SSO client ID is present in the build.
+The client ID is required only to start the direct OAuth flow; ResearchHub handoff and existing SSO sessions do not
+use it to select an auth mode.
 
-- `VITE_AUTH_MODE=firebase|sso` chooses it.
-- Without `VITE_AUTH_MODE`, a build with `VITE_HYPERDATALAB_SSO_CLIENT_ID` uses SSO and any other build uses
-  Firebase.
+- A standalone route starts SSO sign-in when no valid SSO session exists. A direct SSO authorization flow requires the configured client ID.
+- After sign-in, the app lists accessible ResearchHub projects. If none are available, the user can create one in PaperLab; the Worker sends the request to ResearchHub's `POST /api/projects`, which creates and owns the project record.
+- Selecting or creating a project opens its project-scoped workspace. Signing out returns to the SSO sign-in state.
 
-`AuthProvider` renders one of two implementations of the same `AuthValue`, which provides `getIdToken`,
-`getAccessToken`, `user`, `signIn` and `signOut`, plus `mode`:
+`AuthProvider` renders `SsoAuthProvider`, which provides the `AuthValue` interface (`getIdToken`, `getAccessToken`,
+`user`, `signIn`, `signOut` and `mode`).
 
-| Build                                | Sign-in                                                                                          | Scope                                                                                             |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| web.app                              | `FirebaseAuthProvider`: Google popup, lab domain, the PaperLab Firebase project's public config. | Lab scope. `useHubProjectId()` returns `LAB_SCOPE` (`'lab'`) and `?projectId=` links are ignored. |
-| Vercel (`paperlab.hyperdatalab.org`) | `SsoAuthProvider`, unchanged.                                                                    | The ResearchHub project, as before.                                                               |
+| Entry state                                   | Sign-in           | Scope                                   |
+| --------------------------------------------- | ----------------- | --------------------------------------- |
+| Standalone route without an SSO session       | HyperDataLab SSO  | Select or create a ResearchHub project. |
+| SSO session, callback, or ResearchHub handoff | `SsoAuthProvider` | The selected ResearchHub project.       |
 
 Every worker client builds its headers through `projectHeader()` and its URLs through `projectScopedUrl()`.
 Neither sends anything for `LAB_SCOPE`.
 
 ## Consequences
 
-- One worker deployment serves both builds and all integrations. Writing Bank, idea2hypothesis, Paper Fetch Hub
+- One worker deployment serves the PaperLab SPA and existing integrations. Writing Bank, idea2hypothesis, Paper Fetch Hub
   and lab-research-mcp may keep sending Firebase tokens and use lab scope. They need SSO only to reach a project.
 - Before the new worker serves lab writes, apply `worker/migrations-data/0004_lab_scope_library_doi.sql` to the
   `paperlab-data` D1.
-- The web.app build needs `VITE_AUTH_MODE=firebase`, or no SSO client id in its env. Its Firebase config is
-  bundled in `src/shared/auth/config.ts`; it is public, not a secret.
+- The Worker keeps Firebase verification for integrations. The PaperLab SPA does not select Firebase based on the build environment; its SSO client ID configures direct OAuth only.
 - Lab and project data never mix. Moving a lab record into a project is an explicit copy, not a change of scope.
 - An SSO identity can be served from the cache for up to 5 minutes after the token is revoked.
 
@@ -119,5 +120,4 @@ Neither sends anything for `LAB_SCOPE`.
   the Hub sign in with Firebase, and the lab corpora have no project.
 - **A `'lab'` project id on the wire.** Rejected. An absent project id is already the pre-project contract that
   the integrations send, and the worker keeps its strict UUID check so that a leaked sentinel fails loudly.
-- **Fork the app into two codebases.** Rejected. One `AuthValue` interface with two providers keeps the change
-  small.
+- **Use Firebase lab scope in the standalone PaperLab SPA.** Rejected. PaperLab workspaces are scoped to ResearchHub projects; the Worker still supports Firebase lab integrations separately.

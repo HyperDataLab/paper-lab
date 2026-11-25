@@ -35,15 +35,15 @@ export function ssoConfigurationError(config: { baseUrl: string; clientId: strin
 
 export type AuthMode = 'firebase' | 'sso';
 
-/**
- * Which sign-in this build uses (ADR 0008). `VITE_AUTH_MODE=firebase|sso` decides; without it, a build that has
- * an SSO client id uses SSO and any other build uses Firebase.
- */
+/** PaperLab's sign-in flow is fixed to SSO. The Worker still accepts Firebase tokens from lab integrations. */
+export const AUTH_MODE: AuthMode = 'sso';
+
+/** Kept for older integrations; PaperLab itself always uses SSO regardless of environment configuration. */
 export function resolveAuthMode(mode: unknown, ssoClientId: unknown): AuthMode {
-  if (mode === 'firebase' || mode === 'sso') return mode;
-  return typeof ssoClientId === 'string' && ssoClientId.trim() ? 'sso' : 'firebase';
+  void mode;
+  void ssoClientId;
+  return AUTH_MODE;
 }
-export const AUTH_MODE: AuthMode = resolveAuthMode(import.meta.env.VITE_AUTH_MODE, SSO_CLIENT_ID);
 
 /**
  * The public web configuration of the PaperLab Firebase project (the web.app build's sign-in). It identifies the

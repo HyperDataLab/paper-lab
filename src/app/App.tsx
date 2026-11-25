@@ -10,7 +10,7 @@ import { Skeleton } from '@/shared/ui/Skeleton';
 import { StorageProvider, StorageStatus } from '@/shared/storage/StorageProvider';
 import { LlmProvider } from '@/shared/llm/LlmProvider';
 import { AuthProvider } from '@/shared/auth/AuthProvider';
-import { AUTH_MODE } from '@/shared/auth/config';
+import { useAuth } from '@/shared/auth/authContext';
 import { AccountButton } from './AccountButton';
 import { CommandPalette } from './CommandPalette';
 import { modules } from './modules';
@@ -36,14 +36,23 @@ function readTheme(): Theme {
   return 'light';
 }
 export function App() {
+  return (
+    <ToastProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ToastProvider>
+  );
+}
+
+function AppContent() {
   const [drawer, setDrawer] = useState(false);
   const [theme, setTheme] = useState<Theme>(readTheme);
   const closeDrawer = useCallback(() => setDrawer(false), []);
+  const { mode } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  // The Firebase build works in the lab store and ignores ResearchHub project links (ADR 0008).
-  const rawProjectId =
-    AUTH_MODE === 'firebase' ? null : new URLSearchParams(location.search).get('projectId');
+  const rawProjectId = mode === 'firebase' ? null : new URLSearchParams(location.search).get('projectId');
   const validProjectId =
     rawProjectId &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(rawProjectId)
@@ -132,96 +141,90 @@ export function App() {
       </main>
     );
   return (
-    <ToastProvider>
-      <AuthProvider>
-        <div className={styles.shell}>
-          <Sidebar desktop />
-          <Drawer open={drawer} onClose={closeDrawer}>
-            <Sidebar mobile onNavigate={closeDrawer} />
-          </Drawer>
-          <div className={styles.main}>
-            <header className={styles.topbar}>
-              <div className={styles.mobileMenu}>
-                <IconButton label="Mở menu" aria-expanded={drawer} onClick={() => setDrawer(true)}>
-                  <Menu size={20} />
-                </IconButton>
-              </div>
-              <nav aria-label="Đường dẫn" className={styles.breadcrumb}>
-                <span>PaperLab</span>
-                <span aria-hidden="true">/</span>
-                <strong>{current?.label ?? 'Không tìm thấy'}</strong>
-              </nav>
-              <div className={styles.topActions}>
-                <Button
-                  className={styles.search}
-                  aria-label="Tìm chức năng"
-                  onClick={() =>
-                    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))
-                  }
-                >
-                  <Search size={16} />
-                  <span>Tìm hoặc chạy lệnh…</span>
-                  <Kbd>Ctrl K</Kbd>
-                </Button>
-                <AccountButton />
-                <IconButton
-                  variant="ghost"
-                  label={`Giao diện: ${THEME_LABELS[theme]}. Bấm để đổi`}
-                  onClick={() => setTheme(NEXT_THEME[theme])}
-                >
-                  {theme === 'dark' ? (
-                    <Moon size={18} />
-                  ) : theme === 'light' ? (
-                    <Sun size={18} />
-                  ) : (
-                    <Monitor size={18} />
-                  )}
-                </IconButton>
-              </div>
-            </header>
-            <main
-              className={`${styles.content} ${wideContent ? styles.wideContent : ''} ${appContent ? styles.appContent : ''} ${projectDetailContent ? styles.projectDetailContent : ''} ${corpusDetailContent ? styles.corpusDetailContent : ''} ${fullWidthPageContent ? styles.fullWidthPageContent : ''}`}
-            >
-              <ProjectSelectionGate projectId={validProjectId}>
-                <StorageProvider
-                  key={workspaceProjectId ?? 'local-workspace'}
-                  projectId={workspaceProjectId}
-                  invalidProjectId={invalidProjectId}
-                  hideStatusBanner={appContent}
-                >
-                  <StorageStatus className={styles.storageStatus} />
-                  <LlmProvider>
-                    <Suspense fallback={<Skeleton />}>
-                      <PageEnter key={location.pathname}>
-                        <Routes>
-                          {modules.map((item) => (
-                            <Route key={item.id} path={item.path} element={<item.page />} />
-                          ))}
-                          <Route path="/report/:id" element={<ReportPage />} />
-                          <Route path="/compare" element={<ComparePage />} />
-                          <Route path="/papers/:id" element={<PaperMapPage />} />
-                          <Route path="/extraction/:id" element={<ExtractionProjectPage />} />
-                          <Route path="/corpus/:id" element={<CorpusDetail />} />
-                          <Route
-                            path="*"
-                            element={
-                              <div>
-                                <h1>Không tìm thấy trang</h1>
-                                <p>Đường dẫn này không tồn tại.</p>
-                              </div>
-                            }
-                          />
-                        </Routes>
-                      </PageEnter>
-                    </Suspense>
-                  </LlmProvider>
-                </StorageProvider>
-              </ProjectSelectionGate>
-            </main>
+    <div className={styles.shell}>
+      <Sidebar desktop />
+      <Drawer open={drawer} onClose={closeDrawer}>
+        <Sidebar mobile onNavigate={closeDrawer} />
+      </Drawer>
+      <div className={styles.main}>
+        <header className={styles.topbar}>
+          <div className={styles.mobileMenu}>
+            <IconButton label="Mở menu" aria-expanded={drawer} onClick={() => setDrawer(true)}>
+              <Menu size={20} />
+            </IconButton>
           </div>
-          <CommandPalette />
-        </div>
-      </AuthProvider>
-    </ToastProvider>
+          <nav aria-label="Đường dẫn" className={styles.breadcrumb}>
+            <span>PaperLab</span>
+            <span aria-hidden="true">/</span>
+            <strong>{current?.label ?? 'Không tìm thấy'}</strong>
+          </nav>
+          <div className={styles.topActions}>
+            <Button
+              className={styles.search}
+              aria-label="Tìm chức năng"
+              onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+            >
+              <Search size={16} />
+              <span>Tìm hoặc chạy lệnh…</span>
+              <Kbd>Ctrl K</Kbd>
+            </Button>
+            <AccountButton />
+            <IconButton
+              variant="ghost"
+              label={`Giao diện: ${THEME_LABELS[theme]}. Bấm để đổi`}
+              onClick={() => setTheme(NEXT_THEME[theme])}
+            >
+              {theme === 'dark' ? (
+                <Moon size={18} />
+              ) : theme === 'light' ? (
+                <Sun size={18} />
+              ) : (
+                <Monitor size={18} />
+              )}
+            </IconButton>
+          </div>
+        </header>
+        <main
+          className={`${styles.content} ${wideContent ? styles.wideContent : ''} ${appContent ? styles.appContent : ''} ${projectDetailContent ? styles.projectDetailContent : ''} ${corpusDetailContent ? styles.corpusDetailContent : ''} ${fullWidthPageContent ? styles.fullWidthPageContent : ''}`}
+        >
+          <ProjectSelectionGate projectId={validProjectId}>
+            <StorageProvider
+              key={workspaceProjectId ?? 'local-workspace'}
+              projectId={workspaceProjectId}
+              invalidProjectId={invalidProjectId}
+              hideStatusBanner={appContent}
+            >
+              <StorageStatus className={styles.storageStatus} />
+              <LlmProvider>
+                <Suspense fallback={<Skeleton />}>
+                  <PageEnter key={location.pathname}>
+                    <Routes>
+                      {modules.map((item) => (
+                        <Route key={item.id} path={item.path} element={<item.page />} />
+                      ))}
+                      <Route path="/report/:id" element={<ReportPage />} />
+                      <Route path="/compare" element={<ComparePage />} />
+                      <Route path="/papers/:id" element={<PaperMapPage />} />
+                      <Route path="/extraction/:id" element={<ExtractionProjectPage />} />
+                      <Route path="/corpus/:id" element={<CorpusDetail />} />
+                      <Route
+                        path="*"
+                        element={
+                          <div>
+                            <h1>Không tìm thấy trang</h1>
+                            <p>Đường dẫn này không tồn tại.</p>
+                          </div>
+                        }
+                      />
+                    </Routes>
+                  </PageEnter>
+                </Suspense>
+              </LlmProvider>
+            </StorageProvider>
+          </ProjectSelectionGate>
+        </main>
+      </div>
+      <CommandPalette />
+    </div>
   );
 }

@@ -37,3 +37,13 @@ it('surfaces project listing errors without accepting a malformed response', asy
   );
   await expect(listResearchHubProjects('access-token')).rejects.toThrow('danh sách project không hợp lệ');
 });
+
+it('prefers the API error message to its machine-readable code', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () =>
+      Response.json({ error: 'bad_request', message: 'Invalid path or method.' }, { status: 400 }),
+    ),
+  );
+  await expect(listResearchHubProjects('access-token')).rejects.toThrow('Invalid path or method.');
+});

@@ -137,9 +137,12 @@ Semantic step 4 adds a consent-gated question panel on `/lab-kg`. It runs genera
 
 ## ResearchHub project integration
 
-Every PaperLab feature requires a ResearchHub `projectId`, an authenticated HyperDataLab SSO session, and
-server-confirmed project access. ResearchHub hands its active session to PaperLab using a state-checked,
-exact-origin `postMessage`; tokens never travel in URLs. Papers, extraction projects, corpora and paper-level
-analysis live in a versioned R2 workspace. Standalone paragraph writing pages are no longer registered in
-PaperLab's navigation while they move to Writing Lab. See [ADR-0007](adr/0007-researchhub-project-workspaces.md)
-and [ADR-0008](adr/0008-mandatory-researchhub-project-and-session-handoff.md).
+PaperLab always uses HyperDataLab SSO and a server-confirmed ResearchHub `projectId` for project-scoped workspaces.
+When an account has no accessible project, users can create one in PaperLab; the Worker proxies the request to
+ResearchHub, which owns the project record and assigns its SSO owner. ResearchHub can also hand its active session
+to PaperLab using a state-checked, exact-origin `postMessage`; tokens never travel in URLs. Papers, extraction
+projects, corpora and paper-level analysis live in a versioned R2 workspace. Standalone paragraph writing pages are
+no longer registered in PaperLab's navigation while they move to Writing Lab. See
+[ADR-0007](adr/0007-researchhub-project-workspaces.md),
+[ADR-0008](adr/0008-mandatory-researchhub-project-and-session-handoff.md), and
+[ADR-0009](adr/0009-dual-auth-scope.md).

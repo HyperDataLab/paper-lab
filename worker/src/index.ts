@@ -117,6 +117,56 @@ async function listOwnedProjects(env: Env, token: string) {
   });
 }
 
+async function createOwnedProject(env: Env, input: { name: string; description: string }, token: string) {
+  const baseUrl = env.RESEARCH_HUB_API_URL?.trim();
+  if (!baseUrl) throw new ResearchHubApiError(503, 'RESEARCH_HUB_API_URL is not configured');
+  let response: Response;
+  try {
+    response = await researchHubRequest(
+      env,
+      '/api/projects',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      },
+      token,
+    );
+  } catch (error) {
+    throw new ResearchHubApiError(
+      502,
+      error instanceof Error ? `ResearchHub request failed: ${error.name}` : 'ResearchHub request failed',
+    );
+  }
+  if (!response.ok) {
+    const body: unknown = await response.json().catch(() => null);
+    const detail =
+      body && typeof body === 'object' && 'error' in body && typeof body.error === 'string'
+        ? body.error.slice(0, 200)
+        : null;
+    throw new ResearchHubApiError(
+      response.status,
+      detail || `ResearchHub project creation failed with HTTP ${response.status}`,
+    );
+  }
+  const result: unknown = await response.json().catch(() => null);
+  if (!result || typeof result !== 'object' || !('project' in result))
+    throw new ResearchHubApiError(502, 'ResearchHub returned an invalid project');
+  const project = result.project;
+  if (
+    !project ||
+    typeof project !== 'object' ||
+    !('id' in project) ||
+    typeof project.id !== 'string' ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(project.id) ||
+    !('name' in project) ||
+    typeof project.name !== 'string' ||
+    !project.name.trim()
+  )
+    throw new ResearchHubApiError(502, 'ResearchHub returned an invalid project');
+  return { id: project.id, name: project.name.trim() };
+}
+
 async function getOwnedProject(env: Env, projectId: string, token: string) {
   const projects = await listOwnedProjects(env, token);
   const project = projects.find((item) => item.id.toLowerCase() === projectId.toLowerCase());
@@ -238,6 +288,7 @@ export default {
         verifyToken: verifyToken(env),
         getOwnedProject: (projectId, token) => getOwnedProject(env, projectId, token),
         listOwnedProjects: (token) => listOwnedProjects(env, token),
+        createOwnedProject: (input, token) => createOwnedProject(env, input, token),
         uploadProjectFile: (projectId, token, fileName, body) =>
           uploadResearchHubFile(env, projectId, token, fileName, body),
         downloadProjectFile: (projectId, fileId, token) =>

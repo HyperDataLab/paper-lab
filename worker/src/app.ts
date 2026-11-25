@@ -61,6 +61,11 @@ export interface Deps extends KgBindings {
   getOwnedProject?: (projectId: string, token: string) => Promise<{ id: string; name: string } | null>;
   /** Lists projects visible to the authenticated ResearchHub account. */
   listOwnedProjects?: (token: string) => Promise<{ id: string; name: string }[]>;
+  /** Creates a ResearchHub project owned by the authenticated SSO identity. */
+  createOwnedProject?: (
+    input: { name: string; description: string },
+    token: string,
+  ) => Promise<{ id: string; name: string }>;
   /** Stores file bytes in the ResearchHub project and returns the ResearchHub file ID. */
   uploadProjectFile?: (
     projectId: string,
@@ -249,7 +254,9 @@ async function labPdf(
 export async function handle(deps: Deps, request: Request): Promise<Response> {
   const headers = cors(request, deps);
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
-  const path = new URL(request.url).pathname;
+  // A configured Worker base URL may end in `/`, producing `//v1/...` when clients append routes.
+  // Normalize duplicate and trailing slashes so valid endpoints do not fall through to the generic handler.
+  const path = new URL(request.url).pathname.replace(/\/{2,}/gu, '/').replace(/\/+$/u, '') || '/';
   const isV1 = path === '/v1' || path.startsWith('/v1/');
   const match = SHA.exec(path);
   const researchHubFileMatch = RESEARCH_HUB_FILE.exec(path);
@@ -283,9 +290,20 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
   const requestedProjectId = headerProjectId || queryProjectId;
   // No project id: lab scope, the global lab store. A project id: that ResearchHub project's scope (ADR 0008).
   const projectId = requestedProjectId ? requestedProjectId.toLowerCase() : null;
-  const listsProjects = path === '/v1/me/projects' && request.method === 'GET';
-  if (listsProjects && caller.kind !== 'sso')
-    return json(403, { error: 'project listing needs HyperDataLab SSO' }, headers);
+  const managesProjects =
+    path === '/v1/me/projects' && (request.method === 'GET' || request.method === 'POST');
+  const listsProjects = managesProjects && request.method === 'GET';
+  const createsProject = managesProjects && request.method === 'POST';
+  if (managesProjects && caller.kind !== 'sso')
+    return json(
+      403,
+      {
+        error: listsProjects
+          ? 'project listing needs HyperDataLab SSO'
+          : 'project creation needs HyperDataLab SSO',
+      },
+      headers,
+    );
   // ResearchHub checks project ownership with the caller's SSO token, so a Firebase token has no project scope.
   if (projectId && caller.kind !== 'sso')
     return json(403, { error: 'project scope needs HyperDataLab SSO' }, headers);
@@ -294,7 +312,7 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(projectId)
   )
     return json(400, { error: 'invalid ResearchHub project id' }, headers);
-  if (projectId && (match || grobidMatch || (isV1 && path !== '/v1/me' && !listsProjects))) {
+  if (projectId && (match || grobidMatch || (isV1 && path !== '/v1/me' && !managesProjects))) {
     if (!deps.getOwnedProject)
       return json(503, { error: 'ResearchHub project access is not configured' }, headers);
     try {
@@ -326,6 +344,41 @@ export async function handle(deps: Deps, request: Request): Promise<Response> {
           return json(200, { items: await deps.listOwnedProjects(token) }, headers);
         } catch {
           return json(502, { error: 'ResearchHub project list unavailable.' }, headers);
+        }
+      }
+      if (createsProject) {
+        if (projectId)
+          return json(400, { error: 'Project creation must not include a project id.' }, headers);
+        if (!deps.createOwnedProject)
+          return json(503, { error: 'ResearchHub project creation is not configured.' }, headers);
+        let value: unknown;
+        try {
+          value = await request.json();
+        } catch {
+          return json(400, { error: 'Project details must be valid JSON.' }, headers);
+        }
+        if (!value || typeof value !== 'object' || Array.isArray(value))
+          return json(400, { error: 'Project details are invalid.' }, headers);
+        const body = value as Record<string, unknown>;
+        const name = typeof body.name === 'string' ? body.name.trim() : '';
+        const description = body.description === undefined ? '' : body.description;
+        if (
+          Object.keys(body).some((key) => key !== 'name' && key !== 'description') ||
+          !name ||
+          name.length > 120 ||
+          typeof description !== 'string' ||
+          description.trim().length > 1000
+        )
+          return json(400, { error: 'Project name or description is invalid.' }, headers);
+        try {
+          const project = await deps.createOwnedProject({ name, description: description.trim() }, token);
+          return json(201, { project }, headers);
+        } catch (cause) {
+          return json(
+            errorStatus(cause),
+            { error: 'ResearchHub project creation failed.', message: safeErrorDetail(cause) },
+            headers,
+          );
         }
       }
       if (path === '/v1/researchhub/files' && request.method === 'GET') {

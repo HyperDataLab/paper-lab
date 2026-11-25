@@ -1,6 +1,5 @@
-// ADR 0008: the Firebase build signs in with Google and works in lab scope; the SSO build works in a ResearchHub
-// project. Both send their own token to the worker, and only the SSO build sends a project id.
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+// The PaperLab SPA always signs in through SSO; the Worker keeps Firebase compatibility for lab integrations.
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthContext, type AuthValue } from '@/shared/auth/authContext';
@@ -10,44 +9,8 @@ import { LAB_SCOPE, projectHeader } from '@/shared/scope';
 import { StorageProvider, useHubProjectId } from '@/shared/storage/StorageProvider';
 import { App } from './App';
 
-const firebase = vi.hoisted(() => {
-  const state = {
-    user: null as null | {
-      uid: string;
-      email: string;
-      displayName: string;
-      getIdToken: () => Promise<string>;
-    },
-  };
-  const auth = {
-    get currentUser() {
-      return state.user;
-    },
-  };
-  return { state, auth };
-});
-
-vi.mock('@/shared/auth/config', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/shared/auth/config')>()),
-  AUTH_MODE: 'firebase',
-}));
 // The paper workspace is not under test here, and its devtools import is heavy.
 vi.mock('@/modules/paper-import/PaperMapPage', () => ({ default: () => null }));
-vi.mock('firebase/app', () => ({ getApps: () => [], initializeApp: () => ({}) }));
-vi.mock('firebase/auth', () => ({
-  initializeAuth: () => firebase.auth,
-  browserLocalPersistence: {},
-  browserPopupRedirectResolver: {},
-  onAuthStateChanged: (_auth: unknown, next: (user: unknown) => void) => {
-    next(firebase.state.user);
-    return () => {};
-  },
-  GoogleAuthProvider: class {
-    setCustomParameters() {}
-  },
-  signInWithPopup: vi.fn(async () => ({ user: firebase.state.user })),
-  signOut: vi.fn(async () => {}),
-}));
 
 const PROJECT_ID = '00000000-0000-4000-8000-000000000101';
 const workerCalls = (fetchMock: ReturnType<typeof vi.fn>) =>
@@ -59,17 +22,16 @@ const workerCalls = (fetchMock: ReturnType<typeof vi.fn>) =>
     .filter(({ url }) => url.includes(PDF_WORKER_URL));
 
 afterEach(() => {
-  firebase.state.user = null;
   vi.unstubAllGlobals();
 });
 
 describe('auth mode selection', () => {
-  it('follows VITE_AUTH_MODE, else SSO when an SSO client id is set, else Firebase', () => {
-    expect(resolveAuthMode('firebase', 'client')).toBe('firebase');
+  it('always uses SSO regardless of environment and legacy mode values', () => {
+    expect(resolveAuthMode('firebase', 'client')).toBe('sso');
     expect(resolveAuthMode('sso', '')).toBe('sso');
     expect(resolveAuthMode(undefined, 'client')).toBe('sso');
-    expect(resolveAuthMode(undefined, '')).toBe('firebase');
-    expect(resolveAuthMode('other', undefined)).toBe('firebase');
+    expect(resolveAuthMode(undefined, '')).toBe('sso');
+    expect(resolveAuthMode('other', undefined)).toBe('sso');
   });
 
   it('sends a project id only for a project scope', () => {
@@ -83,47 +45,15 @@ describe('auth mode selection', () => {
   });
 });
 
-describe('Firebase build (lab scope)', () => {
-  it('asks for a Google sign-in, not a ResearchHub project', async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-    const { signInWithPopup } = await import('firebase/auth');
-    render(
-      <MemoryRouter initialEntries={['/?projectId=00000000-0000-4000-8000-000000000101']}>
-        <App />
-      </MemoryRouter>,
-    );
-    expect(await screen.findByRole('heading', { name: 'Cần đăng nhập tài khoản lab' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập bằng Google' }));
-    await waitFor(() => expect(signInWithPopup).toHaveBeenCalled());
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('signed in, sends the Firebase ID token and no project id to the worker', async () => {
-    firebase.state.user = {
-      uid: 'firebase-uid',
-      email: 'member@hyperdatalab.org',
-      displayName: 'Member',
-      getIdToken: async () => 'firebase-id-token',
-    };
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
-      String(input).endsWith('/v1/me')
-        ? Response.json({ email: 'member@hyperdatalab.org', admin: false })
-        : Response.json({ items: [], cursor: null }),
-    );
-    vi.stubGlobal('fetch', fetchMock);
+describe('PaperLab SSO entry', () => {
+  it('asks for SSO on a standalone route instead of falling back to Google sign-in', async () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <App />
       </MemoryRouter>,
     );
-    await waitFor(() => expect(workerCalls(fetchMock).some(({ url }) => url.endsWith('/v1/me'))).toBe(true));
-    const calls = workerCalls(fetchMock);
-    for (const { url, headers } of calls) {
-      expect(headers.get('Authorization')).toBe('Bearer firebase-id-token');
-      expect(headers.has('X-Project-Id')).toBe(false);
-      expect(new URL(url, window.location.origin).searchParams.has('projectId')).toBe(false);
-    }
+    expect(await screen.findByRole('heading', { name: 'Đăng nhập vào PaperLab' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Đăng nhập SSO' })).toBeInTheDocument();
   });
 });
 
