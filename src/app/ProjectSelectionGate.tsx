@@ -1,11 +1,15 @@
-import { ArrowRight, FolderKanban, LogIn, RefreshCw } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { ArrowRight, FolderKanban, LogIn, LoaderCircle, RefreshCw } from 'lucide-react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/shared/auth/authContext';
-import { AUTH_MODE, RESEARCH_HUB_URL } from '@/shared/auth/config';
-import { listResearchHubProjects, type ResearchHubProject } from '@/shared/pdfStore/researchHubProjects';
+import {
+  createResearchHubProject,
+  listResearchHubProjects,
+  type ResearchHubProject,
+} from '@/shared/pdfStore/researchHubProjects';
 import { Button } from '@/shared/ui/Button';
 import { Loading } from '@/shared/ui/StateNote';
+import { TextField } from '@/shared/ui/TextField';
 import styles from './projectSelection.module.css';
 
 type ProjectListState = { userId: string; items: ResearchHubProject[] };
@@ -18,18 +22,32 @@ export function ProjectSelectionGate({
   projectId: string | null;
   children: ReactNode;
 }) {
-  const { user, ready, error: authError, signIn, signOut, getAccessToken, getIdToken } = useAuth();
+  const {
+    mode = 'sso',
+    user,
+    ready,
+    error: authError,
+    signIn,
+    signOut,
+    getAccessToken,
+    getIdToken,
+  } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [projectList, setProjectList] = useState<ProjectListState | null>(null);
   const [projectError, setProjectError] = useState<ProjectListError | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+  const [projectName, setProjectName] = useState('');
+  const [projectDescription, setProjectDescription] = useState('');
+  const [creatingProject, setCreatingProject] = useState(false);
+  const [createError, setCreateError] = useState('');
   const projects = user && projectList && projectList.userId === user.uid ? projectList.items : null;
   const error = user && projectError && projectError.userId === user.uid ? projectError.message : '';
   const loading = Boolean(user && !projects && !error);
+  const hasNoProjects = projects?.length === 0;
 
   useEffect(() => {
-    if (AUTH_MODE === 'firebase' || projectId || !user || !ready) return;
+    if (mode === 'firebase' || projectId || !user || !ready) return;
     const controller = new AbortController();
     void (async () => {
       const token = getAccessToken ? await getAccessToken() : await getIdToken();
@@ -48,9 +66,9 @@ export function ProjectSelectionGate({
       }
     });
     return () => controller.abort();
-  }, [getAccessToken, getIdToken, projectId, ready, retryKey, user]);
+  }, [getAccessToken, getIdToken, mode, projectId, ready, retryKey, user]);
 
-  if (AUTH_MODE === 'firebase') return children;
+  if (mode === 'firebase') return children;
   if (projectId) return children;
   if (!ready) return <Loading label="Đang kiểm tra phiên đăng nhập…" />;
 
@@ -67,20 +85,52 @@ export function ProjectSelectionGate({
     navigate(`${location.pathname}?${query.toString()}${location.hash}`, { replace: true });
   }
 
+  async function handleCreateProject(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user || creatingProject) return;
+    const name = projectName.trim();
+    const description = projectDescription.trim();
+    if (!name || name.length > 120 || description.length > 1000) {
+      setCreateError('Tên project cần từ 1 đến 120 ký tự; mô tả tối đa 1000 ký tự.');
+      return;
+    }
+    setCreatingProject(true);
+    setCreateError('');
+    try {
+      const token = getAccessToken ? await getAccessToken() : await getIdToken();
+      if (!token) throw new Error('Phiên SSO không hợp lệ. Hãy đăng nhập lại rồi thử lần nữa.');
+      const project = await createResearchHubProject(token, { name, description });
+      choose(project);
+    } catch (cause) {
+      setCreateError(cause instanceof Error ? cause.message : 'Không tạo được project ResearchHub.');
+    } finally {
+      setCreatingProject(false);
+    }
+  }
+
   return (
     <div className={styles.page}>
       <section className={styles.panel} aria-labelledby="project-selection-title">
-        <div className={styles.icon} aria-hidden="true">
-          <FolderKanban size={21} />
-        </div>
         <div className={styles.content}>
-          <p className={styles.eyebrow}>RESEARCHHUB</p>
-          <h1 id="project-selection-title">{user ? 'Chọn project để tiếp tục' : 'Đăng nhập vào PaperLab'}</h1>
+          <div className={styles.brandRow}>
+            <FolderKanban size={18} aria-hidden="true" />
+            <span>ResearchHub</span>
+          </div>
+          <h1 id="project-selection-title">
+            {!user
+              ? 'Đăng nhập vào PaperLab'
+              : hasNoProjects
+                ? 'Tạo project đầu tiên'
+                : 'Chọn project để tiếp tục'}
+          </h1>
           <p className={styles.intro}>
-            {user
-              ? `Đang đăng nhập bằng ${user.email}. Chọn một project bạn có quyền truy cập để mở workspace.`
-              : 'Đăng nhập bằng HyperDataLab SSO. Sau khi xác thực, PaperLab sẽ tải danh sách project bạn được phép mở.'}
+            {!user
+              ? 'Đăng nhập bằng HyperDataLab SSO để mở workspace nghiên cứu.'
+              : hasNoProjects
+                ? 'Project được lưu trong ResearchHub và mở ngay trong PaperLab.'
+                : 'Chọn một project bạn có quyền truy cập để mở workspace.'}
           </p>
+          {user && <p className={styles.accountEmail}>{user.email}</p>}
           {!user ? (
             <div className={styles.actions}>
               <Button variant="primary" leadingIcon={<LogIn size={16} />} onClick={() => void signIn()}>
@@ -94,11 +144,15 @@ export function ProjectSelectionGate({
             </div>
           ) : (
             <>
-              {loading && <Loading label="Đang tải project được cấp quyền…" />}
+              {loading && (
+                <div className={styles.status}>
+                  <Loading label="Đang tải danh sách project…" />
+                </div>
+              )}
               {error && (
-                <div className={styles.errorPanel} role="alert">
-                  <p>{error}</p>
-                  <div className={styles.actions}>
+                <div className={styles.errorState} role="alert">
+                  <p className={styles.error}>{error}</p>
+                  <div className={styles.statusActions}>
                     <Button leadingIcon={<RefreshCw size={15} />} onClick={retry}>
                       Tải lại danh sách
                     </Button>
@@ -108,42 +162,83 @@ export function ProjectSelectionGate({
                   </div>
                 </div>
               )}
-              {!loading && !error && projects?.length === 0 && (
+              {!loading && !error && hasNoProjects && (
                 <div className={styles.empty}>
-                  <strong>Tài khoản chưa có project khả dụng</strong>
-                  <p>Tạo project hoặc xin quyền truy cập trong ResearchHub, sau đó tải lại danh sách.</p>
-                  <div className={styles.actions}>
-                    {RESEARCH_HUB_URL && (
-                      <a className={styles.link} href={RESEARCH_HUB_URL}>
-                        Mở ResearchHub <ArrowRight size={14} aria-hidden="true" />
-                      </a>
+                  <form
+                    className={styles.createProjectForm}
+                    onSubmit={(event) => void handleCreateProject(event)}
+                  >
+                    <TextField
+                      label="Tên project"
+                      value={projectName}
+                      onChange={(event) => setProjectName(event.currentTarget.value)}
+                      placeholder="Ví dụ: Tổng quan tài liệu về học thích ứng"
+                      maxLength={120}
+                      required
+                      controlClassName={styles.projectNameInput}
+                    />
+                    <TextField
+                      label="Mô tả"
+                      labelAction={<span className={styles.optional}>Không bắt buộc</span>}
+                      multiline
+                      rows={4}
+                      value={projectDescription}
+                      onChange={(event) => setProjectDescription(event.currentTarget.value)}
+                      placeholder="Mục tiêu hoặc phạm vi nghiên cứu"
+                      maxLength={1000}
+                      controlClassName={styles.projectDescription}
+                    />
+                    {createError && (
+                      <p className={styles.error} role="alert">
+                        {createError}
+                      </p>
                     )}
-                    <Button onClick={retry}>Tải lại danh sách</Button>
-                  </div>
+                    <div className={styles.formFooter}>
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        onClick={retry}
+                        disabled={creatingProject}
+                        leadingIcon={<RefreshCw size={15} />}
+                      >
+                        Tải lại danh sách
+                      </Button>
+                      <Button
+                        className={styles.createButton}
+                        variant="primary"
+                        type="submit"
+                        disabled={creatingProject || !projectName.trim()}
+                        leadingIcon={
+                          creatingProject ? <LoaderCircle className={styles.spinner} size={16} /> : undefined
+                        }
+                      >
+                        {creatingProject ? 'Đang tạo project…' : 'Tạo project và mở PaperLab'}
+                      </Button>
+                    </div>
+                  </form>
                 </div>
               )}
               {!loading && !error && !!projects?.length && (
                 <div className={styles.projectList} aria-label="Project ResearchHub của bạn">
                   <div className={styles.listHeading}>
-                    <span>Project có thể truy cập</span>
-                    <span className={styles.projectCount}>
-                      {projects.length} {projects.length === 1 ? 'project' : 'projects'}
-                    </span>
+                    <span>Project của bạn</span>
                   </div>
                   {projects.map((project) => (
-                    <Button key={project.id} className={styles.project} onClick={() => choose(project)}>
+                    <Button
+                      key={project.id}
+                      className={styles.project}
+                      aria-label={`Mở project ${project.name}`}
+                      onClick={() => choose(project)}
+                    >
                       <span className={styles.projectIcon} aria-hidden="true">
                         <FolderKanban size={17} />
                       </span>
                       <span className={styles.projectText}>
                         <strong>{project.name}</strong>
-                        <small>ID · {project.id}</small>
                       </span>
                       <span className={styles.projectAction}>
                         <span>Mở project</span>
-                        <span className={styles.arrow} aria-hidden="true">
-                          <ArrowRight size={16} />
-                        </span>
+                        <ArrowRight size={16} aria-hidden="true" />
                       </span>
                     </Button>
                   ))}
