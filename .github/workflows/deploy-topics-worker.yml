@@ -37,7 +37,7 @@ jobs:
       - run: npm test
       - name: Python helper tests (no model, no torch)
         working-directory: topics-worker/topics
-        run: pip install -q pytest==8.4.2 && python -m pytest -q test_helpers.py test_job_helpers.py test_abstracts.py
+        run: pip install -q pytest==8.4.2 scikit-learn==1.9.1 && python -m pytest -q test_helpers.py test_job_helpers.py test_abstracts.py test_validation.py test_vectorizer.py
       - name: spaCy voice/tense tests (rules, then the pinned en_core_web_sm model)
         working-directory: topics-worker/nlp
         # Load the model first, so a broken install fails here instead of skipping test_syntax_model.py.

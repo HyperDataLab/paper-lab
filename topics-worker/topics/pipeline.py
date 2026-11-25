@@ -4,6 +4,7 @@ import datetime as dt
 import time
 from abstracts import fetch_texts
 from helpers import stability, map_members, percentile, top_subfields, topic_fit
+from validation import build_topic_vectorizer, validate_usable_members
 import uuid
 from collections import Counter
 
@@ -12,7 +13,6 @@ from bertopic.representation import KeyBERTInspired
 from hdbscan import HDBSCAN
 from keybert import KeyBERT
 from sentence_transformers import SentenceTransformer
-from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS, CountVectorizer
 from sklearn.metrics import normalized_mutual_info_score
 from umap import UMAP
 
@@ -37,16 +37,15 @@ PARAMS = {"umap_neighbors": 15, "umap_components": 5, "hdbscan_min_cluster": 6, 
           "weak_fit_percentile": 0.10, "weak_method": "centroid-cosine", "outlier_strategy": "embeddings"}
 
 
-def fit(docs, emb, seed, model):
-    vectorizer = CountVectorizer(stop_words=list(ENGLISH_STOP_WORDS | DOMAIN_STOP),
-                                 ngram_range=(1, PARAMS["ngram_max"]), min_df=2)
+def fit(docs, emb, seed, model, params):
+    vectorizer = build_topic_vectorizer(docs, params["ngram_max"], DOMAIN_STOP)
     tm = BERTopic(
         embedding_model=model,
-        umap_model=UMAP(n_neighbors=PARAMS["umap_neighbors"], n_components=PARAMS["umap_components"], min_dist=0.0,
+        umap_model=UMAP(n_neighbors=params["umap_neighbors"], n_components=params["umap_components"], min_dist=0.0,
                         metric="cosine", random_state=seed),
-        hdbscan_model=HDBSCAN(min_cluster_size=PARAMS["hdbscan_min_cluster"],
-                              min_samples=PARAMS["hdbscan_min_samples"], metric="euclidean",
-                              cluster_selection_method=PARAMS["hdbscan_selection"], prediction_data=True),
+        hdbscan_model=HDBSCAN(min_cluster_size=params["hdbscan_min_cluster"],
+                              min_samples=params["hdbscan_min_samples"], metric="euclidean",
+                              cluster_selection_method=params["hdbscan_selection"], prediction_data=True),
         vectorizer_model=vectorizer, representation_model=KeyBERTInspired(), calculate_probabilities=True)
     topics, probs = tm.fit_transform(docs, emb)
     raw = list(topics)
@@ -66,17 +65,28 @@ def run(payload, progress=lambda text: print(text, flush=True)):
         m["textUsed"] = "abstract" if len((m.get("abstract") or "").split()) >= 40 else (
             "title-only" if m["title"] else "none")
     usable = [m for m in members if m["textUsed"] != "none"]
+    usable = validate_usable_members(usable, PARAMS["hdbscan_min_cluster"])
     docs = [f"{m['title']}. {m.get('abstract') or ''}".strip() if m["textUsed"] == "abstract"
             else m["title"] for m in usable]
+
+    # Small corpora need a lower UMAP neighbourhood and embedding dimension; fixed defaults
+    # make UMAP's spectral initialisation fail when there are only a few usable papers.
+    params = {
+        **PARAMS,
+        "umap_neighbors": min(PARAMS["umap_neighbors"], len(docs) - 1),
+        "umap_components": min(PARAMS["umap_components"], len(docs) - 2),
+        "hdbscan_min_cluster": min(PARAMS["hdbscan_min_cluster"], len(docs)),
+        "hdbscan_min_samples": min(PARAMS["hdbscan_min_samples"], len(docs) - 1),
+    }
 
     t0 = time.perf_counter()
     progress("Embedding documents")
     model = SentenceTransformer(MODEL)
     emb = model.encode(docs, batch_size=32, show_progress_bar=False)
     progress("Clustering seed 42")
-    tm, raw, topics, probs = fit(docs, emb, args.seed, model)
+    tm, raw, topics, probs = fit(docs, emb, args.seed, model, params)
     progress("Clustering seed 7")
-    _, _, topics2, _ = fit(docs, emb, args.seed2, model)
+    _, _, topics2, _ = fit(docs, emb, args.seed2, model, params)
     progress("Keyphrases")
     keys = KeyBERT(model=model).extract_keywords(
         docs, keyphrase_ngram_range=(1, PARAMS["keybert_ngram_max"]),
@@ -138,7 +148,7 @@ def run(payload, progress=lambda text: print(text, flush=True)):
         "format": "paperlab-corpus-topics", "schemaVersion": 1, "snapshotId": str(uuid.uuid4()),
         "createdAt": utc_now(), "corpora": corpora,
         "pipeline": {"tag": f"bertopic-{_bt.__version__}+keybert-{_kb.__version__}", "embeddingModel": MODEL,
-                     "parameters": PARAMS, "seed": args.seed, "textSource": "abstract",
+        "parameters": params, "seed": args.seed, "textSource": "abstract",
                      **({"openalexFetchedAt": fetched_at} if fetched_at else {})},
         "quality": quality, "topics": out_topics, "members": out_members,
     }

@@ -65,11 +65,34 @@ interface Env {
   TOPICS: Parameters<typeof getContainer>[0];
   NLP: Parameters<typeof getContainer>[0];
   DATA: Deps['data'];
+  RESEARCH_HUB: { fetch(request: Request): Promise<Response> };
+  RESEARCH_HUB_API_URL?: string;
   FIREBASE_PROJECT_ID: string;
   ACCEPTED_PROJECT_IDS?: string;
   SSO_BASE_URL: string;
   ALLOWED_DOMAIN: string;
   ALLOWED_ORIGINS: string;
+}
+
+async function getOwnedProject(env: Env, projectId: string, token: string) {
+  const baseUrl = env.RESEARCH_HUB_API_URL?.trim();
+  if (!baseUrl) throw new Error('RESEARCH_HUB_API_URL is not configured');
+  const response = await env.RESEARCH_HUB.fetch(
+    new Request(new URL('/api/projects', baseUrl), { headers: { Authorization: `Bearer ${token}` } }),
+  );
+  if (!response.ok) throw new Error(`ResearchHub project access returned HTTP ${response.status}`);
+  const result: unknown = await response.json().catch(() => null);
+  if (!result || typeof result !== 'object' || !('items' in result) || !Array.isArray(result.items))
+    throw new Error('ResearchHub returned an invalid project list');
+  const project = result.items.find(
+    (item: unknown) =>
+      typeof item === 'object' &&
+      item !== null &&
+      'id' in item &&
+      typeof item.id === 'string' &&
+      item.id.toLowerCase() === projectId.toLowerCase(),
+  );
+  return project ? { id: projectId, name: 'ResearchHub project' } : null;
 }
 // A Worker's fetch goes through Cloudflare's cache, which keeps Google's key set for its ~7 h max-age; after a key
 // rotation every newly signed token would fail. jose already caches the keys in the isolate.
@@ -101,6 +124,7 @@ export default {
       data: env.DATA,
       origins: env.ALLOWED_ORIGINS.split(',').map((s) => s.trim()),
       verify: verifyToken(env),
+      getOwnedProject: (projectId, token) => getOwnedProject(env, projectId, token),
       container: (path, init) => getContainer(env.TOPICS).fetch(`http://container${path}`, init),
       nlp: (path, init) => getContainer(env.NLP).fetch(`http://container${path}`, init),
       refresh: async (jobId) => {

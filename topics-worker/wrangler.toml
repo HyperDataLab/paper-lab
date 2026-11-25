@@ -11,12 +11,18 @@ account_id = "124949a79dc6c5894bc492942593cb51"
 FIREBASE_PROJECT_ID = "hyperdatalab-paragraph-lab"
 ACCEPTED_PROJECT_IDS = "hyperdatalab-paragraph-lab,hyperdatalab-writing-bank,hyperdatalab-idea2hypo"
 SSO_BASE_URL = "https://rpr-grobid-gateway.hpl-storage.workers.dev"
+RESEARCH_HUB_API_URL = "https://research-hub-files.hyperdatalab.workers.dev"
 ALLOWED_DOMAIN = "hyperdatalab.org"
 ALLOWED_ORIGINS = "https://hyperdatalab-paragraph-lab.web.app,https://hyperdatalab-paragraph-lab.firebaseapp.com,https://paperlab.hyperdatalab.org,https://hyperdatalab-writing-bank.web.app,https://hyperdatalab-writing-bank.firebaseapp.com,https://hyperdatalab-idea2hypo.web.app,https://hyperdatalab-idea2hypo.firebaseapp.com,http://localhost:5173,http://localhost:5174"
 
 [[r2_buckets]]
 binding = "BUCKET"
 bucket_name = "paper-fetch"
+
+[[services]]
+binding = "RESEARCH_HUB"
+service = "research-hub-files"
+remote = true
 
 [[d1_databases]]
 binding = "DATA"

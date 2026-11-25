@@ -9,11 +9,12 @@ export interface Deps {
   bucket: Bucket;
   data: {
     prepare(sql: string): {
-      bind(id: string): { first<T>(): Promise<T | null> };
+      bind(...values: (string | null)[]): { first<T>(): Promise<T | null> };
     };
   };
   origins: string[];
   verify(token: string): Promise<unknown>;
+  getOwnedProject?(projectId: string, token: string): Promise<{ id: string; name: string } | null>;
   container(path: string, init?: RequestInit): Promise<Response>;
   schedule(jobId: string): Promise<void>;
   refresh?(jobId: string): Promise<void>;
@@ -29,15 +30,29 @@ const idPattern = new RegExp(`^${uuid}$`, 'i');
 const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-async function loadCorpus({ data, bucket }: Deps, id: string): Promise<{ body: unknown } | null> {
+const physicalCorpusId = (projectId: string | null, id: string) =>
+  projectId ? `@rh/${projectId}/${id}` : id;
+const topicSnapshotKey = (projectId: string | null, id: string) =>
+  projectId
+    ? `paperlab/projects/${projectId}/corpora-topics/${id}.json`
+    : `paperlab/corpora-topics/${id}.json`;
+
+async function loadCorpus(
+  { data, bucket }: Deps,
+  id: string,
+  projectId: string | null,
+): Promise<{ body: unknown } | null> {
   const row = await data
-    .prepare("SELECT body_json, r2_key, deleted_at FROM doc WHERE collection = 'corpora' AND id = ?")
-    .bind(id)
+    .prepare(
+      "SELECT body_json, r2_key, deleted_at FROM doc WHERE collection = 'corpora' AND id = ? AND hub_project_id IS ?",
+    )
+    .bind(physicalCorpusId(projectId, id), projectId)
     .first<{ body_json: string | null; r2_key: string | null; deleted_at: string | null }>();
   // A tombstone also takes precedence over any legacy object.
   if (row?.deleted_at != null) return null;
   if (row?.body_json != null) return { body: JSON.parse(row.body_json) as unknown };
-  const key = row ? row.r2_key : `paperlab/corpora/${id}`;
+  // The legacy key belongs to lab scope only. Never let a project request fall back to unscoped corpus data.
+  const key = row ? row.r2_key : projectId ? null : `paperlab/corpora/${id}`;
   const stored = key === null ? null : await bucket.get(key);
   return stored ? { body: (await new Response(stored.body).json()) as unknown } : null;
 }
@@ -48,7 +63,8 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
   if (origin && deps.origins.includes(origin)) {
     headers['Access-Control-Allow-Origin'] = origin;
     headers['Access-Control-Allow-Methods'] = 'GET, HEAD, PUT, POST';
-    headers['Access-Control-Allow-Headers'] = 'authorization, content-type, if-match, if-none-match';
+    headers['Access-Control-Allow-Headers'] =
+      'authorization, content-type, if-match, if-none-match, x-project-id';
     headers['Access-Control-Max-Age'] = '3600';
   }
   const json = (status: number, value: unknown, extra: Record<string, string> = {}) =>
@@ -72,12 +88,33 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
       if (!deps.nlp) return json(404, { error: 'nlp not configured' });
       return await parseNlp(request, deps.nlp, json, deps.sleep ?? defaultSleep);
     }
+    const headerProjectId = request.headers.get('X-Project-Id')?.trim() ?? '';
+    const queryProjectId = new URL(request.url).searchParams.get('projectId')?.trim() ?? '';
+    if (headerProjectId && queryProjectId && headerProjectId.toLowerCase() !== queryProjectId.toLowerCase())
+      return json(400, { error: 'conflicting ResearchHub project ids' });
+    const requestedProjectId = headerProjectId || queryProjectId;
+    if (requestedProjectId && !idPattern.test(requestedProjectId))
+      return json(400, { error: 'invalid ResearchHub project id' });
+    const projectId = requestedProjectId ? requestedProjectId.toLowerCase() : null;
+    if (projectId) {
+      if (!deps.getOwnedProject) return json(503, { error: 'ResearchHub project access is not configured' });
+      try {
+        if (!(await deps.getOwnedProject(projectId, token)))
+          return json(404, { error: 'ResearchHub project not found' });
+      } catch (error) {
+        console.error(
+          'ResearchHub project access check failed',
+          error instanceof Error ? error.message : String(error),
+        );
+        return json(502, { error: 'ResearchHub project access could not be verified' });
+      }
+    }
     const corpusId = match[1] as string;
     const jobId = match[2];
     const isRun = path.endsWith('/run') || Boolean(jobId);
     if (!isRun) {
       if (request.method !== 'GET') return json(405, { error: 'method not allowed' });
-      const stored = await deps.bucket.get(`paperlab/corpora-topics/${corpusId}.json`);
+      const stored = await deps.bucket.get(topicSnapshotKey(projectId, corpusId));
       return stored
         ? new Response(stored.body, { headers: { ...headers, 'Content-Type': 'application/json' } })
         : json(404, { error: 'not stored' });
@@ -109,8 +146,9 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
       if (new Set(ids).size !== ids.length) return json(400, { error: 'duplicate corpus' });
       const corpora = [];
       const members = [];
+      let analyzableMembers = 0;
       for (const id of ids) {
-        const stored = await loadCorpus(deps, id);
+        const stored = await loadCorpus(deps, id, projectId);
         if (!stored) return json(404, { error: 'corpus not stored' });
         const corpus = stored.body;
         if (
@@ -127,17 +165,25 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
           ...(corpus.releaseId ? { releaseId: corpus.releaseId } : {}),
         });
         for (const m of corpus.members) {
-          if (!object(m)) return json(400, { error: 'invalid member' });
+          if (!object(m) || typeof m.memberId !== 'string') return json(400, { error: 'invalid member' });
           const identifiers = object(m.identifiers) ? m.identifiers : {};
+          const title = typeof m.title === 'string' ? m.title.trim() : '';
+          const openalexId = typeof identifiers.openalexId === 'string' ? identifiers.openalexId.trim() : '';
+          const doi = typeof identifiers.doi === 'string' ? identifiers.doi.trim() : '';
+          if (title || openalexId || doi) analyzableMembers += 1;
           members.push({
             corpusId: id,
             memberId: m.memberId,
-            title: m.title ?? '',
-            openalexId: identifiers.openalexId ?? null,
-            doi: identifiers.doi ?? null,
+            title,
+            openalexId: openalexId || null,
+            doi: doi || null,
           });
         }
       }
+      if (analyzableMembers < 6)
+        return json(422, {
+          error: 'At least 6 papers with a title or DOI/OpenAlex identifier are required to calculate topics',
+        });
       // A container that is starting or stopping answers with plain text ("Container ..."), not JSON: wait and
       // try again for about half a minute before asking the client to retry.
       const payload = JSON.stringify({ corpora, members });
@@ -175,6 +221,7 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
       const record = {
         jobId: value.jobId,
         corpusIds: ids,
+        projectId,
         startedAt: now,
         updatedAt: now,
         state: 'queued',
@@ -187,7 +234,8 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
     }
     if (request.method !== 'GET') return json(405, { error: 'method not allowed' });
     let record = await readJob(deps.bucket, jobId);
-    if (!record || !record.corpusIds.includes(corpusId)) return json(404, { error: 'job not found' });
+    if (!record || record.projectId !== projectId || !record.corpusIds.includes(corpusId))
+      return json(404, { error: 'job not found' });
     if (deps.refresh && record.state !== 'done' && record.state !== 'failed') {
       try {
         await deps.refresh(jobId);
@@ -206,6 +254,7 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
 export interface JobRecord {
   jobId: string;
   corpusIds: string[];
+  projectId: string | null;
   startedAt: string;
   updatedAt: string;
   state: string;
@@ -293,7 +342,7 @@ export async function refreshJob(
         return false;
       }
       for (const id of job.corpusIds)
-        await bucket.put(`paperlab/corpora-topics/${id}.json`, JSON.stringify(snapshot), {
+        await bucket.put(topicSnapshotKey(job.projectId ?? null, id), JSON.stringify(snapshot), {
           httpMetadata: { contentType: 'application/json' },
         });
       next.snapshotId = snapshot.snapshotId;
