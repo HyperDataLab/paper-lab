@@ -13,9 +13,9 @@ browser's unauthenticated CORS preflight.
 - Client in `shared/llm`: send the JSON schema both in `response_format` and in the prompt; validate with Zod;
   one repair round on failure; typed errors.
 - Dev: Vite proxy `/llm` -> `LLM_PROXY_TARGET`, adding `Authorization: Bearer $LLM_PROXY_API_KEY` server-side.
-- Production: `VITE_LLM_BASE_URL` is the CORS Cloudflare Worker in front of 9router (the worker source lives in
-  the paper-understanding repo, `docs/9router-cors-worker.js`; add this app's Hosting origins to `ALLOWED_ORIGINS`).
-  The user enters the key in Settings; stored in `localStorage` only.
+- Production project scope: configured 9router hosts are relayed through the authenticated Writing Lab Worker at
+  `/v1/llm/chat/completions`. It allows the PaperLab origin, validates the ResearchHub session and project, and
+  forwards the user-entered key in a header without logging it. Lab scope continues through the PaperLab Worker.
 - Model from `VITE_LLM_MODEL`, overridable in Settings. Prompt/model versions stored on every analysis.
 - Every call is gated on recorded privacy consent (version + provider).
 

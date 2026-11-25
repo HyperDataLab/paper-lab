@@ -9,7 +9,8 @@ const settingsSchema = z.object({
 export const criticModelFor = (config: LlmConfig) => config.criticModel?.trim() || config.model;
 export const SETTINGS_KEY = 'pl.llm.settings';
 export const KEY_KEY = 'pl.llm.key';
-const PRODUCTION_LLM_BASE_URL = 'https://paper-understanding-cors.nguyenquocan1010.workers.dev/v1';
+const PRODUCTION_LLM_BASE_URL = 'https://9router.oraltest.site/v1';
+const LEGACY_CORS_WORKER_HOST = 'paper-understanding-cors.nguyenquocan1010.workers.dev';
 
 export function defaultConfig(): LlmConfig {
   const configuredBaseUrl = import.meta.env.VITE_LLM_BASE_URL || '/llm';
@@ -48,12 +49,22 @@ export function getConfig(): LlmConfig {
   try {
     const parsed = settingsSchema.safeParse(JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null'));
     const settings = parsed.success ? parsed.data : defaults;
-    // Migrate old production settings saved as `/llm`; that path exists only on the Vite dev server.
+    // Production uses the authenticated PaperLab Worker relay, not the external CORS Worker.
     const baseUrl =
-      !import.meta.env.DEV && isProxyBaseUrl(settings.baseUrl) ? defaults.baseUrl : settings.baseUrl;
+      !import.meta.env.DEV &&
+      (isProxyBaseUrl(settings.baseUrl) || isLegacyCorsWorkerUrl(settings.baseUrl))
+        ? defaults.baseUrl
+        : settings.baseUrl;
     return { ...settings, baseUrl, key: localStorage.getItem(KEY_KEY) || undefined };
   } catch {
     return defaults;
+  }
+}
+function isLegacyCorsWorkerUrl(value: string): boolean {
+  try {
+    return new URL(value).hostname.toLowerCase() === LEGACY_CORS_WORKER_HOST;
+  } catch {
+    return false;
   }
 }
 export function saveConfig(config: LlmConfig): void {
