@@ -13,6 +13,7 @@ from bertopic.representation import KeyBERTInspired
 from hdbscan import HDBSCAN
 from keybert import KeyBERT
 from sentence_transformers import SentenceTransformer
+from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 from sklearn.metrics import normalized_mutual_info_score
 from umap import UMAP
 
